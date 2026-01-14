@@ -1,9 +1,10 @@
-import { Timer, Target, Zap, Usb, Swords, LogIn, LogOut, Crown, User, Settings } from 'lucide-react';
+import { Timer, Target, Zap, Usb, Swords, LogIn, LogOut, Crown, User, Settings, Volume2, VolumeX } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import logo from '@/assets/logo-desafio-relampago.png';
 import { SerialStatus } from './SerialStatus';
 import { UseSerialPortReturn } from '@/types/serial';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSound } from '@/contexts/SoundContext';
 import { Button } from '@/components/ui/button';
 import type { GameMode } from '@/types/game';
 
@@ -14,9 +15,23 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   const { user, isAdmin, subscription, signOut } = useAuth();
+  const { isMuted, toggleMute } = useSound();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
+      {/* Top bar with sound toggle and user menu */}
+      <div className="absolute top-4 left-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleMute}
+          className="text-muted-foreground hover:text-foreground"
+          title={isMuted ? 'Ativar som' : 'Desativar som'}
+        >
+          {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+        </Button>
+      </div>
+
       {/* User Menu */}
       <div className="absolute top-4 right-4 flex items-center gap-3">
         {user ? (

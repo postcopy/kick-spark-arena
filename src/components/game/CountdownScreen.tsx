@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { useSound } from '@/contexts/SoundContext';
 
 interface CountdownScreenProps {
   countdown: number;
@@ -7,10 +8,27 @@ interface CountdownScreenProps {
 
 export function CountdownScreen({ countdown }: CountdownScreenProps) {
   const [animationKey, setAnimationKey] = useState(countdown);
+  const { play } = useSound();
+  const lastPlayedRef = useRef<number | null>(null);
 
   useEffect(() => {
     setAnimationKey(countdown);
-  }, [countdown]);
+    
+    // Play sound only once per countdown value
+    if (lastPlayedRef.current !== countdown) {
+      lastPlayedRef.current = countdown;
+      
+      if (countdown === 3) {
+        play('countdown3');
+      } else if (countdown === 2) {
+        play('countdown2');
+      } else if (countdown === 1) {
+        play('countdown1');
+      } else if (countdown === 0) {
+        play('countdownGo');
+      }
+    }
+  }, [countdown, play]);
 
   const displayText = countdown === 0 ? 'GO!' : countdown.toString();
   const isGo = countdown === 0;
