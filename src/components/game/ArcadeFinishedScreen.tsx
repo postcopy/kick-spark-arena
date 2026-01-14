@@ -1,4 +1,4 @@
-import { Trophy, RotateCcw, Home, Swords, Skull } from 'lucide-react';
+import { Trophy, RotateCcw, Home, Swords, Skull, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Confetti } from './Confetti';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ interface ArcadeFinishedScreenProps {
 }
 
 export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: ArcadeFinishedScreenProps) {
-  const { winner, redWins, blueWins, rounds, bestOf } = result;
+  const { winner, redWins, blueWins, rounds } = result;
 
   const getWinnerColor = () => {
     if (winner === 'red') return 'text-game-red text-glow-red';
@@ -29,98 +29,162 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8 relative overflow-hidden">
+      {/* Background pattern */}
+      <div className="absolute inset-0 bg-arcade-pattern vignette" />
+
       {/* Confetti for winner */}
       {winner !== 'tie' && <Confetti />}
 
       {/* Background glow */}
       <div className={cn(
-        "absolute inset-0 opacity-20",
-        winner === 'red' && "bg-gradient-radial from-game-red/50 to-transparent",
-        winner === 'blue' && "bg-gradient-radial from-game-blue/50 to-transparent",
+        "absolute inset-0 opacity-30",
+        winner === 'red' && "bg-gradient-radial from-game-red/40 to-transparent",
+        winner === 'blue' && "bg-gradient-radial from-game-blue/40 to-transparent",
         winner === 'tie' && "bg-gradient-radial from-game-yellow/30 to-transparent"
       )} />
 
+      {/* Animated side glows */}
+      {winner === 'red' && (
+        <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-game-red/20 to-transparent" />
+      )}
+      {winner === 'blue' && (
+        <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-game-blue/20 to-transparent" />
+      )}
+
       {/* Main content */}
       <div className="relative z-10 text-center">
+        {/* Header badge */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <Zap className="w-5 h-5 text-game-yellow" />
+          <span className="text-sm font-black uppercase tracking-widest text-game-yellow">
+            ARCADE MODE
+          </span>
+          <Zap className="w-5 h-5 text-game-yellow" />
+        </div>
+
         {/* Trophy / Icon */}
-        <div className="mb-6 animate-winner">
+        <div className="mb-8 animate-winner">
           {winner !== 'tie' ? (
             <div className="relative inline-block">
-              <Trophy className={cn(
-                "w-24 h-24 mx-auto",
-                winner === 'red' ? "text-game-red" : "text-game-blue"
-              )} />
+              <div className={cn(
+                "p-6 rounded-full",
+                winner === 'red' ? "bg-game-red/20" : "bg-game-blue/20",
+                "box-glow-gold"
+              )}>
+                <Trophy className={cn(
+                  "w-28 h-28",
+                  winner === 'red' ? "text-game-red" : "text-game-blue"
+                )} />
+              </div>
               {hasKO && (
-                <div className="absolute -top-2 -right-2">
-                  <Skull className="w-10 h-10 text-game-yellow" />
+                <div className="absolute -top-2 -right-2 p-2 bg-game-yellow rounded-full animate-bounce">
+                  <Skull className="w-8 h-8 text-black" />
                 </div>
               )}
             </div>
           ) : (
-            <Swords className="w-24 h-24 mx-auto text-game-yellow" />
+            <div className="p-6 rounded-full bg-game-yellow/20 box-glow-gold">
+              <Swords className="w-28 h-28 text-game-yellow" />
+            </div>
           )}
         </div>
 
         {/* Winner announcement */}
-        <h1 className={cn(
-          "text-6xl font-black mb-4 animate-winner",
-          getWinnerColor()
-        )}>
+        <div className="animate-winner">
           {winner !== 'tie' ? (
             <>
-              {getWinnerLabel()}
-              <br />
-              <span className="text-4xl">VENCE O DUELO!</span>
+              <h1 className={cn(
+                "text-8xl font-black mb-2",
+                getWinnerColor()
+              )}>
+                {getWinnerLabel()}
+              </h1>
+              <p className="text-3xl font-bold text-foreground/80">
+                VENCE O DUELO!
+              </p>
             </>
           ) : (
-            'DUELO EMPATADO!'
+            <h1 className="text-7xl font-black text-game-yellow text-glow-yellow">
+              DUELO EMPATADO!
+            </h1>
           )}
-        </h1>
+        </div>
 
         {/* Round Score */}
-        <div className="flex items-center justify-center gap-8 my-8">
+        <div className="flex items-center justify-center gap-12 my-10">
           <div className="text-center">
-            <div className="text-6xl font-black text-game-red text-glow-red">
+            <div className={cn(
+              "text-8xl font-black",
+              winner === 'red' ? "text-game-red text-glow-red" : "text-game-red/60"
+            )}>
               {redWins}
             </div>
-            <div className="text-sm text-muted-foreground uppercase mt-1">VERMELHO</div>
+            <div className={cn(
+              "text-sm uppercase mt-2 font-bold tracking-wider",
+              winner === 'red' ? "text-game-red" : "text-muted-foreground"
+            )}>
+              VERMELHO
+            </div>
           </div>
 
-          <div className="text-4xl font-bold text-muted-foreground">
-            ×
+          <div className="flex flex-col items-center">
+            <Swords className="w-10 h-10 text-muted-foreground/40 mb-2" />
+            <span className="text-4xl font-black text-muted-foreground/40">×</span>
           </div>
 
           <div className="text-center">
-            <div className="text-6xl font-black text-game-blue text-glow-blue">
+            <div className={cn(
+              "text-8xl font-black",
+              winner === 'blue' ? "text-game-blue text-glow-blue" : "text-game-blue/60"
+            )}>
               {blueWins}
             </div>
-            <div className="text-sm text-muted-foreground uppercase mt-1">AZUL</div>
+            <div className={cn(
+              "text-sm uppercase mt-2 font-bold tracking-wider",
+              winner === 'blue' ? "text-game-blue" : "text-muted-foreground"
+            )}>
+              AZUL
+            </div>
           </div>
         </div>
 
         {/* Round details */}
-        <div className="bg-game-surface/50 p-4 rounded-lg border border-border mb-8 max-w-md mx-auto">
-          <h3 className="text-sm font-bold text-muted-foreground uppercase mb-3">DETALHES DOS ROUNDS</h3>
-          <div className="space-y-2">
+        <div className="bg-game-surface/70 p-6 rounded-xl border border-border/50 backdrop-blur-sm mb-10 max-w-lg mx-auto">
+          <h3 className="text-sm font-black text-muted-foreground uppercase mb-4 tracking-wider">
+            DETALHES DOS ROUNDS
+          </h3>
+          <div className="space-y-3">
             {rounds.map((round, index) => (
-              <div key={index} className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Round {index + 1}</span>
-                <div className="flex items-center gap-2">
+              <div 
+                key={index} 
+                className={cn(
+                  "flex items-center justify-between p-3 rounded-lg",
+                  round.winner === 'red' 
+                    ? "bg-game-red/10 border border-game-red/30" 
+                    : round.winner === 'blue'
+                      ? "bg-game-blue/10 border border-game-blue/30"
+                      : "bg-secondary/50 border border-border/30"
+                )}
+              >
+                <span className="text-muted-foreground font-bold">Round {index + 1}</span>
+                <div className="flex items-center gap-4">
                   <span className={cn(
-                    "font-mono font-bold",
+                    "font-mono font-black text-xl",
                     round.winner === 'red' ? "text-game-red" : "text-muted-foreground"
                   )}>
                     {round.redHP}
                   </span>
-                  <span className="text-muted-foreground">-</span>
+                  <span className="text-muted-foreground/40">—</span>
                   <span className={cn(
-                    "font-mono font-bold",
+                    "font-mono font-black text-xl",
                     round.winner === 'blue' ? "text-game-blue" : "text-muted-foreground"
                   )}>
                     {round.blueHP}
                   </span>
                   {round.isKO && (
-                    <span className="text-game-yellow text-xs font-bold">K.O.</span>
+                    <span className="px-2 py-0.5 bg-game-yellow/20 text-game-yellow text-xs font-black rounded border border-game-yellow/40">
+                      K.O.
+                    </span>
                   )}
                 </div>
               </div>
@@ -133,7 +197,7 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           <Button
             size="lg"
             onClick={onPlayAgain}
-            className="gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold"
+            className="gap-2 bg-gradient-to-r from-yellow-600 to-game-yellow text-black hover:from-yellow-500 hover:to-yellow-400 font-black text-lg px-8 shadow-lg"
           >
             <RotateCcw className="w-5 h-5" />
             JOGAR NOVAMENTE
@@ -142,11 +206,16 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
             variant="outline"
             size="lg"
             onClick={onBackToMenu}
-            className="gap-2"
+            className="gap-2 font-bold"
           >
             <Home className="w-5 h-5" />
             Menu Principal
           </Button>
+        </div>
+
+        {/* Keyboard hint */}
+        <div className="mt-8 text-sm text-muted-foreground">
+          <kbd className="px-2 py-1 bg-secondary rounded font-mono">SPACE</kbd> para jogar novamente
         </div>
       </div>
     </div>
