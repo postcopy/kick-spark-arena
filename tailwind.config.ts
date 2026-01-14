@@ -54,6 +54,8 @@ export default {
           "blue-glow": "hsl(var(--game-blue-glow))",
           yellow: "hsl(var(--game-yellow))",
           "yellow-glow": "hsl(var(--game-yellow-glow))",
+          gold: "hsl(var(--game-gold))",
+          "gold-dark": "hsl(var(--game-gold-dark))",
           surface: "hsl(var(--game-surface))",
           "surface-elevated": "hsl(var(--game-surface-elevated))",
         },
