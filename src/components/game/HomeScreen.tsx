@@ -1,14 +1,15 @@
-import { Timer, Target, Zap, Usb } from 'lucide-react';
+import { Timer, Target, Zap, Usb, Swords } from 'lucide-react';
 import logo from '@/assets/logo-desafio-relampago.png';
 import { SerialStatus } from './SerialStatus';
 import { UseSerialPortReturn } from '@/types/serial';
+import type { GameMode } from '@/types/game';
 
 interface HomeScreenProps {
-  onStart: () => void;
+  onSelectMode: (mode: GameMode) => void;
   serialPort?: UseSerialPortReturn;
 }
 
-export function HomeScreen({ onStart, serialPort }: HomeScreenProps) {
+export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
       {/* Logo / Title */}
@@ -36,42 +37,57 @@ export function HomeScreen({ onStart, serialPort }: HomeScreenProps) {
         </div>
       )}
 
-      {/* Start Card */}
-      <div className="w-full max-w-xl mb-12">
+      {/* Game Mode Cards */}
+      <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+        {/* Time Attack */}
         <div
-          onClick={onStart}
-          className="group cursor-pointer p-8 bg-game-surface border-2 border-game-yellow/30 rounded-lg hover:border-game-yellow/60 hover:bg-game-surface-elevated transition-all"
+          onClick={() => onSelectMode('time_attack')}
+          className="group cursor-pointer p-6 bg-game-surface border-2 border-game-yellow/30 rounded-lg hover:border-game-yellow/60 hover:bg-game-surface-elevated transition-all"
         >
           <div className="flex items-center gap-4 mb-4">
-            <div className="p-4 bg-game-yellow/10 rounded-lg group-hover:bg-game-yellow/20 transition-colors">
-              <Timer className="w-12 h-12 text-game-yellow" />
+            <div className="p-3 bg-game-yellow/10 rounded-lg group-hover:bg-game-yellow/20 transition-colors">
+              <Timer className="w-10 h-10 text-game-yellow" />
             </div>
             <div className="flex-1">
-              <h2 className="text-3xl font-bold text-foreground">
-                TIME ATTACK
-              </h2>
+              <h2 className="text-2xl font-bold text-foreground">TIME ATTACK</h2>
               <div className="flex items-center gap-2 mt-1">
                 <Zap className="w-4 h-4 text-game-yellow" />
-                <span className="text-sm text-game-yellow uppercase tracking-wider">
-                  Modo Quantidade
-                </span>
+                <span className="text-xs text-game-yellow uppercase tracking-wider">Modo Quantidade</span>
               </div>
             </div>
-            <Target className="w-8 h-8 text-muted-foreground group-hover:text-game-yellow transition-colors" />
+            <Target className="w-6 h-6 text-muted-foreground group-hover:text-game-yellow transition-colors" />
           </div>
-          <p className="text-lg text-muted-foreground">
-            Quem fizer <span className="text-foreground font-semibold">mais chutes</span> no tempo definido vence!
-            Velocidade pura.
+          <p className="text-sm text-muted-foreground">
+            Quem fizer <span className="text-foreground font-semibold">mais chutes</span> no tempo vence!
+          </p>
+        </div>
+
+        {/* Arcade Duel */}
+        <div
+          onClick={() => onSelectMode('arcade')}
+          className="group cursor-pointer p-6 bg-game-surface border-2 border-game-red/30 rounded-lg hover:border-game-red/60 hover:bg-game-surface-elevated transition-all"
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-game-red/10 rounded-lg group-hover:bg-game-red/20 transition-colors">
+              <Swords className="w-10 h-10 text-game-red" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-foreground">ARCADE</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Zap className="w-4 h-4 text-game-red" />
+                <span className="text-xs text-game-red uppercase tracking-wider">Modo Duelo</span>
+              </div>
+            </div>
+            <Target className="w-6 h-6 text-muted-foreground group-hover:text-game-red transition-colors" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Derrube a barra do rival com <span className="text-foreground font-semibold">combos</span>. K.O. vence!
           </p>
         </div>
       </div>
 
       {/* Instructions */}
       <div className="flex flex-wrap justify-center gap-6 text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">SPACE</kbd>
-          <span>Iniciar</span>
-        </div>
         <div className="flex items-center gap-2">
           <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">A</kbd>
           <span>Chute Vermelho</span>
@@ -83,9 +99,7 @@ export function HomeScreen({ onStart, serialPort }: HomeScreenProps) {
         {serialPort && (
           <div className="flex items-center gap-2">
             <Usb className="w-4 h-4" />
-            <span>
-              {serialPort.isConnected ? "Plaquinha ativa" : "Modo demo (teclado)"}
-            </span>
+            <span>{serialPort.isConnected ? "Plaquinha ativa" : "Modo demo (teclado)"}</span>
           </div>
         )}
       </div>
