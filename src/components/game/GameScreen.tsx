@@ -20,29 +20,45 @@ export function GameScreen({ scores, timeLeft, isPaused, flashSide }: GameScreen
   return (
     <div className="flex flex-col h-screen bg-black overflow-hidden">
       {/* Header */}
-      <div className="h-20 bg-black flex items-center justify-between px-10 border-b border-white/10">
+      <div className="h-24 bg-gradient-to-b from-zinc-900 via-black to-black flex items-center justify-between px-10 border-b-2 border-[#FFD700]/40 shadow-lg shadow-black/50">
+        {/* Logo Section */}
         <div className="flex items-center gap-4">
-          <img src={logo} alt="Desafio Relâmpago" className="h-14 w-auto" />
-          <span className="text-3xl font-bold text-white uppercase tracking-wider">
-            Desafio Relâmpago
-          </span>
+          <div className="relative">
+            {/* Glow effect */}
+            <div className="absolute inset-0 blur-2xl bg-[#FFD700]/20 scale-150" />
+            <img src={logo} alt="Desafio Relâmpago" className="h-16 w-auto relative z-10 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-2xl font-bold text-white uppercase tracking-widest">
+              Desafio Relâmpago
+            </span>
+            <span className="text-xs text-[#FFD700]/70 uppercase tracking-[0.3em]">
+              Competição de Chutes
+            </span>
+          </div>
         </div>
         
         {/* Center Timer */}
-        <div className="flex items-center gap-4">
-          <Timer className="w-6 h-6 text-[#FFD700]" />
+        <div className="flex items-center gap-4 bg-white/5 backdrop-blur-sm px-8 py-3 rounded-xl border border-[#FFD700]/30 shadow-lg shadow-[#FFD700]/10">
+          <Timer className="w-7 h-7 text-[#FFD700]" />
           <GameTimer timeLeft={timeLeft} isPaused={isPaused} compact />
           {isPaused && (
-            <span className="text-lg text-[#FFD700] uppercase tracking-wider animate-pulse">
+            <span className="text-lg text-[#FFD700] uppercase tracking-wider animate-pulse font-bold">
               Pausado
             </span>
           )}
         </div>
 
         {/* Controls hint */}
-        <div className="flex items-center gap-6 text-white/50 text-base">
-          <span><kbd className="px-3 py-1 bg-white/10 rounded font-mono text-lg">P</kbd> Pausar</span>
-          <span><kbd className="px-3 py-1 bg-white/10 rounded font-mono text-lg">R</kbd> Reiniciar</span>
+        <div className="flex items-center gap-8 text-white/70 text-base">
+          <span className="flex items-center gap-2">
+            <kbd className="px-3 py-1.5 bg-gradient-to-b from-zinc-700 to-zinc-800 rounded-md font-mono text-lg border border-zinc-600 shadow-md text-white">P</kbd>
+            <span>Pausar</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <kbd className="px-3 py-1.5 bg-gradient-to-b from-zinc-700 to-zinc-800 rounded-md font-mono text-lg border border-zinc-600 shadow-md text-white">R</kbd>
+            <span>Reiniciar</span>
+          </span>
         </div>
       </div>
 
