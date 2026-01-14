@@ -101,15 +101,15 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
           "flex-1 relative bg-black overflow-hidden",
           flashSide === 'red' && "animate-damage-shake-tv"
         )}>
-          {/* HP Fill - descends from top */}
+          {/* HP Fill - anchored to bottom, shrinks downward as HP decreases */}
           <div 
-            className="absolute inset-x-0 top-0 bg-gradient-to-b from-red-700 via-game-red to-red-900 transition-all duration-300 ease-out"
+            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-red-900 via-game-red to-red-700 transition-all duration-300 ease-out"
             style={{ height: `${redState.hp}%` }}
           />
           
           {/* Inner glow when full */}
           {redState.hp > 75 && (
-            <div className="absolute inset-x-0 top-0 h-full bg-gradient-to-b from-red-500/20 to-transparent pointer-events-none"
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-transparent to-red-500/20 pointer-events-none"
                  style={{ height: `${redState.hp}%` }} />
           )}
           
@@ -230,15 +230,15 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
           "flex-1 relative bg-black overflow-hidden",
           flashSide === 'blue' && "animate-damage-shake-tv"
         )}>
-          {/* HP Fill - descends from top */}
+          {/* HP Fill - anchored to bottom, shrinks downward as HP decreases */}
           <div 
-            className="absolute inset-x-0 top-0 bg-gradient-to-b from-blue-600 via-game-blue to-blue-900 transition-all duration-300 ease-out"
+            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-blue-900 via-game-blue to-blue-600 transition-all duration-300 ease-out"
             style={{ height: `${blueState.hp}%` }}
           />
           
           {/* Inner glow when full */}
           {blueState.hp > 75 && (
-            <div className="absolute inset-x-0 top-0 h-full bg-gradient-to-b from-blue-400/20 to-transparent pointer-events-none"
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-transparent to-blue-400/20 pointer-events-none"
                  style={{ height: `${blueState.hp}%` }} />
           )}
           
