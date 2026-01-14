@@ -96,9 +96,19 @@ export function SerialStatus({
       </div>
       
       {error && !isConnecting && (
-        <div className="flex items-center gap-2 text-red-400 text-xs">
-          <AlertCircle className="w-3 h-3" />
-          <span>{error}</span>
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2 text-red-400 text-xs">
+            <AlertCircle className="w-3 h-3" />
+            <span>{error}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onConnect}
+            className="h-6 px-3 text-xs hover:bg-primary/20"
+          >
+            Tentar Novamente
+          </Button>
         </div>
       )}
     </div>

@@ -146,10 +146,13 @@ export function useSerialPort({
 
     try {
       // Request port from user
+      console.log('[Serial] Solicitando porta...');
       const port = await navigator.serial.requestPort();
+      console.log('[Serial] Porta selecionada, abrindo a', BAUD_RATE, 'baud...');
       
       // Open port
       await port.open({ baudRate: BAUD_RATE });
+      console.log('[Serial] Porta aberta com sucesso!');
       
       portRef.current = port;
       setIsConnected(true);
@@ -160,15 +163,18 @@ export function useSerialPort({
       
     } catch (e: any) {
       setIsConnecting(false);
+      console.error('[Serial] Erro de conexão:', e.name, e.message);
       
       if (e.name === 'NotFoundError') {
         setError('Nenhuma porta selecionada');
       } else if (e.name === 'InvalidStateError') {
-        setError('Porta já está aberta. Feche outros programas.');
+        setError('Porta já está aberta em outro local');
       } else if (e.name === 'NetworkError') {
-        setError('Erro ao abrir porta. Verifique a conexão.');
+        setError('Porta ocupada. Feche Arduino Monitor, PuTTY ou outro programa usando a COM.');
+      } else if (e.name === 'SecurityError') {
+        setError('Permissão negada. Recarregue a página e tente novamente.');
       } else {
-        setError(e.message || 'Erro ao conectar');
+        setError(`Erro: ${e.name || 'desconhecido'} - ${e.message || 'Verifique conexão'}`);
       }
     }
   }, [startReading]);
@@ -197,9 +203,9 @@ export function useSerialPort({
             portRef.current = port;
             setIsConnected(true);
             startReading(port);
-          } catch (e) {
+          } catch (e: any) {
             // Port might be in use, that's ok
-            console.log('Auto-reconnect failed, port may be in use');
+            console.log('[Serial] Auto-reconexão falhou:', e.name, '- porta pode estar em uso');
           }
         }
       } catch (e) {
