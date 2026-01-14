@@ -1,12 +1,12 @@
-import { Timer, Target } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Timer, Flame, Target, Zap } from 'lucide-react';
 import logo from '@/assets/logo-desafio-relampago.png';
+import type { GameMode } from '@/types/game';
 
 interface HomeScreenProps {
-  onStartSetup: () => void;
+  onSelectMode: (mode: GameMode) => void;
 }
 
-export function HomeScreen({ onStartSetup }: HomeScreenProps) {
+export function HomeScreen({ onSelectMode }: HomeScreenProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
       {/* Logo / Title */}
@@ -20,29 +20,67 @@ export function HomeScreen({ onStartSetup }: HomeScreenProps) {
         </p>
       </div>
 
-      {/* Mode Card */}
-      <div
-        onClick={onStartSetup}
-        className="group cursor-pointer w-full max-w-lg p-8 bg-game-surface border-2 border-game-yellow/30 rounded-lg hover:border-game-yellow/60 hover:bg-game-surface-elevated transition-all"
-      >
-        <div className="flex items-center gap-6">
-          <div className="p-4 bg-game-yellow/10 rounded-lg group-hover:bg-game-yellow/20 transition-colors">
-            <Timer className="w-12 h-12 text-game-yellow" />
+      {/* Mode Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mb-12">
+        {/* Time Attack Mode */}
+        <div
+          onClick={() => onSelectMode('time_attack')}
+          className="group cursor-pointer p-8 bg-game-surface border-2 border-game-yellow/30 rounded-lg hover:border-game-yellow/60 hover:bg-game-surface-elevated transition-all"
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-4 bg-game-yellow/10 rounded-lg group-hover:bg-game-yellow/20 transition-colors">
+              <Timer className="w-12 h-12 text-game-yellow" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-3xl font-bold text-foreground">
+                TIME ATTACK
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Zap className="w-4 h-4 text-game-yellow" />
+                <span className="text-sm text-game-yellow uppercase tracking-wider">
+                  Modo Quantidade
+                </span>
+              </div>
+            </div>
+            <Target className="w-8 h-8 text-muted-foreground group-hover:text-game-yellow transition-colors" />
           </div>
-          <div className="flex-1">
-            <h2 className="text-3xl font-bold text-foreground mb-2">
-              TIME ATTACK
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Quem fizer mais chutes no tempo definido vence!
-            </p>
+          <p className="text-lg text-muted-foreground">
+            Quem fizer <span className="text-foreground font-semibold">mais chutes</span> no tempo definido vence!
+            Velocidade pura.
+          </p>
+        </div>
+
+        {/* Iron Rhythm Mode */}
+        <div
+          onClick={() => onSelectMode('iron_rhythm')}
+          className="group cursor-pointer p-8 bg-game-surface border-2 border-orange-500/30 rounded-lg hover:border-orange-500/60 hover:bg-game-surface-elevated transition-all"
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-4 bg-orange-500/10 rounded-lg group-hover:bg-orange-500/20 transition-colors">
+              <Flame className="w-12 h-12 text-orange-500" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-3xl font-bold text-foreground">
+                RITMO DE FERRO
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <span className="text-sm text-orange-500 uppercase tracking-wider">
+                  Modo Condicionamento
+                </span>
+              </div>
+            </div>
+            <Target className="w-8 h-8 text-muted-foreground group-hover:text-orange-500 transition-colors" />
           </div>
-          <Target className="w-8 h-8 text-muted-foreground group-hover:text-game-yellow transition-colors" />
+          <p className="text-lg text-muted-foreground">
+            Mantenha uma <span className="text-foreground font-semibold">cadência mínima</span> de chutes.
+            Vence quem ficar mais tempo em ritmo!
+          </p>
         </div>
       </div>
 
       {/* Instructions */}
-      <div className="mt-12 flex gap-8 text-muted-foreground">
+      <div className="flex gap-8 text-muted-foreground">
         <div className="flex items-center gap-2">
           <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">SPACE</kbd>
           <span>Iniciar</span>
