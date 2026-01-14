@@ -1,4 +1,4 @@
-import { Trophy, RotateCcw, Home, Flame, Timer } from 'lucide-react';
+import { Trophy, RotateCcw, Home, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { GameResult } from '@/types/game';
@@ -10,21 +10,9 @@ interface FinishedScreenProps {
   onBackToMenu: () => void;
 }
 
-function formatUptime(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function getUptimePercentage(uptimeMs: number, durationSec: number): number {
-  return Math.round((uptimeMs / (durationSec * 1000)) * 100);
-}
-
 export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedScreenProps) {
-  const { scores, winner, mode, uptimeScores, duration } = result;
+  const { scores, winner, duration } = result;
   const isTie = winner === 'tie';
-  const isIronRhythm = mode === 'iron_rhythm';
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8 relative overflow-hidden">
@@ -54,23 +42,13 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
       <div className="mb-12 text-center relative z-10">
         {/* Trophy with bounce animation */}
         <div className="relative inline-block">
-          {isIronRhythm ? (
-            <Flame
-              className={cn(
-                'w-32 h-32 mx-auto mb-6 animate-trophy-bounce',
-                isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
-              )}
-              style={{ animationDelay: '0s' }}
-            />
-          ) : (
-            <Trophy
-              className={cn(
-                'w-32 h-32 mx-auto mb-6 animate-trophy-bounce',
-                isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
-              )}
-              style={{ animationDelay: '0s' }}
-            />
-          )}
+          <Trophy
+            className={cn(
+              'w-32 h-32 mx-auto mb-6 animate-trophy-bounce',
+              isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
+            )}
+            style={{ animationDelay: '0s' }}
+          />
           {/* Trophy glow pulse */}
           <div
             className={cn(
@@ -85,21 +63,10 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
           className="flex items-center justify-center gap-2 mb-4 animate-winner-text opacity-0"
           style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
         >
-          {isIronRhythm ? (
-            <>
-              <Flame className="w-6 h-6 text-orange-500" />
-              <span className="text-xl text-orange-500 uppercase tracking-wider font-semibold">
-                Ritmo de Ferro
-              </span>
-            </>
-          ) : (
-            <>
-              <Timer className="w-6 h-6 text-game-yellow" />
-              <span className="text-xl text-game-yellow uppercase tracking-wider font-semibold">
-                Time Attack
-              </span>
-            </>
-          )}
+          <Timer className="w-6 h-6 text-game-yellow" />
+          <span className="text-xl text-game-yellow uppercase tracking-wider font-semibold">
+            Time Attack
+          </span>
         </div>
 
         {/* Winner text with scale animation */}
@@ -137,25 +104,8 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
           style={{ animationDelay: '0.7s', animationFillMode: 'forwards' }}
         >
           <span className="text-2xl font-bold text-game-red uppercase tracking-wider">RED</span>
-          {isIronRhythm && uptimeScores ? (
-            <>
-              <div className="text-7xl font-bold text-game-red mt-2">
-                {formatUptime(uptimeScores.red.uptimeMs)}
-              </div>
-              <span className="text-lg text-muted-foreground">tempo em ritmo</span>
-              <div className="text-2xl text-game-red/70 mt-2">
-                ({getUptimePercentage(uptimeScores.red.uptimeMs, duration)}%)
-              </div>
-              <div className="text-lg text-muted-foreground mt-2">
-                {uptimeScores.red.totalKicks} chutes
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-9xl font-bold text-game-red mt-2">{scores.red}</div>
-              <span className="text-lg text-muted-foreground">chutes</span>
-            </>
-          )}
+          <div className="text-9xl font-bold text-game-red mt-2">{scores.red}</div>
+          <span className="text-lg text-muted-foreground">chutes</span>
         </div>
 
         {/* VS */}
@@ -177,25 +127,8 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
           style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}
         >
           <span className="text-2xl font-bold text-game-blue uppercase tracking-wider">BLUE</span>
-          {isIronRhythm && uptimeScores ? (
-            <>
-              <div className="text-7xl font-bold text-game-blue mt-2">
-                {formatUptime(uptimeScores.blue.uptimeMs)}
-              </div>
-              <span className="text-lg text-muted-foreground">tempo em ritmo</span>
-              <div className="text-2xl text-game-blue/70 mt-2">
-                ({getUptimePercentage(uptimeScores.blue.uptimeMs, duration)}%)
-              </div>
-              <div className="text-lg text-muted-foreground mt-2">
-                {uptimeScores.blue.totalKicks} chutes
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-9xl font-bold text-game-blue mt-2">{scores.blue}</div>
-              <span className="text-lg text-muted-foreground">chutes</span>
-            </>
-          )}
+          <div className="text-9xl font-bold text-game-blue mt-2">{scores.blue}</div>
+          <span className="text-lg text-muted-foreground">chutes</span>
         </div>
       </div>
 

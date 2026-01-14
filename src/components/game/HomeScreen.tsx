@@ -1,15 +1,14 @@
-import { Timer, Flame, Target, Zap, Usb } from 'lucide-react';
+import { Timer, Target, Zap, Usb } from 'lucide-react';
 import logo from '@/assets/logo-desafio-relampago.png';
-import type { GameMode } from '@/types/game';
 import { SerialStatus } from './SerialStatus';
 import { UseSerialPortReturn } from '@/types/serial';
 
 interface HomeScreenProps {
-  onSelectMode: (mode: GameMode) => void;
+  onStart: () => void;
   serialPort?: UseSerialPortReturn;
 }
 
-export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
+export function HomeScreen({ onStart, serialPort }: HomeScreenProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
       {/* Logo / Title */}
@@ -37,11 +36,10 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         </div>
       )}
 
-      {/* Mode Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mb-12">
-        {/* Time Attack Mode */}
+      {/* Start Card */}
+      <div className="w-full max-w-xl mb-12">
         <div
-          onClick={() => onSelectMode('time_attack')}
+          onClick={onStart}
           className="group cursor-pointer p-8 bg-game-surface border-2 border-game-yellow/30 rounded-lg hover:border-game-yellow/60 hover:bg-game-surface-elevated transition-all"
         >
           <div className="flex items-center gap-4 mb-4">
@@ -64,34 +62,6 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           <p className="text-lg text-muted-foreground">
             Quem fizer <span className="text-foreground font-semibold">mais chutes</span> no tempo definido vence!
             Velocidade pura.
-          </p>
-        </div>
-
-        {/* Iron Rhythm Mode */}
-        <div
-          onClick={() => onSelectMode('iron_rhythm')}
-          className="group cursor-pointer p-8 bg-game-surface border-2 border-orange-500/30 rounded-lg hover:border-orange-500/60 hover:bg-game-surface-elevated transition-all"
-        >
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-4 bg-orange-500/10 rounded-lg group-hover:bg-orange-500/20 transition-colors">
-              <Flame className="w-12 h-12 text-orange-500" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-3xl font-bold text-foreground">
-                RITMO DE FERRO
-              </h2>
-              <div className="flex items-center gap-2 mt-1">
-                <Flame className="w-4 h-4 text-orange-500" />
-                <span className="text-sm text-orange-500 uppercase tracking-wider">
-                  Modo Condicionamento
-                </span>
-              </div>
-            </div>
-            <Target className="w-8 h-8 text-muted-foreground group-hover:text-orange-500 transition-colors" />
-          </div>
-          <p className="text-lg text-muted-foreground">
-            Mantenha uma <span className="text-foreground font-semibold">cadência mínima</span> de chutes.
-            Vence quem ficar mais tempo em ritmo!
           </p>
         </div>
       </div>
