@@ -1,7 +1,8 @@
-import { Timer, Zap } from 'lucide-react';
+import { Timer } from 'lucide-react';
 import { KickPanel } from './KickPanel';
 import { GameTimer } from './GameTimer';
 import type { GameScore, Side } from '@/types/game';
+import logo from '@/assets/logo-desafio-relampago.png';
 
 interface GameScreenProps {
   scores: GameScore;
@@ -21,9 +22,9 @@ export function GameScreen({ scores, timeLeft, isPaused, flashSide }: GameScreen
       {/* Header */}
       <div className="h-20 bg-black flex items-center justify-between px-10 border-b border-white/10">
         <div className="flex items-center gap-4">
-          <Zap className="w-10 h-10 text-[#FFD700]" />
+          <img src={logo} alt="Desafio Relâmpago" className="h-14 w-auto" />
           <span className="text-3xl font-bold text-white uppercase tracking-wider">
-            Kick Counter
+            Desafio Relâmpago
           </span>
         </div>
         

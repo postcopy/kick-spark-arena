@@ -1,5 +1,6 @@
-import { Zap, Timer, Target } from 'lucide-react';
+import { Timer, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import logo from '@/assets/logo-desafio-relampago.png';
 
 interface HomeScreenProps {
   onStartSetup: () => void;
@@ -10,14 +11,11 @@ export function HomeScreen({ onStartSetup }: HomeScreenProps) {
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
       {/* Logo / Title */}
       <div className="mb-12 text-center">
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <Zap className="w-16 h-16 text-game-yellow" />
-          <h1 className="text-6xl font-bold text-foreground tracking-tight">
-            KICK<span className="text-game-yellow">COUNTER</span>
-          </h1>
-          <Zap className="w-16 h-16 text-game-yellow" />
-        </div>
-        <p className="text-xl text-muted-foreground">
+        <img src={logo} alt="Desafio Relâmpago" className="h-24 w-auto mx-auto mb-6" />
+        <h1 className="text-6xl font-bold text-foreground tracking-tight">
+          DESAFIO <span className="text-game-yellow">RELÂMPAGO</span>
+        </h1>
+        <p className="text-xl text-muted-foreground mt-4">
           Sistema de Competição de Chutes
         </p>
       </div>
