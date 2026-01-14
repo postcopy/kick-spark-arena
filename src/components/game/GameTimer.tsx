@@ -3,12 +3,26 @@ import { cn } from '@/lib/utils';
 interface GameTimerProps {
   timeLeft: number;
   isPaused?: boolean;
+  compact?: boolean;
 }
 
-export function GameTimer({ timeLeft, isPaused = false }: GameTimerProps) {
+export function GameTimer({ timeLeft, isPaused = false, compact = false }: GameTimerProps) {
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const isLow = timeLeft <= 10;
+
+  if (compact) {
+    return (
+      <span
+        className={cn(
+          'text-3xl font-bold tabular-nums transition-colors',
+          isLow ? 'text-[#E10000]' : 'text-white'
+        )}
+      >
+        {minutes}:{seconds.toString().padStart(2, '0')}
+      </span>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center">
