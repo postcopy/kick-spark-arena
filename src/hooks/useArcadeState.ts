@@ -24,7 +24,18 @@ const createInitialPlayerState = (hp: number): ArcadePlayerState => ({
   specialReady: false,
 });
 
-export function useArcadeState(config: Partial<ArcadeConfig> = {}) {
+interface UseArcadeStateOptions extends Partial<ArcadeConfig> {
+  onHit?: () => void;
+  onHitHeavy?: () => void;
+  onCombo?: () => void;
+  onSpecialReady?: () => void;
+  onSpecialAttack?: () => void;
+  onKO?: () => void;
+  onTimeUp?: () => void;
+}
+
+export function useArcadeState(options: UseArcadeStateOptions = {}) {
+  const { onHit, onHitHeavy, onCombo, onSpecialReady, onSpecialAttack, onKO, onTimeUp, ...config } = options;
   const fullConfig = { ...DEFAULT_ARCADE_CONFIG, ...config };
   
   const [gameState, setGameState] = useState<GameState>('idle');
@@ -180,9 +191,13 @@ export function useArcadeState(config: Partial<ArcadeConfig> = {}) {
     // Calculate damage
     const { damage, newCombo, usedSpecial } = calculateDamage(attackerState, now);
 
+    // Check if special will become ready after this kick
+    const currentEnergy = attackerState.energy;
+    const newEnergy = usedSpecial ? 0 : Math.min(currentEnergy + fullConfig.energyPerKick, fullConfig.energyMax);
+    const willBecomeSpecialReady = !attackerState.specialReady && newEnergy >= fullConfig.energyMax;
+
     // Update attacker state
     setAttackerState(prev => {
-      const newEnergy = usedSpecial ? 0 : Math.min(prev.energy + fullConfig.energyPerKick, fullConfig.energyMax);
       return {
         ...prev,
         energy: newEnergy,
@@ -197,6 +212,22 @@ export function useArcadeState(config: Partial<ArcadeConfig> = {}) {
       ...prev,
       hp: Math.max(0, prev.hp - damage),
     }));
+
+    // Play sound effects
+    if (usedSpecial || damage >= 10) {
+      onHitHeavy?.();
+      onSpecialAttack?.();
+    } else {
+      onHit?.();
+    }
+
+    if (newCombo > 1) {
+      onCombo?.();
+    }
+
+    if (willBecomeSpecialReady) {
+      onSpecialReady?.();
+    }
 
     // Visual feedback
     setFlashSide(defenderSide);
@@ -219,7 +250,7 @@ export function useArcadeState(config: Partial<ArcadeConfig> = {}) {
     setTimeout(() => setLastDamage(null), 400);
 
     return true;
-  }, [gameState, redState, blueState, fullConfig, calculateDamage]);
+  }, [gameState, redState, blueState, fullConfig, calculateDamage, onHit, onHitHeavy, onCombo, onSpecialReady, onSpecialAttack]);
 
   // End round
   const endRound = useCallback((winner: Side | 'tie', isKO: boolean) => {
@@ -237,6 +268,9 @@ export function useArcadeState(config: Partial<ArcadeConfig> = {}) {
 
     if (isKO) {
       setShowKO(winner as Side);
+      onKO?.();
+    } else {
+      onTimeUp?.();
     }
 
     // Count wins
@@ -279,7 +313,7 @@ export function useArcadeState(config: Partial<ArcadeConfig> = {}) {
         startCountdown();
       }, ROUND_END_DELAY);
     }
-  }, [clearTimers, redState.hp, blueState.hp, roundResults, currentRound, fullConfig.bestOf, startCountdown]);
+  }, [clearTimers, redState.hp, blueState.hp, roundResults, currentRound, fullConfig.bestOf, startCountdown, onKO, onTimeUp]);
 
   // Check for KO or time up
   useEffect(() => {

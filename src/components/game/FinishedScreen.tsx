@@ -1,8 +1,10 @@
+import { useEffect, useRef } from 'react';
 import { Trophy, RotateCcw, Home, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { GameResult } from '@/types/game';
 import { Confetti } from './Confetti';
+import { useSound } from '@/contexts/SoundContext';
 
 interface FinishedScreenProps {
   result: GameResult;
@@ -13,6 +15,15 @@ interface FinishedScreenProps {
 export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedScreenProps) {
   const { scores, winner, duration } = result;
   const isTie = winner === 'tie';
+  const { play } = useSound();
+  const hasPlayedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasPlayedRef.current) {
+      hasPlayedRef.current = true;
+      play('victory');
+    }
+  }, [play]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8 relative overflow-hidden">

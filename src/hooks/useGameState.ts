@@ -8,7 +8,12 @@ const DEFAULT_CONFIG: GameConfig = {
 
 const COUNTDOWN_DURATION = 3;
 
-export function useGameState(config: GameConfig = DEFAULT_CONFIG) {
+interface UseGameStateOptions extends GameConfig {
+  onHit?: () => void;
+  onGameEnd?: () => void;
+}
+
+export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
   const [gameState, setGameState] = useState<GameState>('idle');
   const [scores, setScores] = useState<GameScore>({ red: 0, blue: 0 });
   const [timeLeft, setTimeLeft] = useState(config.duration);
@@ -107,6 +112,7 @@ export function useGameState(config: GameConfig = DEFAULT_CONFIG) {
 
       setLastResult(result);
       setGameState('finished');
+      config.onGameEnd?.();
 
       // Save to localStorage
       try {
@@ -136,7 +142,7 @@ export function useGameState(config: GameConfig = DEFAULT_CONFIG) {
         console.error('Failed to save result:', e);
       }
     }
-  }, [gameState, timeLeft, scores, config.duration]);
+  }, [gameState, timeLeft, scores, config]);
 
   // Register a kick with debounce
   const registerKick = useCallback((side: Side) => {
@@ -155,12 +161,15 @@ export function useGameState(config: GameConfig = DEFAULT_CONFIG) {
       [side]: prev[side] + 1,
     }));
 
+    // Play hit sound
+    config.onHit?.();
+
     // Trigger flash effect
     setFlashSide(side);
     setTimeout(() => setFlashSide(null), 150);
 
     return true;
-  }, [gameState, config.minIntervalMs]);
+  }, [gameState, config]);
 
   // Pause/Resume
   const togglePause = useCallback(() => {

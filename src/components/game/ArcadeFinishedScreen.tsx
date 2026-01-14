@@ -1,8 +1,10 @@
+import { useEffect, useRef } from 'react';
 import { Trophy, RotateCcw, Home, Swords, Skull, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Confetti } from './Confetti';
 import { cn } from '@/lib/utils';
 import type { ArcadeResult } from '@/types/game';
+import { useSound } from '@/contexts/SoundContext';
 
 interface ArcadeFinishedScreenProps {
   result: ArcadeResult;
@@ -11,6 +13,15 @@ interface ArcadeFinishedScreenProps {
 }
 
 export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: ArcadeFinishedScreenProps) {
+  const { play } = useSound();
+  const hasPlayedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasPlayedRef.current) {
+      hasPlayedRef.current = true;
+      play('victory');
+    }
+  }, [play]);
   const { winner, redWins, blueWins, rounds } = result;
 
   const getWinnerColor = () => {

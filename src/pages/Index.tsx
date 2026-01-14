@@ -3,6 +3,7 @@ import { useGameState } from '@/hooks/useGameState';
 import { useArcadeState } from '@/hooks/useArcadeState';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSound } from '@/contexts/SoundContext';
 import { HomeScreen } from '@/components/game/HomeScreen';
 import { SetupScreen } from '@/components/game/SetupScreen';
 import { CountdownScreen } from '@/components/game/CountdownScreen';
@@ -17,13 +18,30 @@ import type { Side, GameMode } from '@/types/game';
 
 const Index = () => {
   const { user, subscription, isLoading: authLoading, isAdmin } = useAuth();
+  const { play } = useSound();
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
   const [duration, setDuration] = useState(60);
   const [roundDuration, setRoundDuration] = useState(60);
   const [bestOf, setBestOf] = useState<1 | 3>(3);
 
-  const timeAttackState = useGameState({ duration, minIntervalMs: 120 });
-  const arcadeState = useArcadeState({ roundDurationSec: roundDuration, bestOf });
+  const timeAttackState = useGameState({ 
+    duration, 
+    minIntervalMs: 120,
+    onHit: () => play('hit'),
+    onGameEnd: () => play('timeUp'),
+  });
+  
+  const arcadeState = useArcadeState({ 
+    roundDurationSec: roundDuration, 
+    bestOf,
+    onHit: () => play('hit'),
+    onHitHeavy: () => play('hitHeavy'),
+    onCombo: () => play('combo'),
+    onSpecialReady: () => play('specialReady'),
+    onSpecialAttack: () => play('specialAttack'),
+    onKO: () => play('ko'),
+    onTimeUp: () => play('timeUp'),
+  });
 
   // Serial port kick handler
   const handleSerialKick = useCallback((side: Side) => {
