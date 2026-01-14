@@ -47,6 +47,16 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        game: {
+          red: "hsl(var(--game-red))",
+          "red-glow": "hsl(var(--game-red-glow))",
+          blue: "hsl(var(--game-blue))",
+          "blue-glow": "hsl(var(--game-blue-glow))",
+          yellow: "hsl(var(--game-yellow))",
+          "yellow-glow": "hsl(var(--game-yellow-glow))",
+          surface: "hsl(var(--game-surface))",
+          "surface-elevated": "hsl(var(--game-surface-elevated))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -63,22 +73,18 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        display: ["'Orbitron'", "monospace"],
+        mono: ["'JetBrains Mono'", "monospace"],
+      },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {

@@ -1,14 +1,71 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useCallback } from 'react';
+import { useGameState } from '@/hooks/useGameState';
+import { HomeScreen } from '@/components/game/HomeScreen';
+import { SetupScreen } from '@/components/game/SetupScreen';
+import { CountdownScreen } from '@/components/game/CountdownScreen';
+import { GameScreen } from '@/components/game/GameScreen';
+import { FinishedScreen } from '@/components/game/FinishedScreen';
 
 const Index = () => {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
-  );
+  const [duration, setDuration] = useState(60);
+
+  const {
+    gameState,
+    scores,
+    timeLeft,
+    countdown,
+    lastResult,
+    flashSide,
+    goToSetup,
+    startCountdown,
+    resetGame,
+  } = useGameState({ duration, minIntervalMs: 120 });
+
+  const handleDurationChange = useCallback((newDuration: number) => {
+    setDuration(newDuration);
+  }, []);
+
+  // Render based on game state
+  switch (gameState) {
+    case 'idle':
+      return <HomeScreen onStartSetup={goToSetup} />;
+
+    case 'setup':
+      return (
+        <SetupScreen
+          onStart={startCountdown}
+          onBack={resetGame}
+          duration={duration}
+          onDurationChange={handleDurationChange}
+        />
+      );
+
+    case 'countdown':
+      return <CountdownScreen countdown={countdown} />;
+
+    case 'running':
+    case 'paused':
+      return (
+        <GameScreen
+          scores={scores}
+          timeLeft={timeLeft}
+          isPaused={gameState === 'paused'}
+          flashSide={flashSide}
+        />
+      );
+
+    case 'finished':
+      return lastResult ? (
+        <FinishedScreen
+          result={lastResult}
+          onPlayAgain={goToSetup}
+          onBackToMenu={resetGame}
+        />
+      ) : null;
+
+    default:
+      return <HomeScreen onStartSetup={goToSetup} />;
+  }
 };
 
 export default Index;
