@@ -1,7 +1,10 @@
-import { Timer, Target, Zap, Usb, Swords } from 'lucide-react';
+import { Timer, Target, Zap, Usb, Swords, LogIn, LogOut, Crown, User, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import logo from '@/assets/logo-desafio-relampago.png';
 import { SerialStatus } from './SerialStatus';
 import { UseSerialPortReturn } from '@/types/serial';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 import type { GameMode } from '@/types/game';
 
 interface HomeScreenProps {
@@ -10,8 +13,55 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
+  const { user, isAdmin, subscription, signOut } = useAuth();
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
+      {/* User Menu */}
+      <div className="absolute top-4 right-4 flex items-center gap-3">
+        {user ? (
+          <>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">{user.email}</span>
+            </div>
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Button>
+              </Link>
+            )}
+            <Link to="/pricing">
+              <Button variant="outline" size="sm" className="gap-2">
+                <Crown className="w-4 h-4" />
+                <span className="hidden sm:inline">Plano</span>
+              </Button>
+            </Link>
+            <Button variant="ghost" size="sm" onClick={signOut} className="gap-2">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
+          </>
+        ) : (
+          <>
+            <Link to="/login">
+              <Button variant="outline" size="sm" className="gap-2">
+                <LogIn className="w-4 h-4" />
+                Entrar
+              </Button>
+            </Link>
+            <Link to="/signup">
+              <Button size="sm" className="gap-2 bg-game-yellow text-game-yellow-foreground hover:bg-game-yellow/90">
+                <Zap className="w-4 h-4" />
+                Começar Grátis
+              </Button>
+            </Link>
+          </>
+        )}
+      </div>
+
       {/* Logo / Title */}
       <div className="mb-8 text-center">
         <img src={logo} alt="Desafio Relâmpago" className="h-24 w-auto mx-auto mb-6" />
@@ -22,6 +72,21 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           Sistema de Competição de Chutes
         </p>
       </div>
+
+      {/* Subscription Status Banner */}
+      {user && subscription.isTrialing && subscription.trialEndsAt && (
+        <div className="mb-6 px-4 py-2 bg-game-yellow/10 border border-game-yellow/30 rounded-lg flex items-center gap-2">
+          <Zap className="w-4 h-4 text-game-yellow" />
+          <span className="text-sm">
+            Trial: <span className="font-semibold text-game-yellow">
+              {Math.ceil((subscription.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias restantes
+            </span>
+          </span>
+          <Link to="/pricing" className="ml-2 text-sm text-game-yellow hover:underline">
+            Assinar →
+          </Link>
+        </div>
+      )}
 
       {/* Serial Status */}
       {serialPort && (
