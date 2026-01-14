@@ -1,16 +1,19 @@
-import { Timer, Flame, Target, Zap } from 'lucide-react';
+import { Timer, Flame, Target, Zap, Usb } from 'lucide-react';
 import logo from '@/assets/logo-desafio-relampago.png';
 import type { GameMode } from '@/types/game';
+import { SerialStatus } from './SerialStatus';
+import { UseSerialPortReturn } from '@/types/serial';
 
 interface HomeScreenProps {
   onSelectMode: (mode: GameMode) => void;
+  serialPort?: UseSerialPortReturn;
 }
 
-export function HomeScreen({ onSelectMode }: HomeScreenProps) {
+export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
       {/* Logo / Title */}
-      <div className="mb-12 text-center">
+      <div className="mb-8 text-center">
         <img src={logo} alt="Desafio Relâmpago" className="h-24 w-auto mx-auto mb-6" />
         <h1 className="text-6xl font-bold text-foreground tracking-tight">
           DESAFIO <span className="text-game-yellow">RELÂMPAGO</span>
@@ -19,6 +22,20 @@ export function HomeScreen({ onSelectMode }: HomeScreenProps) {
           Sistema de Competição de Chutes
         </p>
       </div>
+
+      {/* Serial Status */}
+      {serialPort && (
+        <div className="mb-8">
+          <SerialStatus
+            isConnected={serialPort.isConnected}
+            isConnecting={serialPort.isConnecting}
+            error={serialPort.error}
+            isSupported={serialPort.isSupported}
+            onConnect={serialPort.connect}
+            onDisconnect={serialPort.disconnect}
+          />
+        </div>
+      )}
 
       {/* Mode Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl mb-12">
@@ -80,7 +97,7 @@ export function HomeScreen({ onSelectMode }: HomeScreenProps) {
       </div>
 
       {/* Instructions */}
-      <div className="flex gap-8 text-muted-foreground">
+      <div className="flex flex-wrap justify-center gap-6 text-muted-foreground">
         <div className="flex items-center gap-2">
           <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">SPACE</kbd>
           <span>Iniciar</span>
@@ -93,6 +110,14 @@ export function HomeScreen({ onSelectMode }: HomeScreenProps) {
           <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">L</kbd>
           <span>Chute Azul</span>
         </div>
+        {serialPort && (
+          <div className="flex items-center gap-2">
+            <Usb className="w-4 h-4" />
+            <span>
+              {serialPort.isConnected ? "Plaquinha ativa" : "Modo demo (teclado)"}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

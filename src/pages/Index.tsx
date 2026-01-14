@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useIronRhythmState } from '@/hooks/useIronRhythmState';
+import { useSerialPort } from '@/hooks/useSerialPort';
 import { HomeScreen } from '@/components/game/HomeScreen';
 import { SetupScreen } from '@/components/game/SetupScreen';
 import { IronRhythmSetupScreen } from '@/components/game/IronRhythmSetupScreen';
@@ -8,7 +9,7 @@ import { CountdownScreen } from '@/components/game/CountdownScreen';
 import { GameScreen } from '@/components/game/GameScreen';
 import { IronRhythmScreen } from '@/components/game/IronRhythmScreen';
 import { FinishedScreen } from '@/components/game/FinishedScreen';
-import type { GameMode } from '@/types/game';
+import type { GameMode, Side } from '@/types/game';
 
 const Index = () => {
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
@@ -20,6 +21,20 @@ const Index = () => {
     duration,
     windowSec: 5,
     targetKicksPerWindow: targetKicks,
+  });
+
+  // Serial port kick handler - routes to active game mode
+  const handleSerialKick = useCallback((side: Side) => {
+    if (gameMode === 'time_attack') {
+      timeAttackState.registerKick(side);
+    } else if (gameMode === 'iron_rhythm') {
+      ironRhythmState.registerKick(side);
+    }
+  }, [gameMode, timeAttackState, ironRhythmState]);
+
+  const serialPort = useSerialPort({ 
+    onKick: handleSerialKick,
+    debounceMs: 150,
   });
 
   const handleSelectMode = useCallback((mode: GameMode) => {
@@ -47,7 +62,7 @@ const Index = () => {
 
   // No mode selected - show home screen
   if (!gameMode) {
-    return <HomeScreen onSelectMode={handleSelectMode} />;
+    return <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />;
   }
 
   // Time Attack Mode
