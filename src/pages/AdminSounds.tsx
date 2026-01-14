@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Volume2, Loader2, Download, Zap, Play, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Volume2, Loader2, Download, Zap, Play, Check, AlertCircle, CloudUpload, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo-desafio-relampago.png';
 
 interface SoundConfig {
@@ -107,13 +108,53 @@ interface GeneratedSound {
   url: string;
 }
 
+interface StoredSound {
+  filename: string;
+  url: string;
+}
+
 export default function AdminSounds() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [generatingSounds, setGeneratingSounds] = useState<Set<string>>(new Set());
   const [generatedSounds, setGeneratedSounds] = useState<Map<string, GeneratedSound>>(new Map());
+  const [storedSounds, setStoredSounds] = useState<Map<string, StoredSound>>(new Map());
+  const [uploadingSounds, setUploadingSounds] = useState<Set<string>>(new Set());
   const [playingSound, setPlayingSound] = useState<string | null>(null);
   const [generatingAll, setGeneratingAll] = useState(false);
+  const [loadingStored, setLoadingStored] = useState(true);
+
+  // Load stored sounds from Storage on mount
+  useEffect(() => {
+    loadStoredSounds();
+  }, []);
+
+  const loadStoredSounds = async () => {
+    setLoadingStored(true);
+    try {
+      const { data: files, error } = await supabase.storage.from('sounds').list('', {
+        limit: 100,
+      });
+
+      if (error) throw error;
+
+      const soundsMap = new Map<string, StoredSound>();
+      for (const file of files || []) {
+        if (file.name.endsWith('.mp3')) {
+          const { data: urlData } = supabase.storage.from('sounds').getPublicUrl(file.name);
+          soundsMap.set(file.name, {
+            filename: file.name,
+            url: urlData.publicUrl,
+          });
+        }
+      }
+      setStoredSounds(soundsMap);
+    } catch (error) {
+      console.error('Error loading stored sounds:', error);
+    } finally {
+      setLoadingStored(false);
+    }
+  };
 
   const generateSound = async (config: SoundConfig) => {
     setGeneratingSounds((prev) => new Set(prev).add(config.filename));
@@ -145,7 +186,6 @@ export default function AdminSounds() {
 
       setGeneratedSounds((prev) => {
         const newMap = new Map(prev);
-        // Revoke previous URL if exists
         const existing = prev.get(config.filename);
         if (existing) {
           URL.revokeObjectURL(existing.url);
@@ -156,7 +196,7 @@ export default function AdminSounds() {
 
       toast({
         title: 'Som gerado!',
-        description: `${config.name} gerado com sucesso.`,
+        description: `${config.name} gerado com sucesso. Clique em "Salvar" para guardar.`,
       });
     } catch (error) {
       console.error('Error generating sound:', error);
@@ -174,24 +214,92 @@ export default function AdminSounds() {
     }
   };
 
+  const uploadSound = async (filename: string) => {
+    const sound = generatedSounds.get(filename);
+    if (!sound) return;
+
+    setUploadingSounds((prev) => new Set(prev).add(filename));
+
+    try {
+      // Upload to Storage (upsert)
+      const { error } = await supabase.storage
+        .from('sounds')
+        .upload(filename, sound.blob, {
+          contentType: 'audio/mpeg',
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage.from('sounds').getPublicUrl(filename);
+
+      // Update stored sounds
+      setStoredSounds((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(filename, { filename, url: urlData.publicUrl });
+        return newMap;
+      });
+
+      // Remove from generated (already saved)
+      setGeneratedSounds((prev) => {
+        const newMap = new Map(prev);
+        const existing = prev.get(filename);
+        if (existing) {
+          URL.revokeObjectURL(existing.url);
+        }
+        newMap.delete(filename);
+        return newMap;
+      });
+
+      toast({
+        title: 'Som salvo!',
+        description: `${filename} salvo no Storage.`,
+      });
+    } catch (error) {
+      console.error('Error uploading sound:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao salvar som',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+      });
+    } finally {
+      setUploadingSounds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(filename);
+        return newSet;
+      });
+    }
+  };
+
   const generateAllSounds = async () => {
     setGeneratingAll(true);
     for (const config of SOUND_CONFIGS) {
-      if (!generatedSounds.has(config.filename)) {
+      if (!generatedSounds.has(config.filename) && !storedSounds.has(config.filename)) {
         await generateSound(config);
-        // Small delay between requests to avoid rate limiting
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
     setGeneratingAll(false);
     toast({
       title: 'Geração completa!',
-      description: 'Todos os sons foram gerados.',
+      description: 'Todos os sons foram gerados. Clique em "Salvar Todos" para guardar.',
+    });
+  };
+
+  const uploadAllSounds = async () => {
+    const soundsToUpload = Array.from(generatedSounds.keys());
+    for (const filename of soundsToUpload) {
+      await uploadSound(filename);
+    }
+    toast({
+      title: 'Todos salvos!',
+      description: 'Todos os sons foram salvos no Storage.',
     });
   };
 
   const playSound = (filename: string) => {
-    const sound = generatedSounds.get(filename);
+    const sound = generatedSounds.get(filename) || storedSounds.get(filename);
     if (!sound) return;
 
     setPlayingSound(filename);
@@ -202,7 +310,7 @@ export default function AdminSounds() {
   };
 
   const downloadSound = (filename: string) => {
-    const sound = generatedSounds.get(filename);
+    const sound = generatedSounds.get(filename) || storedSounds.get(filename);
     if (!sound) return;
 
     const link = document.createElement('a');
@@ -211,17 +319,6 @@ export default function AdminSounds() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const downloadAllSounds = () => {
-    generatedSounds.forEach((sound, filename) => {
-      const link = document.createElement('a');
-      link.href = sound.url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    });
   };
 
   if (authLoading) {
@@ -237,6 +334,7 @@ export default function AdminSounds() {
   }
 
   const generatedCount = generatedSounds.size;
+  const storedCount = storedSounds.size;
   const totalCount = SOUND_CONFIGS.length;
 
   return (
@@ -254,15 +352,23 @@ export default function AdminSounds() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Gerador de Sons</h1>
               <p className="text-sm text-muted-foreground">
-                ElevenLabs Sound Effects • {generatedCount}/{totalCount} gerados
+                ElevenLabs Sound Effects • {storedCount}/{totalCount} salvos no Storage
               </p>
             </div>
           </div>
           <div className="flex gap-2">
+            <Button onClick={loadStoredSounds} variant="ghost" size="sm" disabled={loadingStored}>
+              <RefreshCw className={`w-4 h-4 ${loadingStored ? 'animate-spin' : ''}`} />
+            </Button>
             {generatedCount > 0 && (
-              <Button onClick={downloadAllSounds} variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Baixar Todos
+              <Button 
+                onClick={uploadAllSounds} 
+                variant="outline" 
+                size="sm"
+                disabled={uploadingSounds.size > 0}
+              >
+                <CloudUpload className="w-4 h-4 mr-2" />
+                Salvar Todos ({generatedCount})
               </Button>
             )}
             <Button
@@ -279,7 +385,7 @@ export default function AdminSounds() {
               ) : (
                 <>
                   <Zap className="w-4 h-4 mr-2" />
-                  Gerar Todos
+                  Gerar Faltantes
                 </>
               )}
             </Button>
@@ -290,13 +396,13 @@ export default function AdminSounds() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-game-yellow mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-game-yellow">Instruções</p>
+              <p className="font-medium text-game-yellow">Como funciona</p>
               <p className="text-muted-foreground mt-1">
                 1. Clique em "Gerar" para criar cada som usando IA do ElevenLabs
                 <br />
                 2. Use "Preview" para ouvir o som gerado
                 <br />
-                3. Baixe os arquivos e substitua em <code className="bg-secondary px-1 rounded">public/sounds/</code>
+                3. Clique em "Salvar" para guardar no Storage (usado automaticamente no jogo)
               </p>
             </div>
           </div>
@@ -306,13 +412,18 @@ export default function AdminSounds() {
           {SOUND_CONFIGS.map((config) => {
             const isGenerating = generatingSounds.has(config.filename);
             const isGenerated = generatedSounds.has(config.filename);
+            const isStored = storedSounds.has(config.filename);
+            const isUploading = uploadingSounds.has(config.filename);
             const isPlaying = playingSound === config.filename;
+            const hasSound = isGenerated || isStored;
 
             return (
               <div
                 key={config.filename}
                 className={`p-4 rounded-lg border transition-colors ${
-                  isGenerated
+                  isStored
+                    ? 'bg-blue-500/10 border-blue-500/30'
+                    : isGenerated
                     ? 'bg-green-500/10 border-green-500/30'
                     : 'bg-game-surface border-border'
                 }`}
@@ -321,17 +432,27 @@ export default function AdminSounds() {
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div
                       className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        isGenerated ? 'bg-green-500/20' : 'bg-secondary'
+                        isStored 
+                          ? 'bg-blue-500/20' 
+                          : isGenerated 
+                          ? 'bg-green-500/20' 
+                          : 'bg-secondary'
                       }`}
                     >
-                      {isGenerated ? (
+                      {isStored ? (
+                        <CloudUpload className="w-5 h-5 text-blue-400" />
+                      ) : isGenerated ? (
                         <Check className="w-5 h-5 text-green-400" />
                       ) : (
                         <Volume2 className="w-5 h-5 text-muted-foreground" />
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-foreground">{config.name}</p>
+                      <p className="font-medium text-foreground">
+                        {config.name}
+                        {isStored && <span className="ml-2 text-xs text-blue-400">(Salvo)</span>}
+                        {isGenerated && !isStored && <span className="ml-2 text-xs text-green-400">(Gerado)</span>}
+                      </p>
                       <p className="text-sm text-muted-foreground truncate">
                         {config.filename} • {config.duration}s • {config.description}
                       </p>
@@ -339,7 +460,7 @@ export default function AdminSounds() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {isGenerated && (
+                    {hasSound && (
                       <>
                         <Button
                           variant="ghost"
@@ -362,12 +483,30 @@ export default function AdminSounds() {
                         </Button>
                       </>
                     )}
+                    {isGenerated && !isStored && (
+                      <Button
+                        onClick={() => uploadSound(config.filename)}
+                        disabled={isUploading}
+                        size="sm"
+                        variant="outline"
+                        className="text-blue-400 border-blue-400/50 hover:bg-blue-500/10"
+                      >
+                        {isUploading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <CloudUpload className="w-4 h-4 mr-2" />
+                            Salvar
+                          </>
+                        )}
+                      </Button>
+                    )}
                     <Button
                       onClick={() => generateSound(config)}
                       disabled={isGenerating || generatingAll}
                       size="sm"
-                      variant={isGenerated ? 'outline' : 'default'}
-                      className={!isGenerated ? 'bg-game-yellow text-game-dark hover:bg-game-yellow/90' : ''}
+                      variant={hasSound ? 'outline' : 'default'}
+                      className={!hasSound ? 'bg-game-yellow text-game-dark hover:bg-game-yellow/90' : ''}
                     >
                       {isGenerating ? (
                         <>
@@ -377,7 +516,7 @@ export default function AdminSounds() {
                       ) : (
                         <>
                           <Zap className="w-4 h-4 mr-2" />
-                          {isGenerated ? 'Regenerar' : 'Gerar'}
+                          {hasSound ? 'Regenerar' : 'Gerar'}
                         </>
                       )}
                     </Button>
