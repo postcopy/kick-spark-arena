@@ -32,9 +32,10 @@ function parseLine(line: string): Side | null {
   const parts = trimmed.split(',');
   const B = parseInt(parts[1], 10);
   
-  // B = 2 → RED, B = 1 → BLUE
-  if (B === 2) return 'red';
-  if (B === 1) return 'blue';
+  // B = 2 → sinal de vermelho atingido → azul chutou
+  // B = 1 → sinal de azul atingido → vermelho chutou
+  if (B === 2) return 'blue';
+  if (B === 1) return 'red';
   return null;
 }
 
