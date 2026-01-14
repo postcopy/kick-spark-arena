@@ -15,7 +15,7 @@ export function GameTimer({ timeLeft, isPaused = false, compact = false }: GameT
     return (
       <span
         className={cn(
-          'text-3xl font-bold tabular-nums transition-colors',
+          'text-4xl font-bold tabular-nums transition-colors',
           isLow ? 'text-[#E10000]' : 'text-white'
         )}
       >
