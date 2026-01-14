@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 type SoundName = 
   | 'hit'
@@ -14,7 +15,24 @@ type SoundName =
   | 'timeUp'
   | 'victory';
 
-const SOUND_FILES: Record<SoundName, string> = {
+// Map sound names to filenames
+const SOUND_FILENAMES: Record<SoundName, string> = {
+  hit: 'hit.mp3',
+  hitHeavy: 'hit-heavy.mp3',
+  combo: 'combo.mp3',
+  specialReady: 'special-ready.mp3',
+  specialAttack: 'special-attack.mp3',
+  ko: 'ko.mp3',
+  countdown3: 'countdown-3.mp3',
+  countdown2: 'countdown-2.mp3',
+  countdown1: 'countdown-1.mp3',
+  countdownGo: 'countdown-go.mp3',
+  timeUp: 'time-up.mp3',
+  victory: 'victory.mp3',
+};
+
+// Fallback to public/sounds/ if not in Storage
+const FALLBACK_PATHS: Record<SoundName, string> = {
   hit: '/sounds/hit.mp3',
   hitHeavy: '/sounds/hit-heavy.mp3',
   combo: '/sounds/combo.mp3',
@@ -33,6 +51,7 @@ const STORAGE_KEY = 'kickcounter_soundMuted';
 
 export function useSoundEffects() {
   const audioCache = useRef<Map<SoundName, HTMLAudioElement>>(new Map());
+  const soundUrls = useRef<Map<SoundName, string>>(new Map());
   const [isMuted, setIsMuted] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) === 'true';
@@ -41,17 +60,41 @@ export function useSoundEffects() {
     }
   });
   const [volume, setVolume] = useState(0.7);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Preload all sounds
+  // Load sounds from Storage with fallback to public/sounds/
   useEffect(() => {
-    const entries = Object.entries(SOUND_FILES) as [SoundName, string][];
-    
-    entries.forEach(([name, path]) => {
-      const audio = new Audio(path);
-      audio.preload = 'auto';
-      audio.volume = volume;
-      audioCache.current.set(name, audio);
-    });
+    const loadSounds = async () => {
+      const entries = Object.entries(SOUND_FILENAMES) as [SoundName, string][];
+      
+      // Check which sounds exist in Storage
+      const { data: files } = await supabase.storage.from('sounds').list('', { limit: 100 });
+      const storedFiles = new Set(files?.map(f => f.name) || []);
+
+      for (const [name, filename] of entries) {
+        let url: string;
+        
+        if (storedFiles.has(filename)) {
+          // Use Storage URL
+          const { data } = supabase.storage.from('sounds').getPublicUrl(filename);
+          url = data.publicUrl;
+        } else {
+          // Fallback to public/sounds/
+          url = FALLBACK_PATHS[name];
+        }
+
+        soundUrls.current.set(name, url);
+        
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        audio.volume = volume;
+        audioCache.current.set(name, audio);
+      }
+
+      setIsLoaded(true);
+    };
+
+    loadSounds();
 
     return () => {
       audioCache.current.forEach(audio => {
@@ -59,6 +102,7 @@ export function useSoundEffects() {
         audio.src = '';
       });
       audioCache.current.clear();
+      soundUrls.current.clear();
     };
   }, []);
 
@@ -96,6 +140,34 @@ export function useSoundEffects() {
     setIsMuted(prev => !prev);
   }, []);
 
+  // Reload sounds from Storage (useful after generating new sounds)
+  const reloadSounds = useCallback(async () => {
+    const entries = Object.entries(SOUND_FILENAMES) as [SoundName, string][];
+    const { data: files } = await supabase.storage.from('sounds').list('', { limit: 100 });
+    const storedFiles = new Set(files?.map(f => f.name) || []);
+
+    for (const [name, filename] of entries) {
+      let url: string;
+      
+      if (storedFiles.has(filename)) {
+        const { data } = supabase.storage.from('sounds').getPublicUrl(filename);
+        url = data.publicUrl;
+      } else {
+        url = FALLBACK_PATHS[name];
+      }
+
+      // Only update if URL changed
+      if (soundUrls.current.get(name) !== url) {
+        soundUrls.current.set(name, url);
+        
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        audio.volume = volume;
+        audioCache.current.set(name, audio);
+      }
+    }
+  }, [volume]);
+
   return {
     play,
     isMuted,
@@ -103,6 +175,8 @@ export function useSoundEffects() {
     setMuted: setIsMuted,
     volume,
     setVolume,
+    isLoaded,
+    reloadSounds,
   };
 }
 
