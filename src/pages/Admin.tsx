@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Users, Crown, Clock, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Users, Crown, Clock, Loader2, RefreshCw, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo-desafio-relampago.png';
 
@@ -95,10 +95,18 @@ export default function Admin() {
               <p className="text-sm text-muted-foreground">Gerenciar assinantes</p>
             </div>
           </div>
-          <Button onClick={fetchSubscribers} variant="outline" size="sm" disabled={isLoading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Link to="/admin/sounds">
+              <Button variant="outline" size="sm">
+                <Volume2 className="w-4 h-4 mr-2" />
+                Sons
+              </Button>
+            </Link>
+            <Button onClick={fetchSubscribers} variant="outline" size="sm" disabled={isLoading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
