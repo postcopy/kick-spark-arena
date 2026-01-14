@@ -7,10 +7,10 @@ interface ProgressArcProps {
 }
 
 export function ProgressArc({ percentage, side, className }: ProgressArcProps) {
-  // Arc configuration
-  const size = 280;
-  const strokeWidth = 12;
-  const radius = (size - strokeWidth) / 2;
+  // Arc configuration - larger for TV display
+  const size = 480;
+  const strokeWidth = 20;
+  const radius = (size - strokeWidth) / 2 - 30;
   const center = size / 2;
   
   // Arc spans from 180° to 0° (bottom-open semicircle, going upward on both sides)
@@ -73,10 +73,10 @@ export function ProgressArc({ percentage, side, className }: ProgressArcProps) {
       
       {/* Scale markers - 0 and 100 */}
       <text
-        x={polarToCartesian(center, center, radius + 24, startAngle).x}
-        y={polarToCartesian(center, center, radius + 24, startAngle).y}
+        x={polarToCartesian(center, center, radius + 36, startAngle).x}
+        y={polarToCartesian(center, center, radius + 36, startAngle).y}
         fill="rgba(255,255,255,0.5)"
-        fontSize="16"
+        fontSize="24"
         fontWeight="bold"
         textAnchor="middle"
         dominantBaseline="middle"
@@ -84,10 +84,10 @@ export function ProgressArc({ percentage, side, className }: ProgressArcProps) {
         0
       </text>
       <text
-        x={polarToCartesian(center, center, radius + 24, 360 + endAngle).x}
-        y={polarToCartesian(center, center, radius + 24, 360 + endAngle).y}
+        x={polarToCartesian(center, center, radius + 36, 360 + endAngle).x}
+        y={polarToCartesian(center, center, radius + 36, 360 + endAngle).y}
         fill="rgba(255,255,255,0.5)"
-        fontSize="16"
+        fontSize="24"
         fontWeight="bold"
         textAnchor="middle"
         dominantBaseline="middle"

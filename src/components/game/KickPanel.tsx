@@ -32,23 +32,23 @@ export function KickPanel({ side, score, isFlashing, showControls = true, percen
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center">
         {/* Progress Arc with Score inside */}
-        <div className="relative w-72 h-72">
+        <div className="relative w-[480px] h-[480px]">
           <ProgressArc percentage={percentage} side={side} />
           
           {/* Centered content inside arc */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {/* Score */}
-            <div className="text-[10rem] font-bold leading-none tabular-nums text-white">
+            <div className="text-[14rem] font-bold leading-none tabular-nums text-white">
               {score}
             </div>
 
             {/* Label */}
-            <span className="text-2xl font-semibold text-white/70 uppercase tracking-widest -mt-2">
+            <span className="text-4xl font-semibold text-white/70 uppercase tracking-widest -mt-2">
               PONTOS
             </span>
 
             {/* Percentage */}
-            <span className="text-3xl font-bold text-[#FFD700] mt-2">
+            <span className="text-5xl font-bold text-[#FFD700] mt-4">
               {percentage.toFixed(1).replace('.', ',')}%
             </span>
           </div>
@@ -56,8 +56,8 @@ export function KickPanel({ side, score, isFlashing, showControls = true, percen
 
         {/* Key hint */}
         {showControls && (
-          <div className="mt-8 px-6 py-3 rounded-lg bg-white/10 border border-white/20">
-            <span className="text-xl font-mono font-bold text-white/80">
+          <div className="mt-12 px-8 py-4 rounded-lg bg-white/10 border border-white/20">
+            <span className="text-2xl font-mono font-bold text-white/80">
               Press {isRed ? 'A' : 'L'}
             </span>
           </div>
