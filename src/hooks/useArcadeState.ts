@@ -32,10 +32,11 @@ interface UseArcadeStateOptions extends Partial<ArcadeConfig> {
   onSpecialAttack?: () => void;
   onKO?: () => void;
   onTimeUp?: () => void;
+  onRoundEnd?: () => void;
 }
 
 export function useArcadeState(options: UseArcadeStateOptions = {}) {
-  const { onHit, onHitHeavy, onCombo, onSpecialReady, onSpecialAttack, onKO, onTimeUp, ...config } = options;
+  const { onHit, onHitHeavy, onCombo, onSpecialReady, onSpecialAttack, onKO, onTimeUp, onRoundEnd, ...config } = options;
   const fullConfig = { ...DEFAULT_ARCADE_CONFIG, ...config };
   
   const [gameState, setGameState] = useState<GameState>('idle');
@@ -255,6 +256,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
   // End round
   const endRound = useCallback((winner: Side | 'tie', isKO: boolean) => {
     clearTimers();
+    onRoundEnd?.(); // Stop background music
     
     const roundResult: ArcadeRoundResult = {
       winner,
@@ -313,7 +315,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
         startCountdown();
       }, ROUND_END_DELAY);
     }
-  }, [clearTimers, redState.hp, blueState.hp, roundResults, currentRound, fullConfig.bestOf, startCountdown, onKO, onTimeUp]);
+  }, [clearTimers, redState.hp, blueState.hp, roundResults, currentRound, fullConfig.bestOf, startCountdown, onKO, onTimeUp, onRoundEnd]);
 
   // Check for KO or time up
   useEffect(() => {
