@@ -133,38 +133,52 @@ export function GameScreen({
 
       {/* Main Game Area */}
       <div className="flex flex-1 relative pt-36 md:pt-44">
-        {/* Left Panel - Red */}
-        <div className="flex-1">
-          <KickPanel
-            side="red"
-            score={scores.red}
-            isFlashing={flashSide === 'red' || (isIndividual && flashSide !== null)}
-            percentage={isIndividual ? 50 : redPercentage}
-          />
-        </div>
-
-        {/* Right Panel - Blue */}
-        <div className="flex-1">
-          <KickPanel
-            side="blue"
-            score={scores.blue}
-            isFlashing={flashSide === 'blue' || (isIndividual && flashSide !== null)}
-            percentage={isIndividual ? 50 : bluePercentage}
-          />
-        </div>
-
-        {/* Individual Mode - Total Score Overlay */}
-        {isIndividual && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-20">
-            <div className="bg-black/80 backdrop-blur-sm px-12 py-8 md:px-16 md:py-10 rounded-3xl border-4 border-[#FFD700] shadow-2xl shadow-[#FFD700]/30">
-              <div className="text-[8rem] md:text-[12rem] font-bold text-[#FFD700] leading-none text-center drop-shadow-[0_0_30px_rgba(255,215,0,0.5)]">
+        {isIndividual ? (
+          /* Individual Mode - Single Centered Panel */
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1a] relative">
+            {/* Flash effect when kick registers */}
+            {flashSide && (
+              <div className="absolute inset-0 bg-[#FFD700]/20 pointer-events-none animate-pulse" />
+            )}
+            
+            <div className="text-center">
+              {/* Giant golden score */}
+              <div className={cn(
+                'text-[10rem] md:text-[14rem] font-bold text-[#FFD700] leading-none',
+                'drop-shadow-[0_0_60px_rgba(255,215,0,0.4)]',
+                'transition-transform duration-100',
+                flashSide ? 'scale-110' : 'scale-100'
+              )}>
                 {totalKicks}
               </div>
-              <div className="text-xl md:text-2xl text-[#FFD700]/70 text-center uppercase tracking-[0.4em] mt-2">
+              <div className="text-3xl md:text-4xl text-[#FFD700]/60 uppercase tracking-[0.5em] mt-4">
                 chutes
               </div>
             </div>
           </div>
+        ) : (
+          /* Duo Mode - Two Panels Side by Side */
+          <>
+            {/* Left Panel - Red */}
+            <div className="flex-1">
+              <KickPanel
+                side="red"
+                score={scores.red}
+                isFlashing={flashSide === 'red'}
+                percentage={redPercentage}
+              />
+            </div>
+
+            {/* Right Panel - Blue */}
+            <div className="flex-1">
+              <KickPanel
+                side="blue"
+                score={scores.blue}
+                isFlashing={flashSide === 'blue'}
+                percentage={bluePercentage}
+              />
+            </div>
+          </>
         )}
       </div>
 
