@@ -1,4 +1,4 @@
-import { Timer, Target, Zap, Usb, Swords, LogIn, LogOut, Crown, User, Settings, Volume2, VolumeX } from 'lucide-react';
+import { Timer, Target, Zap, Usb, Swords, LogIn, LogOut, Crown, User, Settings, Volume2, VolumeX, Flame, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import logo from '@/assets/logo-desafio-relampago.png';
 import { SerialStatus } from './SerialStatus';
@@ -78,14 +78,36 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
       </div>
 
       {/* Logo / Title */}
-      <div className="mb-8 text-center">
+      <div className="mb-6 text-center">
+        <span className="inline-block px-3 py-1 mb-4 bg-game-yellow/10 text-game-yellow text-xs rounded-full uppercase tracking-wider font-semibold">
+          Para Academias de Artes Marciais
+        </span>
         <img src={logo} alt="Desafio Relâmpago" className="h-24 w-auto mx-auto mb-6" />
         <h1 className="text-6xl font-bold text-foreground tracking-tight">
           DESAFIO <span className="text-game-yellow">RELÂMPAGO</span>
         </h1>
-        <p className="text-xl text-muted-foreground mt-4">
-          Sistema de Competição de Chutes
+        <p className="text-xl text-foreground mt-4 font-medium">
+          Transforme seu treino em uma batalha épica
         </p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Competições de chutes gamificadas para sua academia
+        </p>
+        
+        {/* Context Tags */}
+        <div className="flex items-center justify-center gap-6 mt-5 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Target className="w-4 h-4 text-game-yellow" />
+            Aquecimento
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Flame className="w-4 h-4 text-game-red" />
+            Condicionamento
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Trophy className="w-4 h-4 text-game-blue" />
+            Entretenimento
+          </span>
+        </div>
       </div>
 
       {/* Subscription Status Banner */}
@@ -122,7 +144,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         {/* Time Attack */}
         <div
           onClick={() => onSelectMode('time_attack')}
-          className="group cursor-pointer p-6 bg-game-surface border-2 border-game-yellow/30 rounded-lg hover:border-game-yellow/60 hover:bg-game-surface-elevated transition-all"
+          className="group cursor-pointer p-6 bg-game-surface border-2 border-game-yellow/30 rounded-lg hover:border-game-yellow/60 hover:bg-game-surface-elevated transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-game-yellow/10"
         >
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 bg-game-yellow/10 rounded-lg group-hover:bg-game-yellow/20 transition-colors">
@@ -138,14 +160,14 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
             <Target className="w-6 h-6 text-muted-foreground group-hover:text-game-yellow transition-colors" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Quem fizer <span className="text-foreground font-semibold">mais chutes</span> no tempo vence!
+            Ideal para <span className="text-foreground font-semibold">aquecimento</span>! Cada chute conta — quem acertar mais no tempo vence.
           </p>
         </div>
 
         {/* Arcade Duel */}
         <div
           onClick={() => onSelectMode('arcade')}
-          className="group cursor-pointer p-6 bg-game-surface border-2 border-game-red/30 rounded-lg hover:border-game-red/60 hover:bg-game-surface-elevated transition-all"
+          className="group cursor-pointer p-6 bg-game-surface border-2 border-game-red/30 rounded-lg hover:border-game-red/60 hover:bg-game-surface-elevated transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-game-red/10"
         >
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 bg-game-red/10 rounded-lg group-hover:bg-game-red/20 transition-colors">
@@ -158,30 +180,35 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
                 <span className="text-xs text-game-red uppercase tracking-wider">Modo Duelo</span>
               </div>
             </div>
-            <Target className="w-6 h-6 text-muted-foreground group-hover:text-game-red transition-colors" />
+            <Swords className="w-6 h-6 text-muted-foreground group-hover:text-game-red transition-colors" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Derrube a barra do rival com <span className="text-foreground font-semibold">combos</span>. K.O. vence!
+            <span className="text-foreground font-semibold">Duelo intenso!</span> Use combos para causar dano e derrubar o HP do adversário.
           </p>
         </div>
       </div>
 
       {/* Instructions */}
-      <div className="flex flex-wrap justify-center gap-6 text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">A</kbd>
-          <span>Chute Vermelho</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">L</kbd>
-          <span>Chute Azul</span>
-        </div>
-        {serialPort && (
+      <div className="text-center">
+        <p className="text-xs text-muted-foreground mb-4">
+          Compatível com sistemas eletrônicos de chute (SPE) ou use o teclado para demonstração
+        </p>
+        <div className="flex flex-wrap justify-center gap-6 text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Usb className="w-4 h-4" />
-            <span>{serialPort.isConnected ? "Plaquinha ativa" : "Modo demo (teclado)"}</span>
+            <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">A</kbd>
+            <span>Chute Vermelho</span>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <kbd className="px-3 py-1 bg-secondary rounded text-sm font-mono">L</kbd>
+            <span>Chute Azul</span>
+          </div>
+          {serialPort && (
+            <div className="flex items-center gap-2">
+              <Usb className="w-4 h-4" />
+              <span>{serialPort.isConnected ? "Plaquinha ativa" : "Modo demo (teclado)"}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
