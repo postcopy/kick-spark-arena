@@ -2,7 +2,7 @@ export type GameState = 'idle' | 'setup' | 'countdown' | 'running' | 'paused' | 
 
 export type Side = 'red' | 'blue';
 
-export type GameMode = 'time_attack' | 'arcade';
+export type GameMode = 'time_attack' | 'arcade' | 'solo';
 
 export interface KickEvent {
   side: Side;
@@ -32,6 +32,36 @@ export interface DayRecord {
   bestRed: number;
   bestBlue: number;
   bestTotal: number;
+}
+
+// Solo Mode Types
+export interface Athlete {
+  id: string;
+  academyId: string;
+  name: string;
+  nickname?: string;
+  belt?: string;
+  category?: string;
+  avatarUrl?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SoloConfig {
+  duration: number;      // 30, 45, or 60 seconds
+  minIntervalMs: number; // debounce
+}
+
+export interface SoloResult {
+  mode: 'solo';
+  athleteId: string;
+  athleteName: string;
+  kicks: number;
+  duration: number;
+  kicksPerSecond: number;
+  timestamp: number;
+  isNewRecord?: boolean;
 }
 
 // Arcade Mode Types
