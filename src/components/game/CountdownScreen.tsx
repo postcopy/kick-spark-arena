@@ -39,7 +39,7 @@ export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = 
   const isFight = countdown === 0;
   
   const displayText = isIntroPhase 
-    ? 'GET READY!' 
+    ? 'VAI COMEÇAR!' 
     : isFight 
       ? 'FIGHT!' 
       : countdown.toString();
