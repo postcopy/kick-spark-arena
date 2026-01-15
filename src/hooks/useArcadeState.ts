@@ -13,7 +13,7 @@ const DEFAULT_ARCADE_CONFIG: ArcadeConfig = {
   minIntervalMs: 150,
 };
 
-const COUNTDOWN_DURATION = 3;
+const COUNTDOWN_DURATION = 6; // 3s intro + 3s contagem sincronizada
 const ROUND_END_DELAY = 3000; // 3 seconds before next round
 
 const createInitialPlayerState = (hp: number): ArcadePlayerState => ({
