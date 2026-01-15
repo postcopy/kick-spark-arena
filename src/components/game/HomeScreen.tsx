@@ -47,7 +47,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           
           {/* Title */}
           <h2 className="text-3xl md:text-4xl font-bold text-foreground text-center mb-2">
-            TIME ATTACK
+            CONTRA O TEMPO
           </h2>
           
           {/* Simple Description */}
@@ -78,7 +78,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           
           {/* Title */}
           <h2 className="text-3xl md:text-4xl font-bold text-foreground text-center mb-2">
-            ARCADE
+            DUELO
           </h2>
           
           {/* Simple Description */}
