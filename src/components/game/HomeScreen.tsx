@@ -27,11 +27,8 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         <img 
           src={logo} 
           alt="Desafio Relâmpago" 
-          className="h-28 md:h-36 w-auto mx-auto mb-6 drop-shadow-[0_0_30px_rgba(255,215,0,0.3)]" 
+          className="h-28 md:h-36 w-auto mx-auto drop-shadow-[0_0_30px_rgba(255,215,0,0.3)]" 
         />
-        <h1 className="text-4xl md:text-6xl font-bold text-foreground tracking-tight">
-          DESAFIO <span className="text-game-yellow">RELÂMPAGO</span>
-        </h1>
       </div>
 
       {/* Game Mode Cards - BIG and Simple */}
