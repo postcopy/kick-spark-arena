@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 /* Gaming E-Sports Design System - All colors in HSL */
+/* Optimized for simplicity and clarity - even a 10 year old can use it */
 
 @layer base {
   :root {
@@ -35,7 +36,7 @@
     --input: 230 15% 20%;
     --ring: 45 100% 50%;
 
-    --radius: 0.25rem;
+    --radius: 0.75rem;
 
     /* Game-specific colors */
     --game-red: 0 100% 44%;
@@ -64,6 +65,15 @@
     --ko-size: clamp(240px, 25vw, 320px);
     --hp-bar-height: clamp(26px, 3vw, 34px);
     --energy-bar-height: clamp(10px, 1.2vw, 14px);
+
+    /* Simplified UI - Touch-friendly sizes */
+    --min-touch-target: 48px;
+    --button-height: 56px;
+    --button-height-lg: 64px;
+    --card-padding: 24px;
+    --gap-sm: 12px;
+    --gap-md: 16px;
+    --gap-lg: 24px;
   }
 
   .dark {
@@ -75,6 +85,8 @@
 @layer base {
   * {
     @apply border-border;
+    /* Prevent text selection for game UI */
+    -webkit-tap-highlight-color: transparent;
   }
 
   html, body, #root {
@@ -84,6 +96,13 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    /* Larger base font for readability */
+    font-size: 16px;
+  }
+
+  /* Ensure minimum touch targets */
+  button, a, [role="button"] {
+    min-height: var(--min-touch-target);
   }
 }
 
