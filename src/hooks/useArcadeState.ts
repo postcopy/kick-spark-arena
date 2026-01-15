@@ -55,18 +55,18 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
   const [showKO, setShowKO] = useState<Side | null>(null);
   const [lastDamage, setLastDamage] = useState<{ side: Side; amount: number } | null>(null);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const countdownRef = useRef<number | null>(null);
   const lastKickTime = useRef<{ red: number; blue: number }>({ red: 0, blue: 0 });
 
   // Clear all timers
   const clearTimers = useCallback(() => {
     if (timerRef.current) {
-      clearInterval(timerRef.current);
+      window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
     if (countdownRef.current) {
-      clearInterval(countdownRef.current);
+      window.clearInterval(countdownRef.current);
       countdownRef.current = null;
     }
   }, []);
@@ -115,10 +115,10 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     setGameState('countdown');
     setCountdown(COUNTDOWN_DURATION);
 
-    countdownRef.current = setInterval(() => {
+    countdownRef.current = window.setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(countdownRef.current!);
+          window.clearInterval(countdownRef.current!);
           countdownRef.current = null;
           return 0;
         }
@@ -131,10 +131,10 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
   const startGame = useCallback(() => {
     setGameState('running');
 
-    timerRef.current = setInterval(() => {
+    timerRef.current = window.setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(timerRef.current!);
+          window.clearInterval(timerRef.current!);
           timerRef.current = null;
           return 0;
         }

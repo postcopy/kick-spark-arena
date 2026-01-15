@@ -36,11 +36,20 @@ const Index = () => {
     onGameEnd: () => play('timeUp'),
   });
   
-  // Stop music callback
+  // Stop music callback with fade out
   const stopBgMusic = useCallback(() => {
     if (bgMusicRef.current) {
-      bgMusicRef.current.pause();
-      bgMusicRef.current = null;
+      const audio = bgMusicRef.current;
+      const fadeInterval = window.setInterval(() => {
+        if (audio.volume > 0.1) {
+          audio.volume = Math.max(0, audio.volume - 0.1);
+        } else {
+          window.clearInterval(fadeInterval);
+          audio.pause();
+          audio.volume = 0.6; // Reset for next time
+          bgMusicRef.current = null;
+        }
+      }, 50);
     }
   }, []);
 
@@ -60,12 +69,6 @@ const Index = () => {
     },
   });
 
-  // Reset isNewRoundRef when entering countdown for arcade mode
-  useEffect(() => {
-    if (gameMode === 'arcade' && arcadeState.gameState === 'countdown') {
-      // Will be set to false after music starts
-    }
-  }, [gameMode, arcadeState.gameState]);
 
   // Serial port kick handler
   const handleSerialKick = useCallback((side: Side) => {
@@ -118,7 +121,7 @@ const Index = () => {
 
   // Determine if user can play
   // Admin always can play, subscribed users can play, users in trial can play
-  const canPlay = isAdmin || subscription.isSubscribed || subscription.isLoading;
+  const canPlay = isAdmin || subscription.isSubscribed || subscription.isTrialing;
 
   // Show loading while auth is loading
   if (authLoading || subscription.isLoading) {
