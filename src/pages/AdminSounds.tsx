@@ -114,6 +114,13 @@ const SOUND_CONFIGS: SoundConfig[] = [
     duration: 2.5,
     description: 'Vitória do jogador azul',
   },
+  {
+    name: 'Fight Mode (BG)',
+    filename: 'fight-mode-bg.mp3',
+    prompt: 'Epic arcade fighting game background music with intense energy, electronic beats, competitive atmosphere',
+    duration: 60,
+    description: 'Música de fundo do modo Fight com narração',
+  },
 ];
 
 interface GeneratedSound {

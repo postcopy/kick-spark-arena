@@ -15,7 +15,8 @@ type SoundName =
   | 'timeUp'
   | 'victory'
   | 'victoryRed'
-  | 'victoryBlue';
+  | 'victoryBlue'
+  | 'fightModeBg';
 
 // Map sound names to filenames
 const SOUND_FILENAMES: Record<SoundName, string> = {
@@ -33,6 +34,7 @@ const SOUND_FILENAMES: Record<SoundName, string> = {
   victory: 'victory.mp3',
   victoryRed: 'victory-red.mp3',
   victoryBlue: 'victory-blue.mp3',
+  fightModeBg: 'fight-mode-bg.mp3',
 };
 
 // Fallback to public/sounds/ if not in Storage
@@ -51,6 +53,7 @@ const FALLBACK_PATHS: Record<SoundName, string> = {
   victory: '/sounds/victory.mp3',
   victoryRed: '/sounds/victory-red.mp3',
   victoryBlue: '/sounds/victory-blue.mp3',
+  fightModeBg: '/sounds/fight-mode-bg.mp3',
 };
 
 const STORAGE_KEY = 'kickcounter_soundMuted';
@@ -142,6 +145,22 @@ export function useSoundEffects() {
     }
   }, [isMuted, volume]);
 
+  // Play a sound and return the audio element reference (for stopping later)
+  const playWithRef = useCallback((name: SoundName, volumeMultiplier = 1): HTMLAudioElement | null => {
+    if (isMuted) return null;
+
+    const cachedAudio = audioCache.current.get(name);
+    if (cachedAudio) {
+      const audio = cachedAudio.cloneNode() as HTMLAudioElement;
+      audio.volume = volume * volumeMultiplier;
+      audio.play().catch(() => {
+        // Ignore autoplay errors
+      });
+      return audio;
+    }
+    return null;
+  }, [isMuted, volume]);
+
   const toggleMute = useCallback(() => {
     setIsMuted(prev => !prev);
   }, []);
@@ -176,6 +195,7 @@ export function useSoundEffects() {
 
   return {
     play,
+    playWithRef,
     isMuted,
     toggleMute,
     setMuted: setIsMuted,
