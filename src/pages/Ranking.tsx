@@ -60,9 +60,7 @@ export default function Ranking() {
             name
           )
         `)
-        .eq('academy_id', user.id)
-        .order('kicks', { ascending: false })
-        .limit(100);
+        .eq('academy_id', user.id);
 
       // Apply period filter
       if (period !== 'all') {
@@ -85,18 +83,44 @@ export default function Ranking() {
         query = query.eq('duration_seconds', parseInt(duration));
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query.order('kicks', { ascending: false });
 
       if (!error && data) {
-        setEntries(data.map((item: any) => ({
-          id: item.id,
-          athleteId: item.athlete_id,
-          athleteName: item.athletes?.name || 'Desconhecido',
-          kicks: item.kicks,
-          kicksPerSecond: parseFloat(item.kicks_per_second) || 0,
-          durationSeconds: item.duration_seconds,
-          createdAt: new Date(item.created_at),
-        })));
+        // Group by athlete - keep only the best result for each athlete
+        const athleteMap = new Map<string, {
+          id: string;
+          athleteId: string;
+          athleteName: string;
+          kicks: number;
+          kicksPerSecond: number;
+          durationSeconds: number;
+          createdAt: Date;
+        }>();
+
+        data.forEach((item: any) => {
+          const athleteId = item.athlete_id;
+          const existing = athleteMap.get(athleteId);
+
+          // Only keep the best result (highest kicks)
+          if (!existing || item.kicks > existing.kicks) {
+            athleteMap.set(athleteId, {
+              id: item.id,
+              athleteId: item.athlete_id,
+              athleteName: item.athletes?.name || 'Desconhecido',
+              kicks: item.kicks,
+              kicksPerSecond: parseFloat(item.kicks_per_second) || 0,
+              durationSeconds: item.duration_seconds,
+              createdAt: new Date(item.created_at),
+            });
+          }
+        });
+
+        // Convert to array and sort by kicks
+        const uniqueEntries = Array.from(athleteMap.values())
+          .sort((a, b) => b.kicks - a.kicks)
+          .slice(0, 100);
+
+        setEntries(uniqueEntries);
       }
 
       setIsLoading(false);
