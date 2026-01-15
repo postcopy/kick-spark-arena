@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Volume2, Loader2, Download, Zap, Play, Check, AlertCircle, CloudUpload, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Volume2, Loader2, Download, Zap, Play, Check, AlertCircle, CloudUpload, RefreshCw, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -120,9 +120,11 @@ export default function AdminSounds() {
   const [generatedSounds, setGeneratedSounds] = useState<Map<string, GeneratedSound>>(new Map());
   const [storedSounds, setStoredSounds] = useState<Map<string, StoredSound>>(new Map());
   const [uploadingSounds, setUploadingSounds] = useState<Set<string>>(new Set());
+  const [manualUploading, setManualUploading] = useState<Set<string>>(new Set());
   const [playingSound, setPlayingSound] = useState<string | null>(null);
   const [generatingAll, setGeneratingAll] = useState(false);
   const [loadingStored, setLoadingStored] = useState(true);
+  const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   // Load stored sounds from Storage on mount
   useEffect(() => {
@@ -321,6 +323,60 @@ export default function AdminSounds() {
     document.body.removeChild(link);
   };
 
+  const handleManualUpload = async (filename: string, file: File) => {
+    setManualUploading((prev) => new Set(prev).add(filename));
+
+    try {
+      // Validate file type
+      if (!file.type.startsWith('audio/')) {
+        throw new Error('Arquivo deve ser um áudio (MP3 ou WAV)');
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Arquivo muito grande (máximo 5MB)');
+      }
+
+      // Upload to Storage (upsert)
+      const { error } = await supabase.storage
+        .from('sounds')
+        .upload(filename, file, {
+          contentType: 'audio/mpeg',
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage.from('sounds').getPublicUrl(filename);
+
+      // Update stored sounds
+      setStoredSounds((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(filename, { filename, url: urlData.publicUrl });
+        return newMap;
+      });
+
+      toast({
+        title: 'Som enviado!',
+        description: `${filename} salvo no Storage.`,
+      });
+    } catch (error) {
+      console.error('Error uploading manual sound:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro no upload',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+      });
+    } finally {
+      setManualUploading((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(filename);
+        return newSet;
+      });
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -398,11 +454,11 @@ export default function AdminSounds() {
             <div className="text-sm">
               <p className="font-medium text-game-yellow">Como funciona</p>
               <p className="text-muted-foreground mt-1">
-                1. Clique em "Gerar" para criar cada som usando IA do ElevenLabs
+                <strong>Opção 1:</strong> Clique em "Gerar" para criar cada som usando IA do ElevenLabs
                 <br />
-                2. Use "Preview" para ouvir o som gerado
+                <strong>Opção 2:</strong> Use o botão "Upload" para enviar um arquivo MP3/WAV do seu computador
                 <br />
-                3. Clique em "Salvar" para guardar no Storage (usado automaticamente no jogo)
+                Os sons salvos são usados automaticamente no jogo.
               </p>
             </div>
           </div>
@@ -414,6 +470,7 @@ export default function AdminSounds() {
             const isGenerated = generatedSounds.has(config.filename);
             const isStored = storedSounds.has(config.filename);
             const isUploading = uploadingSounds.has(config.filename);
+            const isManualUploading = manualUploading.has(config.filename);
             const isPlaying = playingSound === config.filename;
             const hasSound = isGenerated || isStored;
 
@@ -501,6 +558,41 @@ export default function AdminSounds() {
                         )}
                       </Button>
                     )}
+                    
+                    {/* Hidden file input for manual upload */}
+                    <input
+                      type="file"
+                      accept="audio/mpeg,audio/wav,.mp3,.wav"
+                      className="hidden"
+                      ref={(el) => {
+                        if (el) fileInputRefs.current.set(config.filename, el);
+                      }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleManualUpload(config.filename, file);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                    
+                    {/* Manual upload button */}
+                    <Button
+                      onClick={() => fileInputRefs.current.get(config.filename)?.click()}
+                      disabled={isManualUploading}
+                      size="sm"
+                      variant="outline"
+                    >
+                      {isManualUploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload
+                        </>
+                      )}
+                    </Button>
+                    
                     <Button
                       onClick={() => generateSound(config)}
                       disabled={isGenerating || generatingAll}
