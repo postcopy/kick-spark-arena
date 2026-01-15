@@ -15,8 +15,8 @@ export function CountdownScreen({ countdown, onMusicStarted }: CountdownScreenPr
   useEffect(() => {
     setAnimationKey(countdown);
     
-    // Start background music at countdown 3 (music has its own narrated countdown)
-    if (countdown === 3 && !hasStartedMusicRef.current) {
+    // Start background music at countdown 6 (music has 3s intro before narrated countdown)
+    if (countdown === 6 && !hasStartedMusicRef.current) {
       hasStartedMusicRef.current = true;
       const audio = playWithRef('fightModeBg', 0.6);
       if (audio && onMusicStarted) {
@@ -25,8 +25,15 @@ export function CountdownScreen({ countdown, onMusicStarted }: CountdownScreenPr
     }
   }, [countdown, playWithRef, onMusicStarted]);
 
-  const displayText = countdown === 0 ? 'GO!' : countdown.toString();
-  const isGo = countdown === 0;
+  // Intro phase (6, 5, 4) vs countdown phase (3, 2, 1, 0)
+  const isIntroPhase = countdown > 3;
+  const isFight = countdown === 0;
+  
+  const displayText = isIntroPhase 
+    ? 'GET READY!' 
+    : isFight 
+      ? 'FIGHT!' 
+      : countdown.toString();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
@@ -36,12 +43,16 @@ export function CountdownScreen({ countdown, onMusicStarted }: CountdownScreenPr
         <div className="flex-1 bg-game-blue/10 border-r-4 border-game-blue" />
       </div>
 
-      {/* Countdown number */}
+      {/* Countdown display */}
       <div
         key={animationKey}
         className={cn(
-          'relative z-10 text-[20rem] font-bold animate-countdown-pop',
-          isGo ? 'text-game-yellow text-glow-yellow' : 'text-foreground'
+          'relative z-10 font-bold animate-countdown-pop',
+          isIntroPhase 
+            ? 'text-6xl md:text-8xl text-muted-foreground animate-pulse' 
+            : isFight 
+              ? 'text-[12rem] md:text-[20rem] text-game-yellow text-glow-yellow' 
+              : 'text-[12rem] md:text-[20rem] text-foreground'
         )}
       >
         {displayText}

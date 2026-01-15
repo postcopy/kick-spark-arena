@@ -6,7 +6,7 @@ const DEFAULT_CONFIG: GameConfig = {
   minIntervalMs: 120,
 };
 
-const COUNTDOWN_DURATION = 3;
+const COUNTDOWN_DURATION = 6; // 3s intro + 3s contagem sincronizada
 
 interface UseGameStateOptions extends GameConfig {
   onHit?: () => void;
