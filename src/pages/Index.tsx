@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useArcadeState } from '@/hooks/useArcadeState';
 import { useSerialPort } from '@/hooks/useSerialPort';
@@ -23,6 +23,9 @@ const Index = () => {
   const [duration, setDuration] = useState(60);
   const [roundDuration, setRoundDuration] = useState(60);
   const [bestOf, setBestOf] = useState<1 | 3>(3);
+  
+  // Background music reference
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null);
 
   const timeAttackState = useGameState({ 
     duration, 
@@ -72,10 +75,28 @@ const Index = () => {
   }, [timeAttackState, arcadeState]);
 
   const handleBackToMenu = useCallback(() => {
+    // Stop background music
+    if (bgMusicRef.current) {
+      bgMusicRef.current.pause();
+      bgMusicRef.current = null;
+    }
     setGameMode(null);
     timeAttackState.resetGame();
     arcadeState.resetGame();
   }, [timeAttackState, arcadeState]);
+
+  // Handle music started from countdown
+  const handleMusicStarted = useCallback((audio: HTMLAudioElement) => {
+    bgMusicRef.current = audio;
+  }, []);
+
+  // Stop music when game finishes
+  const stopBgMusic = useCallback(() => {
+    if (bgMusicRef.current) {
+      bgMusicRef.current.pause();
+      bgMusicRef.current = null;
+    }
+  }, []);
 
   // Determine if user can play
   // Admin always can play, subscribed users can play, users in trial can play
@@ -127,7 +148,7 @@ const Index = () => {
           />
         );
       case 'countdown':
-        return <CountdownScreen countdown={countdown} />;
+        return <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} />;
       case 'running':
       case 'paused':
         return (
@@ -139,6 +160,7 @@ const Index = () => {
           />
         );
       case 'finished':
+        stopBgMusic();
         return lastResult ? (
           <FinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
         ) : null;
@@ -163,11 +185,12 @@ const Index = () => {
           />
         );
       case 'countdown':
-        return <CountdownScreen countdown={countdown} />;
+        return <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} />;
       case 'running':
       case 'round_end':
         return <ArcadeScreen arcadeState={arcadeState} />;
       case 'finished':
+        stopBgMusic();
         return lastResult ? (
           <ArcadeFinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
         ) : null;

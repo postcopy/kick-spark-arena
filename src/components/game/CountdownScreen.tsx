@@ -4,31 +4,26 @@ import { useSound } from '@/contexts/SoundContext';
 
 interface CountdownScreenProps {
   countdown: number;
+  onMusicStarted?: (audio: HTMLAudioElement) => void;
 }
 
-export function CountdownScreen({ countdown }: CountdownScreenProps) {
+export function CountdownScreen({ countdown, onMusicStarted }: CountdownScreenProps) {
   const [animationKey, setAnimationKey] = useState(countdown);
-  const { play } = useSound();
-  const lastPlayedRef = useRef<number | null>(null);
+  const { playWithRef } = useSound();
+  const hasStartedMusicRef = useRef(false);
 
   useEffect(() => {
     setAnimationKey(countdown);
     
-    // Play sound only once per countdown value
-    if (lastPlayedRef.current !== countdown) {
-      lastPlayedRef.current = countdown;
-      
-      if (countdown === 3) {
-        play('countdown3');
-      } else if (countdown === 2) {
-        play('countdown2');
-      } else if (countdown === 1) {
-        play('countdown1');
-      } else if (countdown === 0) {
-        play('countdownGo');
+    // Start background music at countdown 3 (music has its own narrated countdown)
+    if (countdown === 3 && !hasStartedMusicRef.current) {
+      hasStartedMusicRef.current = true;
+      const audio = playWithRef('fightModeBg', 0.6);
+      if (audio && onMusicStarted) {
+        onMusicStarted(audio);
       }
     }
-  }, [countdown, play]);
+  }, [countdown, playWithRef, onMusicStarted]);
 
   const displayText = countdown === 0 ? 'GO!' : countdown.toString();
   const isGo = countdown === 0;
