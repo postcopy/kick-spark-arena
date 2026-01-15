@@ -98,7 +98,21 @@ const SOUND_CONFIGS: SoundConfig[] = [
     filename: 'victory.mp3',
     prompt: 'Victory fanfare, arcade fighting game win, triumphant celebration melody, 16-bit style jingle',
     duration: 2.5,
-    description: 'Vitória/fim de jogo',
+    description: 'Vitória/fim de jogo (empate)',
+  },
+  {
+    name: 'Vitória Vermelho',
+    filename: 'victory-red.mp3',
+    prompt: 'Victory fanfare with aggressive red theme, arcade fighting game win, powerful triumphant brass melody, warrior champion celebration, fiery intensity',
+    duration: 2.5,
+    description: 'Vitória do jogador vermelho',
+  },
+  {
+    name: 'Vitória Azul',
+    filename: 'victory-blue.mp3',
+    prompt: 'Victory fanfare with cool blue theme, arcade fighting game win, elegant triumphant celebration melody, champion victory jingle, icy calm power',
+    duration: 2.5,
+    description: 'Vitória do jogador azul',
   },
 ];
 

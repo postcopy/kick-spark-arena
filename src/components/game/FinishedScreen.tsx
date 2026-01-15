@@ -21,9 +21,16 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
   useEffect(() => {
     if (!hasPlayedRef.current) {
       hasPlayedRef.current = true;
-      play('victory');
+      // Play sound based on winner
+      if (winner === 'red') {
+        play('victoryRed');
+      } else if (winner === 'blue') {
+        play('victoryBlue');
+      } else {
+        play('victory');
+      }
     }
-  }, [play]);
+  }, [play, winner]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8 relative overflow-hidden">

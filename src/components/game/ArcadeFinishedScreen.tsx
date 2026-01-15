@@ -13,16 +13,23 @@ interface ArcadeFinishedScreenProps {
 }
 
 export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: ArcadeFinishedScreenProps) {
+  const { winner, redWins, blueWins, rounds } = result;
   const { play } = useSound();
   const hasPlayedRef = useRef(false);
 
   useEffect(() => {
     if (!hasPlayedRef.current) {
       hasPlayedRef.current = true;
-      play('victory');
+      // Play sound based on winner
+      if (winner === 'red') {
+        play('victoryRed');
+      } else if (winner === 'blue') {
+        play('victoryBlue');
+      } else {
+        play('victory');
+      }
     }
-  }, [play]);
-  const { winner, redWins, blueWins, rounds } = result;
+  }, [play, winner]);
 
   const getWinnerColor = () => {
     if (winner === 'red') return 'text-game-red text-glow-red';
