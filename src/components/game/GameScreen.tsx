@@ -1,8 +1,7 @@
-import { Timer } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import { KickPanel } from './KickPanel';
-import { GameTimer } from './GameTimer';
 import type { GameScore, Side, Athlete } from '@/types/game';
-import logo from '@/assets/logo-desafio-relampago.png';
+import { cn } from '@/lib/utils';
 
 interface GameScreenProps {
   scores: GameScore;
@@ -11,62 +10,129 @@ interface GameScreenProps {
   flashSide: Side | null;
   isIndividual?: boolean;
   athlete?: Athlete | null;
+  totalDuration?: number;
+  onPause?: () => void;
 }
 
-export function GameScreen({ scores, timeLeft, isPaused, flashSide, isIndividual, athlete }: GameScreenProps) {
+export function GameScreen({ 
+  scores, 
+  timeLeft, 
+  isPaused, 
+  flashSide, 
+  isIndividual, 
+  athlete,
+  totalDuration = 60,
+  onPause
+}: GameScreenProps) {
+  const [showPauseHint, setShowPauseHint] = useState(true);
+  
   // Calculate percentages
   const total = scores.red + scores.blue;
-  const redPercentage = total > 0 ? (scores.red / total) * 100 : 0;
-  const bluePercentage = total > 0 ? (scores.blue / total) * 100 : 0;
+  const redPercentage = total > 0 ? (scores.red / total) * 100 : 50;
+  const bluePercentage = total > 0 ? (scores.blue / total) * 100 : 50;
   const totalKicks = scores.red + scores.blue;
 
-  return (
-    <div className="flex flex-col h-screen bg-black overflow-hidden">
-      {/* Header */}
-      <div className="h-24 bg-gradient-to-b from-zinc-900 via-black to-black flex items-center justify-between px-10 border-b-2 border-[#FFD700]/40 shadow-lg shadow-black/50">
-        {/* Logo Section */}
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            {/* Glow effect */}
-            <div className="absolute inset-0 blur-2xl bg-[#FFD700]/20 scale-150" />
-            <img src={logo} alt="Desafio Relâmpago" className="h-16 w-auto relative z-10 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-bold text-white uppercase tracking-widest">
-              Desafio Relâmpago
-            </span>
-            <span className="text-xs text-[#FFD700]/70 uppercase tracking-[0.3em]">
-              {isIndividual ? 'Individual' : 'Competição de Chutes'}
-            </span>
-          </div>
-        </div>
-        
-        {/* Center Timer */}
-        <div className="flex items-center gap-4 bg-white/5 backdrop-blur-sm px-8 py-3 rounded-xl border border-[#FFD700]/30 shadow-lg shadow-[#FFD700]/10">
-          <Timer className="w-7 h-7 text-[#FFD700]" />
-          <GameTimer timeLeft={timeLeft} isPaused={isPaused} compact />
-          {isPaused && (
-            <span className="text-lg text-[#FFD700] uppercase tracking-wider animate-pulse font-bold">
-              Pausado
-            </span>
-          )}
-        </div>
+  // Progress for circular timer
+  const progress = totalDuration > 0 ? (timeLeft / totalDuration) * 100 : 100;
+  
+  // Time color based on remaining time
+  const timeColor = timeLeft <= 5 ? 'text-game-red' : timeLeft <= 10 ? 'text-game-yellow' : 'text-foreground';
+  const timerPulse = timeLeft <= 5 && !isPaused;
 
-        {/* Controls hint */}
-        <div className="flex items-center gap-8 text-white/70 text-base">
-          <span className="flex items-center gap-2">
-            <kbd className="px-3 py-1.5 bg-gradient-to-b from-zinc-700 to-zinc-800 rounded-md font-mono text-lg border border-zinc-600 shadow-md text-white">P</kbd>
-            <span>Pausar</span>
-          </span>
-          <span className="flex items-center gap-2">
-            <kbd className="px-3 py-1.5 bg-gradient-to-b from-zinc-700 to-zinc-800 rounded-md font-mono text-lg border border-zinc-600 shadow-md text-white">R</kbd>
-            <span>Reiniciar</span>
-          </span>
+  // Format time
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : secs.toString();
+  };
+
+  // Hide pause hint after 3 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => setShowPauseHint(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle tap to pause
+  const handleTapPause = useCallback(() => {
+    onPause?.();
+  }, [onPause]);
+
+  return (
+    <div 
+      className="flex flex-col h-screen bg-black overflow-hidden relative select-none"
+      onClick={handleTapPause}
+    >
+      {/* Minimalist Timer - Top Center */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20">
+        <div className={cn(
+          'relative flex items-center justify-center',
+          timerPulse && 'animate-pulse'
+        )}>
+          {/* Circular Progress Background */}
+          <svg className="w-28 h-28 md:w-36 md:h-36 -rotate-90" viewBox="0 0 100 100">
+            {/* Background circle */}
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke="hsl(var(--muted))"
+              strokeWidth="4"
+            />
+            {/* Progress circle */}
+            <circle
+              cx="50"
+              cy="50"
+              r="45"
+              fill="none"
+              stroke={timeLeft <= 5 ? 'hsl(var(--game-red))' : timeLeft <= 10 ? 'hsl(var(--game-yellow))' : 'hsl(var(--game-yellow))'}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray={`${progress * 2.83} 283`}
+              className="transition-all duration-300"
+            />
+          </svg>
+          
+          {/* Time Number */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className={cn(
+              'text-5xl md:text-6xl font-bold tabular-nums',
+              timeColor
+            )}>
+              {formatTime(timeLeft)}
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Pause Hint - Fades out */}
+      {showPauseHint && !isPaused && (
+        <div className="absolute top-44 md:top-48 left-1/2 -translate-x-1/2 z-20 animate-fade-in">
+          <span className="text-sm text-muted-foreground bg-black/50 px-4 py-2 rounded-full">
+            Toque na tela para pausar
+          </span>
+        </div>
+      )}
+
+      {/* Pause Overlay */}
+      {isPaused && (
+        <div 
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm z-30 flex items-center justify-center"
+          onClick={handleTapPause}
+        >
+          <div className="text-center">
+            <h2 className="text-6xl md:text-8xl font-bold text-game-yellow mb-4 animate-pulse">
+              PAUSADO
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Toque para continuar
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Main Game Area */}
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 relative pt-36 md:pt-44">
         {/* Left Panel - Red */}
         <div className="flex-1">
           <KickPanel
@@ -89,12 +155,12 @@ export function GameScreen({ scores, timeLeft, isPaused, flashSide, isIndividual
 
         {/* Individual Mode - Total Score Overlay */}
         {isIndividual && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-black/80 backdrop-blur-sm px-16 py-10 rounded-3xl border-4 border-[#FFD700] shadow-2xl shadow-[#FFD700]/30">
-              <div className="text-[12rem] font-bold text-[#FFD700] leading-none text-center drop-shadow-[0_0_30px_rgba(255,215,0,0.5)]">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none pt-20">
+            <div className="bg-black/80 backdrop-blur-sm px-12 py-8 md:px-16 md:py-10 rounded-3xl border-4 border-[#FFD700] shadow-2xl shadow-[#FFD700]/30">
+              <div className="text-[8rem] md:text-[12rem] font-bold text-[#FFD700] leading-none text-center drop-shadow-[0_0_30px_rgba(255,215,0,0.5)]">
                 {totalKicks}
               </div>
-              <div className="text-2xl text-[#FFD700]/70 text-center uppercase tracking-[0.4em] mt-2">
+              <div className="text-xl md:text-2xl text-[#FFD700]/70 text-center uppercase tracking-[0.4em] mt-2">
                 chutes
               </div>
             </div>
@@ -102,24 +168,24 @@ export function GameScreen({ scores, timeLeft, isPaused, flashSide, isIndividual
         )}
       </div>
 
-      {/* Footer */}
-      <div className="h-24 bg-black flex items-center border-t border-white/10">
+      {/* Footer - Team Names */}
+      <div className="h-20 md:h-24 bg-black flex items-center border-t border-white/10">
         {isIndividual && athlete ? (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-5xl font-bold text-[#FFD700] uppercase tracking-[0.3em]">
+            <span className="text-3xl md:text-5xl font-bold text-[#FFD700] uppercase tracking-[0.3em]">
               {athlete.name}
             </span>
           </div>
         ) : (
           <>
             <div className="flex-1 flex items-center justify-center">
-              <span className="text-5xl font-bold text-[#E10000] uppercase tracking-[0.3em]">
+              <span className="text-3xl md:text-5xl font-bold text-[#E10000] uppercase tracking-[0.2em]">
                 Vermelho
               </span>
             </div>
-            <div className="w-px h-14 bg-white/20" />
+            <div className="w-px h-12 bg-white/20" />
             <div className="flex-1 flex items-center justify-center">
-              <span className="text-5xl font-bold text-[#0066FF] uppercase tracking-[0.3em]">
+              <span className="text-3xl md:text-5xl font-bold text-[#0066FF] uppercase tracking-[0.2em]">
                 Azul
               </span>
             </div>

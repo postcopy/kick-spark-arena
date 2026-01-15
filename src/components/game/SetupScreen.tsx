@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Timer, Play, ChevronLeft, Users, User, Search, Plus, Trophy } from 'lucide-react';
+import { ChevronLeft, Users, User, Search, Plus, Play, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -22,10 +22,9 @@ interface SetupScreenProps {
 }
 
 const DURATION_OPTIONS = [
-  { value: 30, label: '30s' },
-  { value: 60, label: '1 min' },
-  { value: 90, label: '1:30' },
-  { value: 120, label: '2 min' },
+  { value: 30, label: '30s', sublabel: 'Rápido' },
+  { value: 60, label: '1 min', sublabel: 'Normal', recommended: true },
+  { value: 120, label: '2 min', sublabel: 'Longo' },
 ];
 
 export function SetupScreen({ 
@@ -43,6 +42,7 @@ export function SetupScreen({
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [step, setStep] = useState<'players' | 'athlete' | 'duration'>('players');
 
   // Fetch athletes when variant changes to individual
   useEffect(() => {
@@ -50,6 +50,13 @@ export function SetupScreen({
       fetchAthletes();
     }
   }, [variant, user]);
+
+  // Auto-advance step based on selections
+  useEffect(() => {
+    if (step === 'players' && variant === 'duo') {
+      // If duo selected, skip to duration
+    }
+  }, [variant, step]);
 
   const fetchAthletes = async () => {
     if (!user) return;
@@ -86,99 +93,187 @@ export function SetupScreen({
 
   const canStart = variant === 'duo' || (variant === 'individual' && selectedAthlete);
 
+  const handleVariantSelect = (v: TimeAttackVariant) => {
+    onVariantChange?.(v);
+    if (v === 'duo') {
+      setStep('duration');
+    } else {
+      setStep('athlete');
+    }
+  };
+
+  const handleAthleteSelect = (athlete: Athlete) => {
+    onAthleteChange?.(athlete);
+    setStep('duration');
+  };
+
+  const handleBack = () => {
+    if (step === 'duration') {
+      if (variant === 'individual') {
+        setStep('athlete');
+      } else {
+        setStep('players');
+      }
+    } else if (step === 'athlete') {
+      setStep('players');
+    } else {
+      onBack();
+    }
+  };
+
+  // Step indicators
+  const totalSteps = variant === 'individual' ? 3 : 2;
+  const currentStep = step === 'players' ? 1 : step === 'athlete' ? 2 : variant === 'individual' ? 3 : 2;
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
-      {/* Header */}
-      <div className="mb-8 text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <Timer className="w-10 h-10 text-game-yellow" />
-          <h1 className="text-5xl font-bold text-foreground">TIME ATTACK</h1>
-        </div>
-        <p className="text-xl text-muted-foreground">
-          Configure a partida
-        </p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 md:p-8">
+      {/* Back Button */}
+      <button
+        onClick={handleBack}
+        className="absolute top-4 left-4 p-4 rounded-2xl bg-game-surface/80 backdrop-blur-sm border border-border hover:border-game-yellow/50 transition-all active:scale-95"
+        aria-label="Voltar"
+      >
+        <ChevronLeft className="w-7 h-7 text-foreground" />
+      </button>
+
+      {/* Progress Indicator */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <div
+            key={i}
+            className={cn(
+              'w-3 h-3 rounded-full transition-all',
+              i + 1 <= currentStep ? 'bg-game-yellow' : 'bg-muted'
+            )}
+          />
+        ))}
       </div>
 
-      {/* Variant Toggle */}
-      {onVariantChange && (
-        <div className="flex gap-2 mb-8 p-1 bg-game-surface rounded-lg border border-border">
-          <button
-            onClick={() => onVariantChange('duo')}
-            className={cn(
-              'flex items-center gap-2 px-6 py-3 rounded-md font-semibold transition-all',
-              variant === 'duo'
-                ? 'bg-game-yellow text-background'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Users className="w-5 h-5" />
-            DUPLA
-          </button>
-          <button
-            onClick={() => onVariantChange('individual')}
-            className={cn(
-              'flex items-center gap-2 px-6 py-3 rounded-md font-semibold transition-all',
-              variant === 'individual'
-                ? 'bg-game-gold text-background'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <User className="w-5 h-5" />
-            INDIVIDUAL
-          </button>
+      {/* Step 1: How many players? */}
+      {step === 'players' && (
+        <div className="w-full max-w-lg animate-fade-in">
+          <h1 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-2">
+            Quantos vão jogar?
+          </h1>
+          <p className="text-lg text-muted-foreground text-center mb-10">
+            Escolha o modo de jogo
+          </p>
+
+          <div className="flex flex-col gap-4">
+            {/* Duo */}
+            <button
+              onClick={() => handleVariantSelect('duo')}
+              className={cn(
+                'group relative w-full p-6 md:p-8 rounded-2xl border-2 transition-all active:scale-[0.98]',
+                variant === 'duo'
+                  ? 'bg-game-yellow/20 border-game-yellow'
+                  : 'bg-game-surface border-border hover:border-game-yellow/50'
+              )}
+            >
+              <div className="flex items-center gap-5">
+                <div className={cn(
+                  'p-4 rounded-xl transition-colors',
+                  variant === 'duo' ? 'bg-game-yellow/30' : 'bg-muted'
+                )}>
+                  <Users className={cn(
+                    'w-10 h-10 md:w-12 md:h-12',
+                    variant === 'duo' ? 'text-game-yellow' : 'text-foreground'
+                  )} />
+                </div>
+                <div className="flex-1 text-left">
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground">DUPLA</h2>
+                  <p className="text-lg text-muted-foreground">2 pessoas, quem chuta mais</p>
+                </div>
+              </div>
+            </button>
+
+            {/* Individual */}
+            <button
+              onClick={() => handleVariantSelect('individual')}
+              className={cn(
+                'group relative w-full p-6 md:p-8 rounded-2xl border-2 transition-all active:scale-[0.98]',
+                variant === 'individual'
+                  ? 'bg-game-gold/20 border-game-gold'
+                  : 'bg-game-surface border-border hover:border-game-gold/50'
+              )}
+            >
+              <div className="flex items-center gap-5">
+                <div className={cn(
+                  'p-4 rounded-xl transition-colors',
+                  variant === 'individual' ? 'bg-game-gold/30' : 'bg-muted'
+                )}>
+                  <User className={cn(
+                    'w-10 h-10 md:w-12 md:h-12',
+                    variant === 'individual' ? 'text-game-gold' : 'text-foreground'
+                  )} />
+                </div>
+                <div className="flex-1 text-left">
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground">SOZINHO</h2>
+                  <p className="text-lg text-muted-foreground">Ranking e recordes pessoais</p>
+                </div>
+              </div>
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Individual Mode - Athlete Selection */}
-      {variant === 'individual' && onAthleteChange && (
-        <div className="w-full max-w-md mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Trophy className="w-5 h-5 text-game-gold" />
-            <span className="text-lg font-semibold text-foreground">Selecionar Atleta</span>
-          </div>
+      {/* Step 2: Select Athlete (Individual only) */}
+      {step === 'athlete' && (
+        <div className="w-full max-w-lg animate-fade-in">
+          <h1 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-2">
+            Quem vai jogar?
+          </h1>
+          <p className="text-lg text-muted-foreground text-center mb-8">
+            Selecione o atleta
+          </p>
 
           {/* Search */}
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               placeholder="Buscar atleta..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-12 h-14 text-lg rounded-xl"
             />
           </div>
 
-          {/* Athletes List */}
-          <div className="max-h-48 overflow-y-auto space-y-2 mb-4 bg-game-surface rounded-lg border border-border p-2">
+          {/* Athletes Grid */}
+          <div className="grid grid-cols-2 gap-3 max-h-[40vh] overflow-y-auto mb-4 p-1">
             {isLoading ? (
-              <div className="text-center py-4 text-muted-foreground">Carregando...</div>
+              <div className="col-span-2 text-center py-8 text-muted-foreground">
+                Carregando...
+              </div>
             ) : filteredAthletes.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">
+              <div className="col-span-2 text-center py-8 text-muted-foreground">
                 {athletes.length === 0 ? 'Nenhum atleta cadastrado' : 'Nenhum resultado'}
               </div>
             ) : (
               filteredAthletes.map((athlete) => (
                 <button
                   key={athlete.id}
-                  onClick={() => onAthleteChange(athlete)}
+                  onClick={() => handleAthleteSelect(athlete)}
                   className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left',
+                    'flex flex-col items-center p-4 rounded-xl transition-all active:scale-[0.98]',
                     selectedAthlete?.id === athlete.id
-                      ? 'bg-game-gold/20 border border-game-gold'
-                      : 'hover:bg-white/5 border border-transparent'
+                      ? 'bg-game-gold/20 border-2 border-game-gold'
+                      : 'bg-game-surface border-2 border-transparent hover:border-game-gold/50'
                   )}
                 >
-                  <div className="w-10 h-10 rounded-full bg-game-gold/20 flex items-center justify-center">
-                    <User className="w-5 h-5 text-game-gold" />
+                  <div className={cn(
+                    'w-14 h-14 rounded-full flex items-center justify-center mb-2',
+                    selectedAthlete?.id === athlete.id ? 'bg-game-gold/30' : 'bg-muted'
+                  )}>
+                    <User className={cn(
+                      'w-7 h-7',
+                      selectedAthlete?.id === athlete.id ? 'text-game-gold' : 'text-foreground'
+                    )} />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-foreground">{athlete.name}</div>
-                    {athlete.nickname && (
-                      <div className="text-sm text-muted-foreground">"{athlete.nickname}"</div>
-                    )}
-                  </div>
+                  <span className="font-semibold text-foreground text-center truncate w-full">
+                    {athlete.name.split(' ')[0]}
+                  </span>
                   {athlete.belt && (
-                    <span className="text-xs text-muted-foreground uppercase">{athlete.belt}</span>
+                    <span className="text-xs text-muted-foreground">{athlete.belt}</span>
                   )}
                 </button>
               ))
@@ -189,96 +284,102 @@ export function SetupScreen({
           <Button
             variant="outline"
             onClick={() => setShowAddDialog(true)}
-            className="w-full gap-2"
+            className="w-full h-14 gap-2 text-lg rounded-xl"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-5 h-5" />
             Novo Atleta
           </Button>
         </div>
       )}
 
-      {/* Duration Selection */}
-      <div className="mb-8">
-        <div className="text-center mb-4">
-          <span className="text-sm text-muted-foreground uppercase tracking-wider">Duração</span>
-        </div>
-        <div className="flex gap-4">
-          {DURATION_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => onDurationChange(option.value)}
-              className={cn(
-                'px-8 py-6 text-2xl font-bold rounded-lg border-2 transition-all',
-                duration === option.value
-                  ? 'bg-game-yellow/20 border-game-yellow text-game-yellow'
-                  : 'bg-game-surface border-border text-foreground hover:border-game-yellow/50'
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Step 3: Duration */}
+      {step === 'duration' && (
+        <div className="w-full max-w-lg animate-fade-in">
+          <h1 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-2">
+            Quanto tempo?
+          </h1>
+          <p className="text-lg text-muted-foreground text-center mb-10">
+            Escolha a duração do desafio
+          </p>
 
-      {/* Preview */}
-      <div className="w-full max-w-4xl h-48 bg-game-surface rounded-lg border border-border mb-8 flex overflow-hidden">
-        {variant === 'duo' ? (
-          <>
-            <div className="flex-1 flex items-center justify-center bg-game-red/10 border-l-4 border-game-red">
-              <span className="text-6xl font-bold text-game-red">RED</span>
-            </div>
-            <div className="w-px bg-border" />
-            <div className="flex-1 flex items-center justify-center bg-game-blue/10 border-r-4 border-game-blue">
-              <span className="text-6xl font-bold text-game-blue">BLUE</span>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-game-gold/10 border-4 border-game-gold">
-            {selectedAthlete ? (
-              <>
-                <span className="text-4xl font-bold text-game-gold">{selectedAthlete.name}</span>
-                {selectedAthlete.nickname && (
-                  <span className="text-xl text-game-gold/70">"{selectedAthlete.nickname}"</span>
+          {/* Duration Options */}
+          <div className="flex flex-col gap-3 mb-10">
+            {DURATION_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => onDurationChange(option.value)}
+                className={cn(
+                  'relative w-full p-5 md:p-6 rounded-2xl border-2 transition-all active:scale-[0.98]',
+                  duration === option.value
+                    ? 'bg-game-yellow/20 border-game-yellow'
+                    : 'bg-game-surface border-border hover:border-game-yellow/50'
                 )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className={cn(
+                      'text-3xl md:text-4xl font-bold',
+                      duration === option.value ? 'text-game-yellow' : 'text-foreground'
+                    )}>
+                      {option.label}
+                    </span>
+                    <span className="text-lg text-muted-foreground">{option.sublabel}</span>
+                  </div>
+                  
+                  {duration === option.value && (
+                    <div className="w-8 h-8 rounded-full bg-game-yellow flex items-center justify-center">
+                      <Check className="w-5 h-5 text-background" />
+                    </div>
+                  )}
+                </div>
+
+                {option.recommended && (
+                  <span className="absolute -top-3 right-4 px-3 py-1 bg-game-yellow text-background text-xs font-bold rounded-full">
+                    RECOMENDADO
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Preview */}
+          <div className="w-full h-32 bg-game-surface rounded-2xl border border-border mb-8 flex overflow-hidden">
+            {variant === 'duo' ? (
+              <>
+                <div className="flex-1 flex items-center justify-center bg-game-red/10 border-l-4 border-game-red">
+                  <span className="text-4xl font-bold text-game-red">RED</span>
+                </div>
+                <div className="w-px bg-border" />
+                <div className="flex-1 flex items-center justify-center bg-game-blue/10 border-r-4 border-game-blue">
+                  <span className="text-4xl font-bold text-game-blue">BLUE</span>
+                </div>
               </>
             ) : (
-              <span className="text-2xl text-muted-foreground">Selecione um atleta</span>
+              <div className="flex-1 flex items-center justify-center bg-game-gold/10 border-4 border-game-gold rounded-2xl">
+                <span className="text-3xl font-bold text-game-gold">
+                  {selectedAthlete?.name || 'Atleta'}
+                </span>
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* Actions */}
-      <div className="flex gap-4">
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={onBack}
-          className="text-xl px-8 py-6"
-        >
-          <ChevronLeft className="mr-2 h-6 w-6" />
-          Voltar
-        </Button>
-        <Button
-          size="lg"
-          onClick={onStart}
-          disabled={!canStart}
-          className={cn(
-            'text-xl px-12 py-6 font-bold',
-            variant === 'individual'
-              ? 'bg-game-gold hover:bg-game-gold/90 text-background'
-              : 'bg-game-yellow hover:bg-game-yellow-glow text-background'
-          )}
-        >
-          <Play className="mr-2 h-6 w-6" />
-          COMEÇAR
-        </Button>
-      </div>
-
-      {/* Keyboard hint */}
-      <p className="mt-8 text-muted-foreground">
-        Pressione <kbd className="px-2 py-1 bg-secondary rounded text-sm font-mono">SPACE</kbd> para iniciar
-      </p>
+          {/* Start Button */}
+          <Button
+            size="lg"
+            onClick={onStart}
+            disabled={!canStart}
+            className={cn(
+              'w-full h-16 text-2xl font-bold rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]',
+              variant === 'individual'
+                ? 'bg-game-gold hover:bg-game-gold/90 text-background'
+                : 'bg-game-yellow hover:bg-game-yellow/90 text-background'
+            )}
+          >
+            <Play className="mr-3 h-7 w-7" />
+            JOGAR!
+          </Button>
+        </div>
+      )}
 
       {/* Add Athlete Dialog */}
       <AddAthleteDialog
@@ -286,7 +387,7 @@ export function SetupScreen({
         onOpenChange={setShowAddDialog}
         onAthleteAdded={(athlete) => {
           setAthletes(prev => [...prev, athlete]);
-          onAthleteChange?.(athlete);
+          handleAthleteSelect(athlete);
           setShowAddDialog(false);
         }}
       />

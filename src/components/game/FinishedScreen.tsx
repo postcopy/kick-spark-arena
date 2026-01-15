@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Trophy, RotateCcw, Home, Timer, Medal, User } from 'lucide-react';
+import { Trophy, RotateCcw, Home, Medal, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { GameResult } from '@/types/game';
@@ -26,7 +26,6 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
   useEffect(() => {
     if (!hasPlayedRef.current) {
       hasPlayedRef.current = true;
-      // Play sound based on winner
       if (isIndividual) {
         play('victory');
       } else if (winner === 'red') {
@@ -50,7 +49,6 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
     if (!user || !result.athleteId) return;
 
     try {
-      // Check if this is a new personal record
       const { data: prevBest } = await supabase
         .from('solo_results')
         .select('kicks')
@@ -60,7 +58,6 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
         .limit(1);
 
       if (prevBest && prevBest.length > 0) {
-        // If current kicks equals the best (we just saved it), check if there's only one entry
         const { count } = await supabase
           .from('solo_results')
           .select('*', { count: 'exact', head: true })
@@ -72,7 +69,6 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
         setIsNewRecord(true);
       }
 
-      // Calculate rank in academy for this duration
       const { data: allResults } = await supabase
         .from('solo_results')
         .select('kicks, athlete_id')
@@ -81,7 +77,6 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
         .order('kicks', { ascending: false });
 
       if (allResults) {
-        // Get unique best scores per athlete
         const bestByAthlete = new Map<string, number>();
         allResults.forEach((r) => {
           if (!bestByAthlete.has(r.athlete_id) || r.kicks > bestByAthlete.get(r.athlete_id)!) {
@@ -89,7 +84,6 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
           }
         });
 
-        // Sort and find rank
         const sorted = Array.from(bestByAthlete.entries()).sort((a, b) => b[1] - a[1]);
         const athleteRank = sorted.findIndex(([id]) => id === result.athleteId) + 1;
         setRank(athleteRank || null);
@@ -99,289 +93,172 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
     }
   };
 
-  // Individual Mode UI
+  // Winner color
+  const winnerColor = isTie ? 'game-yellow' : winner === 'red' ? 'game-red' : 'game-blue';
+  const winnerText = isTie ? 'EMPATE!' : winner === 'red' ? 'VERMELHO!' : 'AZUL!';
+
+  // Individual Mode UI - Simplified
   if (isIndividual) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8 relative overflow-hidden">
-        {/* Confetti Animation */}
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 md:p-8 relative overflow-hidden">
         <Confetti />
 
         {/* Background Glow */}
         <div
-          className="absolute inset-0 opacity-20"
+          className="absolute inset-0 opacity-30"
           style={{
-            background: 'radial-gradient(circle at 50% 30%, hsl(var(--game-gold) / 0.3), transparent 70%)',
+            background: 'radial-gradient(circle at 50% 30%, hsl(var(--game-gold) / 0.4), transparent 60%)',
           }}
         />
 
-        {/* Winner Announcement */}
-        <div className="mb-12 text-center relative z-10">
-          {/* Trophy with bounce animation */}
-          <div className="relative inline-block">
-            <Trophy
-              className="w-32 h-32 mx-auto mb-6 animate-trophy-bounce text-game-gold"
-              style={{ animationDelay: '0s' }}
-            />
-            {/* Trophy glow pulse */}
-            <div className="absolute inset-0 w-32 h-32 mx-auto rounded-full blur-2xl animate-trophy-pulse opacity-50 bg-game-gold" />
-          </div>
-
-          {/* Mode indicator */}
-          <div
-            className="flex items-center justify-center gap-2 mb-4 animate-winner-text opacity-0"
-            style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
-          >
-            <Timer className="w-6 h-6 text-game-gold" />
-            <span className="text-xl text-game-gold uppercase tracking-wider font-semibold">
-              Time Attack Individual
-            </span>
-          </div>
-
-          {/* Athlete Name */}
-          <div
-            className="flex items-center justify-center gap-3 mb-4 animate-winner-text opacity-0"
-            style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}
-          >
-            <User className="w-8 h-8 text-game-gold" />
-            <span className="text-4xl font-bold text-foreground">{athleteName}</span>
-          </div>
-
-          {/* Duration */}
-          <p
-            className="text-2xl text-muted-foreground animate-winner-text opacity-0"
-            style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}
-          >
-            Tempo: {duration}s
-          </p>
+        {/* Trophy */}
+        <div className="relative mb-6 animate-trophy-bounce">
+          <Trophy className="w-24 h-24 md:w-32 md:h-32 text-game-gold" />
+          <div className="absolute inset-0 w-24 h-24 md:w-32 md:h-32 rounded-full blur-2xl animate-trophy-pulse opacity-50 bg-game-gold" />
         </div>
 
-        {/* Score Card */}
-        <div
-          className="p-10 rounded-xl border-4 border-game-gold text-center min-w-[320px] bg-game-gold/10 box-glow-gold opacity-0 animate-winner-text mb-8"
-          style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}
-        >
-          <div className="text-[10rem] font-bold text-game-gold leading-none">{totalKicks}</div>
-          <span className="text-2xl text-muted-foreground">chutes</span>
-          
-          {/* Stats */}
-          <div className="flex justify-center gap-8 mt-6 pt-6 border-t border-game-gold/30">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-game-gold">
-                {((totalKicks || 0) / duration).toFixed(1)}
-              </div>
-              <div className="text-sm text-muted-foreground">chutes/s</div>
-            </div>
-            {rank && (
-              <div className="text-center">
-                <div className="text-3xl font-bold text-game-gold flex items-center justify-center gap-1">
-                  <Medal className="w-6 h-6" />
-                  {rank}º
-                </div>
-                <div className="text-sm text-muted-foreground">ranking</div>
-              </div>
-            )}
+        {/* Athlete Name */}
+        <h1 className="text-3xl md:text-5xl font-bold text-foreground text-center mb-2 animate-fade-in">
+          {athleteName}
+        </h1>
+
+        {/* Score - BIG */}
+        <div className="my-8 animate-scale-in">
+          <div className="text-[10rem] md:text-[14rem] font-bold text-game-gold leading-none text-center drop-shadow-[0_0_40px_rgba(255,215,0,0.4)]">
+            {totalKicks}
+          </div>
+          <div className="text-2xl md:text-3xl text-muted-foreground text-center uppercase tracking-widest">
+            chutes
           </div>
         </div>
 
         {/* New Record Badge */}
         {isNewRecord && (
-          <div
-            className="mb-8 px-6 py-3 bg-game-gold/20 border-2 border-game-gold rounded-full animate-winner-text opacity-0"
-            style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
-          >
-            <span className="text-xl font-bold text-game-gold uppercase tracking-wider">
-              🎉 Novo Recorde Pessoal!
+          <div className="mb-6 px-6 py-3 bg-game-gold/20 border-2 border-game-gold rounded-full flex items-center gap-2 animate-fade-in">
+            <Sparkles className="w-5 h-5 text-game-gold" />
+            <span className="text-lg font-bold text-game-gold uppercase tracking-wider">
+              Novo Recorde!
             </span>
           </div>
         )}
 
+        {/* Rank - Only if top 3 */}
+        {rank && rank <= 3 && (
+          <div className="mb-8 flex items-center gap-2 text-xl text-game-gold animate-fade-in">
+            <Medal className="w-6 h-6" />
+            <span>{rank}º lugar na academia</span>
+          </div>
+        )}
+
         {/* Actions */}
-        <div
-          className="flex gap-4 relative z-10 opacity-0 animate-buttons-fade"
-          style={{ animationDelay: '1s', animationFillMode: 'forwards' }}
-        >
+        <div className="flex flex-col w-full max-w-sm gap-3 relative z-10">
+          <Button
+            size="lg"
+            onClick={onPlayAgain}
+            className="w-full h-16 text-xl font-bold rounded-2xl bg-game-gold hover:bg-game-gold/90 text-background transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <RotateCcw className="mr-3 h-6 w-6" />
+            JOGAR DE NOVO
+          </Button>
           <Button
             variant="outline"
             size="lg"
             onClick={onBackToMenu}
-            className="text-xl px-8 py-6 transition-transform hover:scale-105"
+            className="w-full h-14 text-lg rounded-2xl"
           >
-            <Home className="mr-2 h-6 w-6" />
+            <Home className="mr-2 h-5 w-5" />
             Menu
           </Button>
-          <Button
-            size="lg"
-            onClick={onPlayAgain}
-            className="text-xl px-12 py-6 bg-game-gold hover:bg-game-gold/90 text-background font-bold transition-transform hover:scale-105"
-          >
-            <RotateCcw className="mr-2 h-6 w-6" />
-            JOGAR DE NOVO
-          </Button>
         </div>
-
-        {/* Keyboard hint */}
-        <p
-          className="mt-8 text-muted-foreground relative z-10 opacity-0 animate-buttons-fade"
-          style={{ animationDelay: '1.2s', animationFillMode: 'forwards' }}
-        >
-          <kbd className="px-2 py-1 bg-secondary rounded text-sm font-mono">SPACE</kbd> para jogar novamente •{' '}
-          <kbd className="px-2 py-1 bg-secondary rounded text-sm font-mono">ESC</kbd> para voltar ao menu
-        </p>
       </div>
     );
   }
 
-  // Duo Mode UI (original)
+  // Duo Mode UI - Simplified
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8 relative overflow-hidden">
-      {/* Confetti Animation */}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 md:p-8 relative overflow-hidden">
       <Confetti />
 
       {/* Background Glow */}
       <div
-        className={cn(
-          'absolute inset-0 opacity-20',
-          isTie
-            ? 'bg-radial-gradient from-game-yellow/30 to-transparent'
-            : winner === 'red'
-            ? 'bg-radial-gradient from-game-red/30 to-transparent'
-            : 'bg-radial-gradient from-game-blue/30 to-transparent'
-        )}
+        className="absolute inset-0 opacity-30"
         style={{
           background: isTie
-            ? 'radial-gradient(circle at 50% 30%, hsl(var(--game-yellow) / 0.3), transparent 70%)'
+            ? 'radial-gradient(circle at 50% 30%, hsl(var(--game-yellow) / 0.4), transparent 60%)'
             : winner === 'red'
-            ? 'radial-gradient(circle at 50% 30%, hsl(var(--game-red) / 0.3), transparent 70%)'
-            : 'radial-gradient(circle at 50% 30%, hsl(var(--game-blue) / 0.3), transparent 70%)',
+            ? 'radial-gradient(circle at 50% 30%, hsl(var(--game-red) / 0.4), transparent 60%)'
+            : 'radial-gradient(circle at 50% 30%, hsl(var(--game-blue) / 0.4), transparent 60%)',
         }}
       />
 
-      {/* Winner Announcement */}
-      <div className="mb-12 text-center relative z-10">
-        {/* Trophy with bounce animation */}
-        <div className="relative inline-block">
-          <Trophy
-            className={cn(
-              'w-32 h-32 mx-auto mb-6 animate-trophy-bounce',
-              isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
-            )}
-            style={{ animationDelay: '0s' }}
-          />
-          {/* Trophy glow pulse */}
-          <div
-            className={cn(
-              'absolute inset-0 w-32 h-32 mx-auto rounded-full blur-2xl animate-trophy-pulse opacity-50',
-              isTie ? 'bg-game-yellow' : winner === 'red' ? 'bg-game-red' : 'bg-game-blue'
-            )}
-          />
-        </div>
-
-        {/* Mode indicator */}
-        <div
-          className="flex items-center justify-center gap-2 mb-4 animate-winner-text opacity-0"
-          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
-        >
-          <Timer className="w-6 h-6 text-game-yellow" />
-          <span className="text-xl text-game-yellow uppercase tracking-wider font-semibold">
-            Time Attack
-          </span>
-        </div>
-
-        {/* Winner text with scale animation */}
-        <h1
-          className={cn(
-            'text-7xl md:text-8xl font-bold mb-2 animate-winner-text opacity-0',
-            isTie
-              ? 'text-game-yellow text-glow-yellow'
-              : winner === 'red'
-              ? 'text-game-red text-glow-red'
-              : 'text-game-blue text-glow-blue'
-          )}
-          style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}
-        >
-          {isTie ? 'EMPATE!' : `${winner.toUpperCase()} VENCE!`}
-        </h1>
-        <p
-          className="text-2xl text-muted-foreground animate-winner-text opacity-0"
-          style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}
-        >
-          Tempo: {duration}s
-        </p>
+      {/* Trophy */}
+      <div className="relative mb-4 animate-trophy-bounce">
+        <Trophy className={cn(
+          'w-20 h-20 md:w-28 md:h-28',
+          isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
+        )} />
+        <div className={cn(
+          'absolute inset-0 w-20 h-20 md:w-28 md:h-28 rounded-full blur-2xl animate-trophy-pulse opacity-50',
+          isTie ? 'bg-game-yellow' : winner === 'red' ? 'bg-game-red' : 'bg-game-blue'
+        )} />
       </div>
 
+      {/* Winner Text - BIG */}
+      <h1 className={cn(
+        'text-5xl md:text-7xl font-bold text-center mb-8 animate-winner-text',
+        isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
+      )}>
+        {winnerText}
+      </h1>
+
       {/* Score Cards */}
-      <div className="flex gap-8 mb-12 relative z-10">
-        {/* Red Score - slides from left */}
-        <div
-          className={cn(
-            'p-8 rounded-xl border-2 text-center min-w-[260px] opacity-0 animate-score-slide-left',
-            winner === 'red'
-              ? 'bg-game-red/20 border-game-red box-glow-red'
-              : 'bg-game-surface border-border'
-          )}
-          style={{ animationDelay: '0.7s', animationFillMode: 'forwards' }}
-        >
-          <span className="text-2xl font-bold text-game-red uppercase tracking-wider">RED</span>
-          <div className="text-9xl font-bold text-game-red mt-2">{scores.red}</div>
-          <span className="text-lg text-muted-foreground">chutes</span>
+      <div className="flex gap-4 md:gap-8 mb-10 relative z-10">
+        {/* Red Score */}
+        <div className={cn(
+          'p-6 md:p-8 rounded-2xl border-2 text-center min-w-[140px] md:min-w-[200px] animate-score-slide-left',
+          winner === 'red'
+            ? 'bg-game-red/20 border-game-red'
+            : 'bg-game-surface border-border'
+        )}>
+          <div className="text-6xl md:text-8xl font-bold text-game-red">{scores.red}</div>
         </div>
 
         {/* VS */}
-        <div
-          className="flex items-center opacity-0 animate-winner-text"
-          style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
-        >
-          <span className="text-5xl font-bold text-muted-foreground">VS</span>
+        <div className="flex items-center">
+          <span className="text-3xl md:text-4xl font-bold text-muted-foreground">VS</span>
         </div>
 
-        {/* Blue Score - slides from right */}
-        <div
-          className={cn(
-            'p-8 rounded-xl border-2 text-center min-w-[260px] opacity-0 animate-score-slide-right',
-            winner === 'blue'
-              ? 'bg-game-blue/20 border-game-blue box-glow-blue'
-              : 'bg-game-surface border-border'
-          )}
-          style={{ animationDelay: '0.9s', animationFillMode: 'forwards' }}
-        >
-          <span className="text-2xl font-bold text-game-blue uppercase tracking-wider">BLUE</span>
-          <div className="text-9xl font-bold text-game-blue mt-2">{scores.blue}</div>
-          <span className="text-lg text-muted-foreground">chutes</span>
+        {/* Blue Score */}
+        <div className={cn(
+          'p-6 md:p-8 rounded-2xl border-2 text-center min-w-[140px] md:min-w-[200px] animate-score-slide-right',
+          winner === 'blue'
+            ? 'bg-game-blue/20 border-game-blue'
+            : 'bg-game-surface border-border'
+        )}>
+          <div className="text-6xl md:text-8xl font-bold text-game-blue">{scores.blue}</div>
         </div>
       </div>
 
       {/* Actions */}
-      <div
-        className="flex gap-4 relative z-10 opacity-0 animate-buttons-fade"
-        style={{ animationDelay: '1.1s', animationFillMode: 'forwards' }}
-      >
+      <div className="flex flex-col w-full max-w-sm gap-3 relative z-10">
+        <Button
+          size="lg"
+          onClick={onPlayAgain}
+          className="w-full h-16 text-xl font-bold rounded-2xl bg-game-yellow hover:bg-game-yellow/90 text-background transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <RotateCcw className="mr-3 h-6 w-6" />
+          JOGAR DE NOVO
+        </Button>
         <Button
           variant="outline"
           size="lg"
           onClick={onBackToMenu}
-          className="text-xl px-8 py-6 transition-transform hover:scale-105"
+          className="w-full h-14 text-lg rounded-2xl"
         >
-          <Home className="mr-2 h-6 w-6" />
+          <Home className="mr-2 h-5 w-5" />
           Menu
         </Button>
-        <Button
-          size="lg"
-          onClick={onPlayAgain}
-          className="text-xl px-12 py-6 bg-game-yellow hover:bg-game-yellow-glow text-background font-bold transition-transform hover:scale-105"
-        >
-          <RotateCcw className="mr-2 h-6 w-6" />
-          JOGAR DE NOVO
-        </Button>
       </div>
-
-      {/* Keyboard hint */}
-      <p
-        className="mt-8 text-muted-foreground relative z-10 opacity-0 animate-buttons-fade"
-        style={{ animationDelay: '1.3s', animationFillMode: 'forwards' }}
-      >
-        <kbd className="px-2 py-1 bg-secondary rounded text-sm font-mono">SPACE</kbd> para jogar novamente •{' '}
-        <kbd className="px-2 py-1 bg-secondary rounded text-sm font-mono">ESC</kbd> para voltar ao menu
-      </p>
     </div>
   );
 }
