@@ -13,7 +13,9 @@ type SoundName =
   | 'countdown1'
   | 'countdownGo'
   | 'timeUp'
-  | 'victory';
+  | 'victory'
+  | 'victoryRed'
+  | 'victoryBlue';
 
 // Map sound names to filenames
 const SOUND_FILENAMES: Record<SoundName, string> = {
@@ -29,6 +31,8 @@ const SOUND_FILENAMES: Record<SoundName, string> = {
   countdownGo: 'countdown-go.mp3',
   timeUp: 'time-up.mp3',
   victory: 'victory.mp3',
+  victoryRed: 'victory-red.mp3',
+  victoryBlue: 'victory-blue.mp3',
 };
 
 // Fallback to public/sounds/ if not in Storage
@@ -45,6 +49,8 @@ const FALLBACK_PATHS: Record<SoundName, string> = {
   countdownGo: '/sounds/countdown-go.mp3',
   timeUp: '/sounds/time-up.mp3',
   victory: '/sounds/victory.mp3',
+  victoryRed: '/sounds/victory-red.mp3',
+  victoryBlue: '/sounds/victory-blue.mp3',
 };
 
 const STORAGE_KEY = 'kickcounter_soundMuted';
