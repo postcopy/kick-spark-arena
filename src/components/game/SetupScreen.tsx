@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Users, User, Search, Plus, Play, Check } from 'lucide-react';
+import { ChevronLeft, Users, User, Search, Plus, Play, Check, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddAthleteDialog } from './AddAthleteDialog';
+import { RankingPreview, AthleteStats } from './RankingPreview';
 import type { Athlete } from '@/types/game';
 
 type TimeAttackVariant = 'duo' | 'individual';
@@ -42,6 +43,7 @@ export function SetupScreen({
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showRanking, setShowRanking] = useState(false);
   const [step, setStep] = useState<'players' | 'athlete' | 'duration'>('players');
 
   // Fetch athletes when variant changes to individual
@@ -223,9 +225,18 @@ export function SetupScreen({
           <h1 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-2">
             Quem vai jogar?
           </h1>
-          <p className="text-lg text-muted-foreground text-center mb-8">
+          <p className="text-lg text-muted-foreground text-center mb-6">
             Selecione o atleta
           </p>
+
+          {/* Ranking Button */}
+          <button
+            onClick={() => setShowRanking(true)}
+            className="w-full mb-4 p-4 rounded-xl bg-game-gold/10 border-2 border-game-gold/30 hover:border-game-gold/60 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+          >
+            <Trophy className="w-6 h-6 text-game-gold" />
+            <span className="text-lg font-semibold text-game-gold">Ver Ranking</span>
+          </button>
 
           {/* Search */}
           <div className="relative mb-4">
@@ -239,7 +250,7 @@ export function SetupScreen({
           </div>
 
           {/* Athletes Grid */}
-          <div className="grid grid-cols-2 gap-3 max-h-[40vh] overflow-y-auto mb-4 p-1">
+          <div className="grid grid-cols-2 gap-3 max-h-[35vh] overflow-y-auto mb-4 p-1">
             {isLoading ? (
               <div className="col-span-2 text-center py-8 text-muted-foreground">
                 Carregando...
@@ -298,12 +309,22 @@ export function SetupScreen({
           <h1 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-2">
             Quanto tempo?
           </h1>
-          <p className="text-lg text-muted-foreground text-center mb-10">
+          <p className="text-lg text-muted-foreground text-center mb-6">
             Escolha a duração do desafio
           </p>
 
+          {/* Athlete Stats (Individual mode only) */}
+          {variant === 'individual' && selectedAthlete && (
+            <div className="mb-6">
+              <AthleteStats 
+                athleteId={selectedAthlete.id} 
+                athleteName={selectedAthlete.name} 
+              />
+            </div>
+          )}
+
           {/* Duration Options */}
-          <div className="flex flex-col gap-3 mb-10">
+          <div className="flex flex-col gap-3 mb-8">
             {DURATION_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -343,20 +364,20 @@ export function SetupScreen({
           </div>
 
           {/* Preview */}
-          <div className="w-full h-32 bg-game-surface rounded-2xl border border-border mb-8 flex overflow-hidden">
+          <div className="w-full h-24 bg-game-surface rounded-2xl border border-border mb-6 flex overflow-hidden">
             {variant === 'duo' ? (
               <>
                 <div className="flex-1 flex items-center justify-center bg-game-red/10 border-l-4 border-game-red">
-                  <span className="text-4xl font-bold text-game-red">RED</span>
+                  <span className="text-3xl font-bold text-game-red">RED</span>
                 </div>
                 <div className="w-px bg-border" />
                 <div className="flex-1 flex items-center justify-center bg-game-blue/10 border-r-4 border-game-blue">
-                  <span className="text-4xl font-bold text-game-blue">BLUE</span>
+                  <span className="text-3xl font-bold text-game-blue">BLUE</span>
                 </div>
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center bg-game-gold/10 border-4 border-game-gold rounded-2xl">
-                <span className="text-3xl font-bold text-game-gold">
+                <span className="text-2xl font-bold text-game-gold">
                   {selectedAthlete?.name || 'Atleta'}
                 </span>
               </div>
@@ -379,6 +400,11 @@ export function SetupScreen({
             JOGAR!
           </Button>
         </div>
+      )}
+
+      {/* Ranking Preview Modal */}
+      {showRanking && (
+        <RankingPreview onClose={() => setShowRanking(false)} />
       )}
 
       {/* Add Athlete Dialog */}
