@@ -1,17 +1,10 @@
+export type Side = 'red' | 'blue';
+export type GameMode = 'time_attack' | 'arcade';
 export type GameState = 'idle' | 'setup' | 'countdown' | 'running' | 'paused' | 'finished' | 'round_end';
 
-export type Side = 'red' | 'blue';
-
-export type GameMode = 'time_attack' | 'arcade' | 'solo';
-
-export interface KickEvent {
-  side: Side;
-  timestamp: number;
-}
-
 export interface GameConfig {
-  duration: number; // in seconds
-  minIntervalMs: number; // debounce interval
+  duration: number;
+  minIntervalMs: number;
 }
 
 export interface GameScore {
@@ -25,6 +18,31 @@ export interface GameResult {
   duration: number;
   winner: Side | 'tie';
   timestamp: number;
+  // Individual mode fields
+  isIndividual?: boolean;
+  athleteId?: string;
+  athleteName?: string;
+  totalKicks?: number;
+}
+
+export interface Athlete {
+  id: string;
+  name: string;
+  nickname?: string;
+  belt?: string;
+  category?: string;
+  avatarUrl?: string;
+  isActive: boolean;
+}
+
+export interface SoloResult {
+  mode: 'time_attack';
+  athleteId: string;
+  athleteName: string;
+  kicks: number;
+  duration: number;
+  kicksPerSecond: number;
+  timestamp: number;
 }
 
 export interface DayRecord {
@@ -34,47 +52,17 @@ export interface DayRecord {
   bestTotal: number;
 }
 
-// Solo Mode Types
-export interface Athlete {
-  id: string;
-  academyId: string;
-  name: string;
-  nickname?: string;
-  belt?: string;
-  category?: string;
-  avatarUrl?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface SoloConfig {
-  duration: number;      // 30, 45, or 60 seconds
-  minIntervalMs: number; // debounce
-}
-
-export interface SoloResult {
-  mode: 'solo';
-  athleteId: string;
-  athleteName: string;
-  kicks: number;
-  duration: number;
-  kicksPerSecond: number;
-  timestamp: number;
-  isNewRecord?: boolean;
-}
-
 // Arcade Mode Types
 export interface ArcadeConfig {
-  roundDurationSec: number;      // 45 ou 60
-  startingHP: number;            // 100
-  bestOf: 1 | 3;                 // rounds
-  comboWindowMs: number;         // 700
-  energyPerKick: number;         // 10
-  energyMax: number;             // 100
-  baseDamage: number;            // 2
-  specialDamageBonus: number;    // 12
-  minIntervalMs: number;         // debounce
+  roundDurationSec: number;
+  startingHP: number;
+  bestOf: 1 | 3;
+  comboWindowMs: number;
+  energyPerKick: number;
+  energyMax: number;
+  baseDamage: number;
+  specialDamageBonus: number;
+  minIntervalMs: number;
 }
 
 export interface ArcadePlayerState {

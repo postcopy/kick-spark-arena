@@ -150,7 +150,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
       )}
 
       {/* Game Mode Cards */}
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
         {/* Time Attack */}
         <div
           onClick={() => onSelectMode('time_attack')}
@@ -164,34 +164,12 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
               <h2 className="text-xl font-bold text-foreground">TIME ATTACK</h2>
               <div className="flex items-center gap-2 mt-1">
                 <Zap className="w-4 h-4 text-game-yellow" />
-                <span className="text-xs text-game-yellow uppercase tracking-wider">Duelo</span>
+                <span className="text-xs text-game-yellow uppercase tracking-wider">Duelo ou Individual</span>
               </div>
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            <span className="text-foreground font-semibold">2 jogadores</span> — quem acertar mais no tempo vence.
-          </p>
-        </div>
-
-        {/* Solo Challenge */}
-        <div
-          onClick={() => onSelectMode('solo')}
-          className="group cursor-pointer p-6 bg-game-surface border-2 border-game-gold/30 rounded-lg hover:border-game-gold/60 hover:bg-game-surface-elevated transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-game-gold/10"
-        >
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-game-gold/10 rounded-lg group-hover:bg-game-gold/20 transition-colors">
-              <Trophy className="w-10 h-10 text-game-gold" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-foreground">SOLO</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <Medal className="w-4 h-4 text-game-gold" />
-                <span className="text-xs text-game-gold uppercase tracking-wider">Ranking</span>
-              </div>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            <span className="text-foreground font-semibold">Individual</span> — compete no ranking da academia!
+            <span className="text-foreground font-semibold">Dupla ou Solo</span> — escolha entre duelo ou desafio individual com ranking.
           </p>
         </div>
 

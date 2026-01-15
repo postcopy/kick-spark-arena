@@ -94,15 +94,12 @@ export function AddAthleteDialog({ open, onOpenChange, onAthleteAdded }: AddAthl
     // Convert to Athlete type
     const newAthlete: Athlete = {
       id: data.id,
-      academyId: data.academy_id,
       name: data.name,
       nickname: data.nickname || undefined,
       belt: data.belt || undefined,
       category: data.category || undefined,
       avatarUrl: data.avatar_url || undefined,
-      isActive: data.is_active,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      isActive: data.is_active ?? true,
     };
 
     onAthleteAdded(newAthlete);
