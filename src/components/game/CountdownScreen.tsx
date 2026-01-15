@@ -5,9 +5,10 @@ import { useSound } from '@/contexts/SoundContext';
 interface CountdownScreenProps {
   countdown: number;
   onMusicStarted?: (audio: HTMLAudioElement) => void;
+  shouldStartMusic?: boolean;
 }
 
-export function CountdownScreen({ countdown, onMusicStarted }: CountdownScreenProps) {
+export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = true }: CountdownScreenProps) {
   const [animationKey, setAnimationKey] = useState(countdown);
   const { playWithRef } = useSound();
   const hasStartedMusicRef = useRef(false);
@@ -16,14 +17,22 @@ export function CountdownScreen({ countdown, onMusicStarted }: CountdownScreenPr
     setAnimationKey(countdown);
     
     // Start background music at countdown 6 (music has 3s intro before narrated countdown)
-    if (countdown === 6 && !hasStartedMusicRef.current) {
+    // Only start if shouldStartMusic is true (new round)
+    if (countdown === 6 && !hasStartedMusicRef.current && shouldStartMusic) {
       hasStartedMusicRef.current = true;
       const audio = playWithRef('fightModeBg', 0.6);
       if (audio && onMusicStarted) {
         onMusicStarted(audio);
       }
     }
-  }, [countdown, playWithRef, onMusicStarted]);
+  }, [countdown, playWithRef, onMusicStarted, shouldStartMusic]);
+
+  // Reset the ref when shouldStartMusic changes to true (new round)
+  useEffect(() => {
+    if (shouldStartMusic) {
+      hasStartedMusicRef.current = false;
+    }
+  }, [shouldStartMusic]);
 
   // Intro phase (6, 5, 4) vs countdown phase (3, 2, 1, 0)
   const isIntroPhase = countdown > 3;

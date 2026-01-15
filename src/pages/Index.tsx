@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useArcadeState } from '@/hooks/useArcadeState';
 import { useSerialPort } from '@/hooks/useSerialPort';
@@ -26,14 +26,24 @@ const Index = () => {
   
   // Background music reference
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
+  // Track if it's a new round (should start music)
+  const isNewRoundRef = useRef(true);
 
-  const timeAttackState = useGameState({ 
+  const timeAttackState = useGameState({
     duration, 
     minIntervalMs: 120,
     onHit: () => play('hit'),
     onGameEnd: () => play('timeUp'),
   });
   
+  // Stop music callback
+  const stopBgMusic = useCallback(() => {
+    if (bgMusicRef.current) {
+      bgMusicRef.current.pause();
+      bgMusicRef.current = null;
+    }
+  }, []);
+
   const arcadeState = useArcadeState({ 
     roundDurationSec: roundDuration, 
     bestOf,
@@ -44,7 +54,18 @@ const Index = () => {
     onSpecialAttack: () => play('specialAttack'),
     onKO: () => play('ko'),
     onTimeUp: () => play('timeUp'),
+    onRoundEnd: () => {
+      stopBgMusic();
+      isNewRoundRef.current = true;
+    },
   });
+
+  // Reset isNewRoundRef when entering countdown for arcade mode
+  useEffect(() => {
+    if (gameMode === 'arcade' && arcadeState.gameState === 'countdown') {
+      // Will be set to false after music starts
+    }
+  }, [gameMode, arcadeState.gameState]);
 
   // Serial port kick handler
   const handleSerialKick = useCallback((side: Side) => {
@@ -87,15 +108,12 @@ const Index = () => {
 
   // Handle music started from countdown
   const handleMusicStarted = useCallback((audio: HTMLAudioElement) => {
-    bgMusicRef.current = audio;
-  }, []);
-
-  // Stop music when game finishes
-  const stopBgMusic = useCallback(() => {
+    // Stop previous music if exists
     if (bgMusicRef.current) {
       bgMusicRef.current.pause();
-      bgMusicRef.current = null;
     }
+    bgMusicRef.current = audio;
+    isNewRoundRef.current = false; // Mark that music has started for this round
   }, []);
 
   // Determine if user can play
@@ -185,7 +203,7 @@ const Index = () => {
           />
         );
       case 'countdown':
-        return <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} />;
+        return <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} shouldStartMusic={isNewRoundRef.current} />;
       case 'running':
       case 'round_end':
         return <ArcadeScreen arcadeState={arcadeState} />;
