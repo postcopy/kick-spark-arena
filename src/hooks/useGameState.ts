@@ -22,17 +22,17 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
   const [flashSide, setFlashSide] = useState<Side | null>(null);
 
   const lastKickTime = useRef<{ red: number; blue: number }>({ red: 0, blue: 0 });
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const countdownRef = useRef<number | null>(null);
 
   // Clear all timers
   const clearTimers = useCallback(() => {
     if (timerRef.current) {
-      clearInterval(timerRef.current);
+      window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
     if (countdownRef.current) {
-      clearInterval(countdownRef.current);
+      window.clearInterval(countdownRef.current);
       countdownRef.current = null;
     }
   }, []);
@@ -59,10 +59,10 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
     setGameState('countdown');
     setCountdown(COUNTDOWN_DURATION);
 
-    countdownRef.current = setInterval(() => {
+    countdownRef.current = window.setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(countdownRef.current!);
+          window.clearInterval(countdownRef.current!);
           countdownRef.current = null;
           return 0;
         }
@@ -76,10 +76,10 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
     setGameState('running');
     setTimeLeft(config.duration);
 
-    timerRef.current = setInterval(() => {
+    timerRef.current = window.setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          clearInterval(timerRef.current!);
+          window.clearInterval(timerRef.current!);
           timerRef.current = null;
           return 0;
         }
@@ -177,10 +177,10 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
       clearTimers();
       setGameState('paused');
     } else if (gameState === 'paused') {
-      timerRef.current = setInterval(() => {
+      timerRef.current = window.setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            clearInterval(timerRef.current!);
+            window.clearInterval(timerRef.current!);
             timerRef.current = null;
             return 0;
           }
