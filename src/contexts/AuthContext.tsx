@@ -22,7 +22,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
-  checkSubscription: () => Promise<void>;
+  checkSubscription: (isInitial?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const checkSubscription = useCallback(async () => {
+  const checkSubscription = useCallback(async (isInitial = false) => {
     if (!session?.access_token) {
       setSubscription({
         isSubscribed: false,
@@ -75,7 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      setSubscription(prev => ({ ...prev, isLoading: true }));
+      // Only show loading on initial check, not periodic refreshes
+      if (isInitial) {
+        setSubscription(prev => ({ ...prev, isLoading: true }));
+      }
 
       // First, check trial status from profile
       const { data: profile } = await supabase
@@ -132,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Use setTimeout to avoid potential race conditions
           setTimeout(() => {
             checkAdminRole(session.user.id);
-            checkSubscription();
+            checkSubscription(true); // Initial check - show loading
           }, 0);
         } else {
           setIsAdmin(false);
@@ -155,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         checkAdminRole(session.user.id);
-        checkSubscription();
+        checkSubscription(true); // Initial check - show loading
       }
     });
 
@@ -169,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     const interval = setInterval(() => {
-      checkSubscription();
+      checkSubscription(false); // Periodic check - no loading screen
     }, 60000); // Check every minute
 
     return () => clearInterval(interval);
