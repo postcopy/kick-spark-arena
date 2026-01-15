@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      athletes: {
+        Row: {
+          academy_id: string
+          avatar_url: string | null
+          belt: string | null
+          category: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          nickname: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          academy_id: string
+          avatar_url?: string | null
+          belt?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          nickname?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          academy_id?: string
+          avatar_url?: string | null
+          belt?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          nickname?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "athletes_academy_id_fkey"
+            columns: ["academy_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -37,6 +84,51 @@ export type Database = {
           trial_ends_at?: string
         }
         Relationships: []
+      }
+      solo_results: {
+        Row: {
+          academy_id: string
+          athlete_id: string
+          created_at: string | null
+          duration_seconds: number
+          id: string
+          kicks: number
+          kicks_per_second: number | null
+        }
+        Insert: {
+          academy_id: string
+          athlete_id: string
+          created_at?: string | null
+          duration_seconds: number
+          id?: string
+          kicks: number
+          kicks_per_second?: number | null
+        }
+        Update: {
+          academy_id?: string
+          athlete_id?: string
+          created_at?: string | null
+          duration_seconds?: number
+          id?: string
+          kicks?: number
+          kicks_per_second?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solo_results_academy_id_fkey"
+            columns: ["academy_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solo_results_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

@@ -11,6 +11,7 @@ import Signup from "./pages/Signup";
 import Pricing from "./pages/Pricing";
 import Admin from "./pages/Admin";
 import AdminSounds from "./pages/AdminSounds";
+import Ranking from "./pages/Ranking";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/sounds" element={<AdminSounds />} />
+              <Route path="/ranking" element={<Ranking />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,4 +1,4 @@
-import { Timer, Target, Zap, Usb, Swords, LogIn, LogOut, Crown, User, Settings, Volume2, VolumeX, Flame, Trophy } from 'lucide-react';
+import { Timer, Target, Zap, Usb, Swords, LogIn, LogOut, Crown, User, Settings, Volume2, VolumeX, Flame, Trophy, Medal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import logo from '@/assets/logo-desafio-relampago.png';
 import { SerialStatus } from './SerialStatus';
@@ -139,8 +139,18 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         </div>
       )}
 
+      {/* Ranking Link */}
+      {user && (
+        <Link to="/ranking" className="mb-6">
+          <Button variant="outline" className="gap-2 border-game-gold/30 hover:border-game-gold/60 hover:bg-game-gold/5">
+            <Medal className="w-4 h-4 text-game-gold" />
+            Ver Ranking
+          </Button>
+        </Link>
+      )}
+
       {/* Game Mode Cards */}
-      <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         {/* Time Attack */}
         <div
           onClick={() => onSelectMode('time_attack')}
@@ -151,16 +161,37 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
               <Timer className="w-10 h-10 text-game-yellow" />
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-foreground">TIME ATTACK</h2>
+              <h2 className="text-xl font-bold text-foreground">TIME ATTACK</h2>
               <div className="flex items-center gap-2 mt-1">
                 <Zap className="w-4 h-4 text-game-yellow" />
-                <span className="text-xs text-game-yellow uppercase tracking-wider">Modo Quantidade</span>
+                <span className="text-xs text-game-yellow uppercase tracking-wider">Duelo</span>
               </div>
             </div>
-            <Target className="w-6 h-6 text-muted-foreground group-hover:text-game-yellow transition-colors" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Ideal para <span className="text-foreground font-semibold">aquecimento</span>! Cada chute conta — quem acertar mais no tempo vence.
+            <span className="text-foreground font-semibold">2 jogadores</span> — quem acertar mais no tempo vence.
+          </p>
+        </div>
+
+        {/* Solo Challenge */}
+        <div
+          onClick={() => onSelectMode('solo')}
+          className="group cursor-pointer p-6 bg-game-surface border-2 border-game-gold/30 rounded-lg hover:border-game-gold/60 hover:bg-game-surface-elevated transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-game-gold/10"
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-game-gold/10 rounded-lg group-hover:bg-game-gold/20 transition-colors">
+              <Trophy className="w-10 h-10 text-game-gold" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-foreground">SOLO</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Medal className="w-4 h-4 text-game-gold" />
+                <span className="text-xs text-game-gold uppercase tracking-wider">Ranking</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            <span className="text-foreground font-semibold">Individual</span> — compete no ranking da academia!
           </p>
         </div>
 
@@ -174,16 +205,15 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
               <Swords className="w-10 h-10 text-game-red" />
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-foreground">ARCADE</h2>
+              <h2 className="text-xl font-bold text-foreground">ARCADE</h2>
               <div className="flex items-center gap-2 mt-1">
                 <Zap className="w-4 h-4 text-game-red" />
-                <span className="text-xs text-game-red uppercase tracking-wider">Modo Duelo</span>
+                <span className="text-xs text-game-red uppercase tracking-wider">Luta</span>
               </div>
             </div>
-            <Swords className="w-6 h-6 text-muted-foreground group-hover:text-game-red transition-colors" />
           </div>
           <p className="text-sm text-muted-foreground">
-            <span className="text-foreground font-semibold">Duelo intenso!</span> Use combos para causar dano e derrubar o HP do adversário.
+            <span className="text-foreground font-semibold">Duelo intenso!</span> Use combos para derrubar o HP.
           </p>
         </div>
       </div>

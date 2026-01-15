@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useArcadeState } from '@/hooks/useArcadeState';
+import { useSoloState } from '@/hooks/useSoloState';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
@@ -12,6 +13,9 @@ import { FinishedScreen } from '@/components/game/FinishedScreen';
 import { ArcadeSetupScreen } from '@/components/game/ArcadeSetupScreen';
 import { ArcadeScreen } from '@/components/game/ArcadeScreen';
 import { ArcadeFinishedScreen } from '@/components/game/ArcadeFinishedScreen';
+import { SoloSetupScreen } from '@/components/game/SoloSetupScreen';
+import { SoloGameScreen } from '@/components/game/SoloGameScreen';
+import { SoloFinishedScreen } from '@/components/game/SoloFinishedScreen';
 import { Paywall } from '@/components/Paywall';
 import { Loader2 } from 'lucide-react';
 import type { Side, GameMode } from '@/types/game';
@@ -21,6 +25,7 @@ const Index = () => {
   const { play } = useSound();
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
   const [duration, setDuration] = useState(60);
+  const [soloDuration, setSoloDuration] = useState(60);
   const [roundDuration, setRoundDuration] = useState(60);
   const [bestOf, setBestOf] = useState<1 | 3>(3);
   
@@ -69,6 +74,13 @@ const Index = () => {
     },
   });
 
+  const soloState = useSoloState({
+    duration: soloDuration,
+    minIntervalMs: 120,
+    onHit: () => play('hit'),
+    onGameEnd: () => play('timeUp'),
+  });
+
 
   // Serial port kick handler
   const handleSerialKick = useCallback((side: Side) => {
@@ -76,8 +88,11 @@ const Index = () => {
       timeAttackState.registerKick(side);
     } else if (gameMode === 'arcade') {
       arcadeState.registerKick(side);
+    } else if (gameMode === 'solo') {
+      // Both sides count as same kick in solo mode
+      soloState.registerKick();
     }
-  }, [gameMode, timeAttackState, arcadeState]);
+  }, [gameMode, timeAttackState, arcadeState, soloState]);
 
   const serialPort = useSerialPort({ 
     onKick: handleSerialKick,
@@ -95,8 +110,10 @@ const Index = () => {
       timeAttackState.goToSetup();
     } else if (mode === 'arcade') {
       arcadeState.goToSetup();
+    } else if (mode === 'solo') {
+      soloState.goToSetup();
     }
-  }, [timeAttackState, arcadeState]);
+  }, [timeAttackState, arcadeState, soloState]);
 
   const handleBackToMenu = useCallback(() => {
     // Stop background music
@@ -107,7 +124,8 @@ const Index = () => {
     setGameMode(null);
     timeAttackState.resetGame();
     arcadeState.resetGame();
-  }, [timeAttackState, arcadeState]);
+    soloState.resetGame();
+  }, [timeAttackState, arcadeState, soloState]);
 
   // Handle music started from countdown
   const handleMusicStarted = useCallback((audio: HTMLAudioElement) => {
@@ -214,6 +232,44 @@ const Index = () => {
         stopBgMusic();
         return lastResult ? (
           <ArcadeFinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
+        ) : null;
+    }
+  }
+
+  // Solo Mode
+  if (gameMode === 'solo') {
+    const { gameState, kicks, timeLeft, countdown, lastResult, selectedAthlete, isFlashing, goToSetup, startCountdown, setSelectedAthlete } = soloState;
+
+    switch (gameState) {
+      case 'idle':
+      case 'setup':
+        return (
+          <SoloSetupScreen
+            onStart={startCountdown}
+            onBack={handleBackToMenu}
+            duration={soloDuration}
+            onDurationChange={setSoloDuration}
+            selectedAthlete={selectedAthlete}
+            onAthleteChange={setSelectedAthlete}
+          />
+        );
+      case 'countdown':
+        return <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} />;
+      case 'running':
+      case 'paused':
+        return selectedAthlete ? (
+          <SoloGameScreen
+            athlete={selectedAthlete}
+            kicks={kicks}
+            timeLeft={timeLeft}
+            isPaused={gameState === 'paused'}
+            isFlashing={isFlashing}
+          />
+        ) : null;
+      case 'finished':
+        stopBgMusic();
+        return lastResult ? (
+          <SoloFinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
         ) : null;
     }
   }
