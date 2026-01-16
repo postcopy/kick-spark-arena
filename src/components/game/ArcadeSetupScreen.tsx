@@ -31,44 +31,44 @@ export function ArcadeSetupScreen({
   onBestOfChange,
 }: ArcadeSetupScreenProps) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
+    <div className="flex flex-col h-[100dvh] bg-background p-4 md:p-6 overflow-hidden">
       {/* Header */}
-      <div className="text-center mb-12">
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <Swords className="w-12 h-12 text-game-red" />
-          <h1 className="text-5xl font-black text-foreground tracking-tight">
+      <header className="flex-shrink-0 text-center mb-4 md:mb-6">
+        <div className="flex items-center justify-center gap-2 md:gap-3 mb-2">
+          <Swords className="w-8 h-8 md:w-10 md:h-10 text-game-red" />
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-foreground tracking-tight">
             DUELO <span className="text-game-yellow">ARCADE</span>
           </h1>
-          <Swords className="w-12 h-12 text-game-blue" />
+          <Swords className="w-8 h-8 md:w-10 md:h-10 text-game-blue" />
         </div>
-        <p className="text-xl text-muted-foreground">
+        <p className="text-base md:text-lg text-muted-foreground">
           Derrube a barra do rival com combos. <span className="text-game-yellow font-bold">K.O.</span> vence!
         </p>
-      </div>
+      </header>
 
-      {/* Settings */}
-      <div className="w-full max-w-2xl space-y-8 mb-12">
+      {/* Settings - scrollable area */}
+      <main className="flex-1 min-h-0 w-full max-w-2xl mx-auto overflow-y-auto space-y-3 md:space-y-4">
         {/* Round Duration */}
-        <div className="bg-game-surface p-6 rounded-lg border border-border">
-          <div className="flex items-center gap-3 mb-4">
-            <Clock className="w-6 h-6 text-game-yellow" />
-            <h2 className="text-xl font-bold text-foreground">TEMPO DO ROUND</h2>
+        <div className="bg-game-surface p-3 md:p-4 rounded-lg border border-border">
+          <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+            <Clock className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
+            <h2 className="text-lg md:text-xl font-bold text-foreground">TEMPO DO ROUND</h2>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 md:gap-3">
             {DURATION_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 onClick={() => onRoundDurationChange(option.value)}
                 className={cn(
-                  "relative py-4 px-4 rounded-lg font-bold transition-all flex flex-col items-center",
+                  "relative py-2 md:py-3 px-3 md:px-4 rounded-lg font-bold transition-all flex flex-col items-center",
                   roundDuration === option.value
                     ? "bg-game-yellow text-black"
                     : "bg-secondary text-muted-foreground hover:bg-secondary/80"
                 )}
               >
-                <span className="text-2xl">{option.label}</span>
+                <span className="text-xl md:text-2xl">{option.label}</span>
                 <span className={cn(
-                  "text-sm font-normal",
+                  "text-xs md:text-sm font-normal",
                   roundDuration === option.value ? "text-black/70" : "text-muted-foreground"
                 )}>
                   {option.sublabel}
@@ -84,18 +84,18 @@ export function ArcadeSetupScreen({
         </div>
 
         {/* Best Of */}
-        <div className="bg-game-surface p-6 rounded-lg border border-border">
-          <div className="flex items-center gap-3 mb-4">
-            <Trophy className="w-6 h-6 text-game-yellow" />
-            <h2 className="text-xl font-bold text-foreground">FORMATO</h2>
+        <div className="bg-game-surface p-3 md:p-4 rounded-lg border border-border">
+          <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+            <Trophy className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
+            <h2 className="text-lg md:text-xl font-bold text-foreground">FORMATO</h2>
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-3 md:gap-4">
             {BEST_OF_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 onClick={() => onBestOfChange(option.value)}
                 className={cn(
-                  "flex-1 py-4 px-6 rounded-lg font-bold text-xl transition-all",
+                  "flex-1 py-2 md:py-3 px-4 md:px-6 rounded-lg font-bold text-lg md:text-xl transition-all",
                   bestOf === option.value
                     ? "bg-game-yellow text-black"
                     : "bg-secondary text-muted-foreground hover:bg-secondary/80"
@@ -108,42 +108,42 @@ export function ArcadeSetupScreen({
         </div>
 
         {/* Game Rules Preview */}
-        <div className="bg-game-surface/50 p-4 rounded-lg border border-border/50">
-          <h3 className="text-sm font-bold text-muted-foreground uppercase mb-2">REGRAS</h3>
-          <ul className="text-sm text-muted-foreground space-y-1">
+        <div className="bg-game-surface/50 p-2 md:p-3 rounded-lg border border-border/50">
+          <h3 className="text-xs md:text-sm font-bold text-muted-foreground uppercase mb-1 md:mb-2">REGRAS</h3>
+          <ul className="text-xs md:text-sm text-muted-foreground space-y-0.5 md:space-y-1">
             <li>• HP inicial: <span className="text-foreground font-bold">100</span></li>
             <li>• Dano base: <span className="text-foreground font-bold">2</span> + bônus de combo (até +4)</li>
             <li>• Combo: chutes rápidos em sequência (700ms)</li>
             <li>• Especial: <span className="text-game-yellow font-bold">+12 dano</span> quando energia cheia</li>
           </ul>
         </div>
-      </div>
+      </main>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={onBack}
-          className="flex-1 gap-2"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Voltar
-        </Button>
-        <Button
-          size="lg"
-          onClick={onStart}
-          className="flex-1 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-lg"
-        >
-          <Swords className="w-5 h-5" />
-          INICIAR DUELO
-        </Button>
-      </div>
-
-      {/* Keyboard hint */}
-      <div className="mt-8 text-sm text-muted-foreground">
-        <kbd className="px-2 py-1 bg-secondary rounded font-mono">SPACE</kbd> para iniciar
-      </div>
+      {/* Footer - Action Buttons */}
+      <footer className="flex-shrink-0 pt-3 md:pt-4">
+        <div className="flex gap-3 w-full max-w-md mx-auto">
+          <Button
+            variant="outline"
+            size="default"
+            onClick={onBack}
+            className="flex-1 gap-2"
+          >
+            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
+            Voltar
+          </Button>
+          <Button
+            size="default"
+            onClick={onStart}
+            className="flex-1 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-base md:text-lg"
+          >
+            <Swords className="w-4 h-4 md:w-5 md:h-5" />
+            INICIAR DUELO
+          </Button>
+        </div>
+        <div className="mt-2 md:mt-3 text-center text-xs md:text-sm text-muted-foreground">
+          <kbd className="px-2 py-1 bg-secondary rounded font-mono">SPACE</kbd> para iniciar
+        </div>
+      </footer>
     </div>
   );
 }
