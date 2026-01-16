@@ -11,7 +11,12 @@ interface ArcadeSetupScreenProps {
   onBestOfChange: (bestOf: 1 | 3) => void;
 }
 
-const DURATION_OPTIONS = [45, 60];
+const DURATION_OPTIONS = [
+  { value: 20, label: '20s', sublabel: 'Kids 4-6' },
+  { value: 30, label: '30s', sublabel: 'Kids 7-9' },
+  { value: 45, label: '45s', sublabel: 'Juvenil', recommended: true },
+  { value: 60, label: '60s', sublabel: 'Adulto' },
+];
 const BEST_OF_OPTIONS: Array<{ value: 1 | 3; label: string }> = [
   { value: 1, label: 'RÁPIDO' },
   { value: 3, label: 'MELHOR DE 3' },
@@ -49,19 +54,30 @@ export function ArcadeSetupScreen({
             <Clock className="w-6 h-6 text-game-yellow" />
             <h2 className="text-xl font-bold text-foreground">TEMPO DO ROUND</h2>
           </div>
-          <div className="flex gap-4">
-            {DURATION_OPTIONS.map((duration) => (
+          <div className="grid grid-cols-2 gap-3">
+            {DURATION_OPTIONS.map((option) => (
               <button
-                key={duration}
-                onClick={() => onRoundDurationChange(duration)}
+                key={option.value}
+                onClick={() => onRoundDurationChange(option.value)}
                 className={cn(
-                  "flex-1 py-4 px-6 rounded-lg font-bold text-2xl transition-all",
-                  roundDuration === duration
+                  "relative py-4 px-4 rounded-lg font-bold transition-all flex flex-col items-center",
+                  roundDuration === option.value
                     ? "bg-game-yellow text-black"
                     : "bg-secondary text-muted-foreground hover:bg-secondary/80"
                 )}
               >
-                {duration}s
+                <span className="text-2xl">{option.label}</span>
+                <span className={cn(
+                  "text-sm font-normal",
+                  roundDuration === option.value ? "text-black/70" : "text-muted-foreground"
+                )}>
+                  {option.sublabel}
+                </span>
+                {option.recommended && (
+                  <span className="absolute -top-2 right-2 px-2 py-0.5 bg-game-gold text-black text-xs font-bold rounded-full">
+                    REC
+                  </span>
+                )}
               </button>
             ))}
           </div>

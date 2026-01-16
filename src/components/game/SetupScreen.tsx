@@ -23,9 +23,11 @@ interface SetupScreenProps {
 }
 
 const DURATION_OPTIONS = [
-  { value: 30, label: '30s', sublabel: 'Rápido' },
-  { value: 60, label: '1 min', sublabel: 'Normal', recommended: true },
-  { value: 120, label: '2 min', sublabel: 'Longo' },
+  { value: 15, label: '15s', sublabel: 'Kids 4-6', ageGroup: 'kids' },
+  { value: 30, label: '30s', sublabel: 'Kids 7-9', ageGroup: 'kids' },
+  { value: 45, label: '45s', sublabel: 'Juvenil', ageGroup: 'youth' },
+  { value: 60, label: '1 min', sublabel: 'Adulto', recommended: true, ageGroup: 'adult' },
+  { value: 90, label: '1:30', sublabel: 'Avançado', ageGroup: 'adult' },
 ];
 
 export function SetupScreen({ 
