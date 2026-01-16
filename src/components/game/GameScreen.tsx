@@ -26,10 +26,10 @@ export function GameScreen({
 }: GameScreenProps) {
   const [showPauseHint, setShowPauseHint] = useState(true);
   
-  // Calculate percentages
+  // Calculate percentages - start at 0% instead of 50% to avoid initial jump
   const total = scores.red + scores.blue;
-  const redPercentage = total > 0 ? (scores.red / total) * 100 : 50;
-  const bluePercentage = total > 0 ? (scores.blue / total) * 100 : 50;
+  const redPercentage = total > 0 ? (scores.red / total) * 100 : 0;
+  const bluePercentage = total > 0 ? (scores.blue / total) * 100 : 0;
   const totalKicks = scores.red + scores.blue;
 
   // Progress for circular timer
