@@ -114,40 +114,40 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
         />
 
         {/* Trophy */}
-        <div className="relative mb-6 animate-trophy-bounce">
-          <Trophy className="w-24 h-24 md:w-32 md:h-32 text-game-gold" />
-          <div className="absolute inset-0 w-24 h-24 md:w-32 md:h-32 rounded-full blur-2xl animate-trophy-pulse opacity-50 bg-game-gold" />
+        <div className="relative mb-4 animate-trophy-bounce">
+          <Trophy className="w-16 h-16 md:w-20 md:h-20 text-game-gold" />
+          <div className="absolute inset-0 w-16 h-16 md:w-20 md:h-20 rounded-full blur-2xl animate-trophy-pulse opacity-50 bg-game-gold" />
         </div>
 
         {/* Athlete Name */}
-        <h1 className="text-3xl md:text-5xl font-bold text-foreground text-center mb-2 animate-fade-in">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-1 animate-fade-in">
           {athleteName}
         </h1>
 
-        {/* Score - BIG */}
-        <div className="my-8 animate-scale-in">
-          <div className="text-[10rem] md:text-[14rem] font-bold text-game-gold leading-none text-center drop-shadow-[0_0_40px_rgba(255,215,0,0.4)]">
+        {/* Score - Responsive */}
+        <div className="my-4 animate-scale-in">
+          <div className="text-[clamp(5rem,15vh,10rem)] font-bold text-game-gold leading-none text-center drop-shadow-[0_0_40px_rgba(255,215,0,0.4)]">
             {totalKicks}
           </div>
-          <div className="text-2xl md:text-3xl text-muted-foreground text-center uppercase tracking-widest">
+          <div className="text-xl md:text-2xl text-muted-foreground text-center uppercase tracking-widest">
             chutes
           </div>
         </div>
 
         {/* Mascote celebrando */}
-        <div className="mb-4">
+        <div className="mb-3">
           <FighterMascot 
             side="red"
             state="winner" 
-            size="lg"
+            size="md"
           />
         </div>
 
         {/* New Record Badge */}
         {isNewRecord && (
-          <div className="mb-6 px-6 py-3 bg-game-gold/20 border-2 border-game-gold rounded-full flex items-center gap-2 animate-fade-in">
-            <Sparkles className="w-5 h-5 text-game-gold" />
-            <span className="text-lg font-bold text-game-gold uppercase tracking-wider">
+          <div className="mb-4 px-4 py-2 bg-game-gold/20 border-2 border-game-gold rounded-full flex items-center gap-2 animate-fade-in">
+            <Sparkles className="w-4 h-4 text-game-gold" />
+            <span className="text-base font-bold text-game-gold uppercase tracking-wider">
               Novo Recorde!
             </span>
           </div>
@@ -155,8 +155,8 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
 
         {/* Rank - Only if top 3 */}
         {rank && rank <= 3 && (
-          <div className="mb-8 flex items-center gap-2 text-xl text-game-gold animate-fade-in">
-            <Medal className="w-6 h-6" />
+          <div className="mb-4 flex items-center gap-2 text-lg text-game-gold animate-fade-in">
+            <Medal className="w-5 h-5" />
             <span>{rank}º lugar na academia</span>
           </div>
         )}
@@ -205,37 +205,37 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
       />
 
       {/* Trophy */}
-      <div className="relative mb-4 animate-trophy-bounce">
+      <div className="relative mb-3 animate-trophy-bounce">
         <Trophy className={cn(
-          'w-20 h-20 md:w-28 md:h-28',
+          'w-14 h-14 md:w-16 md:h-16',
           isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
         )} />
         <div className={cn(
-          'absolute inset-0 w-20 h-20 md:w-28 md:h-28 rounded-full blur-2xl animate-trophy-pulse opacity-50',
+          'absolute inset-0 w-14 h-14 md:w-16 md:h-16 rounded-full blur-2xl animate-trophy-pulse opacity-50',
           isTie ? 'bg-game-yellow' : winner === 'red' ? 'bg-game-red' : 'bg-game-blue'
         )} />
       </div>
 
-      {/* Winner Text - BIG */}
+      {/* Winner Text */}
       <h1 className={cn(
-        'text-5xl md:text-7xl font-bold text-center mb-8 animate-winner-text',
+        'text-4xl md:text-5xl font-bold text-center mb-4 animate-winner-text',
         isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
       )}>
         {winnerText}
       </h1>
 
       {/* Score Cards */}
-      <div className="flex gap-4 md:gap-8 mb-10 relative z-10">
+      <div className="flex gap-3 md:gap-6 mb-6 relative z-10">
         {/* Red Score */}
         <div className={cn(
-          'p-6 md:p-8 rounded-2xl border-2 text-center min-w-[140px] md:min-w-[200px] animate-score-slide-left',
+          'p-4 md:p-6 rounded-2xl border-2 text-center min-w-[100px] md:min-w-[140px] animate-score-slide-left',
           winner === 'red'
             ? 'bg-game-red/20 border-game-red'
             : 'bg-game-surface border-border'
         )}>
-          <div className="text-6xl md:text-8xl font-bold text-game-red">{scores.red}</div>
+          <div className="text-4xl md:text-5xl font-bold text-game-red">{scores.red}</div>
           {/* Mascote vermelho */}
-          <div className="mt-4 flex justify-center">
+          <div className="mt-2 flex justify-center">
             <FighterMascot 
               side="red" 
               state={winner === 'red' ? 'winner' : winner === 'tie' ? 'idle' : 'loser'} 
@@ -246,19 +246,19 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
 
         {/* VS */}
         <div className="flex items-center">
-          <span className="text-3xl md:text-4xl font-bold text-muted-foreground">VS</span>
+          <span className="text-2xl md:text-3xl font-bold text-muted-foreground">VS</span>
         </div>
 
         {/* Blue Score */}
         <div className={cn(
-          'p-6 md:p-8 rounded-2xl border-2 text-center min-w-[140px] md:min-w-[200px] animate-score-slide-right',
+          'p-4 md:p-6 rounded-2xl border-2 text-center min-w-[100px] md:min-w-[140px] animate-score-slide-right',
           winner === 'blue'
             ? 'bg-game-blue/20 border-game-blue'
             : 'bg-game-surface border-border'
         )}>
-          <div className="text-6xl md:text-8xl font-bold text-game-blue">{scores.blue}</div>
+          <div className="text-4xl md:text-5xl font-bold text-game-blue">{scores.blue}</div>
           {/* Mascote azul */}
-          <div className="mt-4 flex justify-center">
+          <div className="mt-2 flex justify-center">
             <FighterMascot 
               side="blue" 
               state={winner === 'blue' ? 'winner' : winner === 'tie' ? 'idle' : 'loser'} 
