@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils';
 import { Zap } from 'lucide-react';
 import type { UseArcadeStateReturn } from '@/hooks/useArcadeState';
 import logoSFight from '@/assets/logo-desafio-relampago.png';
+import { FighterMascot, type MascotState } from './FighterMascot';
+import type { Side } from '@/types/game';
 
 interface ArcadeScreenTVProps {
   arcadeState: UseArcadeStateReturn;
@@ -22,6 +24,32 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
     gameState,
     roundResults,
   } = arcadeState;
+
+  // Determine mascot state based on game state
+  const getMascotState = (side: Side): MascotState => {
+    // KO states
+    if (showKO) {
+      return showKO === side ? 'winner' : 'ko';
+    }
+    
+    // Round end (time up)
+    if (gameState === 'round_end') {
+      const redWon = redState.hp > blueState.hp;
+      const blueWon = blueState.hp > redState.hp;
+      if (side === 'red') return redWon ? 'winner' : blueWon ? 'loser' : 'idle';
+      return blueWon ? 'winner' : redWon ? 'loser' : 'idle';
+    }
+    
+    // Hit reaction - this side got hit
+    if (flashSide === side) return 'hit';
+    
+    // Attacking - the OTHER side got hit (lastDamage shows who received damage)
+    if (lastDamage && lastDamage.side !== side) {
+      return 'attacking';
+    }
+    
+    return 'idle';
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -182,6 +210,15 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
               </div>
             </div>
           )}
+
+          {/* Red Mascot */}
+          <div className="absolute bottom-[15%] left-8 z-10 pointer-events-none">
+            <FighterMascot 
+              side="red" 
+              state={getMascotState('red')} 
+              size="lg"
+            />
+          </div>
         </div>
 
         {/* Center Divider + Logo + Timer */}
@@ -311,6 +348,15 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
               </div>
             </div>
           )}
+
+          {/* Blue Mascot */}
+          <div className="absolute bottom-[15%] right-8 z-10 pointer-events-none">
+            <FighterMascot 
+              side="blue" 
+              state={getMascotState('blue')} 
+              size="lg"
+            />
+          </div>
         </div>
 
         {/* Special Used overlay */}
