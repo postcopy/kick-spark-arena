@@ -60,7 +60,7 @@ export function GameScreen({
 
   return (
     <div 
-      className="flex flex-col h-screen bg-black overflow-hidden relative select-none"
+      className="flex flex-col h-[100dvh] bg-black overflow-hidden relative select-none"
       onClick={handleTapPause}
     >
       {/* Minimalist Timer - Top Center */}
@@ -133,7 +133,7 @@ export function GameScreen({
       )}
 
       {/* Main Game Area */}
-      <div className="flex flex-1 relative pt-36 md:pt-44">
+      <div className="flex flex-1 relative pt-28 md:pt-32">
         {isIndividual ? (
           /* Individual Mode - Single Centered Panel */
           <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1a] relative">
