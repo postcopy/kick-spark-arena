@@ -48,7 +48,7 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-background relative">
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-8">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-6">
       {/* Background pattern */}
       <div className="absolute inset-0 bg-arcade-pattern vignette" />
 
@@ -74,37 +74,37 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
       {/* Main content */}
       <div className="relative z-10 text-center">
         {/* Header badge */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <Zap className="w-5 h-5 text-game-yellow" />
-          <span className="text-sm font-black uppercase tracking-widest text-game-yellow">
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <Zap className="w-4 h-4 text-game-yellow" />
+          <span className="text-xs font-black uppercase tracking-widest text-game-yellow">
             ARCADE MODE
           </span>
-          <Zap className="w-5 h-5 text-game-yellow" />
+          <Zap className="w-4 h-4 text-game-yellow" />
         </div>
 
         {/* Trophy / Icon */}
-        <div className="mb-8 animate-winner">
+        <div className="mb-4 animate-winner">
           {winner !== 'tie' ? (
             <div className="relative inline-block">
               <div className={cn(
-                "p-6 rounded-full",
+                "p-4 rounded-full",
                 winner === 'red' ? "bg-game-red/20" : "bg-game-blue/20",
                 "box-glow-gold"
               )}>
                 <Trophy className={cn(
-                  "w-28 h-28",
+                  "w-16 h-16 md:w-20 md:h-20",
                   winner === 'red' ? "text-game-red" : "text-game-blue"
                 )} />
               </div>
               {hasKO && (
-                <div className="absolute -top-2 -right-2 p-2 bg-game-yellow rounded-full animate-bounce">
-                  <Skull className="w-8 h-8 text-black" />
+                <div className="absolute -top-1 -right-1 p-1.5 bg-game-yellow rounded-full animate-bounce">
+                  <Skull className="w-5 h-5 text-black" />
                 </div>
               )}
             </div>
           ) : (
-            <div className="p-6 rounded-full bg-game-yellow/20 box-glow-gold">
-              <Swords className="w-28 h-28 text-game-yellow" />
+            <div className="p-4 rounded-full bg-game-yellow/20 box-glow-gold">
+              <Swords className="w-16 h-16 md:w-20 md:h-20 text-game-yellow" />
             </div>
           )}
         </div>
@@ -114,42 +114,42 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           {winner !== 'tie' ? (
             <>
               <h1 className={cn(
-                "text-8xl font-black mb-2",
+                "text-5xl md:text-6xl font-black mb-1",
                 getWinnerColor()
               )}>
                 {getWinnerLabel()}
               </h1>
-              <p className="text-3xl font-bold text-foreground/80">
+              <p className="text-xl md:text-2xl font-bold text-foreground/80">
                 VENCE O DUELO!
               </p>
             </>
           ) : (
-            <h1 className="text-7xl font-black text-game-yellow text-glow-yellow">
+            <h1 className="text-4xl md:text-5xl font-black text-game-yellow text-glow-yellow">
               DUELO EMPATADO!
             </h1>
           )}
         </div>
 
         {/* Round Score with Mascots */}
-        <div className="flex items-center justify-center gap-8 my-10">
+        <div className="flex items-center justify-center gap-4 md:gap-6 my-6">
           {/* Red Mascot */}
           <div className="hidden sm:block">
             <FighterMascot 
               side="red" 
               state={winner === 'red' ? 'winner' : winner === 'blue' ? 'loser' : 'idle'} 
-              size="lg"
+              size="md"
             />
           </div>
 
           <div className="text-center">
             <div className={cn(
-              "text-8xl font-black",
+              "text-5xl md:text-6xl font-black",
               winner === 'red' ? "text-game-red text-glow-red" : "text-game-red/60"
             )}>
               {redWins}
             </div>
             <div className={cn(
-              "text-sm uppercase mt-2 font-bold tracking-wider",
+              "text-xs uppercase mt-1 font-bold tracking-wider",
               winner === 'red' ? "text-game-red" : "text-muted-foreground"
             )}>
               VERMELHO
@@ -157,19 +157,19 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           </div>
 
           <div className="flex flex-col items-center">
-            <Swords className="w-10 h-10 text-muted-foreground/40 mb-2" />
-            <span className="text-4xl font-black text-muted-foreground/40">×</span>
+            <Swords className="w-8 h-8 text-muted-foreground/40 mb-1" />
+            <span className="text-3xl font-black text-muted-foreground/40">×</span>
           </div>
 
           <div className="text-center">
             <div className={cn(
-              "text-8xl font-black",
+              "text-5xl md:text-6xl font-black",
               winner === 'blue' ? "text-game-blue text-glow-blue" : "text-game-blue/60"
             )}>
               {blueWins}
             </div>
             <div className={cn(
-              "text-sm uppercase mt-2 font-bold tracking-wider",
+              "text-xs uppercase mt-1 font-bold tracking-wider",
               winner === 'blue' ? "text-game-blue" : "text-muted-foreground"
             )}>
               AZUL
@@ -181,22 +181,22 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
             <FighterMascot 
               side="blue" 
               state={winner === 'blue' ? 'winner' : winner === 'red' ? 'loser' : 'idle'} 
-              size="lg"
+              size="md"
             />
           </div>
         </div>
 
         {/* Round details */}
-        <div className="bg-game-surface/70 p-6 rounded-xl border border-border/50 backdrop-blur-sm mb-10 max-w-lg mx-auto">
-          <h3 className="text-sm font-black text-muted-foreground uppercase mb-4 tracking-wider">
+        <div className="bg-game-surface/70 p-4 rounded-xl border border-border/50 backdrop-blur-sm mb-6 max-w-lg mx-auto">
+          <h3 className="text-xs font-black text-muted-foreground uppercase mb-3 tracking-wider">
             DETALHES DOS ROUNDS
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {rounds.map((round, index) => (
               <div 
                 key={index} 
                 className={cn(
-                  "flex items-center justify-between p-3 rounded-lg",
+                  "flex items-center justify-between p-2 rounded-lg",
                   round.winner === 'red' 
                     ? "bg-game-red/10 border border-game-red/30" 
                     : round.winner === 'blue'
@@ -204,23 +204,23 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
                       : "bg-secondary/50 border border-border/30"
                 )}
               >
-                <span className="text-muted-foreground font-bold">Round {index + 1}</span>
-                <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground font-bold">Round {index + 1}</span>
+                <div className="flex items-center gap-3">
                   <span className={cn(
-                    "font-mono font-black text-xl",
+                    "font-mono font-black text-lg",
                     round.winner === 'red' ? "text-game-red" : "text-muted-foreground"
                   )}>
                     {round.redHP}
                   </span>
                   <span className="text-muted-foreground/40">—</span>
                   <span className={cn(
-                    "font-mono font-black text-xl",
+                    "font-mono font-black text-lg",
                     round.winner === 'blue' ? "text-game-blue" : "text-muted-foreground"
                   )}>
                     {round.blueHP}
                   </span>
                   {round.isKO && (
-                    <span className="px-2 py-0.5 bg-game-yellow/20 text-game-yellow text-xs font-black rounded border border-game-yellow/40">
+                    <span className="px-1.5 py-0.5 bg-game-yellow/20 text-game-yellow text-xs font-black rounded border border-game-yellow/40">
                       K.O.
                     </span>
                   )}
@@ -231,13 +231,13 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button
             size="lg"
             onClick={onPlayAgain}
-            className="gap-2 bg-gradient-to-r from-yellow-600 to-game-yellow text-black hover:from-yellow-500 hover:to-yellow-400 font-black text-lg px-8 shadow-lg"
+            className="gap-2 bg-gradient-to-r from-yellow-600 to-game-yellow text-black hover:from-yellow-500 hover:to-yellow-400 font-black text-base px-6 shadow-lg"
           >
-            <RotateCcw className="w-5 h-5" />
+            <RotateCcw className="w-4 h-4" />
             JOGAR NOVAMENTE
           </Button>
           <Button
@@ -246,13 +246,13 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
             onClick={onBackToMenu}
             className="gap-2 font-bold"
           >
-            <Home className="w-5 h-5" />
+            <Home className="w-4 h-4" />
             Menu Principal
           </Button>
         </div>
 
-        <div className="mt-8 text-sm text-muted-foreground">
-          <kbd className="px-2 py-1 bg-secondary rounded font-mono">SPACE</kbd> para jogar novamente
+        <div className="mt-4 text-xs text-muted-foreground">
+          <kbd className="px-2 py-1 bg-secondary rounded font-mono text-xs">SPACE</kbd> para jogar novamente
         </div>
       </div>
       </div>
