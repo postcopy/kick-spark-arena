@@ -48,60 +48,57 @@ export function FighterMascot({ side, state, className, size = 'md' }: FighterMa
       case 'winner':
         return (
           <svg viewBox="0 0 100 140" className="w-full h-full">
-            {/* Cabeça grande chibi */}
-            <ellipse cx="50" cy="35" rx="28" ry="30" fill={skinColor} stroke={dobokBorder} strokeWidth="1.5"/>
+            {/* Sombra no chão */}
+            <ellipse cx="50" cy="136" rx="26" ry="6" fill="#000" opacity="0.12" />
             
-            {/* Cabelo estilizado */}
-            <ellipse cx="50" cy="18" rx="22" ry="12" fill={hairColor}/>
-            <ellipse cx="35" cy="22" rx="8" ry="6" fill={hairColor}/>
-            <ellipse cx="65" cy="22" rx="8" ry="6" fill={hairColor}/>
+            {/* Confetti sparks */}
+            <path d="M50 6v10" stroke={teamColor} strokeWidth="3" strokeLinecap="round" />
+            <path d="M36 14l6 6" stroke={teamColor} strokeWidth="3" strokeLinecap="round" />
+            <path d="M64 14l-6 6" stroke={teamColor} strokeWidth="3" strokeLinecap="round" />
             
-            {/* Olhos de estrela ★★ */}
-            <text x="35" y="42" fontSize="14" fill={teamColor} textAnchor="middle">★</text>
-            <text x="65" y="42" fontSize="14" fill={teamColor} textAnchor="middle">★</text>
+            {/* Cabeça */}
+            <circle cx="50" cy="35" r="30" fill="#FFF" stroke="#111" strokeWidth="4" />
+            <path
+              d="M22 38c2-22 18-33 28-33 19 0 30 14 30 33 0 0-10-8-30-8s-28 8-28 8z"
+              fill={hairColor}
+              opacity="0.9"
+            />
             
-            {/* Bochechas rosadas */}
-            <ellipse cx="25" cy="45" rx="6" ry="4" fill={blushColor} opacity="0.7"/>
-            <ellipse cx="75" cy="45" rx="6" ry="4" fill={blushColor} opacity="0.7"/>
+            {/* Olhos felizes (arcos) */}
+            <path d="M32 38c4 5 8 5 12 0" stroke="#111" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <path d="M56 38c4 5 8 5 12 0" stroke="#111" strokeWidth="3" fill="none" strokeLinecap="round" />
             
-            {/* Sorriso enorme */}
-            <path d="M35 52 Q50 65 65 52" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M38 54 Q50 62 62 54" fill="#FF6B6B" opacity="0.3"/>
+            {/* Bochechas */}
+            <ellipse cx="28" cy="48" rx="6" ry="4" fill={blushColor} opacity="0.55" />
+            <ellipse cx="72" cy="48" rx="6" ry="4" fill={blushColor} opacity="0.55" />
             
-            {/* Corpo com dobok - posição de vitória */}
-            <path d="M35 65 L32 105 L68 105 L65 65 Z" fill={dobokWhite} stroke={dobokBorder} strokeWidth="1.5"/>
+            {/* Sorriso grande */}
+            <path d="M38 54c6 7 18 7 24 0" stroke="#111" strokeWidth="3" fill="none" strokeLinecap="round" />
             
-            {/* Gola em V do dobok */}
-            <path d="M35 65 L50 82 L65 65" fill="none" stroke={teamColor} strokeWidth="3"/>
-            <path d="M38 67 L50 80 L62 67" fill={teamColorLight} opacity="0.3"/>
+            {/* Corpo com dobok */}
+            <path d="M34 62c0-8 7-14 16-14h0c9 0 16 6 16 14l4 42H30l4-42z" fill={dobokWhite} stroke={dobokBorder} strokeWidth="2" />
             
-            {/* Hogu (protetor de tórax) */}
-            <path d="M40 75 Q50 72 60 75 L60 98 Q50 102 40 98 Z" fill={teamColor} opacity="0.85" stroke={teamColor} strokeWidth="1"/>
+            {/* Gola em V */}
+            <path d="M38 62 L50 78 L62 62" fill="none" stroke={teamColor} strokeWidth="4" strokeLinecap="round" />
+            
+            {/* Hogu (protetor) */}
+            <rect x="38" y="74" width="24" height="28" rx="5" fill={teamColor} opacity="0.85" />
             
             {/* Faixa */}
-            <rect x="33" y="100" width="34" height="5" rx="2" fill={teamColor}/>
-            <rect x="48" y="100" width="4" height="12" rx="1" fill={teamColor}/>
+            <rect x="31" y="100" width="38" height="8" rx="3" fill={teamColor} />
             
-            {/* Calça ampla branca */}
-            <path d="M34 105 L28 132 L42 132 L50 115 L58 132 L72 132 L66 105 Z" fill={dobokWhite} stroke={dobokBorder} strokeWidth="1"/>
+            {/* Calça */}
+            <path d="M36 108 L30 135 L46 135 L50 118 L54 135 L70 135 L64 108 Z" fill={dobokWhite} stroke={dobokBorder} strokeWidth="2" />
             
-            {/* Pezinhos descalços */}
-            <ellipse cx="35" cy="135" rx="9" ry="5" fill={skinColor} stroke={dobokBorder} strokeWidth="0.5"/>
-            <ellipse cx="65" cy="135" rx="9" ry="5" fill={skinColor} stroke={dobokBorder} strokeWidth="0.5"/>
+            {/* Pezinhos */}
+            <ellipse cx="38" cy="136" rx="9" ry="4.5" fill={skinColor} stroke="#111" strokeWidth="1.5" />
+            <ellipse cx="62" cy="136" rx="9" ry="4.5" fill={skinColor} stroke="#111" strokeWidth="1.5" />
             
-            {/* Braços levantados em comemoração */}
-            <path d="M35 70 Q20 60 15 45" stroke={dobokWhite} strokeWidth="12" strokeLinecap="round" fill="none"/>
-            <path d="M65 70 Q80 60 85 45" stroke={dobokWhite} strokeWidth="12" strokeLinecap="round" fill="none"/>
-            <path d="M35 70 Q20 60 15 45" stroke={dobokBorder} strokeWidth="12" strokeLinecap="round" fill="none" opacity="0.3"/>
-            <path d="M65 70 Q80 60 85 45" stroke={dobokBorder} strokeWidth="12" strokeLinecap="round" fill="none" opacity="0.3"/>
-            
-            {/* Mãozinhas */}
-            <circle cx="13" cy="42" r="8" fill={skinColor} stroke={dobokBorder} strokeWidth="0.5"/>
-            <circle cx="87" cy="42" r="8" fill={skinColor} stroke={dobokBorder} strokeWidth="0.5"/>
-            
-            {/* Efeitos de brilho/alegria */}
-            <text x="8" y="30" fontSize="10" fill={teamColor}>✦</text>
-            <text x="88" y="30" fontSize="10" fill={teamColor}>✦</text>
+            {/* Braços levantados */}
+            <path d="M36 74 L22 52" stroke={dobokWhite} strokeWidth="10" strokeLinecap="round" />
+            <circle cx="20" cy="50" r="8.5" fill={teamColor} stroke="#111" strokeWidth="2" />
+            <path d="M64 74 L78 52" stroke={dobokWhite} strokeWidth="10" strokeLinecap="round" />
+            <circle cx="80" cy="50" r="8.5" fill={teamColor} stroke="#111" strokeWidth="2" />
           </svg>
         );
 
