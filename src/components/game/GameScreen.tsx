@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { KickPanel } from './KickPanel';
+import { FighterMascot, type MascotState } from './FighterMascot';
 import type { GameScore, Side, Athlete } from '@/types/game';
 import { cn } from '@/lib/utils';
 
@@ -155,28 +156,53 @@ export function GameScreen({
                 chutes
               </div>
             </div>
+
+            {/* Mascote centralizado no modo individual */}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+              <FighterMascot 
+                side="red"
+                state={flashSide ? 'attacking' : 'idle'} 
+                size="lg"
+              />
+            </div>
           </div>
         ) : (
           /* Duo Mode - Two Panels Side by Side */
           <>
             {/* Left Panel - Red */}
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <KickPanel
                 side="red"
                 score={scores.red}
                 isFlashing={flashSide === 'red'}
                 percentage={redPercentage}
               />
+              {/* Mascote vermelho */}
+              <div className="absolute bottom-24 left-4 z-10 pointer-events-none">
+                <FighterMascot 
+                  side="red" 
+                  state={flashSide === 'red' ? 'attacking' : 'idle'} 
+                  size="md"
+                />
+              </div>
             </div>
 
             {/* Right Panel - Blue */}
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <KickPanel
                 side="blue"
                 score={scores.blue}
                 isFlashing={flashSide === 'blue'}
                 percentage={bluePercentage}
               />
+              {/* Mascote azul */}
+              <div className="absolute bottom-24 right-4 z-10 pointer-events-none">
+                <FighterMascot 
+                  side="blue" 
+                  state={flashSide === 'blue' ? 'attacking' : 'idle'} 
+                  size="md"
+                />
+              </div>
             </div>
           </>
         )}
