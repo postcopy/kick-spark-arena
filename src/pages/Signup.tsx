@@ -4,7 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Zap, ArrowLeft, Gift } from 'lucide-react';
+import { Loader2, Zap, Gift } from 'lucide-react';
+import { SiteLayout } from '@/components/layout/SiteLayout';
 import logo from '@/assets/logo-desafio-relampago.png';
 
 export default function Signup() {
@@ -32,44 +33,67 @@ export default function Signup() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
-      <div className="w-full max-w-md">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Voltar ao início
-        </Link>
-
-        <div className="text-center mb-8">
-          <img src={logo} alt="Desafio Relâmpago" className="h-16 w-auto mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-foreground">Criar Conta</h1>
-          <p className="text-muted-foreground mt-2">Comece com 3 dias grátis!</p>
+    <SiteLayout 
+      title="Criar Conta" 
+      subtitle="Teste grátis por 3 dias!"
+      backTo="/"
+      footer={
+        <div className="space-y-2 text-center">
+          <p className="text-base md:text-lg text-muted-foreground">
+            Já tem conta?{' '}
+            <Link to="/login" className="text-game-yellow hover:underline font-semibold">
+              Entre aqui
+            </Link>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Depois do trial: R$ 20/mês
+          </p>
+        </div>
+      }
+    >
+      <div className="space-y-6 md:space-y-8">
+        {/* Logo */}
+        <div className="text-center">
+          <img 
+            src={logo} 
+            alt="Desafio Relâmpago" 
+            className="h-16 md:h-20 w-auto mx-auto" 
+          />
         </div>
 
-        <div className="mb-6 p-4 bg-game-yellow/10 border border-game-yellow/30 rounded-lg">
-          <div className="flex items-center gap-3">
-            <Gift className="w-8 h-8 text-game-yellow" />
+        {/* Card de Trial */}
+        <div className="p-4 md:p-6 bg-game-yellow/10 border-2 border-game-yellow/30 rounded-2xl">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-game-yellow/20 rounded-xl">
+              <Gift className="w-8 h-8 text-game-yellow" />
+            </div>
             <div>
-              <p className="font-semibold text-foreground">Trial Gratuito</p>
-              <p className="text-sm text-muted-foreground">3 dias de acesso completo, sem compromisso</p>
+              <p className="font-bold text-lg md:text-xl text-foreground">Teste grátis 3 dias!</p>
+              <p className="text-base text-muted-foreground">Acesso completo, sem compromisso</p>
             </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Formulário */}
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="fullName">Nome Completo</Label>
+            <Label htmlFor="fullName" className="text-base md:text-lg">
+              Seu nome
+            </Label>
             <Input
               id="fullName"
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Seu nome"
-              className="bg-secondary border-border"
+              placeholder="Como você quer ser chamado?"
+              className="h-14 text-lg px-4 rounded-xl bg-secondary border-border"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-base md:text-lg">
+              Email
+            </Label>
             <Input
               id="email"
               type="email"
@@ -77,12 +101,14 @@ export default function Signup() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               required
-              className="bg-secondary border-border"
+              className="h-14 text-lg px-4 rounded-xl bg-secondary border-border"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password" className="text-base md:text-lg">
+              Senha
+            </Label>
             <Input
               id="password"
               type="password"
@@ -91,12 +117,12 @@ export default function Signup() {
               placeholder="Mínimo 6 caracteres"
               required
               minLength={6}
-              className="bg-secondary border-border"
+              className="h-14 text-lg px-4 rounded-xl bg-secondary border-border"
             />
           </div>
 
           {error && (
-            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded text-destructive text-sm">
+            <div className="p-4 bg-destructive/10 border-2 border-destructive/30 rounded-xl text-destructive text-base">
               {error}
             </div>
           )}
@@ -104,33 +130,22 @@ export default function Signup() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-game-yellow text-game-yellow-foreground hover:bg-game-yellow/90"
+            className="w-full h-14 md:h-16 text-lg md:text-xl font-bold rounded-xl bg-game-yellow text-game-yellow-foreground hover:bg-game-yellow/90"
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 Criando conta...
               </>
             ) : (
               <>
-                <Zap className="w-4 h-4 mr-2" />
-                Começar Trial Grátis
+                <Zap className="w-5 h-5 mr-2" />
+                Começar Grátis
               </>
             )}
           </Button>
         </form>
-
-        <p className="text-center text-muted-foreground mt-6">
-          Já tem conta?{' '}
-          <Link to="/login" className="text-game-yellow hover:underline">
-            Faça login
-          </Link>
-        </p>
-
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          Após o trial, R$ 20,00/mês para continuar usando
-        </p>
       </div>
-    </div>
+    </SiteLayout>
   );
 }
