@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Users, Crown, Clock, Loader2, RefreshCw, Volume2 } from 'lucide-react';
+import { Users, Crown, Clock, Loader2, RefreshCw, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import logo from '@/assets/logo-desafio-relampago.png';
+import { SiteLayout } from '@/components/layout/SiteLayout';
 
 interface Subscriber {
   id: string;
@@ -29,7 +29,6 @@ export default function Admin() {
   const fetchSubscribers = async () => {
     setIsLoading(true);
     try {
-      // Admins can view all profiles via RLS policy
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -49,7 +48,6 @@ export default function Admin() {
 
       setSubscribers(enrichedData);
 
-      // Calculate stats
       const total = enrichedData.length;
       const trialing = enrichedData.filter((s) => s.subscription_status === 'trialing').length;
       const active = enrichedData.filter((s) => s.subscription_status === 'active').length;
@@ -71,8 +69,8 @@ export default function Admin() {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-game-yellow" />
+      <div className="flex items-center justify-center h-[100dvh] bg-background">
+        <Loader2 className="w-10 h-10 animate-spin text-game-yellow" />
       </div>
     );
   }
@@ -82,135 +80,129 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <img src={logo} alt="Desafio Relâmpago" className="h-10 w-auto" />
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Painel Admin</h1>
-              <p className="text-sm text-muted-foreground">Gerenciar assinantes</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Link to="/admin/sounds">
-              <Button variant="outline" size="sm">
-                <Volume2 className="w-4 h-4 mr-2" />
-                Sons
-              </Button>
-            </Link>
-            <Button onClick={fetchSubscribers} variant="outline" size="sm" disabled={isLoading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Atualizar
+    <SiteLayout 
+      title="Painel Admin" 
+      subtitle="Gerenciar usuários"
+      backTo="/"
+    >
+      <div className="space-y-6">
+        {/* Ações rápidas */}
+        <div className="flex gap-2">
+          <Link to="/admin/sounds" className="flex-1">
+            <Button variant="outline" className="w-full h-12 md:h-14 text-base font-semibold rounded-xl gap-2">
+              <Volume2 className="w-5 h-5" />
+              Sons
             </Button>
-          </div>
+          </Link>
+          <Button 
+            onClick={fetchSubscribers} 
+            variant="outline" 
+            disabled={isLoading}
+            className="h-12 md:h-14 px-4 rounded-xl"
+          >
+            <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="p-4 bg-game-surface rounded-lg border border-border">
+        {/* Stats Cards - Grid 2x2 */}
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          <div className="p-4 md:p-5 bg-game-surface rounded-2xl border-2 border-border">
             <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 text-muted-foreground" />
+              <div className="p-3 bg-secondary rounded-xl">
+                <Users className="w-6 h-6 text-muted-foreground" />
+              </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{stats.total}</p>
                 <p className="text-sm text-muted-foreground">Total</p>
               </div>
             </div>
           </div>
-          <div className="p-4 bg-game-surface rounded-lg border border-game-yellow/30">
+
+          <div className="p-4 md:p-5 bg-game-surface rounded-2xl border-2 border-game-yellow/30">
             <div className="flex items-center gap-3">
-              <Clock className="w-8 h-8 text-game-yellow" />
+              <div className="p-3 bg-game-yellow/20 rounded-xl">
+                <Clock className="w-6 h-6 text-game-yellow" />
+              </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{stats.trialing}</p>
-                <p className="text-sm text-muted-foreground">Em Trial</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{stats.trialing}</p>
+                <p className="text-sm text-muted-foreground">Trial</p>
               </div>
             </div>
           </div>
-          <div className="p-4 bg-game-surface rounded-lg border border-green-500/30">
+
+          <div className="p-4 md:p-5 bg-game-surface rounded-2xl border-2 border-green-500/30">
             <div className="flex items-center gap-3">
-              <Crown className="w-8 h-8 text-green-400" />
+              <div className="p-3 bg-green-500/20 rounded-xl">
+                <Crown className="w-6 h-6 text-green-400" />
+              </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{stats.active}</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{stats.active}</p>
                 <p className="text-sm text-muted-foreground">Ativos</p>
               </div>
             </div>
           </div>
-          <div className="p-4 bg-game-surface rounded-lg border border-destructive/30">
+
+          <div className="p-4 md:p-5 bg-game-surface rounded-2xl border-2 border-destructive/30">
             <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 text-destructive" />
+              <div className="p-3 bg-destructive/20 rounded-xl">
+                <Users className="w-6 h-6 text-destructive" />
+              </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{stats.expired}</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{stats.expired}</p>
                 <p className="text-sm text-muted-foreground">Expirados</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Subscribers Table */}
-        <div className="bg-game-surface rounded-lg border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left p-4 text-muted-foreground font-medium">Email</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Nome</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Status</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Trial Expira</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Cadastro</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
-                    </td>
-                  </tr>
-                ) : subscribers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-muted-foreground">
-                      Nenhum assinante encontrado
-                    </td>
-                  </tr>
-                ) : (
-                  subscribers.map((sub) => (
-                    <tr key={sub.id} className="border-b border-border/50 hover:bg-secondary/50">
-                      <td className="p-4 text-foreground">{sub.email}</td>
-                      <td className="p-4 text-foreground">{sub.full_name || '-'}</td>
-                      <td className="p-4">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${
-                            sub.subscription_status === 'active'
-                              ? 'bg-green-500/20 text-green-400'
-                              : sub.subscription_status === 'trialing'
-                              ? 'bg-game-yellow/20 text-game-yellow'
-                              : 'bg-destructive/20 text-destructive'
-                          }`}
-                        >
-                          {sub.subscription_status === 'active'
-                            ? 'Ativo'
-                            : sub.subscription_status === 'trialing'
-                            ? 'Trial'
-                            : 'Expirado'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-muted-foreground">
-                        {new Date(sub.trial_ends_at).toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="p-4 text-muted-foreground">
-                        {new Date(sub.created_at).toLocaleDateString('pt-BR')}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        {/* Lista de Usuários */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-foreground">Usuários recentes</h3>
+          
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : subscribers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum usuário encontrado
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {subscribers.slice(0, 10).map((sub) => (
+                <div
+                  key={sub.id}
+                  className="flex items-center gap-3 p-4 bg-game-surface rounded-xl border border-border"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">
+                      {sub.full_name || sub.email}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {sub.email}
+                    </p>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
+                      sub.subscription_status === 'active'
+                        ? 'bg-green-500/20 text-green-400'
+                        : sub.subscription_status === 'trialing'
+                        ? 'bg-game-yellow/20 text-game-yellow'
+                        : 'bg-destructive/20 text-destructive'
+                    }`}
+                  >
+                    {sub.subscription_status === 'active'
+                      ? 'Ativo'
+                      : sub.subscription_status === 'trialing'
+                      ? 'Trial'
+                      : 'Expirado'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </SiteLayout>
   );
 }
