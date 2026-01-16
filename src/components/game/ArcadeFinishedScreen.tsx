@@ -5,6 +5,7 @@ import { Confetti } from './Confetti';
 import { cn } from '@/lib/utils';
 import type { ArcadeResult } from '@/types/game';
 import { useSound } from '@/contexts/SoundContext';
+import { FighterMascot } from './FighterMascot';
 
 interface ArcadeFinishedScreenProps {
   result: ArcadeResult;
@@ -128,8 +129,17 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           )}
         </div>
 
-        {/* Round Score */}
-        <div className="flex items-center justify-center gap-12 my-10">
+        {/* Round Score with Mascots */}
+        <div className="flex items-center justify-center gap-8 my-10">
+          {/* Red Mascot */}
+          <div className="hidden sm:block">
+            <FighterMascot 
+              side="red" 
+              state={winner === 'red' ? 'winner' : winner === 'blue' ? 'loser' : 'idle'} 
+              size="lg"
+            />
+          </div>
+
           <div className="text-center">
             <div className={cn(
               "text-8xl font-black",
@@ -163,6 +173,15 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
             )}>
               AZUL
             </div>
+          </div>
+
+          {/* Blue Mascot */}
+          <div className="hidden sm:block">
+            <FighterMascot 
+              side="blue" 
+              state={winner === 'blue' ? 'winner' : winner === 'red' ? 'loser' : 'idle'} 
+              size="lg"
+            />
           </div>
         </div>
 
