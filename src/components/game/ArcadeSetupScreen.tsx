@@ -31,7 +31,7 @@ export function ArcadeSetupScreen({
   onBestOfChange,
 }: ArcadeSetupScreenProps) {
   return (
-    <div className="flex flex-col h-[100dvh] bg-background p-4 md:p-6 overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-background p-4 md:p-6 overflow-hidden">
       {/* Header */}
       <header className="flex-shrink-0 text-center mb-4 md:mb-6">
         <div className="flex items-center justify-center gap-2 md:gap-3 mb-2">

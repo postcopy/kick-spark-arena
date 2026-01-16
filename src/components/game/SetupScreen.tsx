@@ -130,7 +130,7 @@ export function SetupScreen({
   const currentStep = step === 'players' ? 1 : step === 'athlete' ? 2 : variant === 'individual' ? 3 : 2;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 md:p-8">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-background relative">
       {/* Back Button */}
       <button
         onClick={handleBack}
@@ -153,9 +153,11 @@ export function SetupScreen({
         ))}
       </div>
 
-      {/* Step 1: How many players? */}
-      {step === 'players' && (
-        <div className="w-full max-w-lg animate-fade-in">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-6 md:p-8">
+        {/* Step 1: How many players? */}
+        {step === 'players' && (
+          <div className="w-full max-w-lg animate-fade-in">
           <h1 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-2">
             Quantos vão jogar?
           </h1>
@@ -402,12 +404,13 @@ export function SetupScreen({
             JOGAR!
           </Button>
         </div>
-      )}
+        )}
 
-      {/* Ranking Preview Modal */}
-      {showRanking && (
-        <RankingPreview onClose={() => setShowRanking(false)} />
-      )}
+        {/* Ranking Preview Modal */}
+        {showRanking && (
+          <RankingPreview onClose={() => setShowRanking(false)} />
+        )}
+      </div>
 
       {/* Add Athlete Dialog */}
       <AddAthleteDialog

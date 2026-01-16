@@ -101,7 +101,8 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
   // Individual Mode UI - Simplified
   if (isIndividual) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 md:p-8 relative overflow-hidden">
+      <div className="flex flex-col h-full w-full overflow-hidden bg-background relative">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-6 md:p-8">
         <Confetti />
 
         {/* Background Glow */}
@@ -180,13 +181,15 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
             Menu
           </Button>
         </div>
+        </div>
       </div>
     );
   }
 
   // Duo Mode UI - Simplified
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 md:p-8 relative overflow-hidden">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-background relative">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-6 md:p-8">
       <Confetti />
 
       {/* Background Glow */}
@@ -284,6 +287,7 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
           <Home className="mr-2 h-5 w-5" />
           Menu
         </Button>
+      </div>
       </div>
     </div>
   );

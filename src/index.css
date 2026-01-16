@@ -95,6 +95,8 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    overflow: hidden;
+    overscroll-behavior: none;
     font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
     /* Larger base font for readability */
     font-size: 16px;

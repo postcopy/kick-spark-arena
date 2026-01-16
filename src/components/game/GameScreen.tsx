@@ -60,7 +60,7 @@ export function GameScreen({
 
   return (
     <div 
-      className="flex flex-col h-[100dvh] bg-black overflow-hidden relative select-none"
+      className="flex flex-col h-full w-full bg-black overflow-hidden relative select-none"
       onClick={handleTapPause}
     >
       {/* Minimalist Timer - Top Center */}

@@ -45,7 +45,7 @@ export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = 
       : countdown.toString();
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex items-center justify-center h-full w-full bg-background overflow-hidden">
       {/* Side panels preview */}
       <div className="absolute inset-0 flex pointer-events-none opacity-30">
         <div className="flex-1 bg-game-red/10 border-l-4 border-game-red" />
