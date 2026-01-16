@@ -30,7 +30,10 @@ export function ProgressArc({ percentage, side, className }: ProgressArcProps) {
   const describeArc = (cx: number, cy: number, r: number, start: number, end: number) => {
     const startPoint = polarToCartesian(cx, cy, r, start);
     const endPoint = polarToCartesian(cx, cy, r, end);
-    const largeArc = end - start <= 180 ? 0 : 1;
+    
+    // Calculate the arc angle correctly, handling the 360-degree crossing
+    const arcAngle = ((end - start) % 360 + 360) % 360;
+    const largeArc = arcAngle > 180 ? 1 : 0;
     
     return `M ${startPoint.x} ${startPoint.y} A ${r} ${r} 0 ${largeArc} 1 ${endPoint.x} ${endPoint.y}`;
   };
@@ -38,10 +41,16 @@ export function ProgressArc({ percentage, side, className }: ProgressArcProps) {
   // Background arc path (full arc)
   const bgArcPath = describeArc(center, center, radius, startAngle, 360 + endAngle);
   
+  // Protect against edge cases - ensure percentage has minimum/maximum bounds
+  const safePercentage = Math.max(0.5, Math.min(99.5, percentage));
+  
   // Progress arc - calculate end angle based on percentage
-  const progressAngle = startAngle + (totalAngle * (percentage / 100));
+  const progressAngle = startAngle + (totalAngle * (safePercentage / 100));
   const clampedProgressAngle = Math.min(progressAngle, 360 + endAngle);
-  const progressArcPath = percentage > 0 
+  
+  // Only show progress if there's meaningful progress
+  const shouldShowProgress = percentage >= 0.5;
+  const progressArcPath = shouldShowProgress
     ? describeArc(center, center, radius, startAngle, clampedProgressAngle)
     : '';
 
@@ -60,7 +69,7 @@ export function ProgressArc({ percentage, side, className }: ProgressArcProps) {
       />
       
       {/* Progress arc */}
-      {percentage > 0 && (
+      {shouldShowProgress && (
         <path
           d={progressArcPath}
           fill="none"
