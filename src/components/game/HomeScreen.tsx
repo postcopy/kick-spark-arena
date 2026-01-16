@@ -59,36 +59,36 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
       {/* Main - Área principal com scroll se precisar */}
       <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-4 md:p-6">
         {/* Logo Grande */}
-        <div className="mb-6 md:mb-8 text-center">
+        <div className="mb-4 md:mb-6 text-center">
           <img 
             src={logo} 
             alt="Desafio Relâmpago" 
-            className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto mx-auto drop-shadow-[0_0_30px_rgba(255,215,0,0.3)]" 
+            className="h-14 sm:h-16 md:h-20 lg:h-24 w-auto mx-auto drop-shadow-[0_0_30px_rgba(255,215,0,0.3)]" 
           />
         </div>
 
         {/* Título simples */}
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2 text-center">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1 text-center">
           Escolha um modo
         </h1>
-        <p className="text-base md:text-lg text-muted-foreground mb-6 md:mb-8 text-center">
+        <p className="text-base md:text-lg text-muted-foreground mb-4 md:mb-6 text-center">
           Toque para começar
         </p>
 
         {/* Botões de Modo - Stack vertical em mobile, lado a lado em desktop */}
-        <div className="w-full max-w-lg lg:max-w-3xl flex flex-col lg:flex-row gap-4 lg:gap-6">
+        <div className="w-full max-w-lg lg:max-w-3xl flex flex-col lg:flex-row gap-3 lg:gap-4">
           {/* Time Attack */}
           <button
             onClick={() => onSelectMode('time_attack')}
-            className="group flex-1 p-6 md:p-8 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[140px] md:min-h-[180px]"
+            className="group flex-1 p-4 md:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] h-[clamp(120px,20vh,180px)]"
           >
-            <div className="flex items-center justify-center mb-3">
-              <div className="p-4 bg-game-yellow/20 rounded-xl group-hover:bg-game-yellow/30 transition-colors">
-                <Timer className="w-10 h-10 md:w-12 md:h-12 text-game-yellow" />
+            <div className="flex items-center justify-center mb-2">
+              <div className="p-3 bg-game-yellow/20 rounded-xl group-hover:bg-game-yellow/30 transition-colors">
+                <Timer className="w-8 h-8 md:w-10 md:h-10 text-game-yellow" />
               </div>
             </div>
             
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground text-center mb-2">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground text-center mb-1">
               CONTRA O TEMPO
             </h2>
             
@@ -96,7 +96,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
               Quem chuta mais?
             </p>
             
-            <div className="flex items-center justify-center gap-2 mt-3">
+            <div className="hidden lg:flex items-center justify-center gap-2 mt-2">
               <Zap className="w-4 h-4 text-game-yellow/70" />
               <span className="text-sm text-game-yellow/70">
                 1 ou 2 jogadores
@@ -107,15 +107,15 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           {/* Arcade Duel */}
           <button
             onClick={() => onSelectMode('arcade')}
-            className="group flex-1 p-6 md:p-8 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[140px] md:min-h-[180px]"
+            className="group flex-1 p-4 md:p-6 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] h-[clamp(120px,20vh,180px)]"
           >
-            <div className="flex items-center justify-center mb-3">
-              <div className="p-4 bg-game-red/20 rounded-xl group-hover:bg-game-red/30 transition-colors">
-                <Swords className="w-10 h-10 md:w-12 md:h-12 text-game-red" />
+            <div className="flex items-center justify-center mb-2">
+              <div className="p-3 bg-game-red/20 rounded-xl group-hover:bg-game-red/30 transition-colors">
+                <Swords className="w-8 h-8 md:w-10 md:h-10 text-game-red" />
               </div>
             </div>
             
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground text-center mb-2">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground text-center mb-1">
               DUELO
             </h2>
             
@@ -123,7 +123,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
               Luta até o K.O.!
             </p>
             
-            <div className="flex items-center justify-center gap-2 mt-3">
+            <div className="hidden lg:flex items-center justify-center gap-2 mt-2">
               <Zap className="w-4 h-4 text-game-red/70" />
               <span className="text-sm text-game-red/70">
                 2 jogadores
