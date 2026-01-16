@@ -65,8 +65,8 @@ export function MenuDrawer({
         </div>
 
         {/* User Section */}
-        <div className="p-6 border-b border-border">
-          {user ? (
+        {user && (
+          <div className="p-6 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-game-yellow/20 flex items-center justify-center">
                 <User className="w-6 h-6 text-game-yellow" />
@@ -80,22 +80,8 @@ export function MenuDrawer({
                 </p>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <Link to="/login" onClick={() => setIsOpen(false)}>
-                <Button variant="outline" className="w-full gap-2 h-14 text-lg">
-                  <LogIn className="w-5 h-5" />
-                  Entrar
-                </Button>
-              </Link>
-              <Link to="/signup" onClick={() => setIsOpen(false)}>
-                <Button className="w-full gap-2 h-14 text-lg bg-game-yellow text-background hover:bg-game-yellow/90">
-                  Começar Grátis
-                </Button>
-              </Link>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Menu Items */}
         <div className="p-4 space-y-2">
