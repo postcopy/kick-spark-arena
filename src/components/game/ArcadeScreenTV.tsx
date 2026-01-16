@@ -83,7 +83,7 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
   const roundsToWin = Math.ceil(config.bestOf / 2);
 
   return (
-    <div className="relative flex flex-col h-[100dvh] bg-black overflow-hidden">
+    <div className="relative flex flex-col h-full w-full bg-black overflow-hidden">
       
       {/* ============ TOP BAR - Names ============ */}
       <div className="relative z-20 h-[8vh] min-h-[60px] bg-black flex items-center justify-between px-6">

@@ -18,6 +18,17 @@ import type { Side, GameMode, Athlete } from '@/types/game';
 
 type TimeAttackVariant = 'duo' | 'individual';
 
+// Frame component - single root with h-[100dvh]
+function Frame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-[100dvh] w-full overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 const Index = () => {
   const { user, subscription, isLoading: authLoading, isAdmin } = useAuth();
   const { play } = useSound();
@@ -134,38 +145,35 @@ const Index = () => {
   // Admin always can play, subscribed users can play, users in trial can play
   const canPlay = isAdmin || subscription.isSubscribed || subscription.isTrialing;
 
+  // Build content based on state
+  let content: React.ReactNode;
+
   // Show loading while auth is loading
   if (authLoading || subscription.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+    content = (
+      <div className="flex h-full w-full items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-game-yellow" />
       </div>
     );
-  }
-
-  // Home screen - always accessible (preview mode)
-  if (!gameMode) {
-    return (
+  } else if (!gameMode) {
+    // Home screen - always accessible (preview mode)
+    content = (
       <>
         <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />
         {/* Show paywall if user is logged in but expired, or trying to play without login */}
         {user && !canPlay && <Paywall />}
       </>
     );
-  }
-
-  // If user is playing but not allowed (edge case - shouldn't happen)
-  if (!canPlay) {
-    return (
+  } else if (!canPlay) {
+    // If user is playing but not allowed (edge case - shouldn't happen)
+    content = (
       <>
         <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />
         <Paywall />
       </>
     );
-  }
-
-  // Time Attack Mode
-  if (gameMode === 'time_attack') {
+  } else if (gameMode === 'time_attack') {
+    // Time Attack Mode
     const { gameState, scores, timeLeft, countdown, lastResult, flashSide, goToSetup, startCountdown } = timeAttackState;
 
     // Check if can start (for individual mode, need athlete selected)
@@ -174,7 +182,7 @@ const Index = () => {
     switch (gameState) {
       case 'idle':
       case 'setup':
-        return (
+        content = (
           <SetupScreen
             onStart={() => canStart && startCountdown()}
             onBack={handleBackToMenu}
@@ -186,11 +194,13 @@ const Index = () => {
             onAthleteChange={setSelectedAthlete}
           />
         );
+        break;
       case 'countdown':
-        return <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} />;
+        content = <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} />;
+        break;
       case 'running':
       case 'paused':
-        return (
+        content = (
           <GameScreen
             scores={scores}
             timeLeft={timeLeft}
@@ -200,22 +210,24 @@ const Index = () => {
             athlete={selectedAthlete}
           />
         );
+        break;
       case 'finished':
         stopBgMusic();
-        return lastResult ? (
+        content = lastResult ? (
           <FinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
         ) : null;
+        break;
+      default:
+        content = <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />;
     }
-  }
-
-  // Arcade Mode
-  if (gameMode === 'arcade') {
+  } else if (gameMode === 'arcade') {
+    // Arcade Mode
     const { gameState, countdown, lastResult, goToSetup, startCountdown } = arcadeState;
 
     switch (gameState) {
       case 'idle':
       case 'setup':
-        return (
+        content = (
           <ArcadeSetupScreen
             onStart={startCountdown}
             onBack={handleBackToMenu}
@@ -225,20 +237,28 @@ const Index = () => {
             onBestOfChange={setBestOf}
           />
         );
+        break;
       case 'countdown':
-        return <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} shouldStartMusic={isNewRoundRef.current} />;
+        content = <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} shouldStartMusic={isNewRoundRef.current} />;
+        break;
       case 'running':
       case 'round_end':
-        return <ArcadeScreen arcadeState={arcadeState} />;
+        content = <ArcadeScreen arcadeState={arcadeState} />;
+        break;
       case 'finished':
         stopBgMusic();
-        return lastResult ? (
+        content = lastResult ? (
           <ArcadeFinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
         ) : null;
+        break;
+      default:
+        content = <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />;
     }
+  } else {
+    content = <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />;
   }
 
-  return <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />;
+  return <Frame>{content}</Frame>;
 };
 
 export default Index;

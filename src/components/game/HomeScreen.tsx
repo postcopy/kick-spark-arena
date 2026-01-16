@@ -16,7 +16,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   const { user } = useAuth();
 
   return (
-    <div className="flex flex-col h-[100dvh] overflow-hidden bg-background">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-background">
       {/* Header - Fixo no topo */}
       <header className="flex-shrink-0 w-full flex items-center justify-between p-4 md:px-6 border-b border-border">
         <img 

@@ -47,7 +47,8 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
   const hasKO = rounds.some(r => r.isKO);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8 relative overflow-hidden">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-background relative">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-8">
       {/* Background pattern */}
       <div className="absolute inset-0 bg-arcade-pattern vignette" />
 
@@ -250,10 +251,10 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           </Button>
         </div>
 
-        {/* Keyboard hint */}
         <div className="mt-8 text-sm text-muted-foreground">
           <kbd className="px-2 py-1 bg-secondary rounded font-mono">SPACE</kbd> para jogar novamente
         </div>
+      </div>
       </div>
     </div>
   );
