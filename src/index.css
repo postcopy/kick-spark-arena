@@ -345,71 +345,75 @@
   }
 
   /* ============ MASCOT ANIMATIONS ============ */
+  /* GPU-optimized with will-change and translateZ */
   
-  /* Idle - breathing/bouncing */
+  /* Idle - breathing/bouncing - slower for better performance */
   @keyframes mascot-idle {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-6px) rotate(1deg); }
+    0%, 100% { transform: translateY(0) translateZ(0); }
+    50% { transform: translateY(-4px) translateZ(0); }
   }
 
   .animate-mascot-idle {
-    animation: mascot-idle 1.5s ease-in-out infinite;
+    animation: mascot-idle 2s ease-in-out infinite;
+    will-change: transform;
   }
 
   /* Attacking - kick motion */
   @keyframes mascot-attack {
-    0% { transform: translateX(0) rotate(0deg) scale(1); }
-    30% { transform: translateX(15px) rotate(-8deg) scale(1.05); }
-    100% { transform: translateX(0) rotate(0deg) scale(1); }
+    0% { transform: translateX(0) translateZ(0) scale(1); }
+    30% { transform: translateX(12px) translateZ(0) scale(1.03); }
+    100% { transform: translateX(0) translateZ(0) scale(1); }
   }
 
   .animate-mascot-attack {
-    animation: mascot-attack 0.25s ease-out;
+    animation: mascot-attack 0.2s ease-out;
+    will-change: transform;
   }
 
-  /* Hit - recoil */
+  /* Hit - recoil - simplified without filter for performance */
   @keyframes mascot-hit {
-    0%, 100% { transform: translateX(0) rotate(0deg); filter: brightness(1); }
-    25% { transform: translateX(-12px) rotate(5deg); filter: brightness(2); }
-    50% { transform: translateX(-8px) rotate(-3deg); filter: brightness(1.5); }
-    75% { transform: translateX(-4px) rotate(2deg); filter: brightness(1.2); }
+    0%, 100% { transform: translateX(0) translateZ(0); }
+    25% { transform: translateX(-10px) translateZ(0); }
+    50% { transform: translateX(-6px) translateZ(0); }
+    75% { transform: translateX(-3px) translateZ(0); }
   }
 
   .animate-mascot-hit {
-    animation: mascot-hit 0.3s ease-out;
+    animation: mascot-hit 0.25s ease-out;
+    will-change: transform;
   }
 
-  /* Winner - celebration jump */
+  /* Winner - celebration jump - reduced movement */
   @keyframes mascot-winner {
-    0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
-    25% { transform: translateY(-25px) scale(1.1) rotate(-5deg); }
-    50% { transform: translateY(-30px) scale(1.15) rotate(0deg); }
-    75% { transform: translateY(-25px) scale(1.1) rotate(5deg); }
+    0%, 100% { transform: translateY(0) translateZ(0) scale(1); }
+    50% { transform: translateY(-20px) translateZ(0) scale(1.08); }
   }
 
   .animate-mascot-winner {
-    animation: mascot-winner 0.6s ease-in-out infinite;
+    animation: mascot-winner 0.7s ease-in-out infinite;
+    will-change: transform;
   }
 
-  /* Loser - sad sway */
+  /* Loser - sad sway - slower */
   @keyframes mascot-loser {
-    0%, 100% { transform: translateY(0) rotate(-3deg); }
-    50% { transform: translateY(4px) rotate(3deg); }
+    0%, 100% { transform: translateY(0) translateZ(0) rotate(-2deg); }
+    50% { transform: translateY(3px) translateZ(0) rotate(2deg); }
   }
 
   .animate-mascot-loser {
-    animation: mascot-loser 2s ease-in-out infinite;
+    animation: mascot-loser 2.5s ease-in-out infinite;
+    will-change: transform;
   }
 
-  /* KO - dramatic fall */
+  /* KO - simplified */
   @keyframes mascot-ko {
-    0% { transform: rotate(0deg) translateY(0); opacity: 1; }
-    30% { transform: rotate(20deg) translateY(-10px); }
-    100% { transform: rotate(0deg) translateY(0); opacity: 1; }
+    0% { transform: translateZ(0); opacity: 1; }
+    100% { transform: translateZ(0); opacity: 1; }
   }
 
   .animate-mascot-ko {
-    animation: mascot-ko 0.6s ease-out;
+    animation: mascot-ko 0.5s ease-out;
+    will-change: transform;
   }
 
   .animate-hp-critical {

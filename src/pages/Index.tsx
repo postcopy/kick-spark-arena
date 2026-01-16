@@ -44,20 +44,20 @@ const Index = () => {
     selectedAthlete: timeAttackVariant === 'individual' ? selectedAthlete : null,
   });
   
-  // Stop music callback with fade out
+  // Stop music callback with fade out - optimized interval
   const stopBgMusic = useCallback(() => {
     if (bgMusicRef.current) {
       const audio = bgMusicRef.current;
       const fadeInterval = window.setInterval(() => {
-        if (audio.volume > 0.1) {
-          audio.volume = Math.max(0, audio.volume - 0.1);
+        if (audio.volume > 0.15) {
+          audio.volume = Math.max(0, audio.volume - 0.15);
         } else {
           window.clearInterval(fadeInterval);
           audio.pause();
           audio.volume = 0.6; // Reset for next time
           bgMusicRef.current = null;
         }
-      }, 50);
+      }, 100); // Increased from 50ms for better performance
     }
   }, []);
 

@@ -58,9 +58,19 @@ const FALLBACK_PATHS: Record<SoundName, string> = {
 
 const STORAGE_KEY = 'kickcounter_soundMuted';
 
+// Pool size for frequently played sounds (hit sounds)
+const POOL_SIZE = 5;
+const POOLED_SOUNDS: SoundName[] = ['hit', 'hitHeavy', 'combo'];
+
 export function useSoundEffects() {
+  // Audio pool for frequently played sounds (avoids cloneNode overhead)
+  const audioPool = useRef<Map<SoundName, HTMLAudioElement[]>>(new Map());
+  const poolIndex = useRef<Map<SoundName, number>>(new Map());
+  
+  // Single audio cache for non-pooled sounds
   const audioCache = useRef<Map<SoundName, HTMLAudioElement>>(new Map());
   const soundUrls = useRef<Map<SoundName, string>>(new Map());
+  
   const [isMuted, setIsMuted] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) === 'true';
@@ -94,10 +104,24 @@ export function useSoundEffects() {
 
         soundUrls.current.set(name, url);
         
-        const audio = new Audio(url);
-        audio.preload = 'auto';
-        audio.volume = volume;
-        audioCache.current.set(name, audio);
+        // Create audio pool for frequently played sounds
+        if (POOLED_SOUNDS.includes(name)) {
+          const pool: HTMLAudioElement[] = [];
+          for (let i = 0; i < POOL_SIZE; i++) {
+            const audio = new Audio(url);
+            audio.preload = 'auto';
+            audio.volume = volume;
+            pool.push(audio);
+          }
+          audioPool.current.set(name, pool);
+          poolIndex.current.set(name, 0);
+        } else {
+          // Single audio for non-pooled sounds
+          const audio = new Audio(url);
+          audio.preload = 'auto';
+          audio.volume = volume;
+          audioCache.current.set(name, audio);
+        }
       }
 
       setIsLoaded(true);
@@ -106,6 +130,17 @@ export function useSoundEffects() {
     loadSounds();
 
     return () => {
+      // Cleanup pooled sounds
+      audioPool.current.forEach(pool => {
+        pool.forEach(audio => {
+          audio.pause();
+          audio.src = '';
+        });
+      });
+      audioPool.current.clear();
+      poolIndex.current.clear();
+      
+      // Cleanup cached sounds
       audioCache.current.forEach(audio => {
         audio.pause();
         audio.src = '';
@@ -117,6 +152,11 @@ export function useSoundEffects() {
 
   // Update volume for all cached audio
   useEffect(() => {
+    audioPool.current.forEach(pool => {
+      pool.forEach(audio => {
+        audio.volume = volume;
+      });
+    });
     audioCache.current.forEach(audio => {
       audio.volume = volume;
     });
@@ -134,9 +174,27 @@ export function useSoundEffects() {
   const play = useCallback((name: SoundName) => {
     if (isMuted) return;
 
+    // Use pool for frequently played sounds
+    if (POOLED_SOUNDS.includes(name)) {
+      const pool = audioPool.current.get(name);
+      if (pool && pool.length > 0) {
+        const idx = poolIndex.current.get(name) || 0;
+        const audio = pool[idx % pool.length];
+        poolIndex.current.set(name, idx + 1);
+        
+        // Reset and play
+        audio.currentTime = 0;
+        audio.volume = volume;
+        audio.play().catch(() => {
+          // Ignore autoplay errors
+        });
+      }
+      return;
+    }
+
+    // For non-pooled sounds, clone as before (they play less frequently)
     const cachedAudio = audioCache.current.get(name);
     if (cachedAudio) {
-      // Clone the audio to allow overlapping sounds
       const audio = cachedAudio.cloneNode() as HTMLAudioElement;
       audio.volume = volume;
       audio.play().catch(() => {
@@ -185,10 +243,22 @@ export function useSoundEffects() {
       if (soundUrls.current.get(name) !== url) {
         soundUrls.current.set(name, url);
         
-        const audio = new Audio(url);
-        audio.preload = 'auto';
-        audio.volume = volume;
-        audioCache.current.set(name, audio);
+        if (POOLED_SOUNDS.includes(name)) {
+          const pool: HTMLAudioElement[] = [];
+          for (let i = 0; i < POOL_SIZE; i++) {
+            const audio = new Audio(url);
+            audio.preload = 'auto';
+            audio.volume = volume;
+            pool.push(audio);
+          }
+          audioPool.current.set(name, pool);
+          poolIndex.current.set(name, 0);
+        } else {
+          const audio = new Audio(url);
+          audio.preload = 'auto';
+          audio.volume = volume;
+          audioCache.current.set(name, audio);
+        }
       }
     }
   }, [volume]);

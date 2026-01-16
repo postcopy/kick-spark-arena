@@ -31,9 +31,8 @@ export function FighterMascot({ side, state, className, size = 'md' }: FighterMa
     }
   };
 
-  const glowColor = side === 'red' 
-    ? 'drop-shadow-[0_0_12px_rgba(239,68,68,0.7)]' 
-    : 'drop-shadow-[0_0_12px_rgba(59,130,246,0.7)]';
+  // Removed drop-shadow for better performance on weaker devices
+  const glowColor = '';
 
   // Cores do tigre
   const tigerOrange = '#F5A623';

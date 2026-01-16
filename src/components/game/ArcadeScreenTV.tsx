@@ -83,10 +83,10 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
   const roundsToWin = Math.ceil(config.bestOf / 2);
 
   return (
-    <div className="relative flex flex-col h-screen bg-black overflow-hidden">
+    <div className="relative flex flex-col h-[100dvh] bg-black overflow-hidden">
       
       {/* ============ TOP BAR - Names ============ */}
-      <div className="relative z-20 h-[10vh] min-h-[80px] bg-black flex items-center justify-between px-8">
+      <div className="relative z-20 h-[8vh] min-h-[60px] bg-black flex items-center justify-between px-6">
         {/* Red Player */}
         <div className="flex items-center gap-6">
           <span className={cn(
@@ -155,11 +155,11 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
               "font-black text-white leading-none",
-              "text-[clamp(120px,18vw,300px)]",
-              "drop-shadow-[0_8px_24px_rgba(0,0,0,0.8)]",
+              "text-[clamp(80px,14vw,220px)]",
+              "drop-shadow-[0_6px_16px_rgba(0,0,0,0.8)]",
               redState.hp <= 25 && "animate-hp-critical"
             )}
-            style={{ textShadow: '0 0 60px hsl(var(--game-red-glow) / 0.5)' }}
+            style={{ textShadow: '0 0 40px hsl(var(--game-red-glow) / 0.4)' }}
             >
               {redState.hp}
             </span>
@@ -212,11 +212,11 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
           )}
 
           {/* Red Mascot */}
-          <div className="absolute bottom-[15%] left-8 z-10 pointer-events-none">
+          <div className="absolute bottom-[12%] left-6 z-10 pointer-events-none">
             <FighterMascot 
               side="red" 
               state={getMascotState('red')} 
-              size="lg"
+              size="md"
             />
           </div>
         </div>
@@ -293,11 +293,11 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
               "font-black text-white leading-none",
-              "text-[clamp(120px,18vw,300px)]",
-              "drop-shadow-[0_8px_24px_rgba(0,0,0,0.8)]",
+              "text-[clamp(80px,14vw,220px)]",
+              "drop-shadow-[0_6px_16px_rgba(0,0,0,0.8)]",
               blueState.hp <= 25 && "animate-hp-critical"
             )}
-            style={{ textShadow: '0 0 60px hsl(var(--game-blue-glow) / 0.5)' }}
+            style={{ textShadow: '0 0 40px hsl(var(--game-blue-glow) / 0.4)' }}
             >
               {blueState.hp}
             </span>
@@ -350,11 +350,11 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
           )}
 
           {/* Blue Mascot */}
-          <div className="absolute bottom-[15%] right-8 z-10 pointer-events-none">
+          <div className="absolute bottom-[12%] right-6 z-10 pointer-events-none">
             <FighterMascot 
               side="blue" 
               state={getMascotState('blue')} 
-              size="lg"
+              size="md"
             />
           </div>
         </div>
