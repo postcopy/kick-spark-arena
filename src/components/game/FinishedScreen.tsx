@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { GameResult } from '@/types/game';
 import { Confetti } from './Confetti';
+import { FighterMascot } from './FighterMascot';
 import { useSound } from '@/contexts/SoundContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -132,6 +133,15 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
           </div>
         </div>
 
+        {/* Mascote celebrando */}
+        <div className="mb-4">
+          <FighterMascot 
+            side="red"
+            state="winner" 
+            size="lg"
+          />
+        </div>
+
         {/* New Record Badge */}
         {isNewRecord && (
           <div className="mb-6 px-6 py-3 bg-game-gold/20 border-2 border-game-gold rounded-full flex items-center gap-2 animate-fade-in">
@@ -221,6 +231,14 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
             : 'bg-game-surface border-border'
         )}>
           <div className="text-6xl md:text-8xl font-bold text-game-red">{scores.red}</div>
+          {/* Mascote vermelho */}
+          <div className="mt-4 flex justify-center">
+            <FighterMascot 
+              side="red" 
+              state={winner === 'red' ? 'winner' : winner === 'tie' ? 'idle' : 'loser'} 
+              size="sm"
+            />
+          </div>
         </div>
 
         {/* VS */}
@@ -236,6 +254,14 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
             : 'bg-game-surface border-border'
         )}>
           <div className="text-6xl md:text-8xl font-bold text-game-blue">{scores.blue}</div>
+          {/* Mascote azul */}
+          <div className="mt-4 flex justify-center">
+            <FighterMascot 
+              side="blue" 
+              state={winner === 'blue' ? 'winner' : winner === 'tie' ? 'idle' : 'loser'} 
+              size="sm"
+            />
+          </div>
         </div>
       </div>
 
