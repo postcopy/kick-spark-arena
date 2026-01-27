@@ -125,7 +125,7 @@ export function SetupScreen({
     setTimeout(() => {
       setIsPreparing(false);
       onStart();
-    }, 400);
+    }, 800);
   };
 
   const handleBack = () => {

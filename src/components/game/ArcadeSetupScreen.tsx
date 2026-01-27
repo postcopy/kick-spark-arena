@@ -42,7 +42,7 @@ export function ArcadeSetupScreen({
     setTimeout(() => {
       setIsPreparing(false);
       onStart();
-    }, 400);
+    }, 800);
   };
 
   return (
