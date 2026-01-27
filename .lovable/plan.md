@@ -1,241 +1,149 @@
 
 
-## Plano: Corrigir Atualização Automática dos Status de Equipamentos
+## Plano: Simplificar Tela de Preparar Equipamentos
 
-### Problema Raiz
+### Objetivo
 
-A tela de "Preparar Equipamentos" não atualiza em tempo real porque:
-
-1. **O Map `equipment` é uma referência estável** - O hook `useSerialPort` retorna `equipmentRef.current` diretamente. Mesmo quando o conteúdo do Map muda, a referência permanece a mesma, então o React não detecta a mudança.
-
-2. **O `useMemo` depende de um timestamp estático** - O `agora = Date.now()` é calculado uma vez por render, e como não há re-renders automáticos, o cálculo de "visto recentemente" fica congelado.
-
-3. **Falta um contador de versão exposto** - O hook tem um `equipmentVersion` interno que incrementa a cada atualização, mas esse valor não é exposto para os consumidores forçarem re-renders.
+Remover a seção de dispositivos (coletes/capacetes) e manter apenas a conexão da placa USB, já que os equipamentos se conectam automaticamente quando ligados.
 
 ---
 
-### Solução
-
-#### Parte 1: Expor `equipmentVersion` no hook
-
-Adicionar o contador de versão ao retorno do `useSerialPort` para que componentes possam usá-lo como dependência de efeitos/memos.
-
-**Arquivo:** `src/hooks/useSerialPort.ts`
-
-```typescript
-// Adicionar ao tipo de retorno
-export interface UseSerialPortReturn {
-  // ... existentes ...
-  equipmentVersion: number; // ← NOVO
-}
-
-// No return do hook
-return {
-  isConnected,
-  isConnecting,
-  error,
-  isSupported: isWebSerialSupported(),
-  connect,
-  disconnect,
-  equipment: equipmentRef.current,
-  equipmentVersion, // ← NOVO
-};
-```
-
-#### Parte 2: Usar `equipmentVersion` como dependência no EquipmentSetupScreen
-
-**Arquivo:** `src/components/game/EquipmentSetupScreen.tsx`
-
-```typescript
-export function EquipmentSetupScreen({
-  serialPort,
-  onContinue,
-  onSkip,
-  onBack,
-}: EquipmentSetupScreenProps) {
-  // Extrair versão para forçar re-cálculo
-  const { equipment: mapa, equipmentVersion } = serialPort;
-  const agora = Date.now();
-
-  const lista = useMemo(() => {
-    return EQUIPAMENTOS.map((item) => {
-      const raw = mapa.get(item.id);
-      // ... resto da lógica ...
-    });
-  }, [mapa, agora, equipmentVersion]); // ← Adicionar equipmentVersion
-  
-  // ...
-}
-```
-
-#### Parte 3: Atualizar o tipo `UseSerialPortReturn`
-
-**Arquivo:** `src/types/serial.ts`
-
-```typescript
-export interface UseSerialPortReturn {
-  isConnected: boolean;
-  isConnecting: boolean;
-  error: string | null;
-  isSupported: boolean;
-  connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  equipment: Map<EquipmentSlot, EquipmentState>;
-  equipmentVersion: number; // ← NOVO
-}
-```
-
-#### Parte 4: Forçar atualização após conectar placa
-
-O problema de "só ver após refresh" também acontece porque `isConnected` muda, mas a UI precisa de um render completo. A solução acima resolve isso automaticamente porque:
-
-1. Ao conectar a placa → `setIsConnected(true)` dispara render
-2. Ao receber dados → `setEquipmentVersion(v => v + 1)` dispara render
-3. O `useMemo` recalcula porque `equipmentVersion` mudou
-
----
-
-### Fluxo Corrigido
+### Layout Simplificado
 
 ```text
-Usuário clica "Conectar placa USB"
-        │
-        ▼
-  serialPort.connect()
-        │
-        ▼
-  port.open() → setIsConnected(true)
-        │                │
-        ▼                ▼
-  startReading()    Re-render: "Conectada" ✓
-        │
-        ▼
-  Recebe dados: "850,1,85"
-        │
-        ▼
-  updateEquipment(1, 85)
-        │
-        ▼
-  equipmentRef.current.set(1, {...})
-        │
-        ▼
-  setEquipmentVersion(v => v + 1)
-        │
-        ▼
-  Re-render EquipmentSetupScreen
-        │
-        ▼
-  useMemo recalcula lista (equipmentVersion mudou)
-        │
-        ▼
-  Colete vermelho: "Online" ✓ Bateria: 85%
+┌─────────────────────────────────────────────────────────────────┐
+│  ← Voltar                    [LOGO]                             │
+│─────────────────────────────────────────────────────────────────│
+│                                                                 │
+│                   Conectar Placa USB                            │
+│           Conecte a placa no USB do computador                  │
+│                                                                 │
+│     ┌─────────────────────────────────────────────────────┐     │
+│     │  Placa USB                              [Conectada] │     │
+│     │  Clique para permitir o acesso no navegador         │     │
+│     │                                                     │     │
+│     │  ● Navegador: Web Serial OK                         │     │
+│     │  ● Placa: Conectada                                 │     │
+│     │                                                     │     │
+│     │  [Conectar placa USB]  ou  [Desconectar]           │     │
+│     └─────────────────────────────────────────────────────┘     │
+│                                                                 │
+│─────────────────────────────────────────────────────────────────│
+│            [Continuar →]  ou  [Pular (modo teste)]              │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Arquivos a Modificar
+### O que será removido
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/types/serial.ts` | Adicionar `equipmentVersion: number` ao tipo |
-| `src/hooks/useSerialPort.ts` | Expor `equipmentVersion` no retorno |
-| `src/components/game/EquipmentSetupScreen.tsx` | Usar `equipmentVersion` como dependência do useMemo |
-
----
-
-### Código Detalhado
-
-#### `src/types/serial.ts` (linha ~47)
-
-```typescript
-export interface UseSerialPortReturn {
-  isConnected: boolean;
-  isConnecting: boolean;
-  error: string | null;
-  isSupported: boolean;
-  connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  equipment: Map<EquipmentSlot, EquipmentState>;
-  equipmentVersion: number; // ADICIONAR
-}
-```
-
-#### `src/hooks/useSerialPort.ts` (linhas 317-326)
-
-```typescript
-return {
-  isConnected,
-  isConnecting,
-  error,
-  isSupported: isWebSerialSupported(),
-  connect,
-  disconnect,
-  equipment: equipmentRef.current,
-  equipmentVersion, // ADICIONAR
-};
-```
-
-#### `src/components/game/EquipmentSetupScreen.tsx` (linhas 116-137)
-
-```typescript
-export function EquipmentSetupScreen({
-  serialPort,
-  onContinue,
-  onSkip,
-  onBack,
-}: EquipmentSetupScreenProps) {
-  const agora = Date.now();
-  const mapa = serialPort.equipment;
-  const versao = serialPort.equipmentVersion; // ADICIONAR
-
-  const lista = useMemo(() => {
-    return EQUIPAMENTOS.map((item) => {
-      const raw = mapa.get(item.id);
-      const bateria = raw?.battery ?? null;
-      const lastSeen = raw?.lastSeen ?? null;
-      const vistoRecentemente = lastSeen !== null && agora - lastSeen <= STALE_MS;
-      const temBateria = typeof bateria === "number";
-      const online = temBateria && vistoRecentemente;
-      const stale = temBateria && !vistoRecentemente;
-
-      return {
-        ...item,
-        bateria,
-        online,
-        stale,
-      };
-    });
-  }, [mapa, agora, versao]); // MODIFICAR: adicionar 'versao'
-  
-  // ... resto do código ...
-}
-```
+| Elemento | Status |
+|----------|--------|
+| Card "2) Dispositivos" inteiro | REMOVER |
+| Lista de coletes e capacetes | REMOVER |
+| Componentes VestIcon, HelmetIcon | REMOVER |
+| Componente IndicadorBateria | REMOVER |
+| Constante EQUIPAMENTOS | REMOVER |
+| Constante STALE_MS | REMOVER |
+| Lógica useMemo para lista | REMOVER |
+| Contagem `onlineCount` | REMOVER |
+| Condições `prontoTotal`/`prontoMinimo` | SIMPLIFICAR |
 
 ---
 
-### Resultado Esperado
+### O que será mantido
 
-| Antes | Depois |
-|-------|--------|
-| Status "Aguardando" não muda | Status atualiza em tempo real |
-| "Placa: Ainda não conectada" mesmo após conectar | Muda para "Conectada" imediatamente |
-| Precisa dar refresh para ver mudanças | Atualizações automáticas conforme dados chegam |
-| Sai da tela ao dar refresh | Não precisa mais de refresh |
+| Elemento | Status |
+|----------|--------|
+| Card "Placa USB" | MANTER |
+| Verificação do navegador (Web Serial) | MANTER |
+| Botão "Conectar placa USB" | MANTER |
+| Botão "Desconectar" | MANTER |
+| Link "Pular e usar teclado" | MANTER |
+| Componentes BolinhaStatus e Selo | MANTER |
+
+---
+
+### Nova Lógica do Footer
+
+Simplificar para apenas duas condições:
+
+1. **Placa conectada** → Mostrar botão "Continuar →" verde
+2. **Placa não conectada** → Mostrar mensagem + link "Pular (modo teste)"
+
+---
+
+### Arquivo a Modificar
+
+**`src/components/game/EquipmentSetupScreen.tsx`**
+
+**Mudanças principais:**
+1. Remover linhas 14-33 (constantes STALE_MS e EQUIPAMENTOS)
+2. Remover linhas 69-108 (componentes IndicadorBateria, VestIcon, HelmetIcon)
+3. Remover linhas 116-145 (lógica useMemo e contagens)
+4. Remover linhas 243-298 (Card "2) Dispositivos")
+5. Simplificar footer (linhas 301-354) para apenas verificar `placaConectada`
+6. Atualizar título e descrição
+
+---
+
+### Código Simplificado do Footer
+
+```typescript
+{/* Footer / CTA */}
+<div className="mt-auto pt-6">
+  <div className="rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur">
+    {placaConectada ? (
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex items-center gap-2 text-emerald-200">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-lg font-semibold">PLACA CONECTADA!</span>
+        </div>
+        <button
+          type="button"
+          onClick={onContinue}
+          className="w-full max-w-md min-h-12 rounded-2xl bg-emerald-600 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700"
+        >
+          Continuar →
+        </button>
+      </div>
+    ) : (
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="text-sm text-white/70">
+          Conecte a placa USB para começar.
+        </div>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="text-xs text-white/60 underline hover:text-white/80"
+        >
+          Pular e usar teclado (modo teste)
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+```
 
 ---
 
 ### Seção Técnica
 
-**Por que usar `equipmentVersion` em vez de criar um novo Map?**
+**Arquivo:** `src/components/game/EquipmentSetupScreen.tsx`
 
-Criar um novo Map a cada atualização (`new Map(...)`) seria mais "React-idiomático", mas:
-1. Gera mais garbage collection
-2. O Map pode ter 4 equipamentos sendo atualizados rapidamente
-3. O contador de versão é mais eficiente para esse caso de uso
+**Linhas a remover/modificar:**
+- Linhas 14-33: Remover STALE_MS e EQUIPAMENTOS
+- Linhas 69-108: Remover IndicadorBateria, VestIcon, HelmetIcon
+- Linhas 116-118: Remover `agora`, `mapa`, `versao`
+- Linhas 120-145: Remover useMemo e contagens (onlineCount, prontoTotal, prontoMinimo)
+- Linhas 169-172: Atualizar texto de instrução (remover passo 2)
+- Linhas 243-298: Remover Card "2) Dispositivos" inteiro
+- Linhas 301-354: Simplificar footer
 
-**Consideração sobre `agora`:**
-
-O `agora` ainda é calculado apenas no momento do render. Isso é intencional - não queremos um setInterval atualizando constantemente. O cálculo de "stale" (10 segundos sem dados) é reavaliado automaticamente quando novos dados chegam porque `equipmentVersion` muda.
-
-Se no futuro for necessário atualizar o status "Sem sinal..." mesmo sem novos dados, podemos adicionar um `useEffect` com setInterval, mas para o fluxo atual isso não é necessário.
+**Impacto:**
+- Arquivo fica ~200 linhas mais curto
+- Tela mais limpa e focada na conexão USB
+- Props `serialPort.equipment` e `serialPort.equipmentVersion` não serão mais usadas neste componente (mas permanecem disponíveis para uso futuro)
 
