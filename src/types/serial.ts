@@ -1,7 +1,8 @@
-import { Side } from './game';
+import { Side, HitType } from './game';
 
 export interface SerialKickEvent {
   side: Side;
+  hitType: HitType;
   timestamp: number;
   raw: string;
 }
@@ -13,7 +14,7 @@ export interface SerialPortState {
 }
 
 export interface UseSerialPortOptions {
-  onKick: (side: Side) => void;
+  onKick: (side: Side, hitType: HitType) => void;
   debounceMs?: number;
 }
 

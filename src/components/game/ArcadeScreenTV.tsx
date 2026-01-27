@@ -1,10 +1,10 @@
 import { cn } from '@/lib/utils';
-import { Zap } from 'lucide-react';
+import { Zap, HardHat } from 'lucide-react';
 import type { UseArcadeStateReturn } from '@/hooks/useArcadeState';
 import logoSFight from '@/assets/logo-desafio-relampago.png';
 import { FighterMascot, type MascotState } from './FighterMascot';
 import { BatteryBadge } from './EquipmentStatus';
-import type { Side } from '@/types/game';
+import type { Side, HitType } from '@/types/game';
 import type { EquipmentSlot, EquipmentState } from '@/types/serial';
 
 interface ArcadeScreenTVProps {
@@ -171,9 +171,21 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           {/* Damage popup */}
           {lastDamage?.side === 'red' && (
             <div className="absolute top-1/3 left-1/2 -translate-x-1/2 z-10">
-              <span className="text-white font-black text-[clamp(48px,6vw,96px)] animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+              <span className={cn(
+                "font-black animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
+                "text-[clamp(48px,6vw,96px)]",
+                lastDamage.hitType === 'helmet' ? "text-game-yellow" : "text-white"
+              )}>
                 -{lastDamage.amount}
               </span>
+              {lastDamage.hitType === 'helmet' && (
+                <div className="flex items-center justify-center gap-2 animate-combo-pop">
+                  <HardHat className="w-6 h-6 text-game-yellow" />
+                  <span className="text-game-yellow text-xl font-black uppercase">
+                    CABEÇA!
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -309,9 +321,21 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           {/* Damage popup */}
           {lastDamage?.side === 'blue' && (
             <div className="absolute top-1/3 left-1/2 -translate-x-1/2 z-10">
-              <span className="text-white font-black text-[clamp(48px,6vw,96px)] animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+              <span className={cn(
+                "font-black animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
+                "text-[clamp(48px,6vw,96px)]",
+                lastDamage.hitType === 'helmet' ? "text-game-yellow" : "text-white"
+              )}>
                 -{lastDamage.amount}
               </span>
+              {lastDamage.hitType === 'helmet' && (
+                <div className="flex items-center justify-center gap-2 animate-combo-pop">
+                  <HardHat className="w-6 h-6 text-game-yellow" />
+                  <span className="text-game-yellow text-xl font-black uppercase">
+                    CABEÇA!
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

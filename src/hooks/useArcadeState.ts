@@ -1,5 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { GameState, Side, ArcadeConfig, ArcadePlayerState, ArcadeRoundResult, ArcadeResult } from '@/types/game';
+import type { GameState, Side, ArcadeConfig, ArcadePlayerState, ArcadeRoundResult, ArcadeResult, HitType } from '@/types/game';
+
+// Difficulty configs by round duration
+// Kids: higher damage for faster matches
+// Adult: lower damage for tactical matches
+const DIFFICULTY_CONFIGS: Record<number, { vestDamage: number; helmetDamage: number; specialDamageBonus: number }> = {
+  20: { vestDamage: 3, helmetDamage: 5, specialDamageBonus: 10 },  // Kids 4-6
+  30: { vestDamage: 2, helmetDamage: 4, specialDamageBonus: 12 },  // Kids 7-9
+  45: { vestDamage: 2, helmetDamage: 3, specialDamageBonus: 12 },  // Juvenil
+  60: { vestDamage: 1, helmetDamage: 2, specialDamageBonus: 15 },  // Adulto
+};
+
+function getDifficultyConfig(roundDuration: number) {
+  return DIFFICULTY_CONFIGS[roundDuration] || DIFFICULTY_CONFIGS[45]; // Default to Juvenil
+}
 
 const DEFAULT_ARCADE_CONFIG: ArcadeConfig = {
   roundDurationSec: 60,
@@ -8,12 +22,13 @@ const DEFAULT_ARCADE_CONFIG: ArcadeConfig = {
   comboWindowMs: 700,
   energyPerKick: 10,
   energyMax: 100,
-  baseDamage: 2,
+  vestDamage: 2,
+  helmetDamage: 3,
   specialDamageBonus: 12,
   minIntervalMs: 150,
 };
 
-const COUNTDOWN_DURATION = 6; // 3s intro + 3s contagem sincronizada
+const COUNTDOWN_DURATION = 6; // 3s intro + 3s synchronized countdown
 const ROUND_END_DELAY = 3000; // 3 seconds before next round
 
 const createInitialPlayerState = (hp: number): ArcadePlayerState => ({
@@ -37,7 +52,14 @@ interface UseArcadeStateOptions extends Partial<ArcadeConfig> {
 
 export function useArcadeState(options: UseArcadeStateOptions = {}) {
   const { onHit, onHitHeavy, onCombo, onSpecialReady, onSpecialAttack, onKO, onTimeUp, onRoundEnd, ...config } = options;
-  const fullConfig = { ...DEFAULT_ARCADE_CONFIG, ...config };
+  
+  // Get difficulty-based config
+  const difficultyConfig = getDifficultyConfig(config.roundDurationSec || DEFAULT_ARCADE_CONFIG.roundDurationSec);
+  const fullConfig = { 
+    ...DEFAULT_ARCADE_CONFIG, 
+    ...difficultyConfig,
+    ...config 
+  };
   
   const [gameState, setGameState] = useState<GameState>('idle');
   const [currentRound, setCurrentRound] = useState(1);
@@ -53,7 +75,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
   const [showCombo, setShowCombo] = useState<{ side: Side; count: number } | null>(null);
   const [showSpecialUsed, setShowSpecialUsed] = useState<Side | null>(null);
   const [showKO, setShowKO] = useState<Side | null>(null);
-  const [lastDamage, setLastDamage] = useState<{ side: Side; amount: number } | null>(null);
+  const [lastDamage, setLastDamage] = useState<{ side: Side; amount: number; hitType: HitType } | null>(null);
 
   const timerRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
@@ -150,16 +172,21 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     }
   }, [gameState, countdown, startGame]);
 
-  // Calculate damage with combo
-  const calculateDamage = useCallback((attackerState: ArcadePlayerState, now: number): { damage: number; newCombo: number; usedSpecial: boolean } => {
+  // Calculate damage with combo and hit type
+  const calculateDamage = useCallback((attackerState: ArcadePlayerState, now: number, hitType: HitType): { damage: number; newCombo: number; usedSpecial: boolean } => {
     // Check combo
     const timeSinceLastKick = now - attackerState.lastKickAt;
     const isCombo = timeSinceLastKick <= fullConfig.comboWindowMs && attackerState.lastKickAt > 0;
     const newCombo = isCombo ? attackerState.comboCount + 1 : 1;
     
-    // Base damage + combo bonus (max +4)
+    // Base damage based on hit type (helmet does more damage)
+    const baseDamage = hitType === 'helmet' 
+      ? fullConfig.helmetDamage 
+      : fullConfig.vestDamage;
+    
+    // Combo bonus (max +4)
     const comboBonus = Math.min(newCombo - 1, 4);
-    let damage = fullConfig.baseDamage + comboBonus;
+    let damage = baseDamage + comboBonus;
     
     // Special bonus
     const usedSpecial = attackerState.specialReady;
@@ -168,10 +195,10 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     }
     
     return { damage, newCombo, usedSpecial };
-  }, [fullConfig.baseDamage, fullConfig.comboWindowMs, fullConfig.specialDamageBonus]);
+  }, [fullConfig.vestDamage, fullConfig.helmetDamage, fullConfig.comboWindowMs, fullConfig.specialDamageBonus]);
 
-  // Register kick
-  const registerKick = useCallback((side: Side) => {
+  // Register kick with hit type
+  const registerKick = useCallback((side: Side, hitType: HitType = 'vest') => {
     if (gameState !== 'running') return false;
 
     const now = Date.now();
@@ -189,8 +216,8 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     const setDefenderState = side === 'red' ? setBlueState : setRedState;
     const defenderSide: Side = side === 'red' ? 'blue' : 'red';
 
-    // Calculate damage
-    const { damage, newCombo, usedSpecial } = calculateDamage(attackerState, now);
+    // Calculate damage with hit type
+    const { damage, newCombo, usedSpecial } = calculateDamage(attackerState, now, hitType);
 
     // Check if special will become ready after this kick
     const currentEnergy = attackerState.energy;
@@ -246,8 +273,8 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
       setTimeout(() => setShowSpecialUsed(null), 800);
     }
 
-    // Show damage
-    setLastDamage({ side: defenderSide, amount: damage });
+    // Show damage with hit type
+    setLastDamage({ side: defenderSide, amount: damage, hitType });
     setTimeout(() => setLastDamage(null), 400);
 
     return true;
@@ -347,10 +374,16 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
 
       switch (key) {
         case 'a':
-          registerKick('red');
+          registerKick('red', 'vest');
+          break;
+        case 'q': // Helmet hit for red
+          registerKick('red', 'helmet');
           break;
         case 'l':
-          registerKick('blue');
+          registerKick('blue', 'vest');
+          break;
+        case 'p': // Helmet hit for blue
+          registerKick('blue', 'helmet');
           break;
         case ' ':
           e.preventDefault();

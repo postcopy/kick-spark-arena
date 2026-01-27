@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Swords, Clock, Trophy } from 'lucide-react';
+import { ArrowLeft, Swords, Clock, Trophy, Shirt, HardHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSound } from '@/contexts/SoundContext';
@@ -14,11 +14,12 @@ interface ArcadeSetupScreenProps {
 }
 
 const DURATION_OPTIONS = [
-  { value: 20, label: '20s', sublabel: 'Kids 4-6' },
-  { value: 30, label: '30s', sublabel: 'Kids 7-9' },
-  { value: 45, label: '45s', sublabel: 'Juvenil', recommended: true },
-  { value: 60, label: '60s', sublabel: 'Adulto' },
+  { value: 20, label: '20s', sublabel: 'Kids 4-6', vest: 3, helmet: 5 },
+  { value: 30, label: '30s', sublabel: 'Kids 7-9', vest: 2, helmet: 4 },
+  { value: 45, label: '45s', sublabel: 'Juvenil', vest: 2, helmet: 3, recommended: true },
+  { value: 60, label: '60s', sublabel: 'Adulto', vest: 1, helmet: 2 },
 ];
+
 const BEST_OF_OPTIONS: Array<{ value: 1 | 3; label: string }> = [
   { value: 1, label: 'RÁPIDO' },
   { value: 3, label: 'MELHOR DE 3' },
@@ -88,6 +89,18 @@ export function ArcadeSetupScreen({
                 )}>
                   {option.sublabel}
                 </span>
+                {/* Damage preview */}
+                <div className={cn(
+                  "flex gap-2 mt-1 text-xs",
+                  roundDuration === option.value ? "text-black/60" : "text-muted-foreground/80"
+                )}>
+                  <span className="flex items-center gap-0.5">
+                    <Shirt className="w-3 h-3" /> {option.vest}
+                  </span>
+                  <span className="flex items-center gap-0.5">
+                    <HardHat className="w-3 h-3" /> {option.helmet}
+                  </span>
+                </div>
                 {option.recommended && (
                   <span className="absolute -top-2 right-2 px-2 py-0.5 bg-game-gold text-black text-xs font-bold rounded-full">
                     REC
@@ -127,9 +140,10 @@ export function ArcadeSetupScreen({
           <h3 className="text-xs md:text-sm font-bold text-muted-foreground uppercase mb-1 md:mb-2">REGRAS</h3>
           <ul className="text-xs md:text-sm text-muted-foreground space-y-0.5 md:space-y-1">
             <li>• HP inicial: <span className="text-foreground font-bold">100</span></li>
-            <li>• Dano base: <span className="text-foreground font-bold">2</span> + bônus de combo (até +4)</li>
-            <li>• Combo: chutes rápidos em sequência (700ms)</li>
-            <li>• Especial: <span className="text-game-yellow font-bold">+12 dano</span> quando energia cheia</li>
+            <li>• <Shirt className="w-3 h-3 inline" /> Colete: <span className="text-foreground font-bold">{DURATION_OPTIONS.find(o => o.value === roundDuration)?.vest || 2}</span> dano</li>
+            <li>• <HardHat className="w-3 h-3 inline text-game-yellow" /> Capacete: <span className="text-game-yellow font-bold">{DURATION_OPTIONS.find(o => o.value === roundDuration)?.helmet || 3}</span> dano</li>
+            <li>• Combo: chutes rápidos em sequência (até +4 dano)</li>
+            <li>• Especial: <span className="text-game-yellow font-bold">+10-15 dano</span> quando energia cheia</li>
           </ul>
         </div>
       </main>
