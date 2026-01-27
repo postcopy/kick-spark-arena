@@ -47,17 +47,8 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
 
       {/* Main - Área principal com scroll se precisar */}
       <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-3 md:p-6">
-        {/* Logo Grande */}
-        <div className="mb-2 md:mb-4 text-center">
-          <img 
-            src={logoSfighter} 
-            alt="S-Fighter" 
-            className="h-10 sm:h-12 md:h-16 lg:h-20 w-auto mx-auto drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]" 
-          />
-        </div>
-
         {/* Título simples */}
-        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-0.5 text-center">
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-1 text-center">
           Escolha um modo
         </h1>
         <p className="text-sm md:text-base text-muted-foreground mb-3 md:mb-4 text-center">
