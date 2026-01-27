@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useArcadeState } from '@/hooks/useArcadeState';
 import { useSerialPort } from '@/hooks/useSerialPort';
@@ -168,19 +168,40 @@ const Index = () => {
     setPendingMode(null);
   }, []);
 
-  const handleBackToMenu = useCallback(() => {
-    // Stop background music
+  // Stop all game processes immediately (no fade)
+  const stopAllGameProcesses = useCallback(() => {
+    // Stop background music immediately
     if (bgMusicRef.current) {
       bgMusicRef.current.pause();
+      try { bgMusicRef.current.currentTime = 0; } catch {}
       bgMusicRef.current = null;
     }
-    setGameMode(null);
+    // Reset game states (clears internal timers)
     timeAttackState.resetGame();
     arcadeState.resetGame();
-    // Reset variant state
+    // Reset flags
+    isNewRoundRef.current = true;
+  }, [timeAttackState, arcadeState]);
+
+  const handleBackToMenu = useCallback(() => {
+    stopAllGameProcesses();
+    setGameMode(null);
     setTimeAttackVariant('duo');
     setSelectedAthlete(null);
-  }, [timeAttackState, arcadeState]);
+  }, [stopAllGameProcesses]);
+
+  // Global ESC handler to exit game modes
+  useEffect(() => {
+    const handleGlobalEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && gameMode) {
+        e.preventDefault();
+        handleBackToMenu();
+      }
+    };
+    
+    window.addEventListener('keydown', handleGlobalEscape);
+    return () => window.removeEventListener('keydown', handleGlobalEscape);
+  }, [gameMode, handleBackToMenu]);
 
   // Handle music started from countdown
   const handleMusicStarted = useCallback((audio: HTMLAudioElement) => {
@@ -256,7 +277,7 @@ const Index = () => {
         );
         break;
       case 'countdown':
-        content = <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} />;
+        content = <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} onBack={handleBackToMenu} />;
         break;
       case 'running':
       case 'paused':
@@ -300,7 +321,7 @@ const Index = () => {
         );
         break;
       case 'countdown':
-        content = <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} shouldStartMusic={isNewRoundRef.current} />;
+        content = <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} shouldStartMusic={isNewRoundRef.current} onBack={handleBackToMenu} />;
         break;
       case 'running':
       case 'round_end':

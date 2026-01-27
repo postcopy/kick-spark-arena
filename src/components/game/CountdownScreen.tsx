@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSound } from '@/contexts/SoundContext';
 
@@ -6,9 +7,10 @@ interface CountdownScreenProps {
   countdown: number;
   onMusicStarted?: (audio: HTMLAudioElement) => void;
   shouldStartMusic?: boolean;
+  onBack?: () => void;
 }
 
-export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = true }: CountdownScreenProps) {
+export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = true, onBack }: CountdownScreenProps) {
   const [animationKey, setAnimationKey] = useState(countdown);
   const { playWithRef } = useSound();
   const hasStartedMusicRef = useRef(false);
@@ -45,7 +47,21 @@ export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = 
       : countdown.toString();
 
   return (
-    <div className="flex items-center justify-center h-full w-full bg-background overflow-hidden">
+    <div className="flex items-center justify-center h-full w-full bg-background overflow-hidden relative">
+      {/* Back button */}
+      {onBack && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onBack();
+          }}
+          className="absolute top-4 left-4 p-3 rounded-xl bg-black/50 text-white/70 hover:bg-black/70 hover:text-white transition-all z-20"
+          aria-label="Voltar ao menu"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+      )}
+
       {/* Side panels preview */}
       <div className="absolute inset-0 flex pointer-events-none opacity-30">
         <div className="flex-1 bg-game-red/10 border-l-4 border-game-red" />
