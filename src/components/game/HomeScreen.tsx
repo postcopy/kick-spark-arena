@@ -1,10 +1,8 @@
-import { Timer, Swords, Zap, LogIn } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import logo from '@/assets/logo-desafio-relampago.png';
+import { Timer, Swords, Zap } from 'lucide-react';
+import logoSfighter from '@/assets/logo-sfighter.png';
 import { UseSerialPortReturn } from '@/types/serial';
 import { MenuDrawer } from './MenuDrawer';
 import { EquipmentStatus } from './EquipmentStatus';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
 import type { GameMode } from '@/types/game';
@@ -29,39 +27,21 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
       {/* Header - Fixo no topo */}
       <header className="flex-shrink-0 w-full flex items-center justify-between p-4 md:px-6 border-b border-border">
         <img 
-          src={logo} 
-          alt="Desafio Relâmpago" 
+          src={logoSfighter} 
+          alt="S-Fighter" 
           className="h-10 md:h-12 w-auto" 
         />
         
-        <div className="flex items-center gap-2 md:gap-3">
-          {!user ? (
-            <>
-              <Link to="/login">
-                <Button variant="outline" className="h-12 px-4 gap-2 rounded-xl">
-                  <LogIn className="w-5 h-5" />
-                  <span className="hidden sm:inline">Entrar</span>
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button className="h-12 px-4 rounded-xl bg-game-yellow text-background hover:bg-game-yellow/90 font-semibold">
-                  Começar
-                </Button>
-              </Link>
-            </>
-          ) : (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground hidden sm:block">
-                Olá, {user.email?.split('@')[0]}
-              </span>
-              <MenuDrawer
-                serialConnected={serialPort?.isConnected}
-                onConnectSerial={serialPort?.connect}
-                onDisconnectSerial={serialPort?.disconnect}
-                serialSupported={serialPort?.isSupported}
-              />
-            </div>
-          )}
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground hidden sm:block">
+            Olá, {user?.email?.split('@')[0]}
+          </span>
+          <MenuDrawer
+            serialConnected={serialPort?.isConnected}
+            onConnectSerial={serialPort?.connect}
+            onDisconnectSerial={serialPort?.disconnect}
+            serialSupported={serialPort?.isSupported}
+          />
         </div>
       </header>
 
@@ -70,9 +50,9 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         {/* Logo Grande */}
         <div className="mb-2 md:mb-4 text-center">
           <img 
-            src={logo} 
-            alt="Desafio Relâmpago" 
-            className="h-10 sm:h-12 md:h-16 lg:h-20 w-auto mx-auto drop-shadow-[0_0_30px_rgba(255,215,0,0.3)]" 
+            src={logoSfighter} 
+            alt="S-Fighter" 
+            className="h-10 sm:h-12 md:h-16 lg:h-20 w-auto mx-auto drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]" 
           />
         </div>
 

@@ -4,6 +4,7 @@ import { useArcadeState } from '@/hooks/useArcadeState';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
+import { WelcomeScreen } from '@/components/game/WelcomeScreen';
 import { HomeScreen } from '@/components/game/HomeScreen';
 import { SetupScreen } from '@/components/game/SetupScreen';
 import { CountdownScreen } from '@/components/game/CountdownScreen';
@@ -202,6 +203,9 @@ const Index = () => {
         <Loader2 className="w-8 h-8 animate-spin text-game-yellow" />
       </div>
     );
+  } else if (!user) {
+    // Usuário não logado = WelcomeScreen
+    content = <WelcomeScreen />;
   } else if (showEquipmentSetup && pendingMode) {
     // Equipment setup screen - before entering game mode
     content = (
@@ -213,12 +217,11 @@ const Index = () => {
       />
     );
   } else if (!gameMode) {
-    // Home screen - always accessible (preview mode)
+    // Home screen - seletor de modos (só para logados)
     content = (
       <>
         <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />
-        {/* Show paywall if user is logged in but expired, or trying to play without login */}
-        {user && !canPlay && <Paywall />}
+        {!canPlay && <Paywall />}
       </>
     );
   } else if (!canPlay) {
