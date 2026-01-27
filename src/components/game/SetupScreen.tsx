@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSound } from '@/contexts/SoundContext';
 import { AddAthleteDialog } from './AddAthleteDialog';
 import { RankingPreview, AthleteStats } from './RankingPreview';
 import type { Athlete } from '@/types/game';
@@ -41,12 +42,14 @@ export function SetupScreen({
   onAthleteChange,
 }: SetupScreenProps) {
   const { user } = useAuth();
+  const { unlockAudio, initFullPreload } = useSound();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRanking, setShowRanking] = useState(false);
   const [step, setStep] = useState<'players' | 'athlete' | 'duration'>('players');
+  const [isPreparing, setIsPreparing] = useState(false);
 
   // Fetch athletes when variant changes to individual
   useEffect(() => {
@@ -98,6 +101,8 @@ export function SetupScreen({
   const canStart = variant === 'duo' || (variant === 'individual' && selectedAthlete);
 
   const handleVariantSelect = (v: TimeAttackVariant) => {
+    unlockAudio();
+    initFullPreload();
     onVariantChange?.(v);
     if (v === 'duo') {
       setStep('duration');
@@ -107,8 +112,20 @@ export function SetupScreen({
   };
 
   const handleAthleteSelect = (athlete: Athlete) => {
+    unlockAudio();
+    initFullPreload();
     onAthleteChange?.(athlete);
     setStep('duration');
+  };
+
+  const handleStart = () => {
+    unlockAudio();
+    initFullPreload();
+    setIsPreparing(true);
+    setTimeout(() => {
+      setIsPreparing(false);
+      onStart();
+    }, 400);
   };
 
   const handleBack = () => {
@@ -391,8 +408,8 @@ export function SetupScreen({
           {/* Start Button */}
           <Button
             size="lg"
-            onClick={onStart}
-            disabled={!canStart}
+            onClick={handleStart}
+            disabled={!canStart || isPreparing}
             className={cn(
               'w-full h-16 text-2xl font-bold rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]',
               variant === 'individual'
@@ -401,7 +418,7 @@ export function SetupScreen({
             )}
           >
             <Play className="mr-3 h-7 w-7" />
-            JOGAR!
+            {isPreparing ? 'Preparando...' : 'JOGAR!'}
           </Button>
         </div>
         )}

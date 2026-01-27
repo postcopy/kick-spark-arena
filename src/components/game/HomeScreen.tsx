@@ -5,6 +5,7 @@ import { UseSerialPortReturn } from '@/types/serial';
 import { MenuDrawer } from './MenuDrawer';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSound } from '@/contexts/SoundContext';
 import type { GameMode } from '@/types/game';
 
 interface HomeScreenProps {
@@ -14,6 +15,13 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   const { user } = useAuth();
+  const { unlockAudio, initFullPreload } = useSound();
+
+  const handleSelectMode = (mode: GameMode) => {
+    unlockAudio();
+    initFullPreload();
+    onSelectMode(mode);
+  };
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-background">
@@ -79,7 +87,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         <div className="w-full max-w-lg lg:max-w-3xl flex flex-col lg:flex-row gap-2 lg:gap-4">
           {/* Time Attack */}
           <button
-            onClick={() => onSelectMode('time_attack')}
+            onClick={() => handleSelectMode('time_attack')}
             className="group flex-1 p-3 md:p-4 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[80px] md:min-h-[100px] lg:h-[clamp(120px,18vh,160px)]"
           >
             <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-0">
@@ -107,7 +115,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
 
           {/* Arcade Duel */}
           <button
-            onClick={() => onSelectMode('arcade')}
+            onClick={() => handleSelectMode('arcade')}
             className="group flex-1 p-3 md:p-4 lg:p-6 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[80px] md:min-h-[100px] lg:h-[clamp(120px,18vh,160px)]"
           >
             <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-0">
