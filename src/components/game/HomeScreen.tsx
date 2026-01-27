@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import logo from '@/assets/logo-desafio-relampago.png';
 import { UseSerialPortReturn } from '@/types/serial';
 import { MenuDrawer } from './MenuDrawer';
+import { EquipmentStatus } from './EquipmentStatus';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
@@ -146,9 +147,17 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
       {/* Footer - Status da plaquinha */}
       {serialPort && (
         <footer className="flex-shrink-0 p-4 border-t border-border">
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <div className={`w-2 h-2 rounded-full ${serialPort.isConnected ? 'bg-green-500' : 'bg-muted-foreground'}`} />
-            <span>{serialPort.isConnected ? 'Plaquinha conectada' : 'Use A e L no teclado'}</span>
+          <div className="flex flex-col items-center gap-2">
+            {/* Status da placa */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className={`w-2 h-2 rounded-full ${serialPort.isConnected ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+              <span>{serialPort.isConnected ? 'Plaquinha conectada' : 'Use A e L no teclado'}</span>
+            </div>
+            
+            {/* Bateria dos equipamentos - só mostra se conectado */}
+            {serialPort.isConnected && (
+              <EquipmentStatus equipment={serialPort.equipment} compact />
+            )}
           </div>
         </footer>
       )}

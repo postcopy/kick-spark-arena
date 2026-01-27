@@ -3,13 +3,16 @@ import { Zap } from 'lucide-react';
 import type { UseArcadeStateReturn } from '@/hooks/useArcadeState';
 import logoSFight from '@/assets/logo-desafio-relampago.png';
 import { FighterMascot, type MascotState } from './FighterMascot';
+import { BatteryBadge } from './EquipmentStatus';
 import type { Side } from '@/types/game';
+import type { EquipmentSlot, EquipmentState } from '@/types/serial';
 
 interface ArcadeScreenTVProps {
   arcadeState: UseArcadeStateReturn;
+  equipment?: Map<EquipmentSlot, EquipmentState>;
 }
 
-export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
+export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) {
   const {
     currentRound,
     timeLeft,
@@ -447,9 +450,9 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
         )}
       </div>
 
-      {/* ============ BOTTOM BAR - Energy (minimal) ============ */}
+      {/* ============ BOTTOM BAR - Energy + Battery (minimal) ============ */}
       <div className="relative z-20 h-[6vh] min-h-[48px] bg-black/80 flex items-center justify-between px-8 border-t border-white/10">
-        {/* Red Energy */}
+        {/* Red Energy + Battery */}
         <div className="flex items-center gap-4 flex-1">
           <span className="text-[clamp(12px,1.5vw,18px)] text-game-red/80 font-bold uppercase">Energia</span>
           <div className="flex-1 max-w-[200px] h-3 bg-white/10 rounded-full overflow-hidden">
@@ -463,6 +466,13 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
               style={{ width: `${(redState.energy / config.energyMax) * 100}%` }}
             />
           </div>
+          {/* Red equipment battery */}
+          {equipment && (
+            <div className="flex items-center gap-2">
+              <BatteryBadge equipment={equipment.get(1)} compact />
+              <BatteryBadge equipment={equipment.get(3)} compact />
+            </div>
+          )}
         </div>
 
         {/* Controls hint (very small) */}
@@ -472,8 +482,15 @@ export function ArcadeScreenTV({ arcadeState }: ArcadeScreenTVProps) {
           <span>ESC = Sair</span>
         </div>
 
-        {/* Blue Energy */}
+        {/* Blue Energy + Battery */}
         <div className="flex items-center gap-4 flex-1 justify-end">
+          {/* Blue equipment battery */}
+          {equipment && (
+            <div className="flex items-center gap-2">
+              <BatteryBadge equipment={equipment.get(2)} compact />
+              <BatteryBadge equipment={equipment.get(4)} compact />
+            </div>
+          )}
           <div className="flex-1 max-w-[200px] h-3 bg-white/10 rounded-full overflow-hidden">
             <div 
               className={cn(

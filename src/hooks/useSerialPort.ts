@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Side } from '@/types/game';
-import { UseSerialPortOptions, UseSerialPortReturn } from '@/types/serial';
+import { 
+  UseSerialPortOptions, 
+  UseSerialPortReturn, 
+  EquipmentSlot, 
+  EquipmentState,
+  EquipmentType
+} from '@/types/serial';
 
 // Type declarations for Web Serial API
 declare global {
@@ -25,22 +31,53 @@ const BAUD_RATE = 115200;
 const DEFAULT_DEBOUNCE_MS = 150;
 const LINE_REGEX = /^\d+,\d+,\d+$/;
 
-function parseLine(line: string): Side | null {
+interface ParsedLine {
+  intensity: number;  // Value 1: Intensity (0-1023) or Button
+  deviceId: number;   // Value 2: Device ID (1-4 = equipment, 5-7 = judges)
+  battery: number;    // Value 3: Battery (0-100%)
+}
+
+function parseLine(line: string): ParsedLine | null {
   const trimmed = line.trim();
   if (!LINE_REGEX.test(trimmed)) return null;
   
   const parts = trimmed.split(',');
-  const B = parseInt(parts[1], 10);
-  
-  // B = 2 → sinal de vermelho atingido → azul chutou
-  // B = 1 → sinal de azul atingido → vermelho chutou
-  if (B === 2) return 'blue';
-  if (B === 1) return 'red';
+  return {
+    intensity: parseInt(parts[0], 10),
+    deviceId: parseInt(parts[1], 10),
+    battery: parseInt(parts[2], 10),
+  };
+}
+
+function getEquipmentType(id: number): EquipmentType {
+  return id <= 2 ? 'vest' : 'helmet';
+}
+
+function getEquipmentSide(id: number): 'red' | 'blue' {
+  // IDs 1 and 3 = red, IDs 2 and 4 = blue
+  return id % 2 === 1 ? 'red' : 'blue';
+}
+
+function deviceIdToKickingSide(deviceId: number): Side | null {
+  // Equipment hit → the kicker is the opposite side
+  // ID 1 (red vest hit) or ID 3 (red helmet hit) → Blue kicked
+  // ID 2 (blue vest hit) or ID 4 (blue helmet hit) → Red kicked
+  if (deviceId === 1 || deviceId === 3) return 'blue';
+  if (deviceId === 2 || deviceId === 4) return 'red';
   return null;
 }
 
 function isWebSerialSupported(): boolean {
   return typeof navigator !== 'undefined' && 'serial' in navigator;
+}
+
+function createInitialEquipment(): Map<EquipmentSlot, EquipmentState> {
+  return new Map([
+    [1, { id: 1, type: 'vest', side: 'red', battery: null, lastSeen: null }],
+    [2, { id: 2, type: 'vest', side: 'blue', battery: null, lastSeen: null }],
+    [3, { id: 3, type: 'helmet', side: 'red', battery: null, lastSeen: null }],
+    [4, { id: 4, type: 'helmet', side: 'blue', battery: null, lastSeen: null }],
+  ]);
 }
 
 export function useSerialPort({ 
@@ -50,12 +87,14 @@ export function useSerialPort({
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [equipmentVersion, setEquipmentVersion] = useState(0);
   
   const portRef = useRef<SerialPort | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<string> | null>(null);
   const lastKickTimeRef = useRef<{ red: number; blue: number }>({ red: 0, blue: 0 });
   const onKickRef = useRef(onKick);
   const isReadingRef = useRef(false);
+  const equipmentRef = useRef<Map<EquipmentSlot, EquipmentState>>(createInitialEquipment());
 
   // Keep onKick ref updated
   useEffect(() => {
@@ -68,6 +107,22 @@ export function useSerialPort({
     lastKickTimeRef.current[side] = now;
     return false;
   }, [debounceMs]);
+
+  const updateEquipment = useCallback((deviceId: number, battery: number) => {
+    if (deviceId >= 1 && deviceId <= 4) {
+      const slot = deviceId as EquipmentSlot;
+      const current = equipmentRef.current.get(slot);
+      if (current) {
+        equipmentRef.current.set(slot, {
+          ...current,
+          battery,
+          lastSeen: Date.now(),
+        });
+        // Trigger re-render
+        setEquipmentVersion(v => v + 1);
+      }
+    }
+  }, []);
 
   const stopReading = useCallback(async () => {
     isReadingRef.current = false;
@@ -103,9 +158,18 @@ export function useSerialPort({
         buffer = lines.pop() || '';
         
         for (const line of lines) {
-          const side = parseLine(line);
-          if (side && !shouldDebounce(side)) {
-            onKickRef.current(side);
+          const parsed = parseLine(line);
+          if (!parsed) continue;
+          
+          const { deviceId, battery } = parsed;
+          
+          // Update equipment battery state
+          updateEquipment(deviceId, battery);
+          
+          // Convert to kicking side and trigger kick
+          const kickingSide = deviceIdToKickingSide(deviceId);
+          if (kickingSide && !shouldDebounce(kickingSide)) {
+            onKickRef.current(kickingSide);
           }
         }
       }
@@ -118,7 +182,7 @@ export function useSerialPort({
         setIsConnected(false);
       }
     }
-  }, [shouldDebounce]);
+  }, [shouldDebounce, updateEquipment]);
 
   const disconnect = useCallback(async () => {
     await stopReading();
@@ -134,6 +198,9 @@ export function useSerialPort({
     
     setIsConnected(false);
     setError(null);
+    // Reset equipment state
+    equipmentRef.current = createInitialEquipment();
+    setEquipmentVersion(v => v + 1);
   }, [stopReading]);
 
   const connect = useCallback(async () => {
@@ -229,6 +296,9 @@ export function useSerialPort({
       setIsConnected(false);
       setError('Plaquinha desconectada');
       portRef.current = null;
+      // Reset equipment state
+      equipmentRef.current = createInitialEquipment();
+      setEquipmentVersion(v => v + 1);
     };
     
     portRef.current.addEventListener('disconnect', handleDisconnect);
@@ -245,5 +315,6 @@ export function useSerialPort({
     isSupported: isWebSerialSupported(),
     connect,
     disconnect,
+    equipment: equipmentRef.current,
   };
 }
