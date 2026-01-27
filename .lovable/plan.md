@@ -1,19 +1,29 @@
 
-## Plano: Bateria dos Equipamentos + Diferenciação Colete/Capacete
+
+## Plano: Pontuação Diferenciada no Modo Duelo (Colete vs Capacete)
 
 ### Resumo
 
-Implementar duas funcionalidades baseadas no protocolo CSV documentado:
-1. **Mostrar bateria** dos 4 equipamentos em tempo real (terceiro valor do CSV)
-2. **Diferenciar colete/capacete** pelos IDs 1-4
+Implementar pontuação diferenciada baseada no tipo de equipamento atingido:
+- **Capacete (IDs 3-4)**: Golpes na cabeça valem MAIS pontos
+- **Colete (IDs 1-2)**: Golpes no corpo valem MENOS pontos
+- Pontos adaptados por nível de dificuldade (Kids, Juvenil, Adulto)
 
 ---
 
-### Arquivos a Criar
+### Tabela de Pontuação por Nível
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/components/game/EquipmentStatus.tsx` | Componente visual para mostrar bateria dos 4 equipamentos |
+| Nível | Tempo | Dano Colete | Dano Capacete | Bônus Especial |
+|-------|-------|-------------|---------------|----------------|
+| Kids 4-6 | 20s | 3 | 5 | +10 |
+| Kids 7-9 | 30s | 2 | 4 | +12 |
+| Juvenil | 45s | 2 | 3 | +12 |
+| Adulto | 60s | 1 | 2 | +15 |
+
+**Lógica Taekwondo Real:**
+- Chute no corpo: 2 pontos
+- Chute na cabeça: 3 pontos
+- Chute giratório na cabeça: 4-5 pontos
 
 ---
 
@@ -21,327 +31,287 @@ Implementar duas funcionalidades baseadas no protocolo CSV documentado:
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/types/serial.ts` | Adicionar tipos para equipamentos e bateria |
-| `src/hooks/useSerialPort.ts` | Parsear 3 valores CSV + rastrear bateria por dispositivo |
-| `src/components/game/HomeScreen.tsx` | Mostrar status dos equipamentos no footer |
-| `src/components/game/GameScreen.tsx` | Exibir badges de bateria durante jogo |
-| `src/components/game/ArcadeScreenTV.tsx` | Exibir badges de bateria no modo duelo |
+| `src/types/game.ts` | Adicionar `HitType` e expandir `ArcadeConfig` |
+| `src/types/serial.ts` | Exportar tipo de equipamento no callback |
+| `src/hooks/useSerialPort.ts` | Passar tipo de equipamento junto com o kick |
+| `src/hooks/useArcadeState.ts` | Calcular dano baseado no tipo de golpe |
+| `src/components/game/ArcadeSetupScreen.tsx` | Mostrar pontuação diferenciada por nível |
+| `src/components/game/ArcadeScreenTV.tsx` | Indicar visualmente tipo de golpe (colete/capacete) |
+| `src/pages/Index.tsx` | Passar hit type para o arcade state |
 
 ---
 
-### 1. Novos Tipos (`src/types/serial.ts`)
+### 1. Novos Tipos (`src/types/game.ts`)
 
 ```typescript
-// Tipos de equipamento
-export type EquipmentType = 'vest' | 'helmet';
-export type EquipmentSlot = 1 | 2 | 3 | 4;
+// Tipo de golpe baseado no equipamento atingido
+export type HitType = 'vest' | 'helmet';
 
-// Estado de um equipamento individual
-export interface EquipmentState {
-  id: EquipmentSlot;
-  type: EquipmentType;
-  side: 'red' | 'blue';
-  battery: number | null; // 0-100 ou null se desconhecido
-  lastSeen: number | null; // timestamp
-}
-
-// Mapeamento fixo baseado na documentação:
-// ID 1 = Colete Vermelho
-// ID 2 = Colete Azul
-// ID 3 = Capacete Vermelho  
-// ID 4 = Capacete Azul
-
-export interface UseSerialPortReturn {
-  isConnected: boolean;
-  isConnecting: boolean;
-  error: string | null;
-  isSupported: boolean;
-  connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  // NOVO:
-  equipment: Map<EquipmentSlot, EquipmentState>;
+// Config expandido para pontuação diferenciada
+export interface ArcadeConfig {
+  roundDurationSec: number;
+  startingHP: number;
+  bestOf: 1 | 3;
+  comboWindowMs: number;
+  energyPerKick: number;
+  energyMax: number;
+  // NOVOS - Dano por tipo de equipamento
+  vestDamage: number;     // Dano base colete
+  helmetDamage: number;   // Dano base capacete
+  specialDamageBonus: number;
+  minIntervalMs: number;
 }
 ```
 
 ---
 
-### 2. Parsing CSV Completo (`src/hooks/useSerialPort.ts`)
-
-Modificar `parseLine` para extrair os 3 valores e atualizar estado de bateria:
+### 2. Callback Expandido (`src/types/serial.ts`)
 
 ```typescript
-interface ParsedLine {
-  intensity: number;  // Valor 1
-  deviceId: number;   // Valor 2 (1-4 = equipamentos, 5-7 = juízes)
-  battery: number;    // Valor 3 (0-100)
-}
-
-function parseLine(line: string): ParsedLine | null {
-  const trimmed = line.trim();
-  if (!LINE_REGEX.test(trimmed)) return null;
-  
-  const parts = trimmed.split(',');
-  return {
-    intensity: parseInt(parts[0], 10),
-    deviceId: parseInt(parts[1], 10),
-    battery: parseInt(parts[2], 10),
-  };
-}
-
-function getEquipmentType(id: number): EquipmentType {
-  return id <= 2 ? 'vest' : 'helmet';
-}
-
-function getEquipmentSide(id: number): 'red' | 'blue' {
-  // IDs 1 e 3 = vermelho, IDs 2 e 4 = azul
-  return id % 2 === 1 ? 'red' : 'blue';
+export interface UseSerialPortOptions {
+  onKick: (side: Side, hitType: HitType) => void; // AGORA passa tipo de golpe
+  debounceMs?: number;
 }
 ```
 
-**Fluxo atualizado:**
-1. Recebe linha CSV: `"45,2,87"`
-2. Parseia: `{ intensity: 45, deviceId: 2, battery: 87 }`
-3. Atualiza `equipment[2]` com `{ battery: 87, lastSeen: Date.now() }`
-4. Se `deviceId` é 1 ou 2, converte para `Side` e chama `onKick`
+---
+
+### 3. Serial Port Passa Tipo de Golpe (`src/hooks/useSerialPort.ts`)
+
+```typescript
+import { HitType } from '@/types/game';
+
+function deviceIdToHitType(deviceId: number): HitType {
+  // IDs 1-2 = coletes, IDs 3-4 = capacetes
+  return deviceId <= 2 ? 'vest' : 'helmet';
+}
+
+// No loop de leitura:
+const kickingSide = deviceIdToKickingSide(deviceId);
+const hitType = deviceIdToHitType(deviceId);
+
+if (kickingSide && !shouldDebounce(kickingSide)) {
+  onKickRef.current(kickingSide, hitType);
+}
+```
 
 ---
 
-### 3. Estado de Equipamentos no Hook
+### 4. Arcade State com Dano Diferenciado (`src/hooks/useArcadeState.ts`)
 
 ```typescript
-// Estado interno
-const equipmentRef = useRef<Map<EquipmentSlot, EquipmentState>>(new Map([
-  [1, { id: 1, type: 'vest', side: 'red', battery: null, lastSeen: null }],
-  [2, { id: 2, type: 'vest', side: 'blue', battery: null, lastSeen: null }],
-  [3, { id: 3, type: 'helmet', side: 'red', battery: null, lastSeen: null }],
-  [4, { id: 4, type: 'helmet', side: 'blue', battery: null, lastSeen: null }],
-]));
-
-// Atualizar ao receber dados
-const updateEquipment = (deviceId: number, battery: number) => {
-  if (deviceId >= 1 && deviceId <= 4) {
-    const slot = deviceId as EquipmentSlot;
-    const current = equipmentRef.current.get(slot);
-    if (current) {
-      equipmentRef.current.set(slot, {
-        ...current,
-        battery,
-        lastSeen: Date.now(),
-      });
-      // Trigger re-render
-      setEquipmentVersion(v => v + 1);
-    }
-  }
+// Configs por nível de dificuldade
+const DIFFICULTY_CONFIGS = {
+  20: { vestDamage: 3, helmetDamage: 5, specialDamageBonus: 10 },  // Kids 4-6
+  30: { vestDamage: 2, helmetDamage: 4, specialDamageBonus: 12 },  // Kids 7-9
+  45: { vestDamage: 2, helmetDamage: 3, specialDamageBonus: 12 },  // Juvenil
+  60: { vestDamage: 1, helmetDamage: 2, specialDamageBonus: 15 },  // Adulto
 };
-```
 
----
-
-### 4. Componente `EquipmentStatus.tsx`
-
-Exibe os 4 equipamentos com ícone, cor do lado, e porcentagem de bateria:
-
-```typescript
-interface EquipmentStatusProps {
-  equipment: Map<EquipmentSlot, EquipmentState>;
-  compact?: boolean; // Para usar no header/footer
-}
-
-export function EquipmentStatus({ equipment, compact }: EquipmentStatusProps) {
-  const slots = [1, 2, 3, 4] as EquipmentSlot[];
+// calculateDamage recebe tipo de golpe
+const calculateDamage = useCallback((
+  attackerState: ArcadePlayerState, 
+  now: number,
+  hitType: HitType // NOVO
+): { damage: number; newCombo: number; usedSpecial: boolean } => {
+  const timeSinceLastKick = now - attackerState.lastKickAt;
+  const isCombo = timeSinceLastKick <= fullConfig.comboWindowMs && attackerState.lastKickAt > 0;
+  const newCombo = isCombo ? attackerState.comboCount + 1 : 1;
   
-  return (
-    <div className="flex items-center gap-2">
-      {slots.map(slot => {
-        const eq = equipment.get(slot);
-        if (!eq) return null;
-        
-        const Icon = eq.type === 'vest' ? ShirtIcon : HardHatIcon;
-        const colorClass = eq.side === 'red' ? 'text-game-red' : 'text-game-blue';
-        const batteryColor = getBatteryColor(eq.battery);
-        
-        return (
-          <div 
-            key={slot}
-            className={cn(
-              "flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5",
-              compact && "px-1.5 py-0.5"
-            )}
-          >
-            <Icon className={cn("w-4 h-4", colorClass)} />
-            {eq.battery !== null ? (
-              <span className={cn("text-xs font-medium tabular-nums", batteryColor)}>
-                {eq.battery}%
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground">--</span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+  // DANO BASEADO NO TIPO DE GOLPE
+  const baseDamage = hitType === 'helmet' 
+    ? fullConfig.helmetDamage 
+    : fullConfig.vestDamage;
+  
+  // Bônus de combo (max +4)
+  const comboBonus = Math.min(newCombo - 1, 4);
+  let damage = baseDamage + comboBonus;
+  
+  // Especial
+  const usedSpecial = attackerState.specialReady;
+  if (usedSpecial) {
+    damage += fullConfig.specialDamageBonus;
+  }
+  
+  return { damage, newCombo, usedSpecial };
+}, [fullConfig]);
 
-function getBatteryColor(battery: number | null): string {
-  if (battery === null) return 'text-muted-foreground';
-  if (battery <= 15) return 'text-destructive';
-  if (battery <= 30) return 'text-yellow-500';
-  return 'text-green-500';
-}
-```
-
-**Visual:**
-```text
-┌─────────────────────────────────────┐
-│ [👕 85%] [👕 72%] [🪖 90%] [🪖 65%] │
-│  (red)   (blue)   (red)   (blue)   │
-└─────────────────────────────────────┘
+// registerKick agora recebe hitType
+const registerKick = useCallback((side: Side, hitType: HitType = 'vest') => {
+  // ...
+  const { damage, newCombo, usedSpecial } = calculateDamage(attackerState, now, hitType);
+  // ...
+}, [/* deps */]);
 ```
 
 ---
 
-### 5. Integração na HomeScreen
-
-Adicionar status de equipamentos no footer:
+### 5. Setup Screen Mostra Pontuação (`src/components/game/ArcadeSetupScreen.tsx`)
 
 ```typescript
-{serialPort && (
-  <footer className="flex-shrink-0 p-4 border-t border-border">
-    <div className="flex flex-col items-center gap-2">
-      {/* Status da placa */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <div className={`w-2 h-2 rounded-full ${serialPort.isConnected ? 'bg-green-500' : 'bg-muted-foreground'}`} />
-        <span>{serialPort.isConnected ? 'Plaquinha conectada' : 'Use A e L no teclado'}</span>
-      </div>
-      
-      {/* Bateria dos equipamentos - só mostra se conectado */}
-      {serialPort.isConnected && (
-        <EquipmentStatus equipment={serialPort.equipment} compact />
-      )}
-    </div>
-  </footer>
-)}
-```
+const DURATION_OPTIONS = [
+  { value: 20, label: '20s', sublabel: 'Kids 4-6', vest: 3, helmet: 5 },
+  { value: 30, label: '30s', sublabel: 'Kids 7-9', vest: 2, helmet: 4 },
+  { value: 45, label: '45s', sublabel: 'Juvenil', vest: 2, helmet: 3, recommended: true },
+  { value: 60, label: '60s', sublabel: 'Adulto', vest: 1, helmet: 2 },
+];
 
----
-
-### 6. Integração nas Telas de Jogo
-
-**GameScreen (Time Attack):**
-- Pequenos badges no canto superior (não atrapalham gameplay)
-- Só mostram se bateria <= 30% (alerta)
-
-**ArcadeScreenTV (Duelo):**
-- Badges abaixo do nome do jogador
-- Mostram colete + capacete do lado correspondente
-
-```typescript
-// No footer do ArcadeScreenTV
-<div className="flex items-center gap-4">
-  <span className="text-[clamp(12px,1.5vw,18px)] text-game-red/80 font-bold uppercase">
-    Energia
+// Na UI, abaixo do sublabel:
+<div className="flex gap-2 mt-1 text-xs">
+  <span className="flex items-center gap-1">
+    <Shirt className="w-3 h-3" /> {option.vest}
   </span>
-  {/* Bateria equipamentos vermelhos */}
-  <div className="flex items-center gap-1">
-    <BatteryBadge equipment={equipment.get(1)} /> {/* Colete vermelho */}
-    <BatteryBadge equipment={equipment.get(3)} /> {/* Capacete vermelho */}
-  </div>
+  <span className="flex items-center gap-1">
+    <HardHat className="w-3 h-3" /> {option.helmet}
+  </span>
 </div>
 ```
 
 ---
 
-### 7. Mapeamento de Ícones
+### 6. Indicador Visual na Tela de Jogo (`src/components/game/ArcadeScreenTV.tsx`)
 
-| ID | Equipamento | Lado | Ícone |
-|----|-------------|------|-------|
-| 1 | Colete | Vermelho | `Shirt` (lucide) |
-| 2 | Colete | Azul | `Shirt` (lucide) |
-| 3 | Capacete | Vermelho | `HardHat` (lucide) |
-| 4 | Capacete | Azul | `HardHat` (lucide) |
-
----
-
-### 8. Lógica de Kick Atualizada
-
-O sistema atual já funciona, mas vamos melhorar para suportar capacetes (futuramente):
+Quando ocorre um golpe de capacete, mostrar indicador especial:
 
 ```typescript
-// Mapeamento atual (coletes apenas)
-// ID 1 → vermelho chutou (colete azul foi atingido)
-// ID 2 → azul chutou (colete vermelho foi atingido)
+// Novo state no hook:
+const [lastHitType, setLastHitType] = useState<{ side: Side; type: HitType } | null>(null);
 
-// Com capacetes (preparação futura):
-// ID 3 → vermelho chutou na cabeça
-// ID 4 → azul chutou na cabeça
-
-function deviceIdToSide(deviceId: number): Side | null {
-  // Equipamento atingido → quem chutou é o oposto
-  if (deviceId === 1 || deviceId === 3) {
-    // Vermelho foi atingido → Azul chutou
-    return 'blue';
-  }
-  if (deviceId === 2 || deviceId === 4) {
-    // Azul foi atingido → Vermelho chutou
-    return 'red';
-  }
-  return null;
-}
+// No damage popup, diferenciar visualmente:
+{lastDamage?.side === 'red' && (
+  <div className="absolute top-1/3 left-1/2 -translate-x-1/2 z-10">
+    <span className={cn(
+      "font-black animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
+      "text-[clamp(48px,6vw,96px)]",
+      lastHitType?.type === 'helmet' ? "text-game-yellow" : "text-white" // Amarelo para capacete!
+    )}>
+      -{lastDamage.amount}
+    </span>
+    {lastHitType?.type === 'helmet' && (
+      <span className="block text-center text-game-yellow text-xl font-bold uppercase">
+        CABEÇA!
+      </span>
+    )}
+  </div>
+)}
 ```
 
 ---
 
-### Fluxo de Dados
+### 7. Integração no Index.tsx
+
+```typescript
+// Modificar o handleSerialKick para passar hitType
+const handleSerialKick = useCallback((side: Side, hitType: HitType = 'vest') => {
+  if (gameMode === 'arcade') {
+    arcadeState.registerKick(side, hitType);
+  } else if (gameMode === 'time_attack') {
+    gameState.registerKick(side);
+  }
+}, [gameMode, arcadeState, gameState]);
+
+// useSerialPort agora passa 2 argumentos
+const serialPort = useSerialPort({
+  onKick: handleSerialKick, // (side, hitType) => ...
+  debounceMs: 150,
+});
+```
+
+---
+
+### 8. Suporte a Teclado (Modo Teste)
+
+Para testes, teclas extras para simular capacete:
+
+```typescript
+// No useArcadeState keyboard handler:
+case 'a':
+  registerKick('red', 'vest');
+  break;
+case 'q': // NOVO: capacete vermelho
+  registerKick('red', 'helmet');
+  break;
+case 'l':
+  registerKick('blue', 'vest');
+  break;
+case 'p': // NOVO: capacete azul
+  registerKick('blue', 'helmet');
+  break;
+```
+
+---
+
+### Fluxo de Dados Atualizado
 
 ```text
-1. Placa envia: "45,2,87\n"
+1. Placa envia: "45,3,87" (golpe no capacete vermelho)
    |
-2. parseLine() → { intensity: 45, deviceId: 2, battery: 87 }
+2. parseLine() → { deviceId: 3, battery: 87 }
    |
-3. updateEquipment(2, 87)
-   |-> equipment[2] = { battery: 87, lastSeen: now }
+3. deviceIdToKickingSide(3) → 'blue' (azul chutou)
+   deviceIdToHitType(3) → 'helmet' (capacete)
    |
-4. deviceIdToSide(2) → 'red' (vermelho chutou)
+4. onKick('blue', 'helmet')
    |
-5. onKick('red')
+5. registerKick('blue', 'helmet')
+   |-> calculateDamage(..., 'helmet')
+   |-> baseDamage = config.helmetDamage (ex: 3)
+   |-> damage = 3 + comboBonus + especial
    |
-6. UI atualiza:
-   - Score vermelho +1
-   - Badge bateria colete azul: 87%
+6. UI mostra: "-3" em AMARELO + "CABEÇA!"
+```
+
+---
+
+### Regras de Pontuação Completas
+
+```text
+┌────────────────────────────────────────────────────────┐
+│ MODO DUELO - PONTUAÇÃO                                 │
+├──────────────┬──────────┬──────────┬──────────────────┤
+│ Nível        │ Colete   │ Capacete │ Combo Máx (+4)   │
+├──────────────┼──────────┼──────────┼──────────────────┤
+│ Kids 4-6     │    3     │    5     │ Colete: 7, Cap: 9│
+│ Kids 7-9     │    2     │    4     │ Colete: 6, Cap: 8│
+│ Juvenil      │    2     │    3     │ Colete: 6, Cap: 7│
+│ Adulto       │    1     │    2     │ Colete: 5, Cap: 6│
+└──────────────┴──────────┴──────────┴──────────────────┘
+
+Especial adiciona bônus fixo ao dano!
 ```
 
 ---
 
 ### Resultado Esperado
 
-| Local | O que mostra |
-|-------|--------------|
-| HomeScreen (footer) | 4 badges: [👕 VM 85%] [👕 AZ 72%] [🪖 VM 90%] [🪖 AZ 65%] |
-| GameScreen (corner) | Alerta se bateria <= 30% |
-| ArcadeScreen (bottom) | Bateria por lado (VM: colete+capacete / AZ: colete+capacete) |
+| Situação | Antes | Depois |
+|----------|-------|--------|
+| Chute no colete | 2 dano | 1-3 dano (varia por nível) |
+| Chute no capacete | 2 dano (igual) | 2-5 dano (MAIS que colete) |
+| Visual do golpe | Número branco | Branco (colete) / Amarelo + "CABEÇA!" (capacete) |
+| Setup screen | Só tempo | Tempo + preview de pontos |
+| Teclado teste | A/L | A/L (colete) + Q/P (capacete) |
 
 ---
 
-### Seção Técnica
+### Seção Tecnica
 
-**Estrutura do CSV (documentação EngFlex):**
-```
-Valor1,Valor2,Valor3
-  │       │       │
-  │       │       └─ Bateria (0-100%)
-  │       └───────── Device ID (1-4 equipamentos, 5-7 juízes)
-  └───────────────── Intensidade (0-1023) ou Botão
+**Mapeamento de Device IDs (EngFlex):**
+```text
+ID 1 = Colete Vermelho → golpe de AZUL no corpo
+ID 2 = Colete Azul     → golpe de VERMELHO no corpo  
+ID 3 = Capacete Vermelho → golpe de AZUL na cabeça
+ID 4 = Capacete Azul     → golpe de VERMELHO na cabeça
 ```
 
-**Mapeamento de IDs:**
-- 1 = Colete Vermelho
-- 2 = Colete Azul
-- 3 = Capacete Vermelho
-- 4 = Capacete Azul
-- 5, 6, 7 = Juízes externos (ignorados por enquanto)
+**Balanceamento:**
+- Capacete vale ~1.5x mais que colete
+- Níveis mais fáceis (Kids) têm dano maior para partidas mais rápidas
+- Níveis mais difíceis (Adulto) têm dano menor para partidas táticas
+- Combo bônus é ADITIVO ao dano base (não multiplicativo)
 
 **Compatibilidade:**
-- Mantém funcionamento atual (coletes IDs 1-2)
-- Prepara suporte para capacetes (IDs 3-4)
-- Bateria atualiza em tempo real a cada mensagem recebida
+- Teclado continua funcionando (A/L para colete, Q/P para capacete)
+- Serial port funciona automaticamente baseado no ID do equipamento
+- Não quebra partidas existentes (default = colete)
+
