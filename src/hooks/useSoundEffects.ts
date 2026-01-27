@@ -1,4 +1,3 @@
-// @refresh reset - Force full reload on HMR to avoid React state corruption
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type SoundName = 
