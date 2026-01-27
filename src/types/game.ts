@@ -2,6 +2,9 @@ export type Side = 'red' | 'blue';
 export type GameMode = 'time_attack' | 'arcade';
 export type GameState = 'idle' | 'setup' | 'countdown' | 'running' | 'paused' | 'finished' | 'round_end';
 
+// Type of hit based on equipment hit
+export type HitType = 'vest' | 'helmet';
+
 export interface GameConfig {
   duration: number;
   minIntervalMs: number;
@@ -60,7 +63,9 @@ export interface ArcadeConfig {
   comboWindowMs: number;
   energyPerKick: number;
   energyMax: number;
-  baseDamage: number;
+  // Differentiated damage by hit type
+  vestDamage: number;     // Base damage for vest hits
+  helmetDamage: number;   // Base damage for helmet hits (higher)
   specialDamageBonus: number;
   minIntervalMs: number;
 }

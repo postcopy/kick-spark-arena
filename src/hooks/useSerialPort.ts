@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Side } from '@/types/game';
+import { Side, HitType } from '@/types/game';
 import { 
   UseSerialPortOptions, 
   UseSerialPortReturn, 
@@ -65,6 +65,11 @@ function deviceIdToKickingSide(deviceId: number): Side | null {
   if (deviceId === 1 || deviceId === 3) return 'blue';
   if (deviceId === 2 || deviceId === 4) return 'red';
   return null;
+}
+
+function deviceIdToHitType(deviceId: number): HitType {
+  // IDs 1-2 = vests, IDs 3-4 = helmets
+  return deviceId <= 2 ? 'vest' : 'helmet';
 }
 
 function isWebSerialSupported(): boolean {
@@ -166,10 +171,11 @@ export function useSerialPort({
           // Update equipment battery state
           updateEquipment(deviceId, battery);
           
-          // Convert to kicking side and trigger kick
+          // Convert to kicking side and trigger kick with hit type
           const kickingSide = deviceIdToKickingSide(deviceId);
+          const hitType = deviceIdToHitType(deviceId);
           if (kickingSide && !shouldDebounce(kickingSide)) {
-            onKickRef.current(kickingSide);
+            onKickRef.current(kickingSide, hitType);
           }
         }
       }

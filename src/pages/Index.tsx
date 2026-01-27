@@ -14,7 +14,7 @@ import { ArcadeScreen } from '@/components/game/ArcadeScreen';
 import { ArcadeFinishedScreen } from '@/components/game/ArcadeFinishedScreen';
 import { Paywall } from '@/components/Paywall';
 import { Loader2 } from 'lucide-react';
-import type { Side, GameMode, Athlete } from '@/types/game';
+import type { Side, GameMode, Athlete, HitType } from '@/types/game';
 
 type TimeAttackVariant = 'duo' | 'individual';
 
@@ -88,13 +88,14 @@ const Index = () => {
     },
   });
 
-  // Serial port kick handler
-  const handleSerialKick = useCallback((side: Side) => {
+  // Serial port kick handler with hit type
+  const handleSerialKick = useCallback((side: Side, hitType: HitType = 'vest') => {
     if (gameMode === 'time_attack') {
       // In individual mode, both sides count as one kick
+      // Time attack doesn't differentiate hit types
       timeAttackState.registerKick(side);
     } else if (gameMode === 'arcade') {
-      arcadeState.registerKick(side);
+      arcadeState.registerKick(side, hitType);
     }
   }, [gameMode, timeAttackState, arcadeState]);
 
