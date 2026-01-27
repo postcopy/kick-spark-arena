@@ -12,6 +12,7 @@ import { FinishedScreen } from '@/components/game/FinishedScreen';
 import { ArcadeSetupScreen } from '@/components/game/ArcadeSetupScreen';
 import { ArcadeScreen } from '@/components/game/ArcadeScreen';
 import { ArcadeFinishedScreen } from '@/components/game/ArcadeFinishedScreen';
+import { EquipmentSetupScreen } from '@/components/game/EquipmentSetupScreen';
 import { Paywall } from '@/components/Paywall';
 import { Loader2 } from 'lucide-react';
 import type { Side, GameMode, Athlete, HitType } from '@/types/game';
@@ -40,6 +41,10 @@ const Index = () => {
   // Time Attack variant state
   const [timeAttackVariant, setTimeAttackVariant] = useState<TimeAttackVariant>('duo');
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
+  
+  // Equipment setup flow state
+  const [showEquipmentSetup, setShowEquipmentSetup] = useState(false);
+  const [pendingMode, setPendingMode] = useState<GameMode | null>(null);
   
   // Background music reference
   const bgMusicRef = useRef<HTMLAudioElement | null>(null);
@@ -104,19 +109,63 @@ const Index = () => {
     debounceMs: 150,
   });
 
+  // Determine if user can play
+  // Admin always can play, subscribed users can play, users in trial can play
+  const canPlay = isAdmin || subscription.isSubscribed || subscription.isTrialing;
+
   const handleSelectMode = useCallback((mode: GameMode) => {
     // Check if user can play
     if (!canPlay) {
       return;
     }
     
+    // If not connected to hardware, show equipment setup first
+    if (!serialPort.isConnected) {
+      setPendingMode(mode);
+      setShowEquipmentSetup(true);
+      return;
+    }
+    
+    // Already connected, go directly to setup
     setGameMode(mode);
     if (mode === 'time_attack') {
       timeAttackState.goToSetup();
     } else if (mode === 'arcade') {
       arcadeState.goToSetup();
     }
-  }, [timeAttackState, arcadeState]);
+  }, [canPlay, serialPort.isConnected, timeAttackState, arcadeState]);
+
+  // Handler for continuing from equipment setup
+  const handleEquipmentContinue = useCallback(() => {
+    if (!pendingMode) return;
+    setShowEquipmentSetup(false);
+    setGameMode(pendingMode);
+    if (pendingMode === 'time_attack') {
+      timeAttackState.goToSetup();
+    } else if (pendingMode === 'arcade') {
+      arcadeState.goToSetup();
+    }
+    setPendingMode(null);
+  }, [pendingMode, timeAttackState, arcadeState]);
+
+  // Handler for skipping equipment setup (keyboard mode)
+  const handleEquipmentSkip = useCallback(() => {
+    if (!pendingMode) return;
+    setShowEquipmentSetup(false);
+    setGameMode(pendingMode);
+    if (pendingMode === 'time_attack') {
+      timeAttackState.goToSetup();
+    } else if (pendingMode === 'arcade') {
+      arcadeState.goToSetup();
+    }
+    setPendingMode(null);
+  }, [pendingMode, timeAttackState, arcadeState]);
+
+  // Handler for going back from equipment setup
+  const handleEquipmentBack = useCallback(() => {
+    setShowEquipmentSetup(false);
+    setPendingMode(null);
+  }, []);
 
   const handleBackToMenu = useCallback(() => {
     // Stop background music
@@ -142,9 +191,6 @@ const Index = () => {
     isNewRoundRef.current = false; // Mark that music has started for this round
   }, []);
 
-  // Determine if user can play
-  // Admin always can play, subscribed users can play, users in trial can play
-  const canPlay = isAdmin || subscription.isSubscribed || subscription.isTrialing;
 
   // Build content based on state
   let content: React.ReactNode;
@@ -155,6 +201,16 @@ const Index = () => {
       <div className="flex h-full w-full items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-game-yellow" />
       </div>
+    );
+  } else if (showEquipmentSetup && pendingMode) {
+    // Equipment setup screen - before entering game mode
+    content = (
+      <EquipmentSetupScreen
+        serialPort={serialPort}
+        onContinue={handleEquipmentContinue}
+        onSkip={handleEquipmentSkip}
+        onBack={handleEquipmentBack}
+      />
     );
   } else if (!gameMode) {
     // Home screen - always accessible (preview mode)
