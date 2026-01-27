@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { ArrowLeft, Swords, Clock, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useSound } from '@/contexts/SoundContext';
 
 interface ArcadeSetupScreenProps {
   onStart: () => void;
@@ -30,6 +32,19 @@ export function ArcadeSetupScreen({
   bestOf,
   onBestOfChange,
 }: ArcadeSetupScreenProps) {
+  const { unlockAudio, initFullPreload } = useSound();
+  const [isPreparing, setIsPreparing] = useState(false);
+
+  const handleStart = () => {
+    unlockAudio();
+    initFullPreload();
+    setIsPreparing(true);
+    setTimeout(() => {
+      setIsPreparing(false);
+      onStart();
+    }, 400);
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-background p-4 md:p-6 overflow-hidden">
       {/* Header */}
@@ -133,11 +148,12 @@ export function ArcadeSetupScreen({
           </Button>
           <Button
             size="default"
-            onClick={onStart}
+            onClick={handleStart}
+            disabled={isPreparing}
             className="flex-1 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-base md:text-lg"
           >
             <Swords className="w-4 h-4 md:w-5 md:h-5" />
-            INICIAR DUELO
+            {isPreparing ? 'Preparando...' : 'INICIAR DUELO'}
           </Button>
         </div>
         <div className="mt-2 md:mt-3 text-center text-xs md:text-sm text-muted-foreground">
