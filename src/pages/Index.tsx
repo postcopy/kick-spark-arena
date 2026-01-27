@@ -208,6 +208,7 @@ const Index = () => {
             flashSide={flashSide}
             isIndividual={timeAttackVariant === 'individual'}
             athlete={selectedAthlete}
+            equipment={serialPort.equipment}
           />
         );
         break;
@@ -243,7 +244,7 @@ const Index = () => {
         break;
       case 'running':
       case 'round_end':
-        content = <ArcadeScreen arcadeState={arcadeState} />;
+        content = <ArcadeScreen arcadeState={arcadeState} equipment={serialPort.equipment} />;
         break;
       case 'finished':
         stopBgMusic();

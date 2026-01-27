@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { KickPanel } from './KickPanel';
 import { FighterMascot, type MascotState } from './FighterMascot';
+import { LowBatteryAlert } from './EquipmentStatus';
 import type { GameScore, Side, Athlete } from '@/types/game';
+import type { EquipmentSlot, EquipmentState } from '@/types/serial';
 import { cn } from '@/lib/utils';
 
 interface GameScreenProps {
@@ -13,6 +15,7 @@ interface GameScreenProps {
   athlete?: Athlete | null;
   totalDuration?: number;
   onPause?: () => void;
+  equipment?: Map<EquipmentSlot, EquipmentState>;
 }
 
 export function GameScreen({ 
@@ -23,7 +26,8 @@ export function GameScreen({
   isIndividual, 
   athlete,
   totalDuration = 60,
-  onPause
+  onPause,
+  equipment
 }: GameScreenProps) {
   const [showPauseHint, setShowPauseHint] = useState(true);
   
@@ -63,6 +67,9 @@ export function GameScreen({
       className="flex flex-col h-full w-full bg-black overflow-hidden relative select-none"
       onClick={handleTapPause}
     >
+      {/* Low Battery Alert - Top Right */}
+      {equipment && <LowBatteryAlert equipment={equipment} />}
+      
       {/* Minimalist Timer - Top Center */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20">
         <div className={cn(
