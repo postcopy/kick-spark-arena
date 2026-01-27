@@ -1,83 +1,77 @@
 
 
-## Plano: Melhorar HomeScreen - Remover Duplicação da Logo
+## Plano: Corrigir Cards de Modo de Jogo Cortando Texto
 
 ### Problema Identificado
 
-A logo S-Fighter aparece **duas vezes** na mesma tela:
-1. No **header** (canto superior esquerdo)
-2. No **centro da tela** (acima do título "Escolha um modo")
+Os cards de seleção de modo estão cortando o texto na parte inferior. Isso acontece porque:
 
-Isso causa redundância visual e ocupa espaço desnecessário.
-
----
-
-### Solução Proposta
-
-Remover a logo duplicada do centro e reorganizar o layout para ficar mais limpo e focado na seleção de modo.
+1. Os buttons têm **altura fixa** (`lg:h-[clamp(120px,18vh,160px)]`)
+2. O conteúdo (ícone + título + subtítulo + badge "X jogadores") não cabe nessa altura
+3. O texto "1 ou 2 jogadores" e "2 jogadores" está sendo cortado
 
 ---
 
-### Mudanças no `HomeScreen.tsx`
+### Solução
 
-| Local | Antes | Depois |
-|-------|-------|--------|
-| Centro da tela | Logo + título "Escolha um modo" | Apenas título (sem logo) |
-| Header | Logo pequena | Mantém (única instância) |
-| Espaçamento | Muito espaço ocupado pela logo central | Mais compacto e equilibrado |
+Trocar a altura fixa por altura mínima (`min-h`) e usar `overflow-visible` para garantir que todo o conteúdo seja exibido. Também ajustar o layout interno para distribuir melhor o espaço.
 
 ---
 
-### Layout Proposto
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  [Logo S-Fighter]                        Olá, vendas  [☰ Menu] │
-│─────────────────────────────────────────────────────────────────│
-│                                                                 │
-│                                                                 │
-│                      Escolha um modo                            │
-│                     Toque para começar                          │
-│                                                                 │
-│     ┌─────────────────────┐  ┌─────────────────────┐           │
-│     │   ⏱ CONTRA O TEMPO  │  │    ⚔ DUELO         │           │
-│     │   Quem chuta mais?   │  │   Luta até o K.O.! │           │
-│     └─────────────────────┘  └─────────────────────┘           │
-│                                                                 │
-│                                                                 │
-│─────────────────────────────────────────────────────────────────│
-│                    ● Use A e L no teclado                       │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Código a Modificar
+### Mudanças no Código
 
 **Arquivo:** `src/components/game/HomeScreen.tsx`
 
-**Remover linhas 50-57** (logo central duplicada):
+| Problema | Solução |
+|----------|---------|
+| `lg:h-[clamp(120px,18vh,160px)]` altura fixa | Trocar por `lg:min-h-[140px]` altura mínima |
+| Conteúdo sem overflow explícito | Adicionar `overflow-visible` |
+| Layout interno apertado | Usar `flex-col h-full justify-between` para distribuir |
+
+---
+
+### Código Atualizado
 
 ```typescript
-// REMOVER ESTE BLOCO:
-{/* Logo Grande */}
-<div className="mb-2 md:mb-4 text-center">
-  <img 
-    src={logoSfighter} 
-    alt="S-Fighter" 
-    className="h-10 sm:h-12 md:h-16 lg:h-20 w-auto mx-auto drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]" 
-  />
-</div>
+// ANTES - Card Time Attack (linha 61-86):
+<button
+  onClick={() => handleSelectMode('time_attack')}
+  className="group flex-1 p-3 md:p-4 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[80px] md:min-h-[100px] lg:h-[clamp(120px,18vh,160px)]"
+>
+
+// DEPOIS:
+<button
+  onClick={() => handleSelectMode('time_attack')}
+  className="group flex-1 p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[100px] md:min-h-[120px] lg:min-h-[160px]"
+>
 ```
 
-**Ajustar espaçamento do título** (já que não tem mais logo acima):
+**Mesma mudança para o card DUELO (linha 89-114).**
+
+---
+
+### Layout Interno Ajustado
+
+Reorganizar o conteúdo interno para usar flexbox vertical com espaçamento automático:
 
 ```typescript
 // ANTES:
-<h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-0.5 text-center">
+<div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-0">
+  ...
+</div>
+<div className="hidden lg:flex items-center justify-center gap-2 mt-2">
+  ...
+</div>
 
-// DEPOIS: Título um pouco maior para preencher melhor o espaço
-<h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground mb-1 text-center">
+// DEPOIS:
+<div className="flex flex-col h-full">
+  <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
+    ...
+  </div>
+  <div className="hidden lg:flex items-center justify-center gap-2 mt-auto pt-2">
+    ...
+  </div>
+</div>
 ```
 
 ---
@@ -86,20 +80,24 @@ Remover a logo duplicada do centro e reorganizar o layout para ficar mais limpo 
 
 | Antes | Depois |
 |-------|--------|
-| Logo no header + Logo no centro | Logo apenas no header |
-| Visual repetitivo | Visual limpo e focado |
-| Muito espaço vertical ocupado | Melhor aproveitamento do espaço |
+| Texto "1 ou 2 jogadores" cortado | Todo texto visível |
+| Altura fixa causa overflow | Altura mínima se adapta ao conteúdo |
+| Layout apertado | Espaçamento equilibrado |
 
 ---
 
 ### Seção Técnica
 
-**Arquivo modificado:** `src/components/game/HomeScreen.tsx`
+**Mudanças específicas:**
 
-**Mudanças:**
-1. Remover bloco das linhas 50-57 (div com logo central)
-2. Aumentar tamanho da fonte do título h1
-3. Ajustar margin-bottom do título
+1. **Linha 63**: Trocar `lg:h-[clamp(120px,18vh,160px)]` por `lg:min-h-[160px]`
+2. **Linha 63**: Aumentar padding de `p-3` para `p-4`
+3. **Linha 65**: Adicionar wrapper `flex flex-col h-full` para conteúdo
+4. **Linha 80**: Adicionar `mt-auto pt-2` no div do badge para empurrar para baixo
+5. **Aplicar mesmas mudanças ao card DUELO (linhas 89-114)**
 
-**Impacto:** Nenhum em outros arquivos - mudança isolada no HomeScreen.
+**Classes atualizadas:**
+- Botões: `min-h-[100px] md:min-h-[120px] lg:min-h-[160px]` (altura mínima em vez de fixa)
+- Padding: `p-4 md:p-5 lg:p-6` (mais espaço interno)
+- Container interno: `flex flex-col h-full` para distribuição vertical
 
