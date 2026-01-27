@@ -322,5 +322,6 @@ export function useSerialPort({
     connect,
     disconnect,
     equipment: equipmentRef.current,
+    equipmentVersion,
   };
 }
