@@ -164,6 +164,20 @@ export function useSoundEffects() {
     bg.volume = volume;
     bgMusicAudio.current = bg;
 
+    // Fase 1.5: Preload IMEDIATO dos sons mais críticos (hit, hitHeavy)
+    // Isso não requer interação do usuário, só baixa os arquivos
+    const criticalPool = audioPool.current.get('hit');
+    if (criticalPool?.[0]) {
+      criticalPool[0].preload = 'auto';
+      criticalPool[0].load();
+    }
+    
+    const heavyPool = audioPool.current.get('hitHeavy');
+    if (heavyPool?.[0]) {
+      heavyPool[0].preload = 'auto';
+      heavyPool[0].load();
+    }
+
     setIsLoaded(true);
 
     return () => {
@@ -224,9 +238,26 @@ export function useSoundEffects() {
     if (preloadStarted.current) return;
     preloadStarted.current = true;
 
-    const audios: HTMLAudioElement[] = [];
-    audioPool.current.forEach(pool => pool.forEach(a => audios.push(a)));
-    if (bgMusicAudio.current) audios.push(bgMusicAudio.current);
+    // PRIORIZAR sons críticos primeiro
+    const criticalSounds: SoundName[] = ['hit', 'hitHeavy', 'combo', 'countdown3', 'countdown2', 'countdown1', 'countdownGo'];
+    
+    const criticalAudios: HTMLAudioElement[] = [];
+    const otherAudios: HTMLAudioElement[] = [];
+    
+    audioPool.current.forEach((pool, name) => {
+      if (criticalSounds.includes(name)) {
+        pool.forEach(a => criticalAudios.push(a));
+      } else {
+        pool.forEach(a => otherAudios.push(a));
+      }
+    });
+    
+    if (bgMusicAudio.current) {
+      otherAudios.push(bgMusicAudio.current);
+    }
+
+    // Carregar críticos primeiro, depois os outros
+    const audios = [...criticalAudios, ...otherAudios];
 
     let i = 0;
     const BATCH_SIZE = 4;
@@ -255,7 +286,10 @@ export function useSoundEffects() {
     if (isMuted) return;
 
     const pool = audioPool.current.get(name);
-    if (!pool || pool.length === 0) return;
+    if (!pool || pool.length === 0) {
+      console.warn(`[Sound] Pool not found for: ${name}`);
+      return;
+    }
 
     const poolSize = pool.length;
     let idx = (poolIndex.current.get(name) ?? 0) % poolSize;
@@ -264,10 +298,17 @@ export function useSoundEffects() {
     const audio = picked.audio;
     const chosenIdx = picked.idx;
 
+    // Log se nenhuma instância está pronta
+    if (audio.readyState < 2) {
+      console.debug(`[Sound] Playing ${name} with readyState=${audio.readyState} (may be silent)`);
+    }
+
     poolIndex.current.set(name, (chosenIdx + 1) % poolSize);
 
     safeResetAudio(audio, volume);
-    audio.play().catch(() => {});
+    audio.play().catch((err) => {
+      console.warn(`[Sound] Failed to play ${name}:`, err.message);
+    });
   }, [isMuted, volume]);
 
   const playWithRef = useCallback((name: SoundName, volumeMultiplier = 1): HTMLAudioElement | null => {
