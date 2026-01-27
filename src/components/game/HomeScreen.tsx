@@ -60,56 +60,60 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           {/* Time Attack */}
           <button
             onClick={() => handleSelectMode('time_attack')}
-            className="group flex-1 p-3 md:p-4 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[80px] md:min-h-[100px] lg:h-[clamp(120px,18vh,160px)]"
+            className="group flex-1 p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[100px] md:min-h-[120px] lg:min-h-[160px]"
           >
-            <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-0">
-              <div className="p-2 md:p-3 bg-game-yellow/20 rounded-xl group-hover:bg-game-yellow/30 transition-colors lg:mb-2">
-                <Timer className="w-6 h-6 md:w-8 md:h-8 text-game-yellow" />
+            <div className="flex flex-col h-full">
+              <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
+                <div className="p-2 md:p-3 bg-game-yellow/20 rounded-xl group-hover:bg-game-yellow/30 transition-colors lg:mb-2">
+                  <Timer className="w-6 h-6 md:w-8 md:h-8 text-game-yellow" />
+                </div>
+                
+                <div className="flex-1 lg:flex-none text-left lg:text-center">
+                  <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">
+                    CONTRA O TEMPO
+                  </h2>
+                  <p className="text-sm md:text-base text-game-yellow font-medium">
+                    Quem chuta mais?
+                  </p>
+                </div>
               </div>
               
-              <div className="flex-1 lg:flex-none text-left lg:text-center">
-                <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">
-                  CONTRA O TEMPO
-                </h2>
-                <p className="text-sm md:text-base text-game-yellow font-medium">
-                  Quem chuta mais?
-                </p>
+              <div className="hidden lg:flex items-center justify-center gap-2 mt-auto pt-2">
+                <Zap className="w-4 h-4 text-game-yellow/70" />
+                <span className="text-sm text-game-yellow/70">
+                  1 ou 2 jogadores
+                </span>
               </div>
-            </div>
-            
-            <div className="hidden lg:flex items-center justify-center gap-2 mt-2">
-              <Zap className="w-4 h-4 text-game-yellow/70" />
-              <span className="text-sm text-game-yellow/70">
-                1 ou 2 jogadores
-              </span>
             </div>
           </button>
 
           {/* Arcade Duel */}
           <button
             onClick={() => handleSelectMode('arcade')}
-            className="group flex-1 p-3 md:p-4 lg:p-6 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[80px] md:min-h-[100px] lg:h-[clamp(120px,18vh,160px)]"
+            className="group flex-1 p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[100px] md:min-h-[120px] lg:min-h-[160px]"
           >
-            <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-0">
-              <div className="p-2 md:p-3 bg-game-red/20 rounded-xl group-hover:bg-game-red/30 transition-colors lg:mb-2">
-                <Swords className="w-6 h-6 md:w-8 md:h-8 text-game-red" />
+            <div className="flex flex-col h-full">
+              <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
+                <div className="p-2 md:p-3 bg-game-red/20 rounded-xl group-hover:bg-game-red/30 transition-colors lg:mb-2">
+                  <Swords className="w-6 h-6 md:w-8 md:h-8 text-game-red" />
+                </div>
+                
+                <div className="flex-1 lg:flex-none text-left lg:text-center">
+                  <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">
+                    DUELO
+                  </h2>
+                  <p className="text-sm md:text-base text-game-red font-medium">
+                    Luta até o K.O.!
+                  </p>
+                </div>
               </div>
               
-              <div className="flex-1 lg:flex-none text-left lg:text-center">
-                <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">
-                  DUELO
-                </h2>
-                <p className="text-sm md:text-base text-game-red font-medium">
-                  Luta até o K.O.!
-                </p>
+              <div className="hidden lg:flex items-center justify-center gap-2 mt-auto pt-2">
+                <Zap className="w-4 h-4 text-game-red/70" />
+                <span className="text-sm text-game-red/70">
+                  2 jogadores
+                </span>
               </div>
-            </div>
-            
-            <div className="hidden lg:flex items-center justify-center gap-2 mt-2">
-              <Zap className="w-4 h-4 text-game-red/70" />
-              <span className="text-sm text-game-red/70">
-                2 jogadores
-              </span>
             </div>
           </button>
         </div>
