@@ -44,4 +44,5 @@ export interface UseSerialPortReturn {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   equipment: Map<EquipmentSlot, EquipmentState>;
+  equipmentVersion: number;
 }

@@ -115,6 +115,7 @@ export function EquipmentSetupScreen({
 }: EquipmentSetupScreenProps) {
   const agora = Date.now();
   const mapa = serialPort.equipment;
+  const versao = serialPort.equipmentVersion;
 
   const lista = useMemo(() => {
     return EQUIPAMENTOS.map((item) => {
@@ -134,7 +135,7 @@ export function EquipmentSetupScreen({
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapa, agora]);
+  }, [mapa, agora, versao]);
 
   const onlineCount = lista.filter((e) => e.online).length;
   const navegadorOk = serialPort.isSupported;
