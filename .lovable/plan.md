@@ -1,13 +1,15 @@
 
 
-## Plano: Otimização Definitiva de Áudio para Notebooks
+## Plano: Corrigir Sons Não Tocando
 
-### Resumo
-Refatorar o sistema de áudio para eliminar atraso/jitter em notebooks fracos, removendo completamente `cloneNode()` e implementando:
-- Pool round-robin calibrado para TODOS os sons
-- Unlock de áudio no primeiro clique (bypass autoplay)
-- Preload em batches após interação do usuário
-- Estado "Preparando..." no botão (UX mínima, sem tela nova)
+### Diagnóstico
+
+Após análise detalhada, identifiquei os seguintes problemas:
+
+1. **Ordem de preload não prioriza sons críticos**: Os hits (`hit`, `hitHeavy`, `combo`) podem não estar nos primeiros batches de preload
+2. **400ms não é suficiente**: O delay de "Preparando..." não garante que os áudios estejam prontos
+3. **`pickReadyInstance()` falha silenciosamente**: Quando nenhuma instância tem `readyState >= 2`, o play falha mas o erro é engolido
+4. **Sons críticos não têm fallback**: Se o primeiro batch não carregar, o jogo continua sem som
 
 ---
 
@@ -15,102 +17,112 @@ Refatorar o sistema de áudio para eliminar atraso/jitter em notebooks fracos, r
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/hooks/useSoundEffects.ts` | Substituir arquivo inteiro |
-| `src/components/game/HomeScreen.tsx` | Adicionar `handleSelectMode` com unlock + preload |
-| `src/components/game/SetupScreen.tsx` | Adicionar estado "Preparando..." + unlock/preload |
-| `src/components/game/ArcadeSetupScreen.tsx` | Adicionar estado "Preparando..." + unlock/preload |
+| `src/hooks/useSoundEffects.ts` | Priorizar sons críticos no preload + adicionar preload imediato para hits |
 
 ---
 
-### 1. `src/hooks/useSoundEffects.ts` - SUBSTITUIR INTEIRO
+### Solução Proposta
 
-**Principais mudanças:**
-- Remover `audioCache` (que usava `cloneNode()`)
-- Pool calibrado por frequência (`POOL_SIZES`) para TODOS os sons
-- Override para evitar 404 (`victoryRed`/`Blue` -> `victory.mp3`)
-- Fase 1 (mount): criar instâncias com `preload='none'`
-- `unlockAudio()`: toca 1 elemento muted para desbloquear browser
-- `initFullPreload()`: carrega em batches de 4 com `requestIdleCallback`
-- `play()`: round-robin com seleção de instância pronta (`readyState >= 2`)
-- `playWithRef()`: música de fundo usa instância dedicada
-- Cleanup correto: `removeAttribute('src')` + `load()`
+#### 1. Priorizar Sons Críticos no Preload
 
-**Estrutura do novo arquivo:**
+Modificar `initFullPreload()` para carregar os sons mais importantes primeiro:
 
-```text
-POOL_SIZES: hit/combo=3, countdown=2, ko/victory=1
-SOUND_URL_OVERRIDES: victoryRed/Blue -> victory.mp3
-BG_MUSIC_SOUND = 'fightModeBg' (instância dedicada)
-safeResetAudio(): pause + currentTime=0 + muted=false + playbackRate=1 + volume
-pickReadyInstance(): busca instância com readyState >= 2 no pool
-Fase 1: cria instâncias com preload='none', listeners de readiness
-unlockAudio(): 1 elemento muted, idempotente
-initFullPreload(): batches de 4 com requestIdleCallback
-play(): pool round-robin, sem cloneNode
-playWithRef(): bgMusic dedicada, outros usam pool
-return: play, playWithRef, isMuted, toggleMute, setMuted, volume, setVolume, isLoaded, reloadSounds, unlockAudio, initFullPreload
-```
-
----
-
-### 2. `src/components/game/HomeScreen.tsx`
-
-**Mudanças (linha 7):**
-- Adicionar import: `import { useSound } from '@/contexts/SoundContext';`
-
-**Mudanças (após linha 16, dentro do componente):**
 ```typescript
-const { unlockAudio, initFullPreload } = useSound();
+const initFullPreload = useCallback(() => {
+  if (preloadStarted.current) return;
+  preloadStarted.current = true;
 
-const handleSelectMode = (mode: GameMode) => {
-  unlockAudio();
-  initFullPreload();
-  onSelectMode(mode);
-};
-```
-
-**Mudanças nos botões:**
-- Linha 82: `onClick={() => handleSelectMode('time_attack')}`
-- Linha 110: `onClick={() => handleSelectMode('arcade')}`
-
----
-
-### 3. `src/components/game/SetupScreen.tsx`
-
-**Mudanças (linha 9):**
-- Adicionar import: `import { useSound } from '@/contexts/SoundContext';`
-
-**Mudanças (após linha 49, dentro do componente):**
-```typescript
-const { unlockAudio, initFullPreload } = useSound();
-const [isPreparing, setIsPreparing] = useState(false);
-```
-
-**Modificar `handleVariantSelect` (linhas 100-107):**
-```typescript
-const handleVariantSelect = (v: TimeAttackVariant) => {
-  unlockAudio();
-  initFullPreload();
-  onVariantChange?.(v);
-  if (v === 'duo') {
-    setStep('duration');
-  } else {
-    setStep('athlete');
+  // PRIORIZAR sons críticos primeiro
+  const criticalSounds: SoundName[] = ['hit', 'hitHeavy', 'combo', 'countdown3', 'countdown2', 'countdown1', 'countdownGo'];
+  
+  const criticalAudios: HTMLAudioElement[] = [];
+  const otherAudios: HTMLAudioElement[] = [];
+  
+  audioPool.current.forEach((pool, name) => {
+    if (criticalSounds.includes(name)) {
+      pool.forEach(a => criticalAudios.push(a));
+    } else {
+      pool.forEach(a => otherAudios.push(a));
+    }
+  });
+  
+  if (bgMusicAudio.current) {
+    otherAudios.push(bgMusicAudio.current);
   }
-};
+
+  // Carregar críticos primeiro, depois os outros
+  const audios = [...criticalAudios, ...otherAudios];
+  // ... resto igual
+}, []);
 ```
 
-**Modificar `handleAthleteSelect` (linhas 109-112):**
+#### 2. Preload Imediato para Sons Críticos
+
+Modificar o `useEffect` inicial para pré-carregar hits IMEDIATAMENTE (não esperar clique):
+
 ```typescript
-const handleAthleteSelect = (athlete: Athlete) => {
-  unlockAudio();
-  initFullPreload();
-  onAthleteChange?.(athlete);
-  setStep('duration');
-};
+useEffect(() => {
+  // Fase 1: cria instâncias
+  // ... código existente ...
+
+  // Fase 1.5: Preload IMEDIATO dos sons mais críticos (hit, hitHeavy, combo)
+  // Isso não requer interação do usuário, só baixa os arquivos
+  const criticalPool = audioPool.current.get('hit');
+  if (criticalPool?.[0]) {
+    criticalPool[0].preload = 'auto';
+    criticalPool[0].load();
+  }
+  
+  const heavyPool = audioPool.current.get('hitHeavy');
+  if (heavyPool?.[0]) {
+    heavyPool[0].preload = 'auto';
+    heavyPool[0].load();
+  }
+
+  setIsLoaded(true);
+  // ...
+}, []);
 ```
 
-**Adicionar novo handler para botão JOGAR (após linha 112):**
+#### 3. Melhorar o Fallback no Play
+
+Modificar `play()` para tentar tocar mesmo se `readyState < 2`, mas logar quando isso acontecer:
+
+```typescript
+const play = useCallback((name: SoundName) => {
+  if (isMuted) return;
+
+  const pool = audioPool.current.get(name);
+  if (!pool || pool.length === 0) {
+    console.warn(`[Sound] Pool not found for: ${name}`);
+    return;
+  }
+
+  const poolSize = pool.length;
+  let idx = (poolIndex.current.get(name) ?? 0) % poolSize;
+
+  const picked = pickReadyInstance(pool, idx);
+  const audio = picked.audio;
+  const chosenIdx = picked.idx;
+
+  // Log se nenhuma instância está pronta
+  if (audio.readyState < 2) {
+    console.debug(`[Sound] Playing ${name} with readyState=${audio.readyState} (may be silent)`);
+  }
+
+  poolIndex.current.set(name, (chosenIdx + 1) % poolSize);
+
+  safeResetAudio(audio, volume);
+  audio.play().catch((err) => {
+    console.warn(`[Sound] Failed to play ${name}:`, err.message);
+  });
+}, [isMuted, volume]);
+```
+
+#### 4. Aumentar Tempo de "Preparando..."
+
+Modificar `SetupScreen.tsx` e `ArcadeSetupScreen.tsx` para dar mais tempo:
+
 ```typescript
 const handleStart = () => {
   unlockAudio();
@@ -119,148 +131,52 @@ const handleStart = () => {
   setTimeout(() => {
     setIsPreparing(false);
     onStart();
-  }, 400);
+  }, 800); // Aumentar de 400ms para 800ms
 };
 ```
 
-**Modificar botão JOGAR (linhas 392-405):**
-```typescript
-<Button
-  size="lg"
-  onClick={handleStart}
-  disabled={!canStart || isPreparing}
-  className={cn(
-    'w-full h-16 text-2xl font-bold rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]',
-    variant === 'individual'
-      ? 'bg-game-gold hover:bg-game-gold/90 text-background'
-      : 'bg-game-yellow hover:bg-game-yellow/90 text-background'
-  )}
->
-  <Play className="mr-3 h-7 w-7" />
-  {isPreparing ? 'Preparando...' : 'JOGAR!'}
-</Button>
-```
+---
+
+### Resumo das Mudanças
+
+| Mudança | Impacto |
+|---------|---------|
+| Preload imediato de 1 hit + 1 hitHeavy | Garante som no primeiro chute |
+| Priorizar sons críticos no batch | Hits e countdowns carregam primeiro |
+| Aumentar delay para 800ms | Mais tempo para carregar |
+| Logs de debug no play() | Facilita diagnóstico |
 
 ---
 
-### 4. `src/components/game/ArcadeSetupScreen.tsx`
-
-**Mudanças (linha 1):**
-- Adicionar `useState` ao import: `import { useState } from 'react';`
-
-**Mudanças (linha 2):**
-- Adicionar import: `import { useSound } from '@/contexts/SoundContext';`
-
-**Mudanças (após linha 32, dentro do componente):**
-```typescript
-const { unlockAudio, initFullPreload } = useSound();
-const [isPreparing, setIsPreparing] = useState(false);
-
-const handleStart = () => {
-  unlockAudio();
-  initFullPreload();
-  setIsPreparing(true);
-  setTimeout(() => {
-    setIsPreparing(false);
-    onStart();
-  }, 400);
-};
-```
-
-**Modificar botão INICIAR DUELO (linhas 134-141):**
-```typescript
-<Button
-  size="default"
-  onClick={handleStart}
-  disabled={isPreparing}
-  className="flex-1 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-base md:text-lg"
->
-  <Swords className="w-4 h-4 md:w-5 md:h-5" />
-  {isPreparing ? 'Preparando...' : 'INICIAR DUELO'}
-</Button>
-```
-
----
-
-### Checklist de Eliminação de `cloneNode()`
-
-| Local Original | Antes | Depois |
-|----------------|-------|--------|
-| `play()` linha 199 | `cachedAudio.cloneNode()` | Pool round-robin |
-| `playWithRef()` linha 213 | `cachedAudio.cloneNode()` | bgMusic dedicada / Pool |
-
-**Total de `cloneNode()` após implementação: 0**
-
----
-
-### SoundContext.tsx - Sem Mudança Necessária
-
-O context atual já usa `UseSoundEffectsReturn = ReturnType<typeof useSoundEffects>`, então as novas funções (`unlockAudio`, `initFullPreload`) serão automaticamente expostas quando o hook for atualizado.
-
----
-
-### Fluxo Final
+### Fluxo Corrigido
 
 ```text
 1. App monta
-   |-> Fase 1: Cria Audio com preload='none'
-       |-> isLoaded = true (instantâneo, sem pico)
+   |-> Cria pools com preload='none'
+   |-> Preload IMEDIATO de hit[0] e hitHeavy[0]
+   |-> isLoaded = true
 
 2. Usuário clica em modo (HomeScreen)
-   |-> handleSelectMode():
-       |-> unlockAudio() - 1 som muted desbloqueia browser
-       |-> initFullPreload() - load em batches de 4
-       |-> onSelectMode() - navegação
+   |-> unlockAudio() - 1 som muted
+   |-> initFullPreload() - PRIORIZA hits e countdowns
 
-3. Usuário clica em JOGAR (SetupScreen/ArcadeSetupScreen)
-   |-> handleStart():
-       |-> unlockAudio() + initFullPreload() (idempotentes)
-       |-> Mostra "Preparando..." por 400ms
-       |-> onStart() - jogo inicia
+3. Usuário clica em JOGAR (SetupScreen)
+   |-> "Preparando..." por 800ms
+   |-> Garante que críticos estejam prontos
 
-4. play() durante gameplay
-   |-> Busca instância com readyState >= 2 no pool
-   |-> Reset seguro + play
-   |-> Round-robin com módulo
-   |-> Latência mínima (10-30ms)
+4. play('hit') durante jogo
+   |-> pickReadyInstance() encontra instância pronta
+   |-> Som toca imediatamente
 ```
 
 ---
 
-### Métricas Esperadas
+### Resultado Esperado
 
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| `cloneNode()` | 2 lugares | 0 |
-| Latência hit/combo | 50-200ms | 10-30ms |
-| Primeiro play | Pode falhar (autoplay) | Garantido |
-| Jitter em notebooks | Alto | Mínimo |
-| Sons 404 | 2 (victoryRed/Blue) | 0 |
-| Pico CPU no boot | Alto | Zero |
-| Mudanças de UI | - | Apenas texto "Preparando..." |
-
----
-
-### Seção Técnica
-
-**Pool Calibrado (23 instâncias total):**
-- `hit`, `hitHeavy`, `combo`: 3 cada = 9
-- `countdown3/2/1/Go`, `specialReady/Attack`: 2 cada = 12
-- `ko`, `timeUp`, `victory`, `victoryRed`, `victoryBlue`: 1 cada = 5
-- `fightModeBg`: instância dedicada separada
-
-**Por que `preload='none'` na Fase 1?**
-- Evita fetch automático no boot
-- Zero pico de CPU/rede na inicialização
-- Fase 2 carrega sob demanda após interação
-
-**Por que `pickReadyInstance()`?**
-- Prefere instância com `readyState >= 2` (HAVE_CURRENT_DATA)
-- Se nenhuma pronta, usa atual (não bloqueia)
-- Garante menor latência possível
-
-**Por que 400ms de "Preparando..."?**
-- Tempo suficiente para 5-6 batches de 4 sons
-- Total: ~24 sons = 6 batches x ~50ms cada
-- Margem de segurança para notebooks lentos
+| Situação | Antes | Depois |
+|----------|-------|--------|
+| Primeiro hit | Pode não tocar | Sempre toca |
+| Countdown | Pode atrasar | Carrega a tempo |
+| Debug | Erros engolidos | Logs no console |
+| Preload | Ordem aleatória | Críticos primeiro |
 
