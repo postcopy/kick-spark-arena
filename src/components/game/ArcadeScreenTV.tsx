@@ -26,6 +26,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
     config,
     gameState,
     roundResults,
+    recoveryCountdown,
   } = arcadeState;
 
   // Determine mascot state based on game state
@@ -438,6 +439,18 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               >
                 {showKO === 'red' ? 'VERMELHO' : 'AZUL'} VENCE!
               </div>
+              
+              {/* Recovery countdown */}
+              {recoveryCountdown > 0 && (
+                <div className="mt-8">
+                  <span className="text-white/60 text-[clamp(18px,2vw,28px)] uppercase tracking-wider">
+                    Próximo round em
+                  </span>
+                  <div className="text-[clamp(80px,10vw,140px)] font-black text-green-500 animate-pulse">
+                    {recoveryCountdown}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -469,6 +482,18 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
                     : <span className="text-game-yellow" style={{ textShadow: '0 0 40px hsl(var(--game-yellow-glow) / 0.6)' }}>EMPATE!</span>
                 }
               </div>
+              
+              {/* Recovery countdown */}
+              {recoveryCountdown > 0 && (
+                <div className="mt-8">
+                  <span className="text-white/60 text-[clamp(18px,2vw,28px)] uppercase tracking-wider">
+                    Próximo round em
+                  </span>
+                  <div className="text-[clamp(80px,10vw,140px)] font-black text-green-500 animate-pulse">
+                    {recoveryCountdown}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

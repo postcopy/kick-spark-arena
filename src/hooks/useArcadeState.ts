@@ -26,10 +26,10 @@ const DEFAULT_ARCADE_CONFIG: ArcadeConfig = {
   helmetDamage: 3,
   specialDamageBonus: 12,
   minIntervalMs: 150,
+  recoveryIntervalSec: 15,
 };
 
 const COUNTDOWN_DURATION = 6; // 3s intro + 3s synchronized countdown
-const ROUND_END_DELAY = 3000; // 3 seconds before next round
 
 const createInitialPlayerState = (hp: number): ArcadePlayerState => ({
   hp,
@@ -76,9 +76,13 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
   const [showSpecialUsed, setShowSpecialUsed] = useState<Side | null>(null);
   const [showKO, setShowKO] = useState<Side | null>(null);
   const [lastDamage, setLastDamage] = useState<{ side: Side; amount: number; hitType: HitType } | null>(null);
+  
+  // Recovery countdown between rounds
+  const [recoveryCountdown, setRecoveryCountdown] = useState(0);
 
   const timerRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
+  const recoveryTimerRef = useRef<number | null>(null);
   const lastKickTime = useRef<{ red: number; blue: number }>({ red: 0, blue: 0 });
 
   // Clear all timers
@@ -90,6 +94,10 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     if (countdownRef.current) {
       window.clearInterval(countdownRef.current);
       countdownRef.current = null;
+    }
+    if (recoveryTimerRef.current) {
+      window.clearInterval(recoveryTimerRef.current);
+      recoveryTimerRef.current = null;
     }
   }, []);
 
@@ -109,6 +117,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     setShowSpecialUsed(null);
     setShowKO(null);
     setLastDamage(null);
+    setRecoveryCountdown(0);
     lastKickTime.current = { red: 0, blue: 0 };
   }, [clearTimers, fullConfig.startingHP, fullConfig.roundDurationSec]);
 
@@ -334,15 +343,24 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     } else {
       // More rounds to play
       setGameState('round_end');
+      setRecoveryCountdown(fullConfig.recoveryIntervalSec);
       
-      // Auto-start next round after delay
-      setTimeout(() => {
-        setCurrentRound(prev => prev + 1);
-        setShowKO(null);
-        startCountdown();
-      }, ROUND_END_DELAY);
+      // Recovery countdown timer
+      recoveryTimerRef.current = window.setInterval(() => {
+        setRecoveryCountdown(prev => {
+          if (prev <= 1) {
+            window.clearInterval(recoveryTimerRef.current!);
+            recoveryTimerRef.current = null;
+            setCurrentRound(p => p + 1);
+            setShowKO(null);
+            startCountdown();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
-  }, [clearTimers, redState.hp, blueState.hp, roundResults, currentRound, fullConfig.bestOf, startCountdown, onKO, onTimeUp, onRoundEnd]);
+  }, [clearTimers, redState.hp, blueState.hp, roundResults, currentRound, fullConfig.bestOf, fullConfig.recoveryIntervalSec, startCountdown, onKO, onTimeUp, onRoundEnd]);
 
   // Check for KO or time up
   useEffect(() => {
@@ -429,6 +447,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     showSpecialUsed,
     showKO,
     lastDamage,
+    recoveryCountdown,
     
     // Config
     config: fullConfig,

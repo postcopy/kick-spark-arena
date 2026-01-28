@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Swords, Clock, Trophy, Shirt, HardHat } from 'lucide-react';
+import { ArrowLeft, Swords, Clock, Trophy, Shirt, HardHat, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,8 @@ interface ArcadeSetupScreenProps {
   onHelmetDamageChange: (damage: number) => void;
   bestOf: 1 | 3;
   onBestOfChange: (bestOf: 1 | 3) => void;
+  recoveryInterval: number;
+  onRecoveryIntervalChange: (interval: number) => void;
 }
 
 const BEST_OF_OPTIONS: Array<{ value: 1 | 3; label: string }> = [
@@ -23,11 +25,11 @@ const BEST_OF_OPTIONS: Array<{ value: 1 | 3; label: string }> = [
   { value: 3, label: 'MELHOR DE 3' },
 ];
 
-// Presets for quick setup
+// Presets for quick setup with recovery intervals
 const PRESETS = [
-  { label: 'Kids', duration: 20, vest: 3, helmet: 5 },
-  { label: 'Juvenil', duration: 45, vest: 2, helmet: 3 },
-  { label: 'Adulto', duration: 60, vest: 1, helmet: 2 },
+  { label: 'Kids', duration: 20, vest: 3, helmet: 5, recovery: 10 },
+  { label: 'Juvenil', duration: 45, vest: 2, helmet: 3, recovery: 15 },
+  { label: 'Adulto', duration: 60, vest: 1, helmet: 2, recovery: 20 },
 ];
 
 export function ArcadeSetupScreen({
@@ -41,6 +43,8 @@ export function ArcadeSetupScreen({
   onHelmetDamageChange,
   bestOf,
   onBestOfChange,
+  recoveryInterval,
+  onRecoveryIntervalChange,
 }: ArcadeSetupScreenProps) {
   const { unlockAudio, initFullPreload } = useSound();
   const [isPreparing, setIsPreparing] = useState(false);
@@ -59,6 +63,7 @@ export function ArcadeSetupScreen({
     onRoundDurationChange(preset.duration);
     onVestDamageChange(preset.vest);
     onHelmetDamageChange(preset.helmet);
+    onRecoveryIntervalChange(preset.recovery);
   };
 
   return (
@@ -184,6 +189,31 @@ export function ArcadeSetupScreen({
             ))}
           </div>
         </div>
+
+        {/* Recovery Interval Slider - Only visible when Best of 3 */}
+        {bestOf === 3 && (
+          <div className="bg-game-surface p-3 md:p-4 rounded-lg border border-border">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <Timer className="w-5 h-5 md:w-6 md:h-6 text-green-500" />
+                <h2 className="text-lg md:text-xl font-bold text-foreground">INTERVALO</h2>
+              </div>
+              <span className="text-2xl md:text-3xl font-black text-green-500">{recoveryInterval}s</span>
+            </div>
+            <Slider
+              value={[recoveryInterval]}
+              onValueChange={(values) => onRecoveryIntervalChange(values[0])}
+              min={5}
+              max={60}
+              step={5}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+              <span>5s</span>
+              <span>60s</span>
+            </div>
+          </div>
+        )}
 
         {/* Game Rules Preview */}
         <div className="bg-game-surface/50 p-2 md:p-3 rounded-lg border border-border/50">
