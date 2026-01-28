@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useArcadeState } from '@/hooks/useArcadeState';
+import { useReactionState } from '@/hooks/useReactionState';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
@@ -13,10 +14,14 @@ import { FinishedScreen } from '@/components/game/FinishedScreen';
 import { ArcadeSetupScreen } from '@/components/game/ArcadeSetupScreen';
 import { ArcadeScreen } from '@/components/game/ArcadeScreen';
 import { ArcadeFinishedScreen } from '@/components/game/ArcadeFinishedScreen';
+import { ReactionSetupScreen } from '@/components/game/ReactionSetupScreen';
+import { ReactionScreen } from '@/components/game/ReactionScreen';
+import { ReactionFinishedScreen } from '@/components/game/ReactionFinishedScreen';
 import { EquipmentSetupScreen } from '@/components/game/EquipmentSetupScreen';
 import { Paywall } from '@/components/Paywall';
 import { Loader2 } from 'lucide-react';
 import type { Side, GameMode, Athlete, HitType } from '@/types/game';
+import type { ReactionLevel } from '@/types/reaction';
 
 type TimeAttackVariant = 'duo' | 'individual';
 
@@ -41,6 +46,9 @@ const Index = () => {
   const [helmetDamage, setHelmetDamage] = useState(3);
   const [bestOf, setBestOf] = useState<1 | 3>(3);
   const [recoveryInterval, setRecoveryInterval] = useState(15);
+  
+  // Reaction mode state
+  const [reactionLevel, setReactionLevel] = useState<ReactionLevel>('beginner');
   
   // Time Attack variant state
   const [timeAttackVariant, setTimeAttackVariant] = useState<TimeAttackVariant>('duo');
@@ -120,6 +128,13 @@ const Index = () => {
     },
   });
 
+  // Reaction mode state
+  const reactionState = useReactionState({
+    level: reactionLevel,
+    onBlockEnd: () => playTimeUpRef.current(),
+    onSessionEnd: () => play('victory'),
+  });
+
   // Serial port kick handler with hit type
   const handleSerialKick = useCallback((side: Side, hitType: HitType = 'vest') => {
     if (gameMode === 'time_attack') {
@@ -146,6 +161,13 @@ const Index = () => {
       return;
     }
     
+    // Reaction mode doesn't need equipment - go directly to setup
+    if (mode === 'reaction') {
+      setGameMode(mode);
+      reactionState.goToSetup();
+      return;
+    }
+    
     // If not connected to hardware, show equipment setup first
     if (!serialPort.isConnected) {
       setPendingMode(mode);
@@ -160,7 +182,7 @@ const Index = () => {
     } else if (mode === 'arcade') {
       arcadeState.goToSetup();
     }
-  }, [canPlay, serialPort.isConnected, timeAttackState, arcadeState]);
+  }, [canPlay, serialPort.isConnected, timeAttackState, arcadeState, reactionState]);
 
   // Handler for continuing from equipment setup
   const handleEquipmentContinue = useCallback(() => {
@@ -171,9 +193,11 @@ const Index = () => {
       timeAttackState.goToSetup();
     } else if (pendingMode === 'arcade') {
       arcadeState.goToSetup();
+    } else if (pendingMode === 'reaction') {
+      reactionState.goToSetup();
     }
     setPendingMode(null);
-  }, [pendingMode, timeAttackState, arcadeState]);
+  }, [pendingMode, timeAttackState, arcadeState, reactionState]);
 
   // Handler for skipping equipment setup (keyboard mode)
   const handleEquipmentSkip = useCallback(() => {
@@ -184,9 +208,11 @@ const Index = () => {
       timeAttackState.goToSetup();
     } else if (pendingMode === 'arcade') {
       arcadeState.goToSetup();
+    } else if (pendingMode === 'reaction') {
+      reactionState.goToSetup();
     }
     setPendingMode(null);
-  }, [pendingMode, timeAttackState, arcadeState]);
+  }, [pendingMode, timeAttackState, arcadeState, reactionState]);
 
   // Handler for going back from equipment setup
   const handleEquipmentBack = useCallback(() => {
@@ -205,9 +231,10 @@ const Index = () => {
     // Reset game states (clears internal timers)
     timeAttackState.resetGame();
     arcadeState.resetGame();
+    reactionState.resetGame();
     // Reset flags
     isNewRoundRef.current = true;
-  }, [timeAttackState, arcadeState]);
+  }, [timeAttackState, arcadeState, reactionState]);
 
   const handleBackToMenu = useCallback(() => {
     stopAllGameProcesses();
@@ -363,6 +390,36 @@ const Index = () => {
         stopBgMusic();
         content = lastResult ? (
           <ArcadeFinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
+        ) : null;
+        break;
+      default:
+        content = <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />;
+    }
+  } else if (gameMode === 'reaction') {
+    // Reaction Mode
+    const { gameState, countdown, lastResult, goToSetup, startCountdown } = reactionState;
+
+    switch (gameState) {
+      case 'idle':
+      case 'setup':
+        content = (
+          <ReactionSetupScreen
+            level={reactionLevel}
+            onLevelChange={setReactionLevel}
+            onStart={startCountdown}
+            onBack={handleBackToMenu}
+          />
+        );
+        break;
+      case 'countdown':
+        content = <CountdownScreen countdown={countdown} onBack={handleBackToMenu} />;
+        break;
+      case 'running':
+        content = <ReactionScreen reactionState={reactionState} onBack={handleBackToMenu} />;
+        break;
+      case 'finished':
+        content = lastResult ? (
+          <ReactionFinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
         ) : null;
         break;
       default:
