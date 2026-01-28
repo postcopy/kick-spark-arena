@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useArcadeState } from '@/hooks/useArcadeState';
+import { useReactionState } from '@/hooks/useReactionState';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
@@ -13,10 +14,15 @@ import { FinishedScreen } from '@/components/game/FinishedScreen';
 import { ArcadeSetupScreen } from '@/components/game/ArcadeSetupScreen';
 import { ArcadeScreen } from '@/components/game/ArcadeScreen';
 import { ArcadeFinishedScreen } from '@/components/game/ArcadeFinishedScreen';
+import { ReactionSetupScreen } from '@/components/game/ReactionSetupScreen';
+import { ReactionScreen } from '@/components/game/ReactionScreen';
+import { ReactionFinishedScreen } from '@/components/game/ReactionFinishedScreen';
 import { EquipmentSetupScreen } from '@/components/game/EquipmentSetupScreen';
 import { Paywall } from '@/components/Paywall';
 import { Loader2 } from 'lucide-react';
 import type { Side, GameMode, Athlete, HitType } from '@/types/game';
+import type { ReactionConfig, ReactionSoundCallbacks, CueDisplay } from '@/types/reaction';
+import { BEGINNER_PRESET } from '@/types/reaction';
 
 type TimeAttackVariant = 'duo' | 'individual';
 
@@ -46,6 +52,9 @@ const Index = () => {
   const [timeAttackVariant, setTimeAttackVariant] = useState<TimeAttackVariant>('duo');
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
   
+  // Reaction mode config
+  const [reactionConfig, setReactionConfig] = useState<ReactionConfig>(BEGINNER_PRESET);
+  
   // Equipment setup flow state
   const [showEquipmentSetup, setShowEquipmentSetup] = useState(false);
   const [pendingMode, setPendingMode] = useState<GameMode | null>(null);
@@ -63,6 +72,17 @@ const Index = () => {
   const playSpecialAttackRef = useRef(() => play('specialAttack'));
   const playKORef = useRef(() => play('ko'));
   const playTimeUpRef = useRef(() => play('timeUp'));
+  
+  // Reaction sound refs
+  const playReactionCueRef = useRef(() => play('reactionCue'));
+  const playReactionNoGoRef = useRef(() => play('reactionNoGo'));
+  const playReactionStartRef = useRef(() => play('reactionStart'));
+  const playReactionCompleteRef = useRef(() => play('reactionComplete'));
+  const playReactionRestRef = useRef(() => play('reactionRest'));
+  const playCountdown3Ref = useRef(() => play('countdown3'));
+  const playCountdown2Ref = useRef(() => play('countdown2'));
+  const playCountdown1Ref = useRef(() => play('countdown1'));
+  const playCountdownGoRef = useRef(() => play('countdownGo'));
 
   // Manter refs sincronizadas com a versão mais recente de play
   useEffect(() => {
@@ -73,7 +93,37 @@ const Index = () => {
     playSpecialAttackRef.current = () => play('specialAttack');
     playKORef.current = () => play('ko');
     playTimeUpRef.current = () => play('timeUp');
+    // Reaction sounds
+    playReactionCueRef.current = () => play('reactionCue');
+    playReactionNoGoRef.current = () => play('reactionNoGo');
+    playReactionStartRef.current = () => play('reactionStart');
+    playReactionCompleteRef.current = () => play('reactionComplete');
+    playReactionRestRef.current = () => play('reactionRest');
+    playCountdown3Ref.current = () => play('countdown3');
+    playCountdown2Ref.current = () => play('countdown2');
+    playCountdown1Ref.current = () => play('countdown1');
+    playCountdownGoRef.current = () => play('countdownGo');
   }, [play]);
+
+  // Reaction sound callbacks
+  const reactionSoundCallbacks: ReactionSoundCallbacks = {
+    onCueShow: (cue: CueDisplay) => {
+      if (cue.isNoGo) {
+        playReactionNoGoRef.current();
+      } else {
+        playReactionCueRef.current();
+      }
+    },
+    onSessionStart: () => playReactionStartRef.current(),
+    onSessionEnd: () => playReactionCompleteRef.current(),
+    onBlockRest: () => playReactionRestRef.current(),
+    onCountdown: (count: number) => {
+      if (count === 3) playCountdown3Ref.current();
+      else if (count === 2) playCountdown2Ref.current();
+      else if (count === 1) playCountdown1Ref.current();
+      else if (count === 0) playCountdownGoRef.current();
+    },
+  };
 
   const timeAttackState = useGameState({
     duration, 
@@ -120,6 +170,11 @@ const Index = () => {
     },
   });
 
+  const reactionState = useReactionState({
+    config: reactionConfig,
+    soundCallbacks: reactionSoundCallbacks,
+  });
+
   // Serial port kick handler with hit type
   const handleSerialKick = useCallback((side: Side, hitType: HitType = 'vest') => {
     if (gameMode === 'time_attack') {
@@ -129,6 +184,7 @@ const Index = () => {
     } else if (gameMode === 'arcade') {
       arcadeState.registerKick(side, hitType);
     }
+    // Reaction mode doesn't use kicks
   }, [gameMode, timeAttackState, arcadeState]);
 
   const serialPort = useSerialPort({ 
@@ -146,6 +202,13 @@ const Index = () => {
       return;
     }
     
+    // Reaction mode doesn't need equipment setup
+    if (mode === 'reaction') {
+      setGameMode(mode);
+      reactionState.goToSetup();
+      return;
+    }
+    
     // If not connected to hardware, show equipment setup first
     if (!serialPort.isConnected) {
       setPendingMode(mode);
@@ -160,7 +223,7 @@ const Index = () => {
     } else if (mode === 'arcade') {
       arcadeState.goToSetup();
     }
-  }, [canPlay, serialPort.isConnected, timeAttackState, arcadeState]);
+  }, [canPlay, serialPort.isConnected, timeAttackState, arcadeState, reactionState]);
 
   // Handler for continuing from equipment setup
   const handleEquipmentContinue = useCallback(() => {
@@ -205,9 +268,10 @@ const Index = () => {
     // Reset game states (clears internal timers)
     timeAttackState.resetGame();
     arcadeState.resetGame();
+    reactionState.resetGame();
     // Reset flags
     isNewRoundRef.current = true;
-  }, [timeAttackState, arcadeState]);
+  }, [timeAttackState, arcadeState, reactionState]);
 
   const handleBackToMenu = useCallback(() => {
     stopAllGameProcesses();
@@ -363,6 +427,42 @@ const Index = () => {
         stopBgMusic();
         content = lastResult ? (
           <ArcadeFinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
+        ) : null;
+        break;
+      default:
+        content = <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />;
+    }
+  } else if (gameMode === 'reaction') {
+    // Reaction Training Mode
+    const { gameState, countdown, lastResult, goToSetup, startCountdown, setRPE } = reactionState;
+
+    switch (gameState) {
+      case 'idle':
+      case 'setup':
+        content = (
+          <ReactionSetupScreen
+            onStart={startCountdown}
+            onBack={handleBackToMenu}
+            config={reactionConfig}
+            onConfigChange={setReactionConfig}
+          />
+        );
+        break;
+      case 'countdown':
+        content = <CountdownScreen countdown={countdown} onBack={handleBackToMenu} />;
+        break;
+      case 'running':
+      case 'block_rest':
+        content = <ReactionScreen reactionState={reactionState} />;
+        break;
+      case 'finished':
+        content = lastResult ? (
+          <ReactionFinishedScreen 
+            result={lastResult} 
+            onRepeat={goToSetup} 
+            onMenu={handleBackToMenu}
+            onSetRPE={setRPE}
+          />
         ) : null;
         break;
       default:
