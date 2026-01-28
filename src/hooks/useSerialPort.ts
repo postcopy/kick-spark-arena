@@ -163,10 +163,17 @@ export function useSerialPort({
         buffer = lines.pop() || '';
         
         for (const line of lines) {
-          const parsed = parseLine(line);
-          if (!parsed) continue;
+          // DEBUG: Log raw line
+          console.log('[Serial] Raw line:', JSON.stringify(line));
           
-          const { deviceId, battery } = parsed;
+          const parsed = parseLine(line);
+          if (!parsed) {
+            console.log('[Serial] Parse failed for:', JSON.stringify(line));
+            continue;
+          }
+          
+          const { intensity, deviceId, battery } = parsed;
+          console.log('[Serial] Parsed OK:', { intensity, deviceId, battery });
           
           // Update equipment battery state
           updateEquipment(deviceId, battery);
@@ -174,9 +181,21 @@ export function useSerialPort({
           // Convert to kicking side and trigger kick with hit type
           const kickingSide = deviceIdToKickingSide(deviceId);
           const hitType = deviceIdToHitType(deviceId);
-          if (kickingSide && !shouldDebounce(kickingSide)) {
-            onKickRef.current(kickingSide, hitType);
+          
+          console.log('[Serial] DeviceID', deviceId, '→ kickingSide:', kickingSide, 'hitType:', hitType);
+          
+          if (!kickingSide) {
+            console.log('[Serial] Ignored: deviceId not mapped (1-4 only)');
+            continue;
           }
+          
+          if (shouldDebounce(kickingSide)) {
+            console.log('[Serial] Debounced:', kickingSide);
+            continue;
+          }
+          
+          console.log('[Serial] ✓ Triggering kick:', kickingSide, hitType);
+          onKickRef.current(kickingSide, hitType);
         }
       }
       
