@@ -38,10 +38,15 @@ interface ParsedLine {
 }
 
 function parseLine(line: string): ParsedLine | null {
-  const trimmed = line.trim();
-  if (!LINE_REGEX.test(trimmed)) return null;
+  // Clean the line: remove \r, ANSI codes, and trim whitespace
+  const cleanLine = line
+    .replace(/\r/g, '')                    // Remove carriage return (ESP32 sends \r\n)
+    .replace(/\x1b\[[0-9;]*m/g, '')        // Remove ANSI color codes from debug output
+    .trim();
   
-  const parts = trimmed.split(',');
+  if (!LINE_REGEX.test(cleanLine)) return null;
+  
+  const parts = cleanLine.split(',');
   return {
     intensity: parseInt(parts[0], 10),
     deviceId: parseInt(parts[1], 10),
