@@ -1,185 +1,98 @@
 
-## Plano: Corrigir Vazamento de Áudio ao Voltar ao Menu
+## Plano: Diagnosticar e Corrigir Detecção de Golpes nos Modos de Jogo
 
 ### Problema Identificado
 
-Quando o usuário entra no modo Duelo, inicia a contagem regressiva e clica em "Voltar" para o menu, a música de fundo continua tocando. Isso acontece porque:
-
-1. **Música começa em `countdown === 6`** - A música é disparada no `CountdownScreen` e a referência é enviada via callback `onMusicStarted` para o `Index.tsx`
-2. **Problema de timing** - Se o usuário voltar *durante* a contagem, a música já pode ter começado mas a limpeza não é garantida
-3. **Nenhum botão de voltar no CountdownScreen** - Durante a contagem, o usuário não tem como voltar (exceto pela tecla ESC que chama `resetGame` mas não limpa o áudio diretamente)
-4. **`handleBackToMenu` não para a música via `stopBgMusic`** - Ele usa `pause()` direto, mas isso pode não funcionar se a referência ainda não foi capturada
+A placa do colete acende (recebe dados), mas os golpes não são registrados nos modos de jogo. Após análise do código, identifiquei **três possíveis causas**:
 
 ---
 
-### Análise do Fluxo Atual
+### Causa 1: Falta de Logs de Debug
 
-```text
-Usuário inicia Duelo
-        │
-        ▼
-  CountdownScreen renderiza
-        │
-        ▼
-  countdown = 6 → playWithRef('fightModeBg')
-        │                    │
-        ▼                    ▼
-  audio.play()        onMusicStarted(audio)
-        │                    │
-        ▼                    ▼
-  MÚSICA TOCANDO      bgMusicRef.current = audio
-        │
-        ▼
-  Usuário aperta ESC (ou não tem opção de voltar!)
-        │
-        ▼
-  arcadeState.resetGame() ← Limpa timers, mas NÃO para a música!
-        │
-        ▼
-  gameMode = null → volta pro menu
-        │
-        ▼
-  MÚSICA AINDA TOCANDO! ← BUG
+O código atual não tem logs para mostrar os dados recebidos da placa. Sem isso, não é possível saber:
+- Se os dados estão chegando
+- Em que formato estão (ex: `"850,1,85"`)
+- Qual o Device ID sendo enviado
+
+---
+
+### Causa 2: Device ID Não Reconhecido
+
+A função `deviceIdToKickingSide` só reconhece IDs 1-4:
+
+```typescript
+function deviceIdToKickingSide(deviceId: number): Side | null {
+  if (deviceId === 1 || deviceId === 3) return 'blue';  // Red vest/helmet → Blue kicked
+  if (deviceId === 2 || deviceId === 4) return 'red';   // Blue vest/helmet → Red kicked
+  return null;  // Qualquer outro ID é IGNORADO!
+}
 ```
 
+Se a placa estiver enviando um ID diferente (ex: 0, 5, 6, 7), os golpes serão silenciosamente ignorados.
+
 ---
 
-### Causa Raiz
+### Causa 3: Formato de Dados Diferente
 
-| Problema | Local | Impacto |
-|----------|-------|---------|
-| `resetGame()` do arcade não para música | `useArcadeState.ts:97-113` | Ao apertar ESC durante countdown, música continua |
-| `handleBackToMenu` não chama `stopBgMusic()` | `Index.tsx:171-183` | Usa `pause()` direto que pode não funcionar com fade |
-| Nenhum botão de voltar no CountdownScreen | `CountdownScreen.tsx` | Usuário só pode usar ESC |
-| Timer do countdown continua se usuário sair | `useArcadeState.ts:140-149` | Pode causar efeitos colaterais |
+O regex espera exatamente 3 números separados por vírgula:
+
+```typescript
+const LINE_REGEX = /^\d+,\d+,\d+$/;
+```
+
+Se a placa enviar dados em outro formato (ex: com espaços, caracteres extras, ou diferente número de valores), a linha será rejeitada.
 
 ---
 
 ### Solução Proposta
 
-#### Parte 1: Adicionar função global de parar tudo no Index.tsx
+#### Etapa 1: Adicionar Logs de Debug
 
-Criar uma função `stopAllGameProcesses` que:
-- Para a música de fundo (com `pause()` imediato, sem fade)
-- Reseta os estados dos jogos
-- Limpa qualquer referência de áudio
+Adicionar `console.log` estratégicos no `useSerialPort.ts` para ver:
+- Todas as linhas recebidas (antes do parse)
+- Resultado do parse (sucesso ou falha)
+- Device ID e se foi convertido para um lado válido
 
 ```typescript
-// Nova função centralizada
-const stopAllGameProcesses = useCallback(() => {
-  // 1. Parar música imediatamente (sem fade)
-  if (bgMusicRef.current) {
-    bgMusicRef.current.pause();
-    bgMusicRef.current.currentTime = 0;
-    bgMusicRef.current = null;
+// Dentro do loop de leitura
+for (const line of lines) {
+  console.log('[Serial] Linha recebida:', line);  // DEBUG
+  
+  const parsed = parseLine(line);
+  if (!parsed) {
+    console.log('[Serial] Linha inválida (regex falhou):', line);  // DEBUG
+    continue;
   }
   
-  // 2. Resetar estados dos jogos (isso limpa os timers internos)
-  timeAttackState.resetGame();
-  arcadeState.resetGame();
+  const { intensity, deviceId, battery } = parsed;
+  console.log('[Serial] Parsed:', { intensity, deviceId, battery });  // DEBUG
   
-  // 3. Resetar flags
-  isNewRoundRef.current = true;
-}, [timeAttackState, arcadeState]);
-```
-
-#### Parte 2: Usar `stopAllGameProcesses` no `handleBackToMenu`
-
-```typescript
-const handleBackToMenu = useCallback(() => {
-  stopAllGameProcesses(); // ← Usar a nova função
-  setGameMode(null);
-  setTimeAttackVariant('duo');
-  setSelectedAthlete(null);
-}, [stopAllGameProcesses]);
-```
-
-#### Parte 3: Adicionar botão de voltar no CountdownScreen
-
-Adicionar um botão discreto no canto superior esquerdo para permitir que o usuário volte durante a contagem:
-
-```typescript
-// CountdownScreen.tsx
-interface CountdownScreenProps {
-  countdown: number;
-  onMusicStarted?: (audio: HTMLAudioElement) => void;
-  shouldStartMusic?: boolean;
-  onBack?: () => void; // NOVO
-}
-
-export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = true, onBack }: CountdownScreenProps) {
-  // ...
+  // Update equipment battery state
+  updateEquipment(deviceId, battery);
   
-  return (
-    <div className="...">
-      {/* Botão de voltar */}
-      {onBack && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onBack();
-          }}
-          className="absolute top-4 left-4 p-3 rounded-xl bg-black/50 text-white/70 hover:bg-black/70 hover:text-white transition-all z-20"
-          aria-label="Voltar ao menu"
-        >
-          <ArrowLeft className="w-6 h-6" />
-        </button>
-      )}
-      
-      {/* Resto do conteúdo... */}
-    </div>
-  );
+  // Convert to kicking side
+  const kickingSide = deviceIdToKickingSide(deviceId);
+  const hitType = deviceIdToHitType(deviceId);
+  
+  console.log('[Serial] DeviceID:', deviceId, '→ Side:', kickingSide, 'HitType:', hitType);  // DEBUG
+  
+  if (kickingSide && !shouldDebounce(kickingSide)) {
+    console.log('[Serial] KICK REGISTRADO:', kickingSide, hitType);  // DEBUG
+    onKickRef.current(kickingSide, hitType);
+  }
 }
 ```
 
-#### Parte 4: Passar `handleBackToMenu` para o CountdownScreen
+#### Etapa 2: Verificar Dados Reais
 
-No `Index.tsx`, onde o `CountdownScreen` é renderizado, passar o callback:
+Após adicionar os logs, você poderá ver no console do navegador (F12):
+1. Se os dados estão chegando
+2. Em que formato estão
+3. Qual o Device ID real
 
-```typescript
-// Para Time Attack
-case 'countdown':
-  content = (
-    <CountdownScreen 
-      countdown={countdown} 
-      onMusicStarted={handleMusicStarted}
-      onBack={handleBackToMenu} // NOVO
-    />
-  );
-  break;
+#### Etapa 3: Ajustar Mapeamento (se necessário)
 
-// Para Arcade
-case 'countdown':
-  content = (
-    <CountdownScreen 
-      countdown={countdown} 
-      onMusicStarted={handleMusicStarted} 
-      shouldStartMusic={isNewRoundRef.current}
-      onBack={handleBackToMenu} // NOVO
-    />
-  );
-  break;
-```
-
-#### Parte 5: Garantir que ESC também pare tudo
-
-Adicionar listener de ESC no Index.tsx que chama `stopAllGameProcesses`:
-
-```typescript
-// Em Index.tsx, adicionar useEffect para ESC global
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && gameMode) {
-      e.preventDefault();
-      stopAllGameProcesses();
-      handleBackToMenu();
-    }
-  };
-  
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [gameMode, stopAllGameProcesses, handleBackToMenu]);
-```
+Se descobrirmos que a placa está enviando IDs diferentes, ajustaremos a função `deviceIdToKickingSide` para reconhecê-los.
 
 ---
 
@@ -187,187 +100,101 @@ useEffect(() => {
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/pages/Index.tsx` | Adicionar `stopAllGameProcesses`, atualizar `handleBackToMenu`, passar `onBack` para CountdownScreen, adicionar listener ESC global |
-| `src/components/game/CountdownScreen.tsx` | Adicionar prop `onBack` e botão de voltar no canto |
+| `src/hooks/useSerialPort.ts` | Adicionar logs de debug no loop de leitura (linhas 165-180) |
 
 ---
 
 ### Código Detalhado
 
-#### `src/pages/Index.tsx`
-
-**Adicionar função `stopAllGameProcesses` (após linha 79):**
+**`src/hooks/useSerialPort.ts` (linhas 165-180):**
 
 ```typescript
-// Stop all game processes immediately (no fade)
-const stopAllGameProcesses = useCallback(() => {
-  // Stop background music immediately
-  if (bgMusicRef.current) {
-    bgMusicRef.current.pause();
-    try { bgMusicRef.current.currentTime = 0; } catch {}
-    bgMusicRef.current = null;
-  }
-  // Reset game states (clears internal timers)
-  timeAttackState.resetGame();
-  arcadeState.resetGame();
-  // Reset flags
-  isNewRoundRef.current = true;
-}, [timeAttackState, arcadeState]);
-```
-
-**Atualizar `handleBackToMenu` (linhas 171-183):**
-
-```typescript
-const handleBackToMenu = useCallback(() => {
-  stopAllGameProcesses();
-  setGameMode(null);
-  setTimeAttackVariant('duo');
-  setSelectedAthlete(null);
-}, [stopAllGameProcesses]);
-```
-
-**Adicionar listener ESC global (após `handleBackToMenu`):**
-
-```typescript
-// Global ESC handler to exit game modes
-useEffect(() => {
-  const handleGlobalEscape = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && gameMode) {
-      e.preventDefault();
-      handleBackToMenu();
-    }
-  };
+for (const line of lines) {
+  // DEBUG: Log raw line
+  console.log('[Serial] Raw line:', JSON.stringify(line));
   
-  window.addEventListener('keydown', handleGlobalEscape);
-  return () => window.removeEventListener('keydown', handleGlobalEscape);
-}, [gameMode, handleBackToMenu]);
-```
-
-**Passar `onBack` para CountdownScreen (linhas 258-259 e 302-303):**
-
-```typescript
-// Time Attack countdown
-case 'countdown':
-  content = <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} onBack={handleBackToMenu} />;
-  break;
-
-// Arcade countdown
-case 'countdown':
-  content = <CountdownScreen countdown={countdown} onMusicStarted={handleMusicStarted} shouldStartMusic={isNewRoundRef.current} onBack={handleBackToMenu} />;
-  break;
-```
-
-#### `src/components/game/CountdownScreen.tsx`
-
-**Adicionar import e prop (linhas 1-11):**
-
-```typescript
-import { useEffect, useState, useRef } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useSound } from '@/contexts/SoundContext';
-
-interface CountdownScreenProps {
-  countdown: number;
-  onMusicStarted?: (audio: HTMLAudioElement) => void;
-  shouldStartMusic?: boolean;
-  onBack?: () => void;
+  const parsed = parseLine(line);
+  if (!parsed) {
+    console.log('[Serial] Parse failed for:', JSON.stringify(line));
+    continue;
+  }
+  
+  const { intensity, deviceId, battery } = parsed;
+  console.log('[Serial] Parsed OK:', { intensity, deviceId, battery });
+  
+  // Update equipment battery state
+  updateEquipment(deviceId, battery);
+  
+  // Convert to kicking side and trigger kick with hit type
+  const kickingSide = deviceIdToKickingSide(deviceId);
+  const hitType = deviceIdToHitType(deviceId);
+  
+  console.log('[Serial] DeviceID', deviceId, '→ kickingSide:', kickingSide, 'hitType:', hitType);
+  
+  if (!kickingSide) {
+    console.log('[Serial] Ignored: deviceId not mapped (1-4 only)');
+    continue;
+  }
+  
+  if (shouldDebounce(kickingSide)) {
+    console.log('[Serial] Debounced:', kickingSide);
+    continue;
+  }
+  
+  console.log('[Serial] ✓ Triggering kick:', kickingSide, hitType);
+  onKickRef.current(kickingSide, hitType);
 }
-
-export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = true, onBack }: CountdownScreenProps) {
-```
-
-**Adicionar botão de voltar no JSX (antes do display central, ~linha 43):**
-
-```typescript
-return (
-  <div className="flex items-center justify-center h-full w-full bg-background overflow-hidden relative">
-    {/* Back button */}
-    {onBack && (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onBack();
-        }}
-        className="absolute top-4 left-4 p-3 rounded-xl bg-black/50 text-white/70 hover:bg-black/70 hover:text-white transition-all z-20"
-        aria-label="Voltar ao menu"
-      >
-        <ArrowLeft className="w-6 h-6" />
-      </button>
-    )}
-
-    {/* Side panels preview */}
-    {/* ... resto do código ... */}
-  </div>
-);
 ```
 
 ---
 
-### Fluxo Corrigido
+### Como Usar os Logs
 
-```text
-Usuário inicia Duelo
-        │
-        ▼
-  CountdownScreen renderiza (com botão de voltar)
-        │
-        ▼
-  countdown = 6 → playWithRef('fightModeBg')
-        │                    
-        ▼                    
-  MÚSICA TOCANDO              
-        │
-        ▼
-  Usuário clica no botão ← ou aperta ESC
-        │
-        ▼
-  handleBackToMenu()
-        │
-        ▼
-  stopAllGameProcesses()
-        ├─ bgMusicRef.current.pause() → MÚSICA PARADA ✓
-        ├─ timeAttackState.resetGame() → timers limpos
-        └─ arcadeState.resetGame() → timers limpos
-        │
-        ▼
-  setGameMode(null) → volta pro menu
-        │
-        ▼
-  SILÊNCIO ✓
-```
+1. **Abra o Console do Navegador** (F12 → aba Console)
+2. **Conecte a placa** na tela de preparação
+3. **Inicie um modo de jogo** (Duelo ou Contra o Tempo)
+4. **Dê um golpe no colete**
+5. **Observe o console** para ver as mensagens `[Serial]`
+
+Os logs mostrarão exatamente onde o fluxo está parando:
+- Se não aparecer nenhum `[Serial] Raw line:` → dados não estão chegando
+- Se aparecer `[Serial] Parse failed` → formato dos dados está errado
+- Se aparecer `DeviceID X → kickingSide: null` → ID não reconhecido
+- Se aparecer `Debounced` → golpe ignorado por ser muito rápido
+- Se aparecer `✓ Triggering kick` → kick foi enviado (problema está nos hooks de jogo)
 
 ---
 
 ### Resultado Esperado
 
-| Antes | Depois |
-|-------|--------|
-| Música continua após ESC | Música para imediatamente |
-| Não tem como voltar durante countdown | Botão de voltar disponível |
-| `handleBackToMenu` usa `pause()` que pode falhar | Usa função centralizada que limpa tudo |
-| ESC é tratado em cada hook separadamente | ESC global no Index.tsx garante limpeza |
+Após implementar os logs, teremos visibilidade completa do fluxo de dados e poderemos:
+1. Identificar o problema exato
+2. Ajustar o mapeamento de IDs se necessário
+3. Corrigir o formato do regex se necessário
 
 ---
 
 ### Seção Técnica
 
-**Arquivos modificados:**
-1. `src/pages/Index.tsx`:
-   - Linha ~80: Nova função `stopAllGameProcesses`
-   - Linhas 171-183: Atualizar `handleBackToMenu`
-   - Após linha 183: Novo `useEffect` para ESC global
-   - Linha 259: Passar `onBack={handleBackToMenu}` no CountdownScreen (Time Attack)
-   - Linha 303: Passar `onBack={handleBackToMenu}` no CountdownScreen (Arcade)
+**Fluxo atual sem logs:**
+```
+Placa → Serial Port → parseLine() → deviceIdToKickingSide() → onKick → registerKick
+                                              ↓
+                              (silenciosamente ignorado se ID ≠ 1-4)
+```
 
-2. `src/components/game/CountdownScreen.tsx`:
-   - Linha 2: Adicionar import `ArrowLeft`
-   - Linha 10: Adicionar prop `onBack?: () => void`
-   - Linha 11: Adicionar `onBack` na desestruturação
-   - Linhas 43-53: Adicionar botão de voltar no JSX
+**Fluxo com logs:**
+```
+Placa → Serial Port → [LOG: Raw line] → parseLine() → [LOG: Parsed/Failed]
+                                                          ↓
+                            → deviceIdToKickingSide() → [LOG: DeviceID → Side]
+                                                          ↓
+                            → [LOG: Debounced?] → onKick → [LOG: ✓ Kick triggered]
+```
 
-**Por que parar sem fade?**
-Quando o usuário quer voltar ao menu, ele espera que tudo pare imediatamente. O fade-out é bom para transições naturais (fim de round), mas para saída explícita do usuário, parada imediata é a expectativa correta.
+**Possíveis descobertas:**
+1. Placa enviando ID 0 ou 5+ → precisamos mapear
+2. Formato diferente (ex: `"850; 1; 85"` com ponto-e-vírgula) → ajustar regex
+3. Linha com caracteres extras (ex: `"\r850,1,85"`) → normalizar
 
-**Por que `e.stopPropagation()`?**
-O botão de voltar está sobre o container da tela de countdown. Sem `stopPropagation()`, o clique poderia ser capturado por handlers de clique no container pai.
+**Nota importante:** O console do navegador no Lovable preview pode não mostrar os logs da Web Serial devido a restrições de sandbox. Para testar, use o app em uma janela separada via URL publicada ou localhost.
