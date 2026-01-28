@@ -36,7 +36,9 @@ const Index = () => {
   const { play } = useSound();
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
   const [duration, setDuration] = useState(60);
-  const [roundDuration, setRoundDuration] = useState(60);
+  const [roundDuration, setRoundDuration] = useState(45);
+  const [vestDamage, setVestDamage] = useState(2);
+  const [helmetDamage, setHelmetDamage] = useState(3);
   const [bestOf, setBestOf] = useState<1 | 3>(3);
   
   // Time Attack variant state
@@ -81,6 +83,8 @@ const Index = () => {
   const arcadeState = useArcadeState({ 
     roundDurationSec: roundDuration, 
     bestOf,
+    vestDamage,
+    helmetDamage,
     onHit: () => play('hit'),
     onHitHeavy: () => play('hitHeavy'),
     onCombo: () => play('combo'),
@@ -315,6 +319,10 @@ const Index = () => {
             onBack={handleBackToMenu}
             roundDuration={roundDuration}
             onRoundDurationChange={setRoundDuration}
+            vestDamage={vestDamage}
+            onVestDamageChange={setVestDamage}
+            helmetDamage={helmetDamage}
+            onHelmetDamageChange={setHelmetDamage}
             bestOf={bestOf}
             onBestOfChange={setBestOf}
           />

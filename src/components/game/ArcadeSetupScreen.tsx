@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Swords, Clock, Trophy, Shirt, HardHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { useSound } from '@/contexts/SoundContext';
 
@@ -9,20 +10,24 @@ interface ArcadeSetupScreenProps {
   onBack: () => void;
   roundDuration: number;
   onRoundDurationChange: (duration: number) => void;
+  vestDamage: number;
+  onVestDamageChange: (damage: number) => void;
+  helmetDamage: number;
+  onHelmetDamageChange: (damage: number) => void;
   bestOf: 1 | 3;
   onBestOfChange: (bestOf: 1 | 3) => void;
 }
 
-const DURATION_OPTIONS = [
-  { value: 20, label: '20s', sublabel: 'Kids 4-6', vest: 3, helmet: 5 },
-  { value: 30, label: '30s', sublabel: 'Kids 7-9', vest: 2, helmet: 4 },
-  { value: 45, label: '45s', sublabel: 'Juvenil', vest: 2, helmet: 3, recommended: true },
-  { value: 60, label: '60s', sublabel: 'Adulto', vest: 1, helmet: 2 },
-];
-
 const BEST_OF_OPTIONS: Array<{ value: 1 | 3; label: string }> = [
   { value: 1, label: 'RÁPIDO' },
   { value: 3, label: 'MELHOR DE 3' },
+];
+
+// Presets for quick setup
+const PRESETS = [
+  { label: 'Kids', duration: 20, vest: 3, helmet: 5 },
+  { label: 'Juvenil', duration: 45, vest: 2, helmet: 3 },
+  { label: 'Adulto', duration: 60, vest: 1, helmet: 2 },
 ];
 
 export function ArcadeSetupScreen({
@@ -30,6 +35,10 @@ export function ArcadeSetupScreen({
   onBack,
   roundDuration,
   onRoundDurationChange,
+  vestDamage,
+  onVestDamageChange,
+  helmetDamage,
+  onHelmetDamageChange,
   bestOf,
   onBestOfChange,
 }: ArcadeSetupScreenProps) {
@@ -44,6 +53,12 @@ export function ArcadeSetupScreen({
       setIsPreparing(false);
       onStart();
     }, 800);
+  };
+
+  const applyPreset = (preset: typeof PRESETS[0]) => {
+    onRoundDurationChange(preset.duration);
+    onVestDamageChange(preset.vest);
+    onHelmetDamageChange(preset.helmet);
   };
 
   return (
@@ -64,50 +79,85 @@ export function ArcadeSetupScreen({
 
       {/* Settings - scrollable area */}
       <main className="flex-1 min-h-0 w-full max-w-2xl mx-auto overflow-y-auto space-y-3 md:space-y-4">
-        {/* Round Duration */}
+        {/* Preset Buttons */}
+        <div className="flex justify-center gap-2 mb-2">
+          {PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              onClick={() => applyPreset(preset)}
+              className="px-3 py-1.5 text-xs md:text-sm font-bold rounded-full bg-secondary text-muted-foreground hover:bg-game-yellow hover:text-black transition-all"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Round Duration Slider */}
         <div className="bg-game-surface p-3 md:p-4 rounded-lg border border-border">
-          <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <Clock className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
-            <h2 className="text-lg md:text-xl font-bold text-foreground">TEMPO DO ROUND</h2>
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Clock className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
+              <h2 className="text-lg md:text-xl font-bold text-foreground">TEMPO DO ROUND</h2>
+            </div>
+            <span className="text-2xl md:text-3xl font-black text-game-yellow">{roundDuration}s</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 md:gap-3">
-            {DURATION_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => onRoundDurationChange(option.value)}
-                className={cn(
-                  "relative py-2 md:py-3 px-3 md:px-4 rounded-lg font-bold transition-all flex flex-col items-center",
-                  roundDuration === option.value
-                    ? "bg-game-yellow text-black"
-                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-                )}
-              >
-                <span className="text-xl md:text-2xl">{option.label}</span>
-                <span className={cn(
-                  "text-xs md:text-sm font-normal",
-                  roundDuration === option.value ? "text-black/70" : "text-muted-foreground"
-                )}>
-                  {option.sublabel}
-                </span>
-                {/* Damage preview */}
-                <div className={cn(
-                  "flex gap-2 mt-1 text-xs",
-                  roundDuration === option.value ? "text-black/60" : "text-muted-foreground/80"
-                )}>
-                  <span className="flex items-center gap-0.5">
-                    <Shirt className="w-3 h-3" /> {option.vest}
-                  </span>
-                  <span className="flex items-center gap-0.5">
-                    <HardHat className="w-3 h-3" /> {option.helmet}
-                  </span>
-                </div>
-                {option.recommended && (
-                  <span className="absolute -top-2 right-2 px-2 py-0.5 bg-game-gold text-black text-xs font-bold rounded-full">
-                    REC
-                  </span>
-                )}
-              </button>
-            ))}
+          <Slider
+            value={[roundDuration]}
+            onValueChange={(values) => onRoundDurationChange(values[0])}
+            min={15}
+            max={120}
+            step={5}
+            className="w-full"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground mt-1">
+            <span>15s</span>
+            <span>120s</span>
+          </div>
+        </div>
+
+        {/* Vest Damage Slider */}
+        <div className="bg-game-surface p-3 md:p-4 rounded-lg border border-border">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Shirt className="w-5 h-5 md:w-6 md:h-6 text-foreground" />
+              <h2 className="text-lg md:text-xl font-bold text-foreground">DANO DO COLETE</h2>
+            </div>
+            <span className="text-2xl md:text-3xl font-black text-foreground">{vestDamage}</span>
+          </div>
+          <Slider
+            value={[vestDamage]}
+            onValueChange={(values) => onVestDamageChange(values[0])}
+            min={1}
+            max={10}
+            step={1}
+            className="w-full"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground mt-1">
+            <span>1</span>
+            <span>10</span>
+          </div>
+        </div>
+
+        {/* Helmet Damage Slider */}
+        <div className="bg-game-surface p-3 md:p-4 rounded-lg border border-border">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <HardHat className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
+              <h2 className="text-lg md:text-xl font-bold text-foreground">DANO DO CAPACETE</h2>
+            </div>
+            <span className="text-2xl md:text-3xl font-black text-game-yellow">{helmetDamage}</span>
+          </div>
+          <Slider
+            value={[helmetDamage]}
+            onValueChange={(values) => onHelmetDamageChange(values[0])}
+            min={1}
+            max={15}
+            step={1}
+            className="w-full"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground mt-1">
+            <span>1</span>
+            <span>15</span>
           </div>
         </div>
 
@@ -140,10 +190,10 @@ export function ArcadeSetupScreen({
           <h3 className="text-xs md:text-sm font-bold text-muted-foreground uppercase mb-1 md:mb-2">REGRAS</h3>
           <ul className="text-xs md:text-sm text-muted-foreground space-y-0.5 md:space-y-1">
             <li>• HP inicial: <span className="text-foreground font-bold">100</span></li>
-            <li>• <Shirt className="w-3 h-3 inline" /> Colete: <span className="text-foreground font-bold">{DURATION_OPTIONS.find(o => o.value === roundDuration)?.vest || 2}</span> dano</li>
-            <li>• <HardHat className="w-3 h-3 inline text-game-yellow" /> Capacete: <span className="text-game-yellow font-bold">{DURATION_OPTIONS.find(o => o.value === roundDuration)?.helmet || 3}</span> dano</li>
+            <li>• <Shirt className="w-3 h-3 inline" /> Colete: <span className="text-foreground font-bold">{vestDamage}</span> dano</li>
+            <li>• <HardHat className="w-3 h-3 inline text-game-yellow" /> Capacete: <span className="text-game-yellow font-bold">{helmetDamage}</span> dano</li>
             <li>• Combo: chutes rápidos em sequência (até +4 dano)</li>
-            <li>• Especial: <span className="text-game-yellow font-bold">+10-15 dano</span> quando energia cheia</li>
+            <li>• Especial: <span className="text-game-yellow font-bold">+12 dano</span> quando energia cheia</li>
           </ul>
         </div>
       </main>
