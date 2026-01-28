@@ -59,16 +59,16 @@ function getEquipmentType(id: number): EquipmentType {
 }
 
 function getEquipmentSide(id: number): 'red' | 'blue' {
-  // IDs 1 and 3 = red, IDs 2 and 4 = blue
-  return id % 2 === 1 ? 'red' : 'blue';
+  // Documentação oficial: IDs 1 e 3 = azul, IDs 2 e 4 = vermelho
+  return id % 2 === 1 ? 'blue' : 'red';
 }
 
 function deviceIdToKickingSide(deviceId: number): Side | null {
-  // Equipment hit → the kicker is the opposite side
-  // ID 1 (red vest hit) or ID 3 (red helmet hit) → Blue kicked
-  // ID 2 (blue vest hit) or ID 4 (blue helmet hit) → Red kicked
-  if (deviceId === 1 || deviceId === 3) return 'blue';
-  if (deviceId === 2 || deviceId === 4) return 'red';
+  // Equipamento atingido → quem chutou é o lado oposto
+  // ID 1 (colete azul) ou ID 3 (capacete azul) → Vermelho chutou
+  // ID 2 (colete vermelho) ou ID 4 (capacete vermelho) → Azul chutou
+  if (deviceId === 1 || deviceId === 3) return 'red';
+  if (deviceId === 2 || deviceId === 4) return 'blue';
   return null;
 }
 
@@ -83,10 +83,10 @@ function isWebSerialSupported(): boolean {
 
 function createInitialEquipment(): Map<EquipmentSlot, EquipmentState> {
   return new Map([
-    [1, { id: 1, type: 'vest', side: 'red', battery: null, lastSeen: null }],
-    [2, { id: 2, type: 'vest', side: 'blue', battery: null, lastSeen: null }],
-    [3, { id: 3, type: 'helmet', side: 'red', battery: null, lastSeen: null }],
-    [4, { id: 4, type: 'helmet', side: 'blue', battery: null, lastSeen: null }],
+    [1, { id: 1, type: 'vest', side: 'blue', battery: null, lastSeen: null }],   // Colete azul
+    [2, { id: 2, type: 'vest', side: 'red', battery: null, lastSeen: null }],    // Colete vermelho
+    [3, { id: 3, type: 'helmet', side: 'blue', battery: null, lastSeen: null }], // Capacete azul
+    [4, { id: 4, type: 'helmet', side: 'red', battery: null, lastSeen: null }],  // Capacete vermelho
   ]);
 }
 
