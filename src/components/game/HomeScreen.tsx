@@ -1,4 +1,4 @@
-import { Timer, Swords, Zap, Brain } from 'lucide-react';
+import { Timer, Swords, Zap } from 'lucide-react';
 import logoSfighter from '@/assets/logo-sfighter.png';
 import { UseSerialPortReturn } from '@/types/serial';
 import { MenuDrawer } from './MenuDrawer';
@@ -55,12 +55,12 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           Toque para começar
         </p>
 
-        {/* Botões de Modo - Grid responsivo */}
-        <div className="w-full max-w-lg lg:max-w-4xl grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-4">
+        {/* Botões de Modo - Stack vertical em mobile, lado a lado em desktop */}
+        <div className="w-full max-w-lg lg:max-w-3xl flex flex-col lg:flex-row gap-2 lg:gap-4">
           {/* Time Attack */}
           <button
             onClick={() => handleSelectMode('time_attack')}
-            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[100px] md:min-h-[120px] lg:min-h-[160px]"
+            className="group flex-1 p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[100px] md:min-h-[120px] lg:min-h-[160px]"
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
@@ -90,7 +90,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           {/* Arcade Duel */}
           <button
             onClick={() => handleSelectMode('arcade')}
-            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[100px] md:min-h-[120px] lg:min-h-[160px]"
+            className="group flex-1 p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[100px] md:min-h-[120px] lg:min-h-[160px]"
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
@@ -112,36 +112,6 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
                 <Zap className="w-4 h-4 text-game-red/70" />
                 <span className="text-sm text-game-red/70">
                   2 jogadores
-                </span>
-              </div>
-            </div>
-          </button>
-
-          {/* Reaction Training */}
-          <button
-            onClick={() => handleSelectMode('reaction')}
-            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-purple-500/20 to-purple-500/5 border-2 border-purple-500/50 rounded-2xl hover:border-purple-500 hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[100px] md:min-h-[120px] lg:min-h-[160px]"
-          >
-            <div className="flex flex-col h-full">
-              <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
-                <div className="p-2 md:p-3 bg-purple-500/20 rounded-xl group-hover:bg-purple-500/30 transition-colors lg:mb-2">
-                  <Brain className="w-6 h-6 md:w-8 md:h-8 text-purple-500" />
-                </div>
-                
-                <div className="flex-1 lg:flex-none text-left lg:text-center">
-                  <h2 className="text-lg md:text-xl lg:text-2xl font-bold text-foreground">
-                    REAÇÃO
-                  </h2>
-                  <p className="text-sm md:text-base text-purple-500 font-medium">
-                    Treine seus reflexos
-                  </p>
-                </div>
-              </div>
-              
-              <div className="hidden lg:flex items-center justify-center gap-2 mt-auto pt-2">
-                <Zap className="w-4 h-4 text-purple-500/70" />
-                <span className="text-sm text-purple-500/70">
-                  Solo
                 </span>
               </div>
             </div>

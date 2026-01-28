@@ -1,5 +1,5 @@
 export type Side = 'red' | 'blue';
-export type GameMode = 'time_attack' | 'arcade' | 'reaction';
+export type GameMode = 'time_attack' | 'arcade';
 export type GameState = 'idle' | 'setup' | 'countdown' | 'running' | 'paused' | 'finished' | 'round_end';
 
 // Type of hit based on equipment hit

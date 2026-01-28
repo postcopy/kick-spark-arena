@@ -15,13 +15,7 @@ type SoundName =
   | 'victory'
   | 'victoryRed'
   | 'victoryBlue'
-  | 'fightModeBg'
-  // Reaction mode sounds
-  | 'reactionCue'
-  | 'reactionNoGo'
-  | 'reactionStart'
-  | 'reactionComplete'
-  | 'reactionRest';
+  | 'fightModeBg';
 
 // Fallback to public/sounds/
 const FALLBACK_PATHS: Record<SoundName, string> = {
@@ -40,12 +34,6 @@ const FALLBACK_PATHS: Record<SoundName, string> = {
   victoryRed: '/sounds/victory-red.mp3',
   victoryBlue: '/sounds/victory-blue.mp3',
   fightModeBg: '/sounds/fight-mode-bg.mp3',
-  // Reaction mode - placeholders (reuse existing sounds for now)
-  reactionCue: '/sounds/hit.mp3',
-  reactionNoGo: '/sounds/special-ready.mp3',
-  reactionStart: '/sounds/countdown-go.mp3',
-  reactionComplete: '/sounds/victory.mp3',
-  reactionRest: '/sounds/countdown-3.mp3',
 };
 
 const STORAGE_KEY = 'kickcounter_soundMuted';
@@ -68,12 +56,6 @@ const POOL_SIZES: Partial<Record<SoundName, number>> = {
   victory: 1,
   victoryRed: 1,
   victoryBlue: 1,
-  // Reaction mode pools
-  reactionCue: 3,
-  reactionNoGo: 2,
-  reactionStart: 1,
-  reactionComplete: 1,
-  reactionRest: 1,
 };
 
 // Evitar 404 (victory-red/blue inexistentes)
