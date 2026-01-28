@@ -1,104 +1,124 @@
 
 
-## Plano: Corrigir Parsing de Dados Serial (Remover \r)
+## Plano: Corrigir Mapeamento de Device IDs
 
-### Problema Encontrado
+### Problema
 
-A função `parseLine` usa apenas `trim()` que **não remove** o caractere `\r` (carriage return) enviado pelo ESP32. O regex falha porque encontra `850,1,85\r` ao invés de `850,1,85`.
+O código atual está com o mapeamento de equipamentos **invertido** em relação à documentação oficial do protocolo.
+
+| Device ID | Código Atual | Documentação Oficial |
+|-----------|--------------|---------------------|
+| 1 | Colete vermelho | Colete **azul** |
+| 2 | Colete azul | Colete **vermelho** |
+| 3 | Capacete vermelho | Capacete **azul** |
+| 4 | Capacete azul | Capacete **vermelho** |
 
 ---
 
-### Evidência nos Logs
+### Impacto
 
-Nos screenshots que você enviou, todas as linhas terminam com `\r`:
-- `"ESP-ROM:esp32s3-20210327\r"`
-- `"\r"` (linha vazia que é só \r)
-
-Quando o ESP32 enviar um golpe como `850,1,85\r`, o regex `^\d+,\d+,\d+$` vai rejeitar porque o `$` espera o fim da string, mas encontra `\r`.
+Quando o jogador **vermelho** chuta o colete **azul** (ID 1), o código atual acha que o azul chutou e dá ponto para o azul ao invés do vermelho!
 
 ---
 
 ### Solução
 
-Atualizar a função `parseLine` para remover `\r` explicitamente antes de validar:
+Corrigir **duas funções** em `src/hooks/useSerialPort.ts`:
+
+#### 1. `getEquipmentSide` (linha 61-64)
+
+```text
+Atual (errado):
+  return id % 2 === 1 ? 'red' : 'blue';
+
+Correto:
+  // Documentação: 1=azul, 2=vermelho, 3=azul, 4=vermelho
+  return id % 2 === 1 ? 'blue' : 'red';
+```
+
+#### 2. `deviceIdToKickingSide` (linha 66-73)
+
+```text
+Atual (errado):
+  if (deviceId === 1 || deviceId === 3) return 'blue';
+  if (deviceId === 2 || deviceId === 4) return 'red';
+
+Correto:
+  // ID 1 (colete azul) ou ID 3 (capacete azul) atingido → Vermelho chutou
+  // ID 2 (colete vermelho) ou ID 4 (capacete vermelho) atingido → Azul chutou
+  if (deviceId === 1 || deviceId === 3) return 'red';
+  if (deviceId === 2 || deviceId === 4) return 'blue';
+```
 
 ---
 
-### Arquivo a Modificar
+### Arquivos a Modificar
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/hooks/useSerialPort.ts` | Atualizar função `parseLine` (linhas 40-50) |
+| `src/hooks/useSerialPort.ts` | Corrigir `getEquipmentSide` (linha 61-64) |
+| `src/hooks/useSerialPort.ts` | Corrigir `deviceIdToKickingSide` (linha 66-73) |
+| `src/hooks/useSerialPort.ts` | Atualizar `createInitialEquipment` (linha 84-91) para refletir os lados corretos |
 
 ---
 
-### Código Atual vs Novo
+### Código Detalhado
 
-**Atual (linhas 40-50):**
+**Função `getEquipmentSide` (linha 61-64):**
 ```typescript
-function parseLine(line: string): ParsedLine | null {
-  const trimmed = line.trim();
-  if (!LINE_REGEX.test(trimmed)) return null;
-  
-  const parts = trimmed.split(',');
-  return {
-    intensity: parseInt(parts[0], 10),
-    deviceId: parseInt(parts[1], 10),
-    battery: parseInt(parts[2], 10),
-  };
+function getEquipmentSide(id: number): 'red' | 'blue' {
+  // Documentação oficial: IDs 1 e 3 = azul, IDs 2 e 4 = vermelho
+  return id % 2 === 1 ? 'blue' : 'red';
 }
 ```
 
-**Novo:**
+**Função `deviceIdToKickingSide` (linha 66-73):**
 ```typescript
-function parseLine(line: string): ParsedLine | null {
-  // Clean the line: remove \r, ANSI codes, and trim whitespace
-  const cleanLine = line
-    .replace(/\r/g, '')                    // Remove carriage return (ESP32 sends \r\n)
-    .replace(/\x1b\[[0-9;]*m/g, '')        // Remove ANSI color codes from debug output
-    .trim();
-  
-  if (!LINE_REGEX.test(cleanLine)) return null;
-  
-  const parts = cleanLine.split(',');
-  return {
-    intensity: parseInt(parts[0], 10),
-    deviceId: parseInt(parts[1], 10),
-    battery: parseInt(parts[2], 10),
-  };
+function deviceIdToKickingSide(deviceId: number): Side | null {
+  // Equipamento atingido → quem chutou é o lado oposto
+  // ID 1 (colete azul) ou ID 3 (capacete azul) → Vermelho chutou
+  // ID 2 (colete vermelho) ou ID 4 (capacete vermelho) → Azul chutou
+  if (deviceId === 1 || deviceId === 3) return 'red';
+  if (deviceId === 2 || deviceId === 4) return 'blue';
+  return null;
 }
 ```
 
----
-
-### O Que Vai Acontecer
-
-| Entrada | Limpeza | Resultado |
-|---------|---------|-----------|
-| `"850,1,85\r"` | `"850,1,85"` | Parsed OK |
-| `"ESP-ROM:esp32s3\r"` | `"ESP-ROM:esp32s3"` | Parse failed (correto) |
-| `"\x1b[0;32mI (801)...\r"` | `"I (801)..."` | Parse failed (correto) |
+**Função `createInitialEquipment` (linha 84-91):**
+```typescript
+function createInitialEquipment(): Map<EquipmentSlot, EquipmentState> {
+  return new Map([
+    [1, { id: 1, type: 'vest', side: 'blue', battery: null, lastSeen: null }],   // Colete azul
+    [2, { id: 2, type: 'vest', side: 'red', battery: null, lastSeen: null }],    // Colete vermelho
+    [3, { id: 3, type: 'helmet', side: 'blue', battery: null, lastSeen: null }], // Capacete azul
+    [4, { id: 4, type: 'helmet', side: 'red', battery: null, lastSeen: null }],  // Capacete vermelho
+  ]);
+}
+```
 
 ---
 
 ### Resultado Esperado
 
 Após a correção:
-1. Mensagens de boot do ESP32 → Continuam sendo rejeitadas (correto)
-2. Dados de golpe `850,1,85\r` → Serão aceitos e processados
-3. Golpes serão registrados nos modos de jogo
+- Golpe no colete azul (ID 1) → Ponto para o **vermelho**
+- Golpe no colete vermelho (ID 2) → Ponto para o **azul**
+- Golpe no capacete azul (ID 3) → Ponto para o **vermelho**
+- Golpe no capacete vermelho (ID 4) → Ponto para o **azul**
 
 ---
 
 ### Seção Técnica
 
-**Por que `trim()` não funciona?**
+**Lógica correta:**
+```text
+Colete/Capacete AZUL (IDs 1, 3) atingido = Jogador VERMELHO chutou = Ponto VERMELHO
+Colete/Capacete VERMELHO (IDs 2, 4) atingido = Jogador AZUL chutou = Ponto AZUL
+```
 
-`String.trim()` remove apenas espaços em branco do início e fim (space, tab, newline). O `\r` (carriage return, código 13) é considerado whitespace, MAS apenas quando está sozinho ou com espaços. Quando está junto de outros caracteres como em `85\r`, o comportamento pode variar.
-
-A solução mais segura é remover `\r` explicitamente com `.replace(/\r/g, '')`.
-
-**Por que remover códigos ANSI?**
-
-O ESP32 envia cores no terminal (ex: `\x1b[0;32m` = verde). Embora não afetem dados de golpe, é bom limpar para evitar problemas futuros se o firmware mudar.
+**Diagrama:**
+```text
+Jogador VERMELHO ──chuta──> Colete AZUL (ID 1) ──> Ponto VERMELHO
+Jogador AZUL ──chuta──> Colete VERMELHO (ID 2) ──> Ponto AZUL
+```
 
