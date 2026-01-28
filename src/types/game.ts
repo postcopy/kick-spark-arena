@@ -68,6 +68,7 @@ export interface ArcadeConfig {
   helmetDamage: number;   // Base damage for helmet hits (higher)
   specialDamageBonus: number;
   minIntervalMs: number;
+  recoveryIntervalSec: number;  // Recovery time between rounds (Best of 3)
 }
 
 export interface ArcadePlayerState {

@@ -40,6 +40,7 @@ const Index = () => {
   const [vestDamage, setVestDamage] = useState(2);
   const [helmetDamage, setHelmetDamage] = useState(3);
   const [bestOf, setBestOf] = useState<1 | 3>(3);
+  const [recoveryInterval, setRecoveryInterval] = useState(15);
   
   // Time Attack variant state
   const [timeAttackVariant, setTimeAttackVariant] = useState<TimeAttackVariant>('duo');
@@ -105,6 +106,7 @@ const Index = () => {
     bestOf,
     vestDamage,
     helmetDamage,
+    recoveryIntervalSec: recoveryInterval,
     onHit: () => playHitRef.current(),
     onHitHeavy: () => playHitHeavyRef.current(),
     onCombo: () => playComboRef.current(),
@@ -345,6 +347,8 @@ const Index = () => {
             onHelmetDamageChange={setHelmetDamage}
             bestOf={bestOf}
             onBestOfChange={setBestOf}
+            recoveryInterval={recoveryInterval}
+            onRecoveryIntervalChange={setRecoveryInterval}
           />
         );
         break;
