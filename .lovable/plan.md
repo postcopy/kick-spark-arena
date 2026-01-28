@@ -1,54 +1,25 @@
 
 
-## Plano: Corrigir Mapeamento de Device IDs
+## Plano: Configuração Personalizada no Modo Duelo
 
-### Problema
+### Objetivo
 
-O código atual está com o mapeamento de equipamentos **invertido** em relação à documentação oficial do protocolo.
-
-| Device ID | Código Atual | Documentação Oficial |
-|-----------|--------------|---------------------|
-| 1 | Colete vermelho | Colete **azul** |
-| 2 | Colete azul | Colete **vermelho** |
-| 3 | Capacete vermelho | Capacete **azul** |
-| 4 | Capacete azul | Capacete **vermelho** |
+Substituir as 4 opções predefinidas por controles que permitem escolher livremente:
+- **Tempo do round** (em segundos)
+- **Dano do colete** (pontos por golpe)
+- **Dano do capacete** (pontos por golpe)
 
 ---
 
-### Impacto
+### Visual Proposto
 
-Quando o jogador **vermelho** chuta o colete **azul** (ID 1), o código atual acha que o azul chutou e dá ponto para o azul ao invés do vermelho!
+Em vez de 4 botões com presets, teremos 3 controles deslizantes (sliders) com valores claros:
 
----
-
-### Solução
-
-Corrigir **duas funções** em `src/hooks/useSerialPort.ts`:
-
-#### 1. `getEquipmentSide` (linha 61-64)
-
-```text
-Atual (errado):
-  return id % 2 === 1 ? 'red' : 'blue';
-
-Correto:
-  // Documentação: 1=azul, 2=vermelho, 3=azul, 4=vermelho
-  return id % 2 === 1 ? 'blue' : 'red';
-```
-
-#### 2. `deviceIdToKickingSide` (linha 66-73)
-
-```text
-Atual (errado):
-  if (deviceId === 1 || deviceId === 3) return 'blue';
-  if (deviceId === 2 || deviceId === 4) return 'red';
-
-Correto:
-  // ID 1 (colete azul) ou ID 3 (capacete azul) atingido → Vermelho chutou
-  // ID 2 (colete vermelho) ou ID 4 (capacete vermelho) atingido → Azul chutou
-  if (deviceId === 1 || deviceId === 3) return 'red';
-  if (deviceId === 2 || deviceId === 4) return 'blue';
-```
+| Configuração | Mínimo | Máximo | Padrão | Incremento |
+|--------------|--------|--------|--------|------------|
+| Tempo | 15s | 120s | 45s | 5s |
+| Colete | 1 | 10 | 2 | 1 |
+| Capacete | 1 | 15 | 3 | 1 |
 
 ---
 
@@ -56,69 +27,165 @@ Correto:
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/hooks/useSerialPort.ts` | Corrigir `getEquipmentSide` (linha 61-64) |
-| `src/hooks/useSerialPort.ts` | Corrigir `deviceIdToKickingSide` (linha 66-73) |
-| `src/hooks/useSerialPort.ts` | Atualizar `createInitialEquipment` (linha 84-91) para refletir os lados corretos |
+| `src/components/game/ArcadeSetupScreen.tsx` | Redesenhar UI com sliders para tempo e dano |
+| `src/pages/Index.tsx` | Adicionar estados para `vestDamage` e `helmetDamage`, passar para hook |
+| `src/hooks/useArcadeState.ts` | Aceitar `vestDamage` e `helmetDamage` como props opcionais (sobrescrever auto-config) |
 
 ---
 
-### Código Detalhado
+### Mudanças Detalhadas
 
-**Função `getEquipmentSide` (linha 61-64):**
+#### 1. `ArcadeSetupScreen.tsx`
+
+**Props adicionais:**
 ```typescript
-function getEquipmentSide(id: number): 'red' | 'blue' {
-  // Documentação oficial: IDs 1 e 3 = azul, IDs 2 e 4 = vermelho
-  return id % 2 === 1 ? 'blue' : 'red';
+interface ArcadeSetupScreenProps {
+  onStart: () => void;
+  onBack: () => void;
+  roundDuration: number;
+  onRoundDurationChange: (duration: number) => void;
+  vestDamage: number;
+  onVestDamageChange: (damage: number) => void;
+  helmetDamage: number;
+  onHelmetDamageChange: (damage: number) => void;
+  bestOf: 1 | 3;
+  onBestOfChange: (bestOf: 1 | 3) => void;
 }
 ```
 
-**Função `deviceIdToKickingSide` (linha 66-73):**
+**Nova UI:**
+- Remover `DURATION_OPTIONS` grid
+- Adicionar 3 sliders (Slider do Radix/Shadcn):
+  1. **TEMPO DO ROUND**: 15s-120s (exibe valor atual)
+  2. **DANO DO COLETE**: 1-10 (com ícone Shirt)
+  3. **DANO DO CAPACETE**: 1-15 (com ícone HardHat, cor amarela)
+- Manter seção de Formato (Rápido/Melhor de 3)
+- Atualizar preview de regras dinamicamente
+
+#### 2. `Index.tsx`
+
+**Novos estados:**
 ```typescript
-function deviceIdToKickingSide(deviceId: number): Side | null {
-  // Equipamento atingido → quem chutou é o lado oposto
-  // ID 1 (colete azul) ou ID 3 (capacete azul) → Vermelho chutou
-  // ID 2 (colete vermelho) ou ID 4 (capacete vermelho) → Azul chutou
-  if (deviceId === 1 || deviceId === 3) return 'red';
-  if (deviceId === 2 || deviceId === 4) return 'blue';
-  return null;
-}
+const [vestDamage, setVestDamage] = useState(2);
+const [helmetDamage, setHelmetDamage] = useState(3);
 ```
 
-**Função `createInitialEquipment` (linha 84-91):**
+**Passar para hook:**
 ```typescript
-function createInitialEquipment(): Map<EquipmentSlot, EquipmentState> {
-  return new Map([
-    [1, { id: 1, type: 'vest', side: 'blue', battery: null, lastSeen: null }],   // Colete azul
-    [2, { id: 2, type: 'vest', side: 'red', battery: null, lastSeen: null }],    // Colete vermelho
-    [3, { id: 3, type: 'helmet', side: 'blue', battery: null, lastSeen: null }], // Capacete azul
-    [4, { id: 4, type: 'helmet', side: 'red', battery: null, lastSeen: null }],  // Capacete vermelho
-  ]);
-}
+const arcadeState = useArcadeState({ 
+  roundDurationSec: roundDuration, 
+  bestOf,
+  vestDamage,      // Novo
+  helmetDamage,    // Novo
+  // ... callbacks
+});
+```
+
+**Passar para ArcadeSetupScreen:**
+```jsx
+<ArcadeSetupScreen
+  roundDuration={roundDuration}
+  onRoundDurationChange={setRoundDuration}
+  vestDamage={vestDamage}
+  onVestDamageChange={setVestDamage}
+  helmetDamage={helmetDamage}
+  onHelmetDamageChange={setHelmetDamage}
+  bestOf={bestOf}
+  onBestOfChange={setBestOf}
+  onStart={...}
+  onBack={...}
+/>
+```
+
+#### 3. `useArcadeState.ts`
+
+**Modificar lógica de config:**
+```typescript
+// Se vestDamage/helmetDamage forem passados explicitamente, usar eles
+// Senão, usar o valor do DIFFICULTY_CONFIGS como fallback
+const fullConfig = { 
+  ...DEFAULT_ARCADE_CONFIG, 
+  ...difficultyConfig,
+  ...config  // Props do usuário sobrescrevem tudo
+};
+```
+
+Não precisa mudar nada - já funciona assim! O spread `...config` no final já sobrescreve qualquer valor.
+
+---
+
+### Layout da Nova Tela
+
+```text
+┌─────────────────────────────────────────┐
+│        DUELO ARCADE                     │
+│  Derrube a barra do rival com combos    │
+├─────────────────────────────────────────┤
+│                                         │
+│  ⏱️ TEMPO DO ROUND                      │
+│  ◀──────────●───────────────────▶       │
+│            45s                          │
+│                                         │
+├─────────────────────────────────────────┤
+│                                         │
+│  👕 DANO DO COLETE                      │
+│  ◀───●──────────────────────────▶       │
+│      2                                  │
+│                                         │
+├─────────────────────────────────────────┤
+│                                         │
+│  ⛑️ DANO DO CAPACETE                    │
+│  ◀─────●────────────────────────▶       │
+│        3                                │
+│                                         │
+├─────────────────────────────────────────┤
+│                                         │
+│  🏆 FORMATO                             │
+│  [ RÁPIDO ]  [ MELHOR DE 3 ]            │
+│                                         │
+├─────────────────────────────────────────┤
+│  REGRAS                                 │
+│  • HP inicial: 100                      │
+│  • Combo: até +4 dano                   │
+│  • Especial: +12 dano                   │
+├─────────────────────────────────────────┤
+│   [ Voltar ]      [ INICIAR DUELO ]     │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-### Resultado Esperado
+### Valores Padrão Inteligentes
 
-Após a correção:
-- Golpe no colete azul (ID 1) → Ponto para o **vermelho**
-- Golpe no colete vermelho (ID 2) → Ponto para o **azul**
-- Golpe no capacete azul (ID 3) → Ponto para o **vermelho**
-- Golpe no capacete vermelho (ID 4) → Ponto para o **azul**
+Para facilitar, podemos adicionar botões de "preset" pequenos abaixo dos sliders:
+
+```text
+  Sugestões: [Kids] [Juvenil] [Adulto]
+```
+
+Ao clicar, seta os 3 valores de uma vez (opcional, não obrigatório).
 
 ---
 
 ### Seção Técnica
 
-**Lógica correta:**
-```text
-Colete/Capacete AZUL (IDs 1, 3) atingido = Jogador VERMELHO chutou = Ponto VERMELHO
-Colete/Capacete VERMELHO (IDs 2, 4) atingido = Jogador AZUL chutou = Ponto AZUL
-```
+**Por que usar Slider ao invés de Input?**
+- Mais intuitivo para crianças e adultos
+- Visual consistente com o estilo do jogo
+- Limita valores a ranges válidos automaticamente
+- Touch-friendly para tablets
 
-**Diagrama:**
-```text
-Jogador VERMELHO ──chuta──> Colete AZUL (ID 1) ──> Ponto VERMELHO
-Jogador AZUL ──chuta──> Colete VERMELHO (ID 2) ──> Ponto AZUL
+**Componente Slider já existe:**
+- `src/components/ui/slider.tsx` (Radix UI Slider)
+- Estilo Shadcn já configurado
+
+**Dependência do hook:**
+O `useArcadeState` já aceita props opcionais que sobrescrevem os defaults:
+```typescript
+const fullConfig = { 
+  ...DEFAULT_ARCADE_CONFIG, 
+  ...difficultyConfig,
+  ...config  // <- vestDamage e helmetDamage aqui sobrescrevem
+};
 ```
 
