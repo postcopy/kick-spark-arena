@@ -1,165 +1,179 @@
 
+## Plano: Intervalo de Recuperação entre Rounds no Modo Duelo
 
-## Plano: Restaurar SFX de Hits em Todos os Modos
-
-### Diagnóstico
-
-Após análise do código, o fluxo de som para hits está correto em teoria:
-
-1. `Index.tsx` passa `onHit: () => play('hit')` para os hooks
-2. `useGameState.ts` e `useArcadeState.ts` chamam `config.onHit?.()` / `onHit?.()` em `registerKick()`
-3. Arquivos `hit.mp3` e `hit-heavy.mp3` existem em `public/sounds/`
-
-**Problema Provável**: O callback `onHit` pode estar sendo capturado com uma versão stale do `play` devido à dependência do `useCallback`. Quando o hook é criado, o `play` é capturado, mas se o estado de áudio não estiver pronto ou mudar posteriormente, o callback continua usando a versão antiga.
+### Objetivo
+Adicionar um intervalo configurável entre os rounds no modo "Melhor de 3" para que os atletas possam descansar antes do próximo round.
 
 ---
 
-### Solução
+### Arquivos a Modificar
 
-Modificar a forma como os sons são tocados nos hooks, movendo a responsabilidade de tocar som diretamente para os componentes que renderizam a tela de jogo, ou garantir que os callbacks são sempre atualizados.
-
-#### Opção A: Usar refs para garantir callbacks atualizados (Recomendada)
-
-**Arquivos a modificar:**
 | Arquivo | Mudança |
 |---------|---------|
-| `src/pages/Index.tsx` | Usar `useRef` para os callbacks de som, garantindo versão mais recente |
+| `src/types/game.ts` | Adicionar `recoveryIntervalSec` ao tipo `ArcadeConfig` |
+| `src/pages/Index.tsx` | Adicionar estado para o intervalo e passar ao hook/setup |
+| `src/components/game/ArcadeSetupScreen.tsx` | Adicionar slider para configurar intervalo |
+| `src/hooks/useArcadeState.ts` | Usar intervalo configurável + expor countdown de recuperação |
+| `src/components/game/ArcadeScreenTV.tsx` | Exibir contagem regressiva durante intervalo |
 
-**Código:**
+---
+
+### Implementação
+
+#### 1. Tipo `ArcadeConfig` (`src/types/game.ts`)
+
+Adicionar novo campo:
 ```typescript
-// Criar refs para os callbacks de som
-const playHitRef = useRef(() => play('hit'));
-const playHitHeavyRef = useRef(() => play('hitHeavy'));
+export interface ArcadeConfig {
+  // ... campos existentes
+  recoveryIntervalSec: number;  // Novo: tempo de descanso entre rounds
+}
+```
 
-// Manter refs atualizadas
-useEffect(() => {
-  playHitRef.current = () => play('hit');
-  playHitHeavyRef.current = () => play('hitHeavy');
-}, [play]);
+#### 2. Estado em `Index.tsx`
 
-// Usar nos hooks
-const timeAttackState = useGameState({
-  duration, 
-  minIntervalMs: 120,
-  onHit: () => playHitRef.current(),
-  // ...
-});
+Adicionar estado e passar para os componentes:
+```typescript
+const [recoveryInterval, setRecoveryInterval] = useState(15); // 15 segundos padrão
 
 const arcadeState = useArcadeState({ 
-  // ...
-  onHit: () => playHitRef.current(),
-  onHitHeavy: () => playHitHeavyRef.current(),
-  // ...
+  // ... config existente
+  recoveryIntervalSec: recoveryInterval,
 });
+
+// Na renderização do ArcadeSetupScreen
+<ArcadeSetupScreen
+  // ... props existentes
+  recoveryInterval={recoveryInterval}
+  onRecoveryIntervalChange={setRecoveryInterval}
+/>
 ```
 
-#### Opção B: Adicionar logs de debug para diagnóstico
+#### 3. UI do Slider (`ArcadeSetupScreen.tsx`)
 
-Se a opção A não resolver, adicionar logs temporários:
-
-**Arquivo: `src/hooks/useGameState.ts`**
+Adicionar novo slider para o intervalo (visível apenas quando "Melhor de 3"):
 ```typescript
-// No registerKick, antes de chamar onHit:
-console.log('[GameState] registerKick called, about to play hit');
-config.onHit?.();
+{bestOf === 3 && (
+  <div className="bg-game-surface p-3 md:p-4 rounded-lg border border-border">
+    <div className="flex items-center justify-between mb-3 md:mb-4">
+      <div className="flex items-center gap-2 md:gap-3">
+        <Timer className="w-5 h-5 md:w-6 md:h-6 text-green-500" />
+        <h2 className="text-lg md:text-xl font-bold text-foreground">INTERVALO</h2>
+      </div>
+      <span className="text-2xl md:text-3xl font-black text-green-500">{recoveryInterval}s</span>
+    </div>
+    <Slider
+      value={[recoveryInterval]}
+      onValueChange={(values) => onRecoveryIntervalChange(values[0])}
+      min={5}
+      max={60}
+      step={5}
+    />
+    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+      <span>5s</span>
+      <span>60s</span>
+    </div>
+  </div>
+)}
 ```
 
-**Arquivo: `src/hooks/useSoundEffects.ts`**
+#### 4. Hook `useArcadeState.ts`
+
+Modificações:
+- Adicionar `recoveryCountdown` ao estado
+- Usar `recoveryIntervalSec` ao invés do `ROUND_END_DELAY` fixo
+- Criar contagem regressiva visual
+
 ```typescript
-// No play():
-console.log(`[Sound] play() called for: ${name}, isMuted: ${isMuted}`);
+const [recoveryCountdown, setRecoveryCountdown] = useState(0);
+
+// No endRound, quando há mais rounds:
+} else {
+  setGameState('round_end');
+  setRecoveryCountdown(fullConfig.recoveryIntervalSec);
+  
+  // Timer de recuperação com countdown
+  const recoveryTimer = window.setInterval(() => {
+    setRecoveryCountdown(prev => {
+      if (prev <= 1) {
+        window.clearInterval(recoveryTimer);
+        setCurrentRound(p => p + 1);
+        setShowKO(null);
+        startCountdown();
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+}
+
+// Retornar no objeto:
+return {
+  // ... existente
+  recoveryCountdown,
+};
+```
+
+#### 5. Exibição do Countdown (`ArcadeScreenTV.tsx`)
+
+Mostrar tempo restante de recuperação durante `round_end`:
+```typescript
+{gameState === 'round_end' && (
+  <div className="...">
+    {/* Vencedor do round */}
+    ...
+    
+    {/* Countdown de recuperação */}
+    <div className="mt-6 text-center">
+      <span className="text-white/70 text-2xl uppercase tracking-wider">
+        Próximo round em
+      </span>
+      <div className="text-[clamp(80px,12vw,160px)] font-black text-green-500 animate-pulse">
+        {arcadeState.recoveryCountdown}
+      </div>
+    </div>
+  </div>
+)}
 ```
 
 ---
 
-### Implementação Detalhada
+### Valores Sugeridos
 
-#### 1. `src/pages/Index.tsx` (linhas 36, 57-64, 83-99)
+| Categoria | Intervalo Padrão |
+|-----------|------------------|
+| Kids | 10-15s |
+| Juvenil | 15-20s |
+| Adulto | 20-30s |
 
-**Adicionar refs após a declaração de `play`:**
+Os presets existentes também podem ser atualizados para incluir valores de intervalo:
 ```typescript
-const { play } = useSound();
-
-// Refs para manter callbacks de som sempre atualizados
-const playHitRef = useRef(() => play('hit'));
-const playHitHeavyRef = useRef(() => play('hitHeavy'));
-const playComboRef = useRef(() => play('combo'));
-const playSpecialReadyRef = useRef(() => play('specialReady'));
-const playSpecialAttackRef = useRef(() => play('specialAttack'));
-const playKORef = useRef(() => play('ko'));
-const playTimeUpRef = useRef(() => play('timeUp'));
-
-// Manter refs sincronizadas com a versão mais recente de play
-useEffect(() => {
-  playHitRef.current = () => play('hit');
-  playHitHeavyRef.current = () => play('hitHeavy');
-  playComboRef.current = () => play('combo');
-  playSpecialReadyRef.current = () => play('specialReady');
-  playSpecialAttackRef.current = () => play('specialAttack');
-  playKORef.current = () => play('ko');
-  playTimeUpRef.current = () => play('timeUp');
-}, [play]);
+const PRESETS = [
+  { label: 'Kids', duration: 20, vest: 3, helmet: 5, recovery: 10 },
+  { label: 'Juvenil', duration: 45, vest: 2, helmet: 3, recovery: 15 },
+  { label: 'Adulto', duration: 60, vest: 1, helmet: 2, recovery: 20 },
+];
 ```
-
-**Atualizar `useGameState`:**
-```typescript
-const timeAttackState = useGameState({
-  duration, 
-  minIntervalMs: 120,
-  onHit: () => playHitRef.current(),
-  onGameEnd: () => playTimeUpRef.current(),
-  isIndividual: timeAttackVariant === 'individual',
-  selectedAthlete: timeAttackVariant === 'individual' ? selectedAthlete : null,
-});
-```
-
-**Atualizar `useArcadeState`:**
-```typescript
-const arcadeState = useArcadeState({ 
-  roundDurationSec: roundDuration, 
-  bestOf,
-  vestDamage,
-  helmetDamage,
-  onHit: () => playHitRef.current(),
-  onHitHeavy: () => playHitHeavyRef.current(),
-  onCombo: () => playComboRef.current(),
-  onSpecialReady: () => playSpecialReadyRef.current(),
-  onSpecialAttack: () => playSpecialAttackRef.current(),
-  onKO: () => playKORef.current(),
-  onTimeUp: () => playTimeUpRef.current(),
-  onRoundEnd: () => {
-    stopBgMusic();
-    isNewRoundRef.current = true;
-  },
-});
-```
-
----
-
-### Por que isso resolve?
-
-O `useCallback` nos hooks (`useGameState`, `useArcadeState`) memoriza os callbacks baseado nas dependências. Se `play` mudar (por exemplo, após o unlock do áudio ou mudança de volume), o callback `onHit` antigo pode ainda estar referenciando a versão antiga de `play`.
-
-Usando refs, garantimos que ao chamar `playHitRef.current()`, sempre executamos a versão mais recente da função `play`.
 
 ---
 
 ### Resultado Esperado
 
-- Sons de hit tocarão corretamente em todos os modos (Time Attack duo/individual, Arcade/Duelo)
-- Sons de combo, especial, K.O. e time up também funcionarão consistentemente
+1. Novo slider "INTERVALO" aparece na tela de configuração quando "Melhor de 3" está selecionado
+2. Entre rounds, exibe countdown de recuperação (ex: "Próximo round em 15, 14, 13...")
+3. Atletas têm tempo para descansar e se preparar
+4. Intervalo é customizável de 5s a 60s
 
 ---
 
 ### Seção Técnica
 
-**Padrão utilizado:** "Latest Ref Pattern"
-- Refs em React não causam re-renders quando atualizadas
-- `useEffect` sincroniza a ref sempre que `play` muda
-- O callback passado ao hook sempre executa a versão mais recente via `ref.current()`
+**Estado novo:**
+- `recoveryCountdown: number` - Countdown do intervalo entre rounds
 
-**Imports necessários:**
-```typescript
-import { useState, useCallback, useRef, useEffect } from 'react';
-```
+**Props novos no ArcadeSetupScreen:**
+- `recoveryInterval: number`
+- `onRecoveryIntervalChange: (interval: number) => void`
 
+**Config atualizado no ArcadeConfig:**
+- `recoveryIntervalSec: number` (default: 15)
