@@ -59,6 +59,11 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
     setGameState('setup');
   }, [resetGame]);
 
+  // Go to loading state (before countdown)
+  const goToLoading = useCallback(() => {
+    setGameState('loading');
+  }, []);
+
   // Start countdown
   const startCountdown = useCallback(() => {
     setGameState('countdown');
@@ -319,6 +324,7 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
     flashSide,
     config,
     goToSetup,
+    goToLoading,
     startCountdown,
     resetGame,
     registerKick,

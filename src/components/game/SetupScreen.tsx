@@ -49,7 +49,6 @@ export function SetupScreen({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRanking, setShowRanking] = useState(false);
   const [step, setStep] = useState<'players' | 'athlete' | 'duration'>('players');
-  const [isPreparing, setIsPreparing] = useState(false);
 
   // Fetch athletes when variant changes to individual
   useEffect(() => {
@@ -121,11 +120,7 @@ export function SetupScreen({
   const handleStart = () => {
     unlockAudio();
     initFullPreload();
-    setIsPreparing(true);
-    setTimeout(() => {
-      setIsPreparing(false);
-      onStart();
-    }, 800);
+    onStart(); // Goes to loading state now
   };
 
   const handleBack = () => {
@@ -409,7 +404,7 @@ export function SetupScreen({
           <Button
             size="lg"
             onClick={handleStart}
-            disabled={!canStart || isPreparing}
+            disabled={!canStart}
             className={cn(
               'w-full h-16 text-2xl font-bold rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]',
               variant === 'individual'
@@ -418,7 +413,7 @@ export function SetupScreen({
             )}
           >
             <Play className="mr-3 h-7 w-7" />
-            {isPreparing ? 'Preparando...' : 'JOGAR!'}
+            JOGAR!
           </Button>
         </div>
         )}

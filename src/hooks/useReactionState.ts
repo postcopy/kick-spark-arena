@@ -246,6 +246,11 @@ export function useReactionState({ level, onBlockEnd, onSessionEnd }: UseReactio
     setLastResult(null);
   }, [clearAllTimers, config.blocks.workSec]);
 
+  // Go to loading state (before countdown)
+  const goToLoading = useCallback(() => {
+    setGameState('loading');
+  }, []);
+
   // Reset game
   const resetGame = useCallback(() => {
     clearAllTimers();
@@ -289,6 +294,7 @@ export function useReactionState({ level, onBlockEnd, onSessionEnd }: UseReactio
     // Actions
     startCountdown,
     goToSetup,
+    goToLoading,
     resetGame,
   };
 }

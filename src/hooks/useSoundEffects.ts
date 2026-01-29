@@ -348,6 +348,78 @@ export function useSoundEffects() {
     setIsLoaded(true);
   }, []);
 
+  // Wait for critical audio files to be ready (buffered)
+  const waitForAudioReady = useCallback(async (
+    requiredSounds: (typeof FALLBACK_PATHS extends Record<infer K, any> ? K : never)[] = ['fightModeBg', 'hit', 'hitHeavy', 'countdown3'],
+    timeoutMs: number = 5000
+  ): Promise<{ ready: boolean; progress: number }> => {
+    // Ensure preload has started
+    if (!preloadStarted.current) {
+      initFullPreload();
+    }
+
+    const audiosToWait: HTMLAudioElement[] = [];
+
+    // Collect audio elements to wait for
+    for (const name of requiredSounds) {
+      if (name === 'fightModeBg') {
+        if (bgMusicAudio.current) audiosToWait.push(bgMusicAudio.current);
+      } else {
+        const pool = audioPool.current.get(name as SoundName);
+        if (pool?.[0]) audiosToWait.push(pool[0]);
+      }
+    }
+
+    if (audiosToWait.length === 0) {
+      return { ready: true, progress: 100 };
+    }
+
+    // Wait for all to be ready (readyState >= 3 means HAVE_FUTURE_DATA)
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+
+      const check = () => {
+        const readyCount = audiosToWait.filter(a => a.readyState >= 3).length;
+        const progress = Math.round((readyCount / audiosToWait.length) * 100);
+        const allReady = readyCount === audiosToWait.length;
+        const elapsed = Date.now() - startTime;
+
+        if (allReady) {
+          resolve({ ready: true, progress: 100 });
+        } else if (elapsed >= timeoutMs) {
+          // Timeout - proceed anyway
+          console.warn('[Audio] Timeout waiting for audio ready, proceeding with partial load');
+          resolve({ ready: false, progress });
+        } else {
+          requestAnimationFrame(check);
+        }
+      };
+
+      check();
+    });
+  }, [initFullPreload]);
+
+  // Get current loading progress for UI feedback
+  const getAudioProgress = useCallback((
+    requiredSounds: (typeof FALLBACK_PATHS extends Record<infer K, any> ? K : never)[] = ['fightModeBg', 'hit', 'hitHeavy', 'countdown3']
+  ): number => {
+    const audiosToCheck: HTMLAudioElement[] = [];
+
+    for (const name of requiredSounds) {
+      if (name === 'fightModeBg') {
+        if (bgMusicAudio.current) audiosToCheck.push(bgMusicAudio.current);
+      } else {
+        const pool = audioPool.current.get(name as SoundName);
+        if (pool?.[0]) audiosToCheck.push(pool[0]);
+      }
+    }
+
+    if (audiosToCheck.length === 0) return 100;
+
+    const readyCount = audiosToCheck.filter(a => a.readyState >= 3).length;
+    return Math.round((readyCount / audiosToCheck.length) * 100);
+  }, []);
+
   return {
     play,
     playWithRef,
@@ -360,6 +432,8 @@ export function useSoundEffects() {
     reloadSounds,
     unlockAudio,
     initFullPreload,
+    waitForAudioReady,
+    getAudioProgress,
   };
 }
 
