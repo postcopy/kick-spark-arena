@@ -1,8 +1,11 @@
 
-## Plano: Intervalo de Recuperação entre Rounds no Modo Duelo
+## Plano: Buffer de Carregamento de Áudio
 
-### Objetivo
-Adicionar um intervalo configurável entre os rounds no modo "Melhor de 3" para que os atletas possam descansar antes do próximo round.
+### Problema Identificado
+A música de fundo (`fightModeBg`) é colocada no **final da fila de preload** e o sistema atual não aguarda o buffer completar antes de iniciar o countdown. Isso causa atraso/silêncio no início do jogo.
+
+### Solução Proposta
+Criar uma tela de **loading intermediária** que aguarda os áudios críticos ficarem prontos antes de iniciar o countdown.
 
 ---
 
@@ -10,170 +13,217 @@ Adicionar um intervalo configurável entre os rounds no modo "Melhor de 3" para 
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/types/game.ts` | Adicionar `recoveryIntervalSec` ao tipo `ArcadeConfig` |
-| `src/pages/Index.tsx` | Adicionar estado para o intervalo e passar ao hook/setup |
-| `src/components/game/ArcadeSetupScreen.tsx` | Adicionar slider para configurar intervalo |
-| `src/hooks/useArcadeState.ts` | Usar intervalo configurável + expor countdown de recuperação |
-| `src/components/game/ArcadeScreenTV.tsx` | Exibir contagem regressiva durante intervalo |
+| `src/hooks/useSoundEffects.ts` | Adicionar função `waitForAudioReady()` que retorna Promise |
+| `src/contexts/SoundContext.tsx` | Expor nova função `waitForAudioReady` |
+| `src/components/game/LoadingScreen.tsx` | **NOVO** - Tela de carregamento com progresso |
+| `src/pages/Index.tsx` | Integrar LoadingScreen entre setup e countdown |
+| `src/components/game/SetupScreen.tsx` | Simplificar - remover delay de 800ms |
+| `src/components/game/ArcadeSetupScreen.tsx` | Simplificar - remover delay de 800ms |
+| `src/components/game/ReactionSetupScreen.tsx` | Adicionar unlock e preload no start |
 
 ---
 
 ### Implementação
 
-#### 1. Tipo `ArcadeConfig` (`src/types/game.ts`)
+#### 1. Função `waitForAudioReady` (`useSoundEffects.ts`)
 
-Adicionar novo campo:
-```typescript
-export interface ArcadeConfig {
-  // ... campos existentes
-  recoveryIntervalSec: number;  // Novo: tempo de descanso entre rounds
-}
-```
-
-#### 2. Estado em `Index.tsx`
-
-Adicionar estado e passar para os componentes:
-```typescript
-const [recoveryInterval, setRecoveryInterval] = useState(15); // 15 segundos padrão
-
-const arcadeState = useArcadeState({ 
-  // ... config existente
-  recoveryIntervalSec: recoveryInterval,
-});
-
-// Na renderização do ArcadeSetupScreen
-<ArcadeSetupScreen
-  // ... props existentes
-  recoveryInterval={recoveryInterval}
-  onRecoveryIntervalChange={setRecoveryInterval}
-/>
-```
-
-#### 3. UI do Slider (`ArcadeSetupScreen.tsx`)
-
-Adicionar novo slider para o intervalo (visível apenas quando "Melhor de 3"):
-```typescript
-{bestOf === 3 && (
-  <div className="bg-game-surface p-3 md:p-4 rounded-lg border border-border">
-    <div className="flex items-center justify-between mb-3 md:mb-4">
-      <div className="flex items-center gap-2 md:gap-3">
-        <Timer className="w-5 h-5 md:w-6 md:h-6 text-green-500" />
-        <h2 className="text-lg md:text-xl font-bold text-foreground">INTERVALO</h2>
-      </div>
-      <span className="text-2xl md:text-3xl font-black text-green-500">{recoveryInterval}s</span>
-    </div>
-    <Slider
-      value={[recoveryInterval]}
-      onValueChange={(values) => onRecoveryIntervalChange(values[0])}
-      min={5}
-      max={60}
-      step={5}
-    />
-    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-      <span>5s</span>
-      <span>60s</span>
-    </div>
-  </div>
-)}
-```
-
-#### 4. Hook `useArcadeState.ts`
-
-Modificações:
-- Adicionar `recoveryCountdown` ao estado
-- Usar `recoveryIntervalSec` ao invés do `ROUND_END_DELAY` fixo
-- Criar contagem regressiva visual
+Adicionar nova função que aguarda os áudios críticos:
 
 ```typescript
-const [recoveryCountdown, setRecoveryCountdown] = useState(0);
+const waitForAudioReady = useCallback(async (
+  requiredSounds: SoundName[] = ['fightModeBg', 'hit', 'hitHeavy', 'countdown3'],
+  timeoutMs: number = 5000
+): Promise<boolean> => {
+  // Primeiro, garantir que o preload iniciou
+  if (!preloadStarted.current) {
+    initFullPreload();
+  }
 
-// No endRound, quando há mais rounds:
-} else {
-  setGameState('round_end');
-  setRecoveryCountdown(fullConfig.recoveryIntervalSec);
-  
-  // Timer de recuperação com countdown
-  const recoveryTimer = window.setInterval(() => {
-    setRecoveryCountdown(prev => {
-      if (prev <= 1) {
-        window.clearInterval(recoveryTimer);
-        setCurrentRound(p => p + 1);
-        setShowKO(null);
-        startCountdown();
-        return 0;
+  const audiosToWait: HTMLAudioElement[] = [];
+
+  // Coletar áudios a aguardar
+  for (const name of requiredSounds) {
+    if (name === 'fightModeBg') {
+      if (bgMusicAudio.current) audiosToWait.push(bgMusicAudio.current);
+    } else {
+      const pool = audioPool.current.get(name);
+      if (pool?.[0]) audiosToWait.push(pool[0]);
+    }
+  }
+
+  // Aguardar todos ficarem prontos (readyState >= 3)
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+
+    const check = () => {
+      const allReady = audiosToWait.every(a => a.readyState >= 3);
+      const elapsed = Date.now() - startTime;
+
+      if (allReady) {
+        resolve(true);
+      } else if (elapsed >= timeoutMs) {
+        // Timeout - prosseguir mesmo assim
+        console.warn('[Audio] Timeout waiting for audio ready');
+        resolve(false);
+      } else {
+        requestAnimationFrame(check);
       }
-      return prev - 1;
-    });
-  }, 1000);
-}
+    };
 
-// Retornar no objeto:
-return {
-  // ... existente
-  recoveryCountdown,
+    check();
+  });
+}, [initFullPreload]);
+```
+
+#### 2. Nova tela `LoadingScreen.tsx`
+
+Tela simples com feedback visual:
+
+```
+┌─────────────────────────────────────────────┐
+│                                             │
+│                                             │
+│            🎵 Carregando áudio...           │
+│                                             │
+│              ████████░░░░  70%              │
+│                                             │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+Props:
+```typescript
+interface LoadingScreenProps {
+  onReady: () => void;     // Chamado quando áudio está pronto
+  onTimeout?: () => void;  // Chamado se timeout (ainda prossegue)
+}
+```
+
+Lógica interna:
+- Chama `waitForAudioReady()` no mount
+- Mostra spinner/progress enquanto aguarda
+- Chama `onReady()` quando Promise resolve
+- Timeout máximo de 5 segundos (fallback)
+
+#### 3. Novo estado no `Index.tsx`
+
+Adicionar estado `loading` entre `setup` e `countdown`:
+
+```typescript
+// Novo fluxo:
+// setup -> loading -> countdown -> running -> finished
+
+// Handler quando loading completa
+const handleLoadingComplete = useCallback(() => {
+  if (gameMode === 'time_attack') {
+    timeAttackState.startCountdown();
+  } else if (gameMode === 'arcade') {
+    arcadeState.startCountdown();
+  } else if (gameMode === 'reaction') {
+    reactionState.startCountdown();
+  }
+}, [gameMode, timeAttackState, arcadeState, reactionState]);
+
+// Novo case no switch
+case 'loading':
+  content = <LoadingScreen onReady={handleLoadingComplete} />;
+  break;
+```
+
+#### 4. Simplificar Setup Screens
+
+Remover o delay de 800ms e estado `isPreparing`:
+
+**Antes (SetupScreen.tsx):**
+```typescript
+const handleStart = () => {
+  unlockAudio();
+  initFullPreload();
+  setIsPreparing(true);
+  setTimeout(() => {
+    setIsPreparing(false);
+    onStart();
+  }, 800);
 };
 ```
 
-#### 5. Exibição do Countdown (`ArcadeScreenTV.tsx`)
-
-Mostrar tempo restante de recuperação durante `round_end`:
+**Depois:**
 ```typescript
-{gameState === 'round_end' && (
-  <div className="...">
-    {/* Vencedor do round */}
-    ...
-    
-    {/* Countdown de recuperação */}
-    <div className="mt-6 text-center">
-      <span className="text-white/70 text-2xl uppercase tracking-wider">
-        Próximo round em
-      </span>
-      <div className="text-[clamp(80px,12vw,160px)] font-black text-green-500 animate-pulse">
-        {arcadeState.recoveryCountdown}
-      </div>
-    </div>
-  </div>
-)}
+const handleStart = () => {
+  unlockAudio();
+  initFullPreload();
+  onStart(); // Vai para 'loading' state
+};
+```
+
+O loading real acontece na `LoadingScreen`, não mais como delay fixo.
+
+#### 5. Atualizar GameState
+
+Adicionar `'loading'` ao tipo:
+
+```typescript
+export type GameState = 'idle' | 'setup' | 'loading' | 'countdown' | 'running' | 'paused' | 'finished' | 'round_end';
+```
+
+#### 6. Atualizar hooks de estado
+
+Cada hook (`useGameState`, `useArcadeState`, `useReactionState`) precisa:
+- Adicionar `goToLoading()` que seta estado para `'loading'`
+- O `startCountdown()` só é chamado após loading completar
+
+---
+
+### Fluxo Visual
+
+```text
+┌─────────┐    ┌─────────┐    ┌─────────┐    ┌───────────┐    ┌─────────┐
+│  SETUP  │───▶│ LOADING │───▶│COUNTDOWN│───▶│  RUNNING  │───▶│FINISHED │
+└─────────┘    └─────────┘    └─────────┘    └───────────┘    └─────────┘
+    │              │
+    │              │ waitForAudioReady()
+    │              │ (máx 5s timeout)
+    │              │
+    └──────────────┘
+       unlockAudio()
+       initFullPreload()
 ```
 
 ---
 
-### Valores Sugeridos
+### Prioridade de Carregamento
 
-| Categoria | Intervalo Padrão |
-|-----------|------------------|
-| Kids | 10-15s |
-| Juvenil | 15-20s |
-| Adulto | 20-30s |
+O `waitForAudioReady` aguarda por padrão:
+1. `fightModeBg` - Música de fundo (mais pesada)
+2. `hit` - Som de golpe básico
+3. `hitHeavy` - Som de golpe forte
+4. `countdown3` - Primeiro som do countdown
 
-Os presets existentes também podem ser atualizados para incluir valores de intervalo:
-```typescript
-const PRESETS = [
-  { label: 'Kids', duration: 20, vest: 3, helmet: 5, recovery: 10 },
-  { label: 'Juvenil', duration: 45, vest: 2, helmet: 3, recovery: 15 },
-  { label: 'Adulto', duration: 60, vest: 1, helmet: 2, recovery: 20 },
-];
-```
+Para o modo Reação (sem música), pode passar lista vazia ou só hits.
+
+---
+
+### Considerações
+
+**Timeout fallback:**
+- Se após 5 segundos os áudios não estiverem prontos, prossegue mesmo assim
+- Isso evita travamento em conexões muito lentas
+- Console warning é logado para debug
+
+**Progresso visual:**
+- Mostrar % aproximado baseado em `readyState` dos áudios
+- Transição suave de 0% a 100%
+
+**Modo Reação:**
+- Não usa música de fundo atualmente
+- Loading pode ser mais rápido (aguarda apenas hits/countdown)
 
 ---
 
 ### Resultado Esperado
 
-1. Novo slider "INTERVALO" aparece na tela de configuração quando "Melhor de 3" está selecionado
-2. Entre rounds, exibe countdown de recuperação (ex: "Próximo round em 15, 14, 13...")
-3. Atletas têm tempo para descansar e se preparar
-4. Intervalo é customizável de 5s a 60s
-
----
-
-### Seção Técnica
-
-**Estado novo:**
-- `recoveryCountdown: number` - Countdown do intervalo entre rounds
-
-**Props novos no ArcadeSetupScreen:**
-- `recoveryInterval: number`
-- `onRecoveryIntervalChange: (interval: number) => void`
-
-**Config atualizado no ArcadeConfig:**
-- `recoveryIntervalSec: number` (default: 15)
+1. Usuário clica "JOGAR" → tela de loading aparece imediatamente
+2. Barra de progresso mostra carregamento do áudio
+3. Quando pronto (ou após timeout), countdown inicia
+4. Música toca sem delay/falhas
+5. Experiência mais profissional e previsível
