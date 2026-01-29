@@ -1,51 +1,46 @@
 
-## Plano: Buffer de Carregamento de Áudio ✅ CONCLUÍDO
+
+## Plano: Corrigir Sons de Hit
 
 ### Problema Identificado
-A música de fundo (`fightModeBg`) era colocada no **final da fila de preload** e o sistema não aguardava o buffer completar antes de iniciar o countdown. Isso causava atraso/silêncio no início do jogo.
-
-### Solução Implementada
-Criada uma tela de **loading intermediária** que aguarda os áudios críticos ficarem prontos antes de iniciar o countdown.
-
----
-
-### Mudanças Realizadas
-
-| Arquivo | Status |
-|---------|--------|
-| `src/hooks/useSoundEffects.ts` | ✅ Adicionada função `waitForAudioReady()` e `getAudioProgress()` |
-| `src/contexts/SoundContext.tsx` | ✅ Novas funções expostas automaticamente via return type |
-| `src/components/game/LoadingScreen.tsx` | ✅ **NOVO** - Tela de carregamento com progresso |
-| `src/types/game.ts` | ✅ Adicionado `'loading'` ao GameState |
-| `src/pages/Index.tsx` | ✅ Integrado LoadingScreen entre setup e countdown |
-| `src/components/game/SetupScreen.tsx` | ✅ Simplificado - removido delay de 800ms |
-| `src/components/game/ArcadeSetupScreen.tsx` | ✅ Simplificado - removido delay de 800ms |
-| `src/components/game/ReactionSetupScreen.tsx` | ✅ Adicionado unlock e preload no start |
-| `src/hooks/useGameState.ts` | ✅ Adicionado `goToLoading()` |
-| `src/hooks/useArcadeState.ts` | ✅ Adicionado `goToLoading()` |
-| `src/hooks/useReactionState.ts` | ✅ Adicionado `goToLoading()` |
-
----
-
-### Fluxo Implementado
-
-```text
-┌─────────┐    ┌─────────┐    ┌─────────┐    ┌───────────┐    ┌─────────┐
-│  SETUP  │───▶│ LOADING │───▶│COUNTDOWN│───▶│  RUNNING  │───▶│FINISHED │
-└─────────┘    └─────────┘    └─────────┘    └───────────┘    └─────────┘
-                    │
-                    │ waitForAudioReady()
-                    │ (máx 5s timeout)
-                    ▼
-            Barra de progresso
-              mostra % real
+Os arquivos de som `hit.mp3` e `hit-heavy.mp3` em `public/sounds/` estão **vazios (0 bytes)**, causando o erro:
+```
+[Sound] Failed to play hit: The element has no supported sources.
 ```
 
+### Solução
+Copiar o arquivo `HIT_TRONCO.mp3` que você enviou para substituir os arquivos de hit.
+
 ---
 
-### Características
+### Arquivos a Modificar
 
-- **Timeout fallback**: 5 segundos máximo - nunca trava
-- **Progresso visual**: Barra mostra % real baseado em readyState dos áudios
-- **Modo Reação**: Loading mais rápido (skipBgMusic=true)
-- **UX profissional**: Transição suave com feedback visual
+| Ação | Arquivo |
+|------|---------|
+| Copiar | `user-uploads://HIT_TRONCO.mp3` → `public/sounds/hit.mp3` |
+| Copiar | `user-uploads://HIT_TRONCO.mp3` → `public/sounds/hit-heavy.mp3` |
+
+---
+
+### Detalhes Técnicos
+
+O sistema de áudio em `useSoundEffects.ts` já referencia corretamente:
+```typescript
+const FALLBACK_PATHS: Record<SoundName, string> = {
+  hit: '/sounds/hit.mp3',        // <- arquivo vazio atualmente
+  hitHeavy: '/sounds/hit-heavy.mp3', // <- arquivo vazio atualmente
+  // ...
+};
+```
+
+Ao substituir os arquivos vazios pelo `HIT_TRONCO.mp3`:
+1. O pool de áudio vai carregar o som corretamente
+2. O `readyState` vai alcançar >= 2 (HAVE_CURRENT_DATA)
+3. Os hits vão tocar durante o jogo
+
+---
+
+### Observação
+
+Se você tiver um som diferente para o "hit-heavy" (golpe forte), pode enviar outro arquivo. Caso contrário, usarei o mesmo `HIT_TRONCO.mp3` para ambos.
+
