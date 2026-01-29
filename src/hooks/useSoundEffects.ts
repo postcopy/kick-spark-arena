@@ -164,8 +164,13 @@ export function useSoundEffects() {
     bg.volume = volume;
     bgMusicAudio.current = bg;
 
-    // Fase 1.5: Preload IMEDIATO dos sons mais críticos (hit, hitHeavy)
-    // Isso não requer interação do usuário, só baixa os arquivos
+    // Fase 1.5: Preload IMEDIATO dos sons mais críticos
+    // Música de fundo PRIMEIRO - é o maior arquivo e precisa de mais tempo
+    if (bgMusicAudio.current) {
+      bgMusicAudio.current.preload = 'auto';
+      bgMusicAudio.current.load();
+    }
+
     const criticalPool = audioPool.current.get('hit');
     if (criticalPool?.[0]) {
       criticalPool[0].preload = 'auto';
@@ -238,25 +243,26 @@ export function useSoundEffects() {
     if (preloadStarted.current) return;
     preloadStarted.current = true;
 
-    // PRIORIZAR sons críticos primeiro
-    const criticalSounds: SoundName[] = ['hit', 'hitHeavy', 'combo', 'countdown3', 'countdown2', 'countdown1', 'countdownGo'];
+    // fightModeBg PRIMEIRO no batch crítico - é o maior arquivo
+    const criticalSounds: SoundName[] = ['fightModeBg', 'hit', 'hitHeavy', 'countdown3'];
     
     const criticalAudios: HTMLAudioElement[] = [];
     const otherAudios: HTMLAudioElement[] = [];
     
+    // Música de fundo primeiro
+    if (bgMusicAudio.current) {
+      criticalAudios.push(bgMusicAudio.current);
+    }
+    
     audioPool.current.forEach((pool, name) => {
-      if (criticalSounds.includes(name)) {
+      if (criticalSounds.includes(name) && name !== 'fightModeBg') {
         pool.forEach(a => criticalAudios.push(a));
       } else {
         pool.forEach(a => otherAudios.push(a));
       }
     });
-    
-    if (bgMusicAudio.current) {
-      otherAudios.push(bgMusicAudio.current);
-    }
 
-    // Carregar críticos primeiro, depois os outros
+    // Carregar críticos primeiro (música + hits + countdown), depois os outros
     const audios = [...criticalAudios, ...otherAudios];
 
     let i = 0;
