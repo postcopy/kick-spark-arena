@@ -127,6 +127,11 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     setGameState('setup');
   }, [resetGame]);
 
+  // Go to loading state (before countdown)
+  const goToLoading = useCallback(() => {
+    setGameState('loading');
+  }, []);
+
   // Reset for new round
   const resetRound = useCallback(() => {
     setRedState(createInitialPlayerState(fullConfig.startingHP));
@@ -454,6 +459,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     
     // Actions
     goToSetup,
+    goToLoading,
     startCountdown,
     resetGame,
     registerKick,

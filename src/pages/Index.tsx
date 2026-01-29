@@ -8,6 +8,7 @@ import { useSound } from '@/contexts/SoundContext';
 import { WelcomeScreen } from '@/components/game/WelcomeScreen';
 import { HomeScreen } from '@/components/game/HomeScreen';
 import { SetupScreen } from '@/components/game/SetupScreen';
+import { LoadingScreen } from '@/components/game/LoadingScreen';
 import { CountdownScreen } from '@/components/game/CountdownScreen';
 import { GameScreen } from '@/components/game/GameScreen';
 import { FinishedScreen } from '@/components/game/FinishedScreen';
@@ -308,7 +309,7 @@ const Index = () => {
     );
   } else if (gameMode === 'time_attack') {
     // Time Attack Mode
-    const { gameState, scores, timeLeft, countdown, lastResult, flashSide, goToSetup, startCountdown } = timeAttackState;
+    const { gameState, scores, timeLeft, countdown, lastResult, flashSide, goToSetup, goToLoading, startCountdown } = timeAttackState;
 
     // Check if can start (for individual mode, need athlete selected)
     const canStart = timeAttackVariant === 'duo' || (timeAttackVariant === 'individual' && selectedAthlete !== null);
@@ -318,7 +319,7 @@ const Index = () => {
       case 'setup':
         content = (
           <SetupScreen
-            onStart={() => canStart && startCountdown()}
+            onStart={() => canStart && goToLoading()}
             onBack={handleBackToMenu}
             duration={duration}
             onDurationChange={setDuration}
@@ -326,6 +327,13 @@ const Index = () => {
             onVariantChange={setTimeAttackVariant}
             selectedAthlete={selectedAthlete}
             onAthleteChange={setSelectedAthlete}
+          />
+        );
+        break;
+      case 'loading':
+        content = (
+          <LoadingScreen 
+            onReady={() => startCountdown()} 
           />
         );
         break;
@@ -357,14 +365,14 @@ const Index = () => {
     }
   } else if (gameMode === 'arcade') {
     // Arcade Mode
-    const { gameState, countdown, lastResult, goToSetup, startCountdown } = arcadeState;
+    const { gameState, countdown, lastResult, goToSetup, goToLoading, startCountdown } = arcadeState;
 
     switch (gameState) {
       case 'idle':
       case 'setup':
         content = (
           <ArcadeSetupScreen
-            onStart={startCountdown}
+            onStart={goToLoading}
             onBack={handleBackToMenu}
             roundDuration={roundDuration}
             onRoundDurationChange={setRoundDuration}
@@ -376,6 +384,13 @@ const Index = () => {
             onBestOfChange={setBestOf}
             recoveryInterval={recoveryInterval}
             onRecoveryIntervalChange={setRecoveryInterval}
+          />
+        );
+        break;
+      case 'loading':
+        content = (
+          <LoadingScreen 
+            onReady={() => startCountdown()} 
           />
         );
         break;
@@ -397,7 +412,7 @@ const Index = () => {
     }
   } else if (gameMode === 'reaction') {
     // Reaction Mode
-    const { gameState, countdown, lastResult, goToSetup, startCountdown } = reactionState;
+    const { gameState, countdown, lastResult, goToSetup, goToLoading, startCountdown } = reactionState;
 
     switch (gameState) {
       case 'idle':
@@ -406,8 +421,16 @@ const Index = () => {
           <ReactionSetupScreen
             level={reactionLevel}
             onLevelChange={setReactionLevel}
-            onStart={startCountdown}
+            onStart={goToLoading}
             onBack={handleBackToMenu}
+          />
+        );
+        break;
+      case 'loading':
+        content = (
+          <LoadingScreen 
+            onReady={() => startCountdown()} 
+            skipBgMusic={true}  // Reaction mode doesn't use background music
           />
         );
         break;

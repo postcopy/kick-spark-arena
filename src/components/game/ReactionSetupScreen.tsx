@@ -1,5 +1,6 @@
 import { ArrowLeft, Zap, Clock, LayoutGrid, CircleDot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useSound } from '@/contexts/SoundContext';
 import type { ReactionLevel } from '@/types/reaction';
 import { REACTION_PRESETS, LEVEL_LABELS } from '@/types/reaction';
 
@@ -18,6 +19,13 @@ export function ReactionSetupScreen({
   onStart, 
   onBack 
 }: ReactionSetupScreenProps) {
+  const { unlockAudio, initFullPreload } = useSound();
+  
+  const handleStart = () => {
+    unlockAudio();
+    initFullPreload();
+    onStart(); // Goes to loading state now
+  };
   const config = REACTION_PRESETS[level];
   const totalMinutes = Math.floor(config.sessionSeconds / 60);
 
@@ -127,7 +135,7 @@ export function ReactionSetupScreen({
       {/* Footer */}
       <footer className="flex-shrink-0 p-4 border-t border-border">
         <Button 
-          onClick={onStart}
+          onClick={handleStart}
           size="lg"
           className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-6"
         >

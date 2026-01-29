@@ -47,16 +47,11 @@ export function ArcadeSetupScreen({
   onRecoveryIntervalChange,
 }: ArcadeSetupScreenProps) {
   const { unlockAudio, initFullPreload } = useSound();
-  const [isPreparing, setIsPreparing] = useState(false);
 
   const handleStart = () => {
     unlockAudio();
     initFullPreload();
-    setIsPreparing(true);
-    setTimeout(() => {
-      setIsPreparing(false);
-      onStart();
-    }, 800);
+    onStart(); // Goes to loading state now
   };
 
   const applyPreset = (preset: typeof PRESETS[0]) => {
@@ -243,11 +238,10 @@ export function ArcadeSetupScreen({
           <Button
             size="default"
             onClick={handleStart}
-            disabled={isPreparing}
             className="flex-1 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-base md:text-lg"
           >
             <Swords className="w-4 h-4 md:w-5 md:h-5" />
-            {isPreparing ? 'Preparando...' : 'INICIAR DUELO'}
+            INICIAR DUELO
           </Button>
         </div>
         <div className="mt-2 md:mt-3 text-center text-xs md:text-sm text-muted-foreground">
