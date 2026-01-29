@@ -1,24 +1,17 @@
 
 
-## Plano: Corrigir Sons de Hit
+## Plano: Substituir Música de Fundo por Versão de Melhor Qualidade
 
-### Problema Identificado
-Os arquivos de som `hit.mp3` e `hit-heavy.mp3` em `public/sounds/` estão **vazios (0 bytes)**, causando o erro:
-```
-[Sound] Failed to play hit: The element has no supported sources.
-```
-
-### Solução
-Copiar o arquivo `HIT_TRONCO.mp3` que você enviou para substituir os arquivos de hit.
+### Objetivo
+Substituir a música de fundo do modo de jogo pela nova versão de maior qualidade agora que o sistema de buffering está funcionando.
 
 ---
 
-### Arquivos a Modificar
+### Arquivo a Modificar
 
 | Ação | Arquivo |
 |------|---------|
-| Copiar | `user-uploads://HIT_TRONCO.mp3` → `public/sounds/hit.mp3` |
-| Copiar | `user-uploads://HIT_TRONCO.mp3` → `public/sounds/hit-heavy.mp3` |
+| Copiar | `user-uploads://Fight_Mode_-_Sulsport-2.mp3` → `public/sounds/fight-mode-bg.mp3` |
 
 ---
 
@@ -27,20 +20,21 @@ Copiar o arquivo `HIT_TRONCO.mp3` que você enviou para substituir os arquivos d
 O sistema de áudio em `useSoundEffects.ts` já referencia corretamente:
 ```typescript
 const FALLBACK_PATHS: Record<SoundName, string> = {
-  hit: '/sounds/hit.mp3',        // <- arquivo vazio atualmente
-  hitHeavy: '/sounds/hit-heavy.mp3', // <- arquivo vazio atualmente
+  fightModeBg: '/sounds/fight-mode-bg.mp3',  // <- será substituído
   // ...
 };
 ```
 
-Ao substituir os arquivos vazios pelo `HIT_TRONCO.mp3`:
-1. O pool de áudio vai carregar o som corretamente
-2. O `readyState` vai alcançar >= 2 (HAVE_CURRENT_DATA)
-3. Os hits vão tocar durante o jogo
+A nova música será carregada automaticamente pelo sistema de buffering (`LoadingScreen`) que:
+1. Aguarda o `readyState >= 3` antes de iniciar o countdown
+2. Mostra progresso de carregamento em tempo real
+3. Garante que a música toca sem delay
 
 ---
 
-### Observação
+### Resultado Esperado
 
-Se você tiver um som diferente para o "hit-heavy" (golpe forte), pode enviar outro arquivo. Caso contrário, usarei o mesmo `HIT_TRONCO.mp3` para ambos.
+- Música de fundo com melhor qualidade sonora
+- Mesmo comportamento de carregamento (buffering antes de iniciar)
+- Nenhuma mudança de código necessária
 
