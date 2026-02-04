@@ -1,4 +1,5 @@
-import { Timer, Swords, Zap, Eye } from 'lucide-react';
+import { Timer, Swords, Zap, Eye, Trophy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import logoSfighter from '@/assets/logo-sfighter.png';
 import { UseSerialPortReturn } from '@/types/serial';
 import { MenuDrawer } from './MenuDrawer';
@@ -15,11 +16,16 @@ interface HomeScreenProps {
 export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   const { user } = useAuth();
   const { unlockAudio, initFullPreload } = useSound();
+  const navigate = useNavigate();
 
   const handleSelectMode = (mode: GameMode) => {
     unlockAudio();
     initFullPreload();
     onSelectMode(mode);
+  };
+
+  const handleChampionship = () => {
+    navigate('/championship/mat');
   };
 
   return (
@@ -55,12 +61,12 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           Toque para começar
         </p>
 
-        {/* Botões de Modo - Grid responsivo */}
-        <div className="w-full max-w-lg lg:max-w-4xl grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-4">
+        {/* Botões de Modo - Grid responsivo 2x2 em desktop */}
+        <div className="w-full max-w-lg lg:max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-4">
           {/* Time Attack */}
           <button
             onClick={() => handleSelectMode('time_attack')}
-            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[140px]"
+            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-yellow/20 to-game-yellow/5 border-2 border-game-yellow/50 rounded-2xl hover:border-game-yellow hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[120px]"
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
@@ -90,7 +96,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           {/* Arcade Duel */}
           <button
             onClick={() => handleSelectMode('arcade')}
-            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[140px]"
+            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-game-red/20 to-game-red/5 border-2 border-game-red/50 rounded-2xl hover:border-game-red hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[120px]"
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
@@ -120,7 +126,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           {/* Reaction */}
           <button
             onClick={() => handleSelectMode('reaction')}
-            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-green-500/20 to-green-500/5 border-2 border-green-500/50 rounded-2xl hover:border-green-500 hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[140px]"
+            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-green-500/20 to-green-500/5 border-2 border-green-500/50 rounded-2xl hover:border-green-500 hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[120px]"
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
@@ -142,6 +148,35 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
                 <Zap className="w-4 h-4 text-green-500/70" />
                 <span className="text-xs text-green-500/70">
                   Turma inteira
+                </span>
+              </div>
+            </div>
+          </button>
+
+          {/* Championship */}
+          <button
+            onClick={handleChampionship}
+            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-purple-500/20 to-purple-500/5 border-2 border-purple-500/50 rounded-2xl hover:border-purple-500 hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[120px]"
+          >
+            <div className="flex flex-col h-full">
+              <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
+                <div className="p-2 md:p-3 bg-purple-500/20 rounded-xl group-hover:bg-purple-500/30 transition-colors lg:mb-2">
+                  <Trophy className="w-6 h-6 md:w-7 md:h-7 text-purple-500" />
+                </div>
+                
+                <div className="flex-1 lg:flex-none text-left lg:text-center">
+                  <h2 className="text-base md:text-lg lg:text-xl font-bold text-foreground">
+                    CAMPEONATO
+                  </h2>
+                  <p className="text-sm text-purple-500 font-medium">
+                    Placar profissional
+                  </p>
+                </div>
+              </div>
+              
+              <div className="hidden lg:flex items-center justify-center gap-2 mt-auto pt-2">
+                <span className="text-xs text-purple-500/70 bg-purple-500/10 px-2 py-0.5 rounded">
+                  2 telas
                 </span>
               </div>
             </div>
