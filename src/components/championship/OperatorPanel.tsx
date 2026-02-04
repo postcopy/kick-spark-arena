@@ -10,7 +10,8 @@ import {
   Monitor,
   Plus,
   Minus,
-  Undo2
+  Undo2,
+  Usb
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MatchState, MatchSide } from '@/types/championship';
@@ -18,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { ScoreAdjustDialog } from './ScoreAdjustDialog';
 import { EventLogDialog } from './EventLogDialog';
+import type { UseSerialPortReturn } from '@/types/serial';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,9 +51,10 @@ interface OperatorPanelProps {
   };
   onOpenTV: () => void;
   isTVOpen: boolean;
+  serialPort?: UseSerialPortReturn;
 }
 
-export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPanelProps) {
+export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort }: OperatorPanelProps) {
   const navigate = useNavigate();
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
@@ -279,11 +282,56 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-zinc-500" />
-              <span className="text-zinc-400">Hardware não conectado</span>
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                serialPort?.isConnected ? "bg-green-500" : "bg-zinc-500"
+              )} />
+              <span className={serialPort?.isConnected ? "text-green-400" : "text-zinc-400"}>
+                {serialPort?.isConnected ? "Hardware conectado" : "Hardware não conectado"}
+              </span>
             </div>
           </div>
         </section>
+        
+        {/* HARDWARE */}
+        {serialPort && (
+          <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
+            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+              HARDWARE
+            </h3>
+            <div className="space-y-3">
+              <Button
+                onClick={serialPort.isConnected ? serialPort.disconnect : serialPort.connect}
+                disabled={serialPort.isConnecting}
+                className={cn(
+                  "w-full h-10 rounded-md font-bold text-sm uppercase",
+                  serialPort.isConnected
+                    ? "bg-zinc-700 hover:bg-zinc-600"
+                    : "bg-purple-600 hover:bg-purple-500 text-white"
+                )}
+              >
+                <Usb className="w-4 h-4 mr-2" />
+                {serialPort.isConnecting 
+                  ? 'CONECTANDO...' 
+                  : serialPort.isConnected 
+                    ? 'DESCONECTAR USB' 
+                    : 'CONECTAR USB'}
+              </Button>
+              
+              {serialPort.error && (
+                <p className="text-xs text-[hsl(var(--sulsport-red-light))]">
+                  {serialPort.error}
+                </p>
+              )}
+              
+              {!serialPort.isSupported && (
+                <p className="text-xs text-[hsl(var(--sulsport-yellow))]">
+                  Web Serial não suportado. Use Chrome ou Edge.
+                </p>
+              )}
+            </div>
+          </section>
+        )}
         
         {/* CONFIGURAÇÕES */}
         <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
