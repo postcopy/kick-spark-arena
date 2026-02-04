@@ -1,8 +1,61 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { formatTime } from '@/types/championship';
+import { formatTime, MatchEvent, ScoreType } from '@/types/championship';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { cn } from '@/lib/utils';
+
+// Calculate match statistics from events
+interface MatchStats {
+  blue: {
+    punch: number;
+    body: number;
+    head: number;
+    spinBody: number;
+    spinHead: number;
+    totalHits: number;
+    totalPoints: number;
+  };
+  red: {
+    punch: number;
+    body: number;
+    head: number;
+    spinBody: number;
+    spinHead: number;
+    totalHits: number;
+    totalPoints: number;
+  };
+}
+
+function calculateMatchStats(events: MatchEvent[]): MatchStats {
+  const scoreTypes: ScoreType[] = ['PUNCH', 'BODY', 'HEAD', 'SPIN_BODY', 'SPIN_HEAD'];
+  
+  const stats: MatchStats = {
+    blue: { punch: 0, body: 0, head: 0, spinBody: 0, spinHead: 0, totalHits: 0, totalPoints: 0 },
+    red: { punch: 0, body: 0, head: 0, spinBody: 0, spinHead: 0, totalHits: 0, totalPoints: 0 },
+  };
+  
+  events.forEach(event => {
+    if (!event.side || !scoreTypes.includes(event.type as ScoreType)) return;
+    
+    const side = event.side === 'BLUE' ? 'blue' : 'red';
+    const points = event.points || 0;
+    
+    // Only count if it has points (scored hit, not just touch)
+    if (points > 0) {
+      switch (event.type) {
+        case 'PUNCH': stats[side].punch++; break;
+        case 'BODY': stats[side].body++; break;
+        case 'HEAD': stats[side].head++; break;
+        case 'SPIN_BODY': stats[side].spinBody++; break;
+        case 'SPIN_HEAD': stats[side].spinHead++; break;
+      }
+      stats[side].totalHits++;
+      stats[side].totalPoints += points;
+    }
+  });
+  
+  return stats;
+}
 
 export default function ChampionshipTV() {
   const [searchParams] = useSearchParams();
@@ -242,13 +295,25 @@ export default function ChampionshipTV() {
         const getFlag = (code?: string) => {
           if (!code) return null;
           const upper = code.toUpperCase();
-          return countryFlags[upper] || upper; // Fallback to code (BRA/KOR)
+          return countryFlags[upper] || upper;
         };
         
         const flagDisplay = getFlag(winnerCountry);
         
+        // Calculate stats from events (points-based, not just touches)
+        const stats = calculateMatchStats(state.events);
+        
+        // Stats rows configuration
+        const statRows = [
+          { key: 'punch' as const, label: 'SOCOS' },
+          { key: 'body' as const, label: 'CORPO' },
+          { key: 'head' as const, label: 'CABEÇA' },
+          { key: 'spinBody' as const, label: 'GIRO CORPO' },
+          { key: 'spinHead' as const, label: 'GIRO CABEÇA' },
+        ];
+        
         return (
-          <div className="absolute inset-0 bg-[hsl(var(--sulsport-black))] flex flex-col items-center justify-center z-50 animate-in fade-in duration-500">
+          <div className="absolute inset-0 bg-[hsl(var(--sulsport-black))] flex flex-col items-center justify-center z-50 animate-in fade-in duration-500 overflow-auto py-4">
             {/* Background gradient based on winner */}
             <div className={cn(
               "absolute inset-0 opacity-20",
@@ -257,71 +322,71 @@ export default function ChampionshipTV() {
               isTie && "bg-gradient-to-br from-[hsl(var(--sulsport-yellow))] to-transparent"
             )} />
             
-            <div className="relative z-10 flex flex-col items-center max-w-[90vw]">
+            <div className="relative z-10 flex flex-col items-center max-w-[90vw] w-full">
               {/* Header: MATCH 001 RESULT */}
-              <div className="text-center mb-8">
+              <div className="text-center mb-4">
                 <h1 
                   className="font-black text-white uppercase tracking-[0.2em]"
-                  style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}
+                  style={{ fontSize: 'clamp(1.5rem, 4vw, 3.5rem)' }}
                 >
                   MATCH {state.config.matchNumber || '001'} RESULT
                 </h1>
               </div>
               
-              {/* Faixa VENCEDOR/EMPATE + Placar Final (pontos) */}
-              <div className="flex items-stretch mb-8">
+              {/* Faixa VENCEDOR/EMPATE + Placar Final (PONTOS TOTAIS) */}
+              <div className="flex items-stretch mb-4">
                 {/* VENCEDOR / EMPATE - Faixa amarela */}
-                <div className="bg-[hsl(var(--sulsport-yellow))] px-8 py-4 flex items-center">
+                <div className="bg-[hsl(var(--sulsport-yellow))] px-6 py-3 flex items-center">
                   <span 
                     className="font-black text-black uppercase"
-                    style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}
+                    style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
                   >
                     {isTie ? 'EMPATE' : 'VENCEDOR'}
                   </span>
                 </div>
                 
-                {/* Placar Final AZUL (pontos) */}
-                <div className="bg-[hsl(var(--sulsport-blue))] px-6 py-4 flex flex-col items-center justify-center min-w-[80px]">
+                {/* Placar Final AZUL (total points from events) */}
+                <div className="bg-[hsl(var(--sulsport-blue))] px-5 py-3 flex flex-col items-center justify-center min-w-[70px]">
                   <span 
                     className="font-black text-white tabular-nums leading-none"
-                    style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)' }}
+                    style={{ fontSize: 'clamp(1.75rem, 3.5vw, 3rem)' }}
                   >
-                    {state.roundScoreBlue}
+                    {stats.blue.totalPoints}
                   </span>
                 </div>
                 
-                {/* Placar Final VERMELHO (pontos) */}
-                <div className="bg-[hsl(var(--sulsport-red))] px-6 py-4 flex flex-col items-center justify-center min-w-[80px]">
+                {/* Placar Final VERMELHO (total points from events) */}
+                <div className="bg-[hsl(var(--sulsport-red))] px-5 py-3 flex flex-col items-center justify-center min-w-[70px]">
                   <span 
                     className="font-black text-white tabular-nums leading-none"
-                    style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)' }}
+                    style={{ fontSize: 'clamp(1.75rem, 3.5vw, 3rem)' }}
                   >
-                    {state.roundScoreRed}
+                    {stats.red.totalPoints}
                   </span>
                 </div>
               </div>
               
               {/* Rounds ganhos - Secundário */}
-              <div className="flex items-center gap-4 mb-8 text-white/60">
-                <span className="uppercase tracking-wider" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>
+              <div className="flex items-center gap-3 mb-4 text-white/60">
+                <span className="uppercase tracking-wider" style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}>
                   Rounds:
                 </span>
-                <span className="font-bold text-[hsl(var(--sulsport-blue-light))]" style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
+                <span className="font-bold text-[hsl(var(--sulsport-blue-light))]" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>
                   {state.roundWinsBlue}
                 </span>
                 <span>x</span>
-                <span className="font-bold text-[hsl(var(--sulsport-red-light))]" style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
+                <span className="font-bold text-[hsl(var(--sulsport-red-light))]" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>
                   {state.roundWinsRed}
                 </span>
               </div>
               
               {/* Nome do Vencedor ou ambos em caso de empate */}
               {!isTie ? (
-                <div className="flex items-stretch">
+                <div className="flex items-stretch mb-6">
                   {/* Bandeira/País */}
                   {flagDisplay && (
-                    <div className="bg-zinc-800 px-6 flex items-center justify-center border-r border-white/20">
-                      <span style={{ fontSize: 'clamp(2rem, 4vw, 4rem)' }}>
+                    <div className="bg-zinc-800 px-4 flex items-center justify-center border-r border-white/20">
+                      <span style={{ fontSize: 'clamp(1.5rem, 3vw, 3rem)' }}>
                         {flagDisplay}
                       </span>
                     </div>
@@ -329,12 +394,12 @@ export default function ChampionshipTV() {
                   
                   {/* Nome do Vencedor */}
                   <div className={cn(
-                    "px-12 py-6 flex items-center",
+                    "px-8 py-4 flex items-center",
                     isBlueWinner ? "bg-[hsl(var(--sulsport-blue))]" : "bg-[hsl(var(--sulsport-red))]"
                   )}>
                     <span 
                       className="font-black text-white uppercase"
-                      style={{ fontSize: 'clamp(2.5rem, 6vw, 5rem)' }}
+                      style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}
                     >
                       {winnerName}
                     </span>
@@ -342,31 +407,128 @@ export default function ChampionshipTV() {
                 </div>
               ) : (
                 /* Empate - Mostra ambos os nomes */
-                <div className="flex items-center gap-4">
-                  <div className="bg-[hsl(var(--sulsport-blue))] px-8 py-4">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="bg-[hsl(var(--sulsport-blue))] px-6 py-3">
                     <span 
                       className="font-bold text-white uppercase"
-                      style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}
+                      style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
                     >
                       {state.config.athleteBlue?.name || 'CHUNG'}
                     </span>
                   </div>
                   <span 
                     className="text-white/60 font-bold"
-                    style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}
+                    style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
                   >
                     vs
                   </span>
-                  <div className="bg-[hsl(var(--sulsport-red))] px-8 py-4">
+                  <div className="bg-[hsl(var(--sulsport-red))] px-6 py-3">
                     <span 
                       className="font-bold text-white uppercase"
-                      style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}
+                      style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
                     >
                       {state.config.athleteRed?.name || 'HONG'}
                     </span>
                   </div>
                 </div>
               )}
+              
+              {/* ESTATÍSTICAS DA LUTA - Modo compacto para 720p */}
+              <div className="w-full max-w-[600px]">
+                <div className="bg-black/60 rounded-lg p-4 border border-white/10">
+                  <h2 
+                    className="text-center text-white/50 uppercase tracking-[0.2em] mb-3 font-bold"
+                    style={{ fontSize: 'clamp(0.75rem, 1.5vw, 1rem)' }}
+                  >
+                    Estatísticas (Golpes Pontuados)
+                  </h2>
+                  
+                  {/* Grid compacto de stats */}
+                  <div className="grid grid-cols-3 gap-y-1 text-center">
+                    {/* Header */}
+                    <div 
+                      className="text-[hsl(var(--sulsport-blue-light))] font-bold uppercase"
+                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                    >
+                      AZUL
+                    </div>
+                    <div></div>
+                    <div 
+                      className="text-[hsl(var(--sulsport-red-light))] font-bold uppercase"
+                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                    >
+                      VERMELHO
+                    </div>
+                    
+                    {/* Stats rows */}
+                    {statRows.map(({ key, label }) => (
+                      <Fragment key={key}>
+                        <div 
+                          className="text-[hsl(var(--sulsport-blue-light))] font-bold tabular-nums"
+                          style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
+                        >
+                          {stats.blue[key]}
+                        </div>
+                        <div 
+                          className="text-white/50 uppercase"
+                          style={{ fontSize: 'clamp(0.5rem, 0.9vw, 0.75rem)' }}
+                        >
+                          {label}
+                        </div>
+                        <div 
+                          className="text-[hsl(var(--sulsport-red-light))] font-bold tabular-nums"
+                          style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
+                        >
+                          {stats.red[key]}
+                        </div>
+                      </Fragment>
+                    ))}
+                    
+                    {/* Separator */}
+                    <div className="col-span-3 border-t border-white/20 my-2"></div>
+                    
+                    {/* Total Hits */}
+                    <div 
+                      className="text-[hsl(var(--sulsport-blue-light))] font-black tabular-nums"
+                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
+                    >
+                      {stats.blue.totalHits}
+                    </div>
+                    <div 
+                      className="text-white font-bold uppercase"
+                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                    >
+                      TOTAL GOLPES
+                    </div>
+                    <div 
+                      className="text-[hsl(var(--sulsport-red-light))] font-black tabular-nums"
+                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
+                    >
+                      {stats.red.totalHits}
+                    </div>
+                    
+                    {/* Gam-jeoms */}
+                    <div 
+                      className="text-[hsl(var(--sulsport-blue-light))] font-black tabular-nums"
+                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
+                    >
+                      {state.gamjeomBlue}
+                    </div>
+                    <div 
+                      className="text-white font-bold uppercase"
+                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                    >
+                      GAM-JEOM
+                    </div>
+                    <div 
+                      className="text-[hsl(var(--sulsport-red-light))] font-black tabular-nums"
+                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
+                    >
+                      {state.gamjeomRed}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         );
