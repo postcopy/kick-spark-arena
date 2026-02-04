@@ -1,287 +1,250 @@
 
-# Plano: Refinamento Visual Final Sulsport
+# Fix: Substituir Inputs por Selects no ChampionshipSetup
 
-## Confirmação CSS Variables
-As variáveis Sulsport estão em **formato HSL triplet**:
-```css
---sulsport-yellow: 45 93% 47%;
+## Problema
+Os campos `<Input type="number">` para Minutos/Segundos estao concatenando digitos quando o usuario digita:
+- Input mostra `1` minuto
+- Usuario digita `2`
+- Resultado: `12` minutos (em vez de substituir para `2`)
+
+Alem disso, o codigo atual tem bug de **stale state** - usa `roundTime.seconds` (valor derivado) em vez de ler de `prev` no callback.
+
+---
+
+## Solucao
+
+Substituir os 6 inputs numericos por componentes `<Select>` com opcoes predefinidas e corrigir o stale state.
+
+---
+
+## Mudancas no Codigo
+
+### 1. Adicionar Import do Select
+
+```text
+Linha 5: Adicionar import do Select apos o Input
 ```
-✅ Portanto, `hsl(var(--sulsport-x))` está **correto** e não precisa mudar.
-
----
-
-## Arquivos a Modificar
-
-| # | Arquivo | Mudanças |
-|---|---------|----------|
-| 1 | `src/types/championship.ts` | Adicionar `matchNumber?: string` ao MatchConfig |
-| 2 | `src/components/championship/ScoreboardMain.tsx` | Centro: faixa `h-20`, matchNumber, status PAUSADO/T.MÉDICO no lugar certo |
-| 3 | `src/pages/ChampionshipTV.tsx` | Remover TODOS os badges, faixa fina, overlay VENCEDOR só em MATCH_END |
-
----
-
-## 1. MatchConfig - Adicionar matchNumber
 
 ```typescript
-// Adicionar em MatchConfig (após matId):
-matchNumber?: string;  // "001", "002", etc.
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 ```
 
----
+### 2. Criar Arrays de Opcoes
 
-## 2. ScoreboardMain.tsx - Centro Redesenhado
-
-### Estrutura Atual (Problema)
 ```text
-┌──────────────────┐
-│      MATCH       │ ← Sem número
-├──────────────────┤
-│                  │
-│     1:30         │ ← flex-1 (bloco grande)
-│                  │
-├──────────────────┤
-│      ROUND 1     │
-├──────────────────┤
-│    T. MÉDICO     │ ← Posição errada (embaixo)
-└──────────────────┘
+Linha 99 (apos breakTime): Adicionar arrays de opcoes
 ```
 
-### Nova Estrutura (Sulsport)
+```typescript
+// Options for time selects - avoid concatenation bug
+const minuteOptions = Array.from({ length: 16 }, (_, i) => i); // 0..15
+const secondOptions = Array.from({ length: 12 }, (_, i) => i * 5); // 0,5,10...55
+```
+
+### 3. Substituir os 6 Inputs por Selects
+
+#### 3.1 Tempo de Round - Minutos (linhas 143-153)
+
 ```text
-┌──────────────────┐
-│      MATCH       │ ← Label
-│       001        │ ← config.matchNumber || "001"
-├──────────────────┤
-│ ████ 1:30 ██████ │ ← h-20 (faixa fina amarela)
-├──────────────────┤
-│     PAUSADO      │ ← Só quando !isRunning && !isMatchEnd
-├──────────────────┤
-│      ROUND       │
-│        1         │
-└──────────────────┘
-(VENCEDOR só quando MATCH_END, integrado no centro)
+Antes:
+<Input type="number" min={0} max={10} value={roundTime.minutes} onChange={...} />
+
+Depois:
 ```
-
-### Mudanças Específicas
-
-**Linhas 71-130 - Coluna Central:**
 
 ```tsx
-{/* CENTER Column - Timer & Round */}
-<div className="w-48 flex flex-col bg-[hsl(var(--sulsport-black))] rounded-lg overflow-hidden">
-  {/* MATCH header + number */}
-  <div className="flex-1 flex flex-col items-center justify-center border-b border-white/10">
-    <span className="text-lg font-bold text-white uppercase tracking-[0.2em]">MATCH</span>
-    <span className="text-2xl font-bold text-white tabular-nums">
-      {state.config.matchNumber || '001'}
-    </span>
-  </div>
-  
-  {/* Timer - Yellow BAND (thin, fixed height h-20) */}
-  <div className={cn(
-    "h-20 flex items-center justify-center",
-    isMedical 
-      ? "bg-[hsl(var(--sulsport-yellow-dark))]" 
-      : "bg-[hsl(var(--sulsport-yellow))]"
-  )}>
-    <div 
-      className={cn(
-        "text-[clamp(36px,6vw,56px)] font-black leading-none tabular-nums text-black",
-        state.timeLeftMs <= 10000 && isRunning && "animate-pulse"
-      )}
-    >
-      {formatTime(state.timeLeftMs)}
-    </div>
-  </div>
-  
-  {/* Status (PAUSADO / T. MÉDICO) - abaixo da faixa amarela */}
-  {!isRunning && !isMatchEnd && (
-    <div className="h-10 flex items-center justify-center bg-[hsl(var(--sulsport-yellow))]/10">
-      <span className="text-sm font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
-        {isMedical ? 'T. MÉDICO' : 'PAUSADO'}
-      </span>
-    </div>
-  )}
-  
-  {/* ROUND info */}
-  <div className="flex-1 flex flex-col items-center justify-center border-t border-white/10">
-    <span className="text-xs text-white/60 uppercase font-bold tracking-wider">ROUND</span>
-    <span className="text-4xl font-black text-white">{state.round}</span>
-  </div>
-  
-  {/* Match winner - só quando MATCH_END, integrado no centro */}
-  {isMatchEnd && (
-    <div className="h-16 flex flex-col items-center justify-center bg-white/5 border-t border-white/10">
-      <div className="text-xs text-white/60 uppercase tracking-wider">VENCEDOR</div>
-      <div className={cn(
-        "text-sm font-black uppercase",
-        state.roundWinsRed > state.roundWinsBlue 
-          ? "text-[hsl(var(--sulsport-red-light))]" 
-          : "text-[hsl(var(--sulsport-blue-light))]"
-      )}>
-        {state.roundWinsRed > state.roundWinsBlue 
-          ? (state.config.athleteRed?.name || 'HONG')
-          : (state.config.athleteBlue?.name || 'CHUNG')
-        }
-      </div>
-    </div>
-  )}
-</div>
+<Select
+  value={String(roundTime.minutes)}
+  onValueChange={(value) => setConfig(prev => {
+    const cur = formatMsToMinSec(prev.roundTimeMs);
+    return {
+      ...prev,
+      roundTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
+    };
+  })}
+>
+  <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    {minuteOptions.map((min) => (
+      <SelectItem key={min} value={String(min)}>
+        {min}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
 ```
 
-**Remover:** Linhas 104-111 (indicador T. MÉDICO duplicado no final)
+#### 3.2 Tempo de Round - Segundos (linhas 157-167)
+
+```tsx
+<Select
+  value={String(roundTime.seconds)}
+  onValueChange={(value) => setConfig(prev => {
+    const cur = formatMsToMinSec(prev.roundTimeMs);
+    return {
+      ...prev,
+      roundTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
+    };
+  })}
+>
+  <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    {secondOptions.map((sec) => (
+      <SelectItem key={sec} value={String(sec)}>
+        {sec.toString().padStart(2, '0')}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+```
+
+#### 3.3 Tempo Medico - Minutos (linhas 181-191)
+
+```tsx
+<Select
+  value={String(medicalTime.minutes)}
+  onValueChange={(value) => setConfig(prev => {
+    const cur = formatMsToMinSec(prev.medicalTimeMs);
+    return {
+      ...prev,
+      medicalTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
+    };
+  })}
+>
+  {/* SelectTrigger + SelectContent com minuteOptions */}
+</Select>
+```
+
+#### 3.4 Tempo Medico - Segundos (linhas 195-205)
+
+```tsx
+<Select
+  value={String(medicalTime.seconds)}
+  onValueChange={(value) => setConfig(prev => {
+    const cur = formatMsToMinSec(prev.medicalTimeMs);
+    return {
+      ...prev,
+      medicalTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
+    };
+  })}
+>
+  {/* SelectTrigger + SelectContent com secondOptions */}
+</Select>
+```
+
+#### 3.5 Intervalo entre Rounds - Minutos (linhas 219-229)
+
+```tsx
+<Select
+  value={String(breakTime.minutes)}
+  onValueChange={(value) => setConfig(prev => {
+    const cur = formatMsToMinSec(prev.breakTimeMs);
+    return {
+      ...prev,
+      breakTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
+    };
+  })}
+>
+  {/* SelectTrigger + SelectContent com minuteOptions */}
+</Select>
+```
+
+#### 3.6 Intervalo entre Rounds - Segundos (linhas 233-243)
+
+```tsx
+<Select
+  value={String(breakTime.seconds)}
+  onValueChange={(value) => setConfig(prev => {
+    const cur = formatMsToMinSec(prev.breakTimeMs);
+    return {
+      ...prev,
+      breakTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
+    };
+  })}
+>
+  {/* SelectTrigger + SelectContent com secondOptions */}
+</Select>
+```
 
 ---
 
-## 3. ChampionshipTV.tsx - 100% Read-Only
+## Resumo das Substituicoes
 
-### Remover Completamente
-
-**Linhas 154-176:** Todos os badges de status
-```tsx
-// REMOVER TUDO ISSO:
-{isMedical && (
-  <span className="px-4 py-1 bg-[hsl(var(--sulsport-yellow))]/20 ...">TEMPO MÉDICO</span>
-)}
-{isRunning && !isMedical && (
-  <span className="px-4 py-1 bg-green-500/20 ...">AO VIVO</span>
-)}
-{isRoundEnd && !isMatchEnd && (
-  <span className="px-4 py-1 bg-[hsl(var(--sulsport-yellow))]/20 ...">FIM ROUND</span>
-)}
-{isMatchEnd && (
-  <span className="px-4 py-1 bg-purple-500/20 ...">FIM LUTA</span>
-)}
-```
-
-**Linhas 231-249:** Barra fixa VENCEDOR no rodapé
-```tsx
-// REMOVER TUDO ISSO:
-{isMatchEnd && (
-  <div className="h-24 bg-gradient-to-r from-...">
-    <div className="text-center">
-      <div className="text-lg ...">VENCEDOR</div>
-      ...
-    </div>
-  </div>
-)}
-```
-
-### Nova Coluna Central (Linhas 120-177)
-
-```tsx
-{/* CENTER Column - Timer & Round */}
-<div className="w-72 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
-  {/* MATCH header + number */}
-  <div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
-    <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
-    <span className="text-4xl font-bold text-white tabular-nums">
-      {state.config.matchNumber || '001'}
-    </span>
-  </div>
-  
-  {/* Timer - Yellow BAND (thin, fixed height h-24) */}
-  <div className={cn(
-    "h-24 flex items-center justify-center",
-    isMedical 
-      ? "bg-[hsl(var(--sulsport-yellow-dark))]" 
-      : "bg-[hsl(var(--sulsport-yellow))]"
-  )}>
-    <div 
-      className={cn(
-        "font-black leading-none tabular-nums text-black",
-        state.timeLeftMs <= 10000 && isRunning && "animate-pulse"
-      )}
-      style={{ fontSize: 'clamp(48px, 8vw, 80px)' }}
-    >
-      {formatTime(state.timeLeftMs)}
-    </div>
-  </div>
-  
-  {/* Status (PAUSADO / T. MÉDICO) - texto simples, NÃO badge */}
-  {!isRunning && !isMatchEnd && (
-    <div className="h-12 flex items-center justify-center">
-      <span className="text-xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
-        {isMedical ? 'T. MÉDICO' : 'PAUSADO'}
-      </span>
-    </div>
-  )}
-  
-  {/* ROUND info */}
-  <div className="flex-1 flex flex-col items-center justify-center border-t border-[hsl(var(--sulsport-gray))]">
-    <span className="text-lg text-white/60 uppercase font-bold tracking-wider">ROUND</span>
-    <span className="text-7xl font-black text-white">{state.round}</span>
-  </div>
-</div>
-```
-
-### Novo Overlay VENCEDOR (após o main layout, antes do fechamento)
-
-```tsx
-{/* VENCEDOR - Overlay discreto SOMENTE quando MATCH_END */}
-{isMatchEnd && (
-  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50">
-    <div className="text-center">
-      <div className="text-3xl text-white/60 uppercase tracking-[0.3em] mb-4">VENCEDOR</div>
-      <div className={cn(
-        "text-7xl font-black uppercase",
-        state.roundWinsRed > state.roundWinsBlue 
-          ? "text-[hsl(var(--sulsport-red-light))]" 
-          : "text-[hsl(var(--sulsport-blue-light))]"
-      )}>
-        {state.roundWinsRed > state.roundWinsBlue 
-          ? (state.config.athleteRed?.name || 'HONG')
-          : (state.config.athleteBlue?.name || 'CHUNG')
-        }
-      </div>
-    </div>
-  </div>
-)}
-```
-
-**Manter:** Linhas 251-257 (barra de empate) - faz sentido manter para decisão do árbitro.
+| Campo | Input Antes | Select Depois |
+|-------|-------------|---------------|
+| Round Time (min) | `type="number" min=0 max=10` | `Select 0-15` |
+| Round Time (seg) | `type="number" min=0 max=59` | `Select 0-55 step 5` |
+| Medical Time (min) | `type="number" min=0 max=5` | `Select 0-15` |
+| Medical Time (seg) | `type="number" min=0 max=59` | `Select 0-55 step 5` |
+| Break Time (min) | `type="number" min=0 max=5` | `Select 0-15` |
+| Break Time (seg) | `type="number" min=0 max=59` | `Select 0-55 step 5` |
 
 ---
 
-## Resumo Visual das Mudanças
+## Correcao do Stale State
 
-### ScoreboardMain - Centro
-| Antes | Depois |
-|-------|--------|
-| Timer `flex-1` (bloco) | Timer `h-20` (faixa fina) |
-| MATCH sem número | MATCH + "001" |
-| T. MÉDICO no fundo | Status abaixo da faixa |
-| Sem PAUSADO | PAUSADO quando pausado |
+O codigo atual tinha este bug:
 
-### ChampionshipTV
-| Antes | Depois |
-|-------|--------|
-| Badges (AO VIVO, FIM LUTA, etc.) | Removidos |
-| Timer `flex-1` (bloco) | Timer `h-24` (faixa fina) |
-| MATCH sem número | MATCH + "001" |
-| Barra fixa VENCEDOR | Overlay central só em MATCH_END |
-| Sem status de pausa | PAUSADO/T.MÉDICO como texto simples |
+```tsx
+// ERRADO - roundTime.seconds e valor derivado, pode estar stale
+onChange={(e) => setConfig(prev => ({
+  ...prev,
+  roundTimeMs: parseMinSecToMs(parseInt(e.target.value), roundTime.seconds) // stale!
+}))}
+```
 
----
+Corrigido para:
 
-## Ordem de Execução
-
-1. `src/types/championship.ts` - Adicionar `matchNumber?: string`
-2. `src/components/championship/ScoreboardMain.tsx` - Redesign centro completo
-3. `src/pages/ChampionshipTV.tsx` - Remover badges, redesign centro, overlay VENCEDOR
+```tsx
+// CORRETO - lê de prev.roundTimeMs dentro do callback
+onValueChange={(value) => setConfig(prev => {
+  const cur = formatMsToMinSec(prev.roundTimeMs); // sempre fresco
+  return {
+    ...prev,
+    roundTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
+  };
+})}
+```
 
 ---
 
-## Critérios de Aceite
+## Criterios de Aceite
 
-| # | Critério | Status |
-|---|----------|--------|
-| 1 | Centro com faixa amarela fina (`h-20`/`h-24`) | ⬜ |
-| 2 | MATCH + matchNumber no topo do centro | ⬜ |
-| 3 | Status PAUSADO/T.MÉDICO abaixo da faixa (texto simples) | ⬜ |
-| 4 | ROUND + número grande embaixo | ⬜ |
-| 5 | TV sem badges (AO VIVO, FIM LUTA removidos) | ⬜ |
-| 6 | TV sem barra fixa VENCEDOR | ⬜ |
-| 7 | VENCEDOR como overlay central só em MATCH_END | ⬜ |
-| 8 | CSS usando `hsl(var(--sulsport-x))` corretamente | ✅ |
+| # | Criterio | Validacao |
+|---|----------|-----------|
+| 1 | Selecionar 1 min + 30 seg | Timer mostra 01:30 na Mesa/TV (90.000ms) |
+| 2 | Segundos apenas valores validos | Select oferece 0, 5, 10, 15...55 |
+| 3 | Minutos de 0 a 15 | Cobre kids (1:00), padrao (2:00), variacoes (5:00+) |
+| 4 | Persistencia localStorage | Reabrir Setup mantem selecao |
+| 5 | Sem bug de concatenacao | Impossivel com Select |
+| 6 | Stale state corrigido | Usa `prev.xxxTimeMs` no callback |
 
+---
+
+## Secao Tecnica
+
+### Arquivo Modificado
+- `src/pages/ChampionshipSetup.tsx`
+
+### Linhas Afetadas
+- Linha 5: Novo import
+- Linha 99: Arrays de opcoes
+- Linhas 143-153: Round Time minutos
+- Linhas 157-167: Round Time segundos
+- Linhas 181-191: Medical Time minutos
+- Linhas 195-205: Medical Time segundos
+- Linhas 219-229: Break Time minutos
+- Linhas 233-243: Break Time segundos
+
+### Dependencias Usadas
+- `@/components/ui/select` (ja existe no projeto)
