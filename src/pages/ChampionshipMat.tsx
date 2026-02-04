@@ -123,14 +123,14 @@ export default function ChampionshipMat() {
           </div>
         </header>
         
-        {/* Scoreboard */}
-        <div className="flex-1 min-h-0">
+        {/* Scoreboard - flex-1 ocupa espaço restante */}
+        <div className="flex-1 min-h-0 overflow-hidden">
           <ScoreboardMain state={sync.state} />
         </div>
         
         {/* Tie Decision */}
         {isTie && (
-          <div className="bg-[hsl(var(--sulsport-yellow))]/10 border-y border-[hsl(var(--sulsport-yellow))]/30 p-4">
+          <div className="shrink-0 bg-[hsl(var(--sulsport-yellow))]/10 border-y border-[hsl(var(--sulsport-yellow))]/30 p-4">
             <div className="text-center mb-3">
               <span className="text-lg font-bold text-[hsl(var(--sulsport-yellow))] uppercase">
                 EMPATE — Declarar Vencedor do Round
@@ -153,18 +153,22 @@ export default function ChampionshipMat() {
           </div>
         )}
         
-        {/* Scoring Buttons */}
-        <ScoringButtons 
-          state={sync.state}
-          onScore={sync.addScore}
-        />
+        {/* Scoring Buttons - shrink-0 para não encolher */}
+        <div className="shrink-0">
+          <ScoringButtons 
+            state={sync.state}
+            onScore={sync.addScore}
+          />
+        </div>
         
-        {/* Event Log */}
-        <EventLog 
-          events={sync.state.events}
-          onUndo={sync.undoLast}
-          canUndo={sync.canUndo}
-        />
+        {/* Event Log - shrink-0 para não encolher */}
+        <div className="shrink-0">
+          <EventLog 
+            events={sync.state.events}
+            onUndo={sync.undoLast}
+            canUndo={sync.canUndo}
+          />
+        </div>
       </main>
       
       {/* Operator Panel (Right Sidebar) */}
