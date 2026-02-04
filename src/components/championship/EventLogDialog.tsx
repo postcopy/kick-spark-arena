@@ -30,7 +30,7 @@ export function EventLogDialog({ open, onOpenChange, events }: EventLogDialogPro
     if (event.type === 'UNDO') return 'text-yellow-400';
     if (event.type === 'TIMER_START') return 'text-green-400';
     if (event.type === 'TIMER_PAUSE') return 'text-orange-400';
-    if (event.type === 'MATCH_END') return 'text-purple-400';
+    if (event.type === 'MATCH_END') return 'text-yellow-400';
     return 'text-zinc-400';
   };
   
