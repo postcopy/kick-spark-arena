@@ -11,6 +11,16 @@ import { cn } from '@/lib/utils';
 import logoSpe from '@/assets/logo-spe-branca.png';
 import type { Side, HitType } from '@/types/game';
 import type { MatchSide, ScoreType, MatchConfig } from '@/types/championship';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function ChampionshipMat() {
   const matId = 1;
@@ -18,6 +28,7 @@ export default function ChampionshipMat() {
   const sync = useChampionshipSync({ role: 'master', matId });
   const [isTVOpen, setIsTVOpen] = useState(false);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
   const tvWindowRef = useRef<Window | null>(null);
   
   // Auto-open config dialog if no config
@@ -125,7 +136,10 @@ export default function ChampionshipMat() {
         
         {/* Scoreboard - flex-1 ocupa espaço restante */}
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ScoreboardMain state={sync.state} />
+          <ScoreboardMain 
+            state={sync.state} 
+            onResetMatch={() => setShowResetDialog(true)}
+          />
         </div>
         
         {/* Tie Decision */}
@@ -189,6 +203,32 @@ export default function ChampionshipMat() {
         onSave={handleSaveConfig}
         isLocked={isConfigLocked}
       />
+      
+      {/* Reset Match Dialog */}
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Nova Luta?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              Esta ação resetará todos os placares e iniciará uma nova luta. As configurações serão mantidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                sync.resetMatch();
+                setShowResetDialog(false);
+              }}
+              className="bg-purple-600 hover:bg-purple-500"
+            >
+              Iniciar Nova Luta
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
