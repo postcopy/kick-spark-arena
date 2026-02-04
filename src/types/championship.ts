@@ -58,6 +58,9 @@ export interface MatchConfig {
   
   // Mat/ring identifier
   matId: number;
+  
+  // Match number for display
+  matchNumber?: string; // "001", "002", etc.
 }
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {

@@ -69,23 +69,25 @@ export function ScoreboardMain({ state }: ScoreboardMainProps) {
       </div>
       
       {/* CENTER Column - Timer & Round */}
-      <div className="w-40 flex flex-col bg-[hsl(var(--sulsport-black))] rounded-lg overflow-hidden">
-        {/* MATCH header */}
-        <div className="h-16 flex items-center justify-center border-b border-white/10">
-          <span className="text-lg font-bold text-white uppercase tracking-widest">MATCH</span>
+      <div className="w-48 flex flex-col bg-[hsl(var(--sulsport-black))] rounded-lg overflow-hidden">
+        {/* MATCH header + number */}
+        <div className="flex-1 flex flex-col items-center justify-center border-b border-white/10">
+          <span className="text-lg font-bold text-white uppercase tracking-[0.2em]">MATCH</span>
+          <span className="text-2xl font-bold text-white tabular-nums">
+            {state.config.matchNumber || '001'}
+          </span>
         </div>
         
-        {/* Timer - Yellow Band */}
+        {/* Timer - Yellow BAND (thin, fixed height h-20) */}
         <div className={cn(
-          "flex-1 flex items-center justify-center",
+          "h-20 flex items-center justify-center",
           isMedical 
             ? "bg-[hsl(var(--sulsport-yellow-dark))]" 
             : "bg-[hsl(var(--sulsport-yellow))]"
         )}>
           <div 
             className={cn(
-              "text-[clamp(32px,5vw,48px)] font-black leading-none tabular-nums",
-              isMedical ? "text-black/80" : "text-black",
+              "text-[clamp(36px,6vw,56px)] font-black leading-none tabular-nums text-black",
               state.timeLeftMs <= 10000 && isRunning && "animate-pulse"
             )}
           >
@@ -93,27 +95,25 @@ export function ScoreboardMain({ state }: ScoreboardMainProps) {
           </div>
         </div>
         
-        {/* ROUND info */}
-        <div className="h-24 flex flex-col items-center justify-center border-t border-white/10">
-          <div className="text-xs text-white/60 uppercase font-bold">ROUND</div>
-          <div className="text-3xl font-black text-white">
-            {state.round}
-          </div>
-        </div>
-        
-        {/* Medical indicator */}
-        {isMedical && (
-          <div className="h-8 bg-[hsl(var(--sulsport-yellow))]/20 flex items-center justify-center">
-            <span className="text-xs font-bold text-[hsl(var(--sulsport-yellow))] uppercase">
-              T. MÉDICO
+        {/* Status (PAUSADO / T. MÉDICO) - abaixo da faixa amarela */}
+        {!isRunning && !isMatchEnd && (
+          <div className="h-10 flex items-center justify-center bg-[hsl(var(--sulsport-yellow))]/10">
+            <span className="text-sm font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
+              {isMedical ? 'T. MÉDICO' : 'PAUSADO'}
             </span>
           </div>
         )}
         
-        {/* Match winner */}
+        {/* ROUND info */}
+        <div className="flex-1 flex flex-col items-center justify-center border-t border-white/10">
+          <span className="text-xs text-white/60 uppercase font-bold tracking-wider">ROUND</span>
+          <span className="text-4xl font-black text-white">{state.round}</span>
+        </div>
+        
+        {/* Match winner - só quando MATCH_END, integrado no centro */}
         {isMatchEnd && (
-          <div className="h-16 flex flex-col items-center justify-center bg-white/5">
-            <div className="text-xs text-white/60 uppercase">VENCEDOR</div>
+          <div className="h-16 flex flex-col items-center justify-center bg-white/5 border-t border-white/10">
+            <div className="text-xs text-white/60 uppercase tracking-wider">VENCEDOR</div>
             <div className={cn(
               "text-sm font-black uppercase",
               state.roundWinsRed > state.roundWinsBlue 
