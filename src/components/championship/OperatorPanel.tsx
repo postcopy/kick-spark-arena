@@ -81,6 +81,31 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
   return (
     <>
       <aside className="w-[340px] bg-[hsl(var(--sulsport-dark))] border-l border-[hsl(var(--sulsport-gray))] flex flex-col overflow-y-auto">
+        {/* MATCH END - Feedback Visual */}
+        {isMatchEnd && (
+          <section className="p-4 bg-purple-600/20 border-b border-purple-500/50">
+            <div className="text-center mb-3">
+              <h3 className="text-lg font-bold text-purple-400 uppercase">
+                LUTA ENCERRADA
+              </h3>
+              <p className="text-sm text-zinc-400 mt-1">
+                {state.roundWinsRed > state.roundWinsBlue 
+                  ? 'VERMELHO VENCEU' 
+                  : state.roundWinsBlue > state.roundWinsRed 
+                    ? 'AZUL VENCEU' 
+                    : 'EMPATE'}
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowResetDialog(true)}
+              className="w-full h-12 rounded-md bg-purple-600 hover:bg-purple-500 text-white font-bold uppercase"
+            >
+              <RotateCcw className="w-5 h-5 mr-2" />
+              INICIAR NOVA LUTA
+            </Button>
+          </section>
+        )}
+        
         {/* CONTROLES */}
         <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
           <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
@@ -396,7 +421,10 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={actions.endMatch}
+              onClick={() => {
+                actions.endMatch();
+                setShowEndMatchDialog(false);
+              }}
               className="bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))]"
             >
               Encerrar
@@ -419,7 +447,10 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={actions.resetMatch}
+              onClick={() => {
+                actions.resetMatch();
+                setShowResetDialog(false);
+              }}
               className="bg-purple-600 hover:bg-purple-500"
             >
               Nova Luta
