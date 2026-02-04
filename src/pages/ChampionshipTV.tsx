@@ -118,6 +118,15 @@ export default function ChampionshipTV() {
   
   return (
     <div className="h-screen w-screen bg-[hsl(var(--sulsport-black))] flex flex-col overflow-hidden select-none">
+      {/* Header Superior com Logo SPE */}
+      <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-center">
+        <img 
+          src={logoSpe} 
+          alt="SPE" 
+          className="h-8 w-auto object-contain"
+        />
+      </header>
+      
       {/* Main 3-Column Layout */}
       <div className="flex-1 flex items-stretch p-6 gap-4">
         {/* BLUE Side - Left Column */}
@@ -173,13 +182,8 @@ export default function ChampionshipTV() {
         
         {/* CENTER Column - Timer & Round */}
         <div className="w-72 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
-          {/* Logo SPE + MATCH header + number */}
+          {/* MATCH header + number */}
           <div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
-            <img 
-              src={logoSpe} 
-              alt="SPE" 
-              className="h-12 w-auto object-contain mb-4"
-            />
             <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
             <span className="text-4xl font-bold text-white tabular-nums">
               {state.config.matchNumber || '001'}
