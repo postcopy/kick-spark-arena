@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
+import { useSerialPort } from '@/hooks/useSerialPort';
 import { OperatorPanel } from '@/components/championship/OperatorPanel';
 import { ScoreboardMain } from '@/components/championship/ScoreboardMain';
 import { ScoringButtons } from '@/components/championship/ScoringButtons';
@@ -8,6 +9,8 @@ import { EventLog } from '@/components/championship/EventLog';
 import { Trophy, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { Side, HitType } from '@/types/game';
+import type { MatchSide, ScoreType } from '@/types/championship';
 
 export default function ChampionshipMat() {
   const navigate = useNavigate();
@@ -16,6 +19,23 @@ export default function ChampionshipMat() {
   const sync = useChampionshipSync({ role: 'master', matId });
   const [isTVOpen, setIsTVOpen] = useState(false);
   const tvWindowRef = useRef<Window | null>(null);
+  
+  // Handle kick from hardware - convert game types to championship types
+  // Side from hook is already "who scores" (inverted from equipment hit)
+  const handleHardwareKick = useCallback((side: Side, hitType: HitType) => {
+    // Only score when match is running
+    if (sync.state.status !== 'RUNNING') return;
+    
+    const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
+    const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
+    
+    sync.addScore(matchSide, scoreType);
+  }, [sync]);
+  
+  const serialPort = useSerialPort({
+    onKick: handleHardwareKick,
+    debounceMs: 150,
+  });
   
   const handleOpenTV = () => {
     tvWindowRef.current = window.open(
@@ -92,6 +112,14 @@ export default function ChampionshipMat() {
           </div>
           <div className="flex items-center gap-4 text-sm">
             <span className={cn(
+              "px-2 py-1 rounded-md font-bold text-xs uppercase",
+              serialPort.isConnected 
+                ? "bg-green-500/20 text-green-400" 
+                : "bg-zinc-700 text-zinc-500"
+            )}>
+              {serialPort.isConnected ? 'USB' : 'USB OFF'}
+            </span>
+            <span className={cn(
               "px-2 py-1 rounded-md font-bold uppercase",
               sync.state.status === 'RUNNING' 
                 ? "bg-green-500/20 text-green-500" 
@@ -162,6 +190,7 @@ export default function ChampionshipMat() {
         actions={sync}
         onOpenTV={handleOpenTV}
         isTVOpen={isTVOpen}
+        serialPort={serialPort}
       />
     </div>
   );
