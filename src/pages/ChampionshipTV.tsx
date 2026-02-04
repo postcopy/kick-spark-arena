@@ -118,23 +118,25 @@ export default function ChampionshipTV() {
         </div>
         
         {/* CENTER Column - Timer & Round */}
-        <div className="w-64 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
-          {/* MATCH header */}
-          <div className="h-24 flex items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
+        <div className="w-72 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
+          {/* MATCH header + number */}
+          <div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
             <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
+            <span className="text-4xl font-bold text-white tabular-nums">
+              {state.config.matchNumber || '001'}
+            </span>
           </div>
           
-          {/* Timer - Yellow Band */}
+          {/* Timer - Yellow BAND (thin, fixed height h-24) */}
           <div className={cn(
-            "flex-1 flex items-center justify-center",
+            "h-24 flex items-center justify-center",
             isMedical 
               ? "bg-[hsl(var(--sulsport-yellow-dark))]" 
               : "bg-[hsl(var(--sulsport-yellow))]"
           )}>
             <div 
               className={cn(
-                "font-black leading-none tabular-nums",
-                isMedical ? "text-black/80" : "text-black",
+                "font-black leading-none tabular-nums text-black",
                 state.timeLeftMs <= 10000 && isRunning && "animate-pulse"
               )}
               style={{ fontSize: 'clamp(48px, 8vw, 80px)' }}
@@ -143,36 +145,19 @@ export default function ChampionshipTV() {
             </div>
           </div>
           
-          {/* ROUND info */}
-          <div className="h-32 flex flex-col items-center justify-center border-t border-[hsl(var(--sulsport-gray))]">
-            <div className="text-sm text-white/60 uppercase font-bold tracking-wider">ROUND</div>
-            <div className="text-6xl font-black text-white">
-              {state.round}
+          {/* Status (PAUSADO / T. MÉDICO) - texto simples, NÃO badge */}
+          {!isRunning && !isMatchEnd && (
+            <div className="h-12 flex items-center justify-center">
+              <span className="text-xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
+                {isMedical ? 'T. MÉDICO' : 'PAUSADO'}
+              </span>
             </div>
-          </div>
+          )}
           
-          {/* Status indicators */}
-          <div className="h-12 flex items-center justify-center border-t border-[hsl(var(--sulsport-gray))]">
-            {isMedical && (
-              <span className="px-4 py-1 bg-[hsl(var(--sulsport-yellow))]/20 text-[hsl(var(--sulsport-yellow))] rounded font-bold uppercase text-sm">
-                TEMPO MÉDICO
-              </span>
-            )}
-            {isRunning && !isMedical && (
-              <span className="px-4 py-1 bg-green-500/20 text-green-500 rounded font-bold uppercase text-sm animate-pulse">
-                AO VIVO
-              </span>
-            )}
-            {isRoundEnd && !isMatchEnd && (
-              <span className="px-4 py-1 bg-[hsl(var(--sulsport-yellow))]/20 text-[hsl(var(--sulsport-yellow))] rounded font-bold uppercase text-sm">
-                FIM ROUND
-              </span>
-            )}
-            {isMatchEnd && (
-              <span className="px-4 py-1 bg-purple-500/20 text-purple-500 rounded font-bold uppercase text-sm">
-                FIM LUTA
-              </span>
-            )}
+          {/* ROUND info */}
+          <div className="flex-1 flex flex-col items-center justify-center border-t border-[hsl(var(--sulsport-gray))]">
+            <span className="text-lg text-white/60 uppercase font-bold tracking-wider">ROUND</span>
+            <span className="text-7xl font-black text-white">{state.round}</span>
           </div>
         </div>
         
@@ -228,13 +213,13 @@ export default function ChampionshipTV() {
         </div>
       </div>
       
-      {/* Bottom Bar - Match Winner or Tie Decision */}
+      {/* VENCEDOR - Overlay discreto SOMENTE quando MATCH_END */}
       {isMatchEnd && (
-        <div className="h-24 bg-gradient-to-r from-[hsl(var(--sulsport-blue))]/20 via-purple-500/20 to-[hsl(var(--sulsport-red))]/20 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="text-center">
-            <div className="text-lg text-white/60 uppercase tracking-wider mb-1">VENCEDOR</div>
+            <div className="text-3xl text-white/60 uppercase tracking-[0.3em] mb-4">VENCEDOR</div>
             <div className={cn(
-              "text-4xl font-black uppercase",
+              "text-7xl font-black uppercase",
               state.roundWinsRed > state.roundWinsBlue 
                 ? "text-[hsl(var(--sulsport-red-light))]" 
                 : "text-[hsl(var(--sulsport-blue-light))]"
