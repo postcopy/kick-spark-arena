@@ -1,0 +1,483 @@
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Save, RotateCcw, AlertTriangle } from 'lucide-react';
+import { 
+  MatchConfig, 
+  DEFAULT_MATCH_CONFIG, 
+  DEFAULT_SCORE_CONFIG,
+  SCORE_LABELS,
+} from '@/types/championship';
+import { cn } from '@/lib/utils';
+
+interface MatchConfigDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentConfig: MatchConfig;
+  onSave: (config: MatchConfig) => void;
+  isLocked?: boolean; // Block editing when RUNNING
+}
+
+export function MatchConfigDialog({ 
+  open, 
+  onOpenChange, 
+  currentConfig, 
+  onSave,
+  isLocked = false,
+}: MatchConfigDialogProps) {
+  const [config, setConfig] = useState<MatchConfig>(currentConfig);
+  const [activeTab, setActiveTab] = useState('time');
+  
+  // Sync config when dialog opens
+  useEffect(() => {
+    if (open) {
+      setConfig(currentConfig);
+    }
+  }, [open, currentConfig]);
+  
+  const handleSave = () => {
+    onSave(config);
+    onOpenChange(false);
+  };
+  
+  const formatMsToMinSec = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return { minutes, seconds };
+  };
+  
+  const parseMinSecToMs = (minutes: number, seconds: number) => {
+    return (minutes * 60 + seconds) * 1000;
+  };
+  
+  const roundTime = formatMsToMinSec(config.roundTimeMs);
+  const medicalTime = formatMsToMinSec(config.medicalTimeMs);
+  const breakTime = formatMsToMinSec(config.breakTimeMs);
+  
+  // Options for time selects
+  const minuteOptions = Array.from({ length: 16 }, (_, i) => i);
+  const secondOptions = Array.from({ length: 12 }, (_, i) => i * 5);
+  
+  const restoreDefaultScoring = () => {
+    setConfig(prev => ({
+      ...prev,
+      scoring: DEFAULT_SCORE_CONFIG,
+    }));
+  };
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))] p-0 max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
+        <DialogHeader className="px-4 pt-4 pb-2 shrink-0">
+          <DialogTitle className="text-white text-lg font-bold flex items-center gap-2">
+            Configurar Luta
+            {isLocked && (
+              <span className="text-xs bg-[hsl(var(--sulsport-yellow))]/20 text-[hsl(var(--sulsport-yellow))] px-2 py-0.5 rounded-md">
+                BLOQUEADO
+              </span>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+        
+        {isLocked && (
+          <div className="mx-4 mb-2 p-2 bg-[hsl(var(--sulsport-yellow))]/10 border border-[hsl(var(--sulsport-yellow))]/30 rounded-md flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-[hsl(var(--sulsport-yellow))] shrink-0" />
+            <span className="text-xs text-[hsl(var(--sulsport-yellow))]">
+              Pause a luta para editar as configurações
+            </span>
+          </div>
+        )}
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+          <TabsList className="grid grid-cols-4 bg-zinc-900 mx-4 shrink-0">
+            <TabsTrigger value="time" className="text-xs sm:text-sm">Tempo</TabsTrigger>
+            <TabsTrigger value="rules" className="text-xs sm:text-sm">Regras</TabsTrigger>
+            <TabsTrigger value="athletes" className="text-xs sm:text-sm">Atletas</TabsTrigger>
+            <TabsTrigger value="scoring" className="text-xs sm:text-sm">Pontos</TabsTrigger>
+          </TabsList>
+          
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="p-4 space-y-4">
+              {/* TEMPO */}
+              <TabsContent value="time" className="mt-0 space-y-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {/* Round Time */}
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                    <Label className="text-white text-sm font-bold mb-2 block">Tempo de Round</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-zinc-400 text-xs">Min</Label>
+                        <Select
+                          value={String(roundTime.minutes)}
+                          onValueChange={(value) => setConfig(prev => ({
+                            ...prev,
+                            roundTimeMs: parseMinSecToMs(parseInt(value), roundTime.seconds)
+                          }))}
+                          disabled={isLocked}
+                        >
+                          <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {minuteOptions.map((min) => (
+                              <SelectItem key={min} value={String(min)}>{min}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400 text-xs">Seg</Label>
+                        <Select
+                          value={String(roundTime.seconds)}
+                          onValueChange={(value) => setConfig(prev => ({
+                            ...prev,
+                            roundTimeMs: parseMinSecToMs(roundTime.minutes, parseInt(value))
+                          }))}
+                          disabled={isLocked}
+                        >
+                          <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {secondOptions.map((sec) => (
+                              <SelectItem key={sec} value={String(sec)}>
+                                {sec.toString().padStart(2, '0')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Medical Time */}
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                    <Label className="text-white text-sm font-bold mb-2 block">Tempo Médico</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-zinc-400 text-xs">Min</Label>
+                        <Select
+                          value={String(medicalTime.minutes)}
+                          onValueChange={(value) => setConfig(prev => ({
+                            ...prev,
+                            medicalTimeMs: parseMinSecToMs(parseInt(value), medicalTime.seconds)
+                          }))}
+                          disabled={isLocked}
+                        >
+                          <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {minuteOptions.map((min) => (
+                              <SelectItem key={min} value={String(min)}>{min}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400 text-xs">Seg</Label>
+                        <Select
+                          value={String(medicalTime.seconds)}
+                          onValueChange={(value) => setConfig(prev => ({
+                            ...prev,
+                            medicalTimeMs: parseMinSecToMs(medicalTime.minutes, parseInt(value))
+                          }))}
+                          disabled={isLocked}
+                        >
+                          <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {secondOptions.map((sec) => (
+                              <SelectItem key={sec} value={String(sec)}>
+                                {sec.toString().padStart(2, '0')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Break Time */}
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3 lg:col-span-2">
+                    <Label className="text-white text-sm font-bold mb-2 block">Intervalo entre Rounds</Label>
+                    <div className="grid grid-cols-2 gap-2 max-w-xs">
+                      <div>
+                        <Label className="text-zinc-400 text-xs">Min</Label>
+                        <Select
+                          value={String(breakTime.minutes)}
+                          onValueChange={(value) => setConfig(prev => ({
+                            ...prev,
+                            breakTimeMs: parseMinSecToMs(parseInt(value), breakTime.seconds)
+                          }))}
+                          disabled={isLocked}
+                        >
+                          <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {minuteOptions.map((min) => (
+                              <SelectItem key={min} value={String(min)}>{min}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400 text-xs">Seg</Label>
+                        <Select
+                          value={String(breakTime.seconds)}
+                          onValueChange={(value) => setConfig(prev => ({
+                            ...prev,
+                            breakTimeMs: parseMinSecToMs(breakTime.minutes, parseInt(value))
+                          }))}
+                          disabled={isLocked}
+                        >
+                          <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {secondOptions.map((sec) => (
+                              <SelectItem key={sec} value={String(sec)}>
+                                {sec.toString().padStart(2, '0')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              {/* REGRAS */}
+              <TabsContent value="rules" className="mt-0 space-y-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {/* Number of Rounds */}
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                    <Label className="text-white text-sm font-bold mb-2 block">Número de Rounds</Label>
+                    <RadioGroup
+                      value={String(config.maxRounds)}
+                      onValueChange={(value) => setConfig(prev => ({
+                        ...prev,
+                        maxRounds: parseInt(value) as 1 | 3
+                      }))}
+                      className="flex gap-4"
+                      disabled={isLocked}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="1" id="rounds-1" className="border-zinc-500" disabled={isLocked} />
+                        <Label htmlFor="rounds-1" className={cn("cursor-pointer", isLocked ? "text-zinc-500" : "text-white")}>1 Round</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="3" id="rounds-3" className="border-zinc-500" disabled={isLocked} />
+                        <Label htmlFor="rounds-3" className={cn("cursor-pointer", isLocked ? "text-zinc-500" : "text-white")}>Best of 3</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  
+                  {/* Point Gap */}
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                    <Label className="text-white text-sm font-bold mb-1 block">Point Gap</Label>
+                    <p className="text-zinc-500 text-xs mb-2">Diferença para vitória automática</p>
+                    <Input
+                      type="number"
+                      min={5}
+                      max={30}
+                      value={config.pointGap}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        pointGap: parseInt(e.target.value) || 20
+                      }))}
+                      disabled={isLocked}
+                      className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                    />
+                  </div>
+                  
+                  {/* Gam-jeom Limit */}
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3 lg:col-span-2">
+                    <Label className="text-white text-sm font-bold mb-1 block">Limite de Gam-jeom</Label>
+                    <p className="text-zinc-500 text-xs mb-2">Máximo de penalidades antes de desqualificação</p>
+                    <Input
+                      type="number"
+                      min={3}
+                      max={20}
+                      value={config.maxGamjeom}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        maxGamjeom: parseInt(e.target.value) || 10
+                      }))}
+                      disabled={isLocked}
+                      className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+              
+              {/* ATLETAS */}
+              <TabsContent value="athletes" className="mt-0 space-y-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {/* Red Athlete */}
+                  <div className="bg-zinc-900 border border-[hsl(var(--sulsport-red))]/50 rounded-md p-3">
+                    <Label className="text-[hsl(var(--sulsport-red-light))] text-sm font-bold mb-2 block">
+                      Vermelho (Hong)
+                    </Label>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-zinc-400 text-xs">Nome</Label>
+                        <Input
+                          placeholder="Nome do atleta"
+                          value={config.athleteRed?.name || ''}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev,
+                            athleteRed: {
+                              id: prev.athleteRed?.id || crypto.randomUUID(),
+                              name: e.target.value,
+                              country: prev.athleteRed?.country,
+                            }
+                          }))}
+                          disabled={isLocked}
+                          className="bg-zinc-800 border-zinc-600 text-white h-9"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400 text-xs">País (opcional)</Label>
+                        <Input
+                          placeholder="BRA"
+                          value={config.athleteRed?.country || ''}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev,
+                            athleteRed: prev.athleteRed ? {
+                              ...prev.athleteRed,
+                              country: e.target.value,
+                            } : undefined
+                          }))}
+                          disabled={isLocked}
+                          className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Blue Athlete */}
+                  <div className="bg-zinc-900 border border-[hsl(var(--sulsport-blue))]/50 rounded-md p-3">
+                    <Label className="text-[hsl(var(--sulsport-blue-light))] text-sm font-bold mb-2 block">
+                      Azul (Chung)
+                    </Label>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-zinc-400 text-xs">Nome</Label>
+                        <Input
+                          placeholder="Nome do atleta"
+                          value={config.athleteBlue?.name || ''}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev,
+                            athleteBlue: {
+                              id: prev.athleteBlue?.id || crypto.randomUUID(),
+                              name: e.target.value,
+                              country: prev.athleteBlue?.country,
+                            }
+                          }))}
+                          disabled={isLocked}
+                          className="bg-zinc-800 border-zinc-600 text-white h-9"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-zinc-400 text-xs">País (opcional)</Label>
+                        <Input
+                          placeholder="BRA"
+                          value={config.athleteBlue?.country || ''}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev,
+                            athleteBlue: prev.athleteBlue ? {
+                              ...prev.athleteBlue,
+                              country: e.target.value,
+                            } : undefined
+                          }))}
+                          disabled={isLocked}
+                          className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              {/* PONTUAÇÃO */}
+              <TabsContent value="scoring" className="mt-0 space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-white text-sm font-bold">Valores de Pontuação</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={restoreDefaultScoring}
+                    disabled={isLocked}
+                    className="text-xs text-zinc-400 hover:text-white h-7"
+                  >
+                    <RotateCcw className="w-3 h-3 mr-1" />
+                    Restaurar WT
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(Object.keys(config.scoring) as Array<keyof typeof config.scoring>).map((key) => (
+                    <div key={key} className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                      <Label className="text-zinc-400 text-xs mb-1 block">{SCORE_LABELS[key]}</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={config.scoring[key]}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          scoring: {
+                            ...prev.scoring,
+                            [key]: parseInt(e.target.value) || 1,
+                          }
+                        }))}
+                        disabled={isLocked}
+                        className="bg-zinc-800 border-zinc-600 text-white w-16 h-9 text-center font-bold"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            </div>
+          </ScrollArea>
+        </Tabs>
+        
+        {/* Footer - Always Visible */}
+        <div className="shrink-0 p-4 border-t border-[hsl(var(--sulsport-gray))] bg-[hsl(var(--sulsport-dark))] flex gap-3 justify-end">
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="text-zinc-400 hover:text-white"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={isLocked}
+            className="bg-green-600 hover:bg-green-500 text-white font-bold"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Salvar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

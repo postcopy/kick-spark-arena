@@ -15,7 +15,6 @@ import Ranking from "./pages/Ranking";
 import NotFound from "./pages/NotFound";
 import ChampionshipMat from "./pages/ChampionshipMat";
 import ChampionshipTV from "./pages/ChampionshipTV";
-import ChampionshipSetup from "./pages/ChampionshipSetup";
 
 const queryClient = new QueryClient();
 
@@ -37,7 +36,6 @@ const App = () => (
               <Route path="/ranking" element={<Ranking />} />
               <Route path="/championship/mat" element={<ChampionshipMat />} />
               <Route path="/championship/tv" element={<ChampionshipTV />} />
-              <Route path="/championship/setup" element={<ChampionshipSetup />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

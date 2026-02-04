@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { 
   Play, 
   Pause, 
@@ -11,7 +10,8 @@ import {
   Plus,
   Minus,
   Undo2,
-  Usb
+  Usb,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MatchState, MatchSide } from '@/types/championship';
@@ -52,10 +52,10 @@ interface OperatorPanelProps {
   onOpenTV: () => void;
   isTVOpen: boolean;
   serialPort?: UseSerialPortReturn;
+  onOpenConfig?: () => void;
 }
 
-export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort }: OperatorPanelProps) {
-  const navigate = useNavigate();
+export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, onOpenConfig }: OperatorPanelProps) {
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showScoreAdjust, setShowScoreAdjust] = useState(false);
@@ -340,16 +340,11 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort }
           </h3>
           <div className="space-y-2">
             <Button
-              onClick={() => navigate('/championship/setup')}
+              onClick={onOpenConfig}
               className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
             >
+              <Settings className="w-4 h-4 mr-2" />
               GERENCIAR LUTA
-            </Button>
-            <Button
-              onClick={() => navigate('/championship/setup?tab=rules')}
-              className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
-            >
-              CONFIGURAÇÕES
             </Button>
             <Button
               onClick={() => setShowResetDialog(true)}

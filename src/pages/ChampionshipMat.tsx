@@ -1,24 +1,31 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { OperatorPanel } from '@/components/championship/OperatorPanel';
 import { ScoreboardMain } from '@/components/championship/ScoreboardMain';
 import { ScoringButtons } from '@/components/championship/ScoringButtons';
 import { EventLog } from '@/components/championship/EventLog';
-import { Trophy, AlertTriangle } from 'lucide-react';
+import { MatchConfigDialog } from '@/components/championship/MatchConfigDialog';
+import { Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Side, HitType } from '@/types/game';
-import type { MatchSide, ScoreType } from '@/types/championship';
+import type { MatchSide, ScoreType, MatchConfig } from '@/types/championship';
 
 export default function ChampionshipMat() {
-  const navigate = useNavigate();
   const matId = 1;
   
   const sync = useChampionshipSync({ role: 'master', matId });
   const [isTVOpen, setIsTVOpen] = useState(false);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
   const tvWindowRef = useRef<Window | null>(null);
+  
+  // Auto-open config dialog if no config
+  useEffect(() => {
+    if (!sync.hasConfig) {
+      setShowConfigDialog(true);
+    }
+  }, [sync.hasConfig]);
   
   // Handle kick from hardware - convert game types to championship types
   // Side from hook is already "who scores" (inverted from equipment hit)
@@ -62,37 +69,12 @@ export default function ChampionshipMat() {
     return () => clearInterval(checkClosed);
   }, [isTVOpen]);
   
-  // Show setup prompt if no config
-  if (!sync.hasConfig) {
-    return (
-      <div className="h-screen flex flex-col bg-[hsl(var(--sulsport-black))]">
-        {/* Header */}
-        <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center px-6 gap-4">
-          <Trophy className="w-5 h-5 text-purple-500" />
-          <h1 className="text-lg font-bold text-white">MESA DE LUTA • MAT {matId}</h1>
-        </header>
-        
-        {/* Setup Required */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-md p-8">
-            <AlertTriangle className="w-16 h-16 text-[hsl(var(--sulsport-yellow))] mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Configuração Necessária
-            </h2>
-            <p className="text-zinc-400 mb-6">
-              Antes de iniciar uma luta, configure o tempo, regras e atletas.
-            </p>
-            <Button
-              onClick={() => navigate('/championship/setup')}
-              className="bg-purple-600 hover:bg-purple-500 text-white px-8 py-6 text-lg rounded-md font-bold uppercase"
-            >
-              Configurar Luta
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleSaveConfig = (config: MatchConfig) => {
+    sync.saveConfig(config);
+  };
+  
+  // Block editing when running
+  const isConfigLocked = sync.state.status === 'RUNNING';
   
   // Check for tie at round end
   const isTie = sync.state.status === 'ROUND_END' && 
@@ -191,6 +173,16 @@ export default function ChampionshipMat() {
         onOpenTV={handleOpenTV}
         isTVOpen={isTVOpen}
         serialPort={serialPort}
+        onOpenConfig={() => setShowConfigDialog(true)}
+      />
+      
+      {/* Config Dialog */}
+      <MatchConfigDialog
+        open={showConfigDialog}
+        onOpenChange={setShowConfigDialog}
+        currentConfig={sync.state.config}
+        onSave={handleSaveConfig}
+        isLocked={isConfigLocked}
       />
     </div>
   );
