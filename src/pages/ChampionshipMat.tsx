@@ -85,15 +85,15 @@ export default function ChampionshipMat() {
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <img 
-              src={logoSpe} 
-              alt="SPE" 
-              className="h-8 w-auto object-contain"
-            />
-          </div>
-          <div className="flex items-center gap-4 text-sm">
+        <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-center relative px-6">
+          {/* Logo centralizada */}
+          <img 
+            src={logoSpe} 
+            alt="SPE" 
+            className="h-8 w-auto object-contain"
+          />
+          {/* Status indicators à direita */}
+          <div className="absolute right-6 flex items-center gap-4 text-sm">
             <span className={cn(
               "px-2 py-1 rounded-md font-bold text-xs uppercase",
               serialPort.isConnected 
