@@ -268,9 +268,25 @@ export default function ChampionshipTV() {
       
       {/* TELA DE VITÓRIA - Fullscreen quando MATCH_END */}
       {isMatchEnd && (() => {
-        const isBlueWinner = state.roundWinsBlue > state.roundWinsRed;
-        const isRedWinner = state.roundWinsRed > state.roundWinsBlue;
-        const isTie = state.roundWinsBlue === state.roundWinsRed;
+        // Calculate stats first to get total points
+        const stats = calculateMatchStats(state.events);
+        
+        // Determine winner: first by rounds, then by total points if rounds are tied
+        let isBlueWinner = state.roundWinsBlue > state.roundWinsRed;
+        let isRedWinner = state.roundWinsRed > state.roundWinsBlue;
+        let isTie = state.roundWinsBlue === state.roundWinsRed;
+        
+        // If rounds are tied, use total points to determine winner
+        if (isTie) {
+          if (stats.blue.totalPoints > stats.red.totalPoints) {
+            isBlueWinner = true;
+            isTie = false;
+          } else if (stats.red.totalPoints > stats.blue.totalPoints) {
+            isRedWinner = true;
+            isTie = false;
+          }
+          // If both rounds AND points are tied, it remains a tie
+        }
         
         const winnerName = isBlueWinner 
           ? (state.config.athleteBlue?.name || 'CHUNG')
@@ -300,8 +316,7 @@ export default function ChampionshipTV() {
         
         const flagDisplay = getFlag(winnerCountry);
         
-        // Calculate stats from events (points-based, not just touches)
-        const stats = calculateMatchStats(state.events);
+        // Stats already calculated above for winner determination
         
         // Stats rows configuration
         const statRows = [
