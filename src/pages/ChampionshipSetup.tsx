@@ -4,6 +4,13 @@ import { ArrowLeft, Save, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -97,6 +104,10 @@ export default function ChampionshipSetup() {
   const medicalTime = formatMsToMinSec(config.medicalTimeMs);
   const breakTime = formatMsToMinSec(config.breakTimeMs);
   
+  // Options for time selects - avoid concatenation bug
+  const minuteOptions = Array.from({ length: 16 }, (_, i) => i); // 0..15
+  const secondOptions = Array.from({ length: 12 }, (_, i) => i * 5); // 0,5,10...55
+  
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       {/* Header */}
@@ -140,31 +151,51 @@ export default function ChampionshipSetup() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-zinc-400">Minutos</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={10}
-                      value={roundTime.minutes}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        roundTimeMs: parseMinSecToMs(parseInt(e.target.value) || 0, roundTime.seconds)
-                      }))}
-                      className="bg-zinc-800 border-zinc-600 text-white"
-                    />
+                    <Select
+                      value={String(roundTime.minutes)}
+                      onValueChange={(value) => setConfig(prev => {
+                        const cur = formatMsToMinSec(prev.roundTimeMs);
+                        return {
+                          ...prev,
+                          roundTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
+                        };
+                      })}
+                    >
+                      <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {minuteOptions.map((min) => (
+                          <SelectItem key={min} value={String(min)}>
+                            {min}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-zinc-400">Segundos</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={59}
-                      value={roundTime.seconds}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        roundTimeMs: parseMinSecToMs(roundTime.minutes, parseInt(e.target.value) || 0)
-                      }))}
-                      className="bg-zinc-800 border-zinc-600 text-white"
-                    />
+                    <Select
+                      value={String(roundTime.seconds)}
+                      onValueChange={(value) => setConfig(prev => {
+                        const cur = formatMsToMinSec(prev.roundTimeMs);
+                        return {
+                          ...prev,
+                          roundTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
+                        };
+                      })}
+                    >
+                      <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {secondOptions.map((sec) => (
+                          <SelectItem key={sec} value={String(sec)}>
+                            {sec.toString().padStart(2, '0')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
@@ -178,31 +209,51 @@ export default function ChampionshipSetup() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-zinc-400">Minutos</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={5}
-                      value={medicalTime.minutes}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        medicalTimeMs: parseMinSecToMs(parseInt(e.target.value) || 0, medicalTime.seconds)
-                      }))}
-                      className="bg-zinc-800 border-zinc-600 text-white"
-                    />
+                    <Select
+                      value={String(medicalTime.minutes)}
+                      onValueChange={(value) => setConfig(prev => {
+                        const cur = formatMsToMinSec(prev.medicalTimeMs);
+                        return {
+                          ...prev,
+                          medicalTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
+                        };
+                      })}
+                    >
+                      <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {minuteOptions.map((min) => (
+                          <SelectItem key={min} value={String(min)}>
+                            {min}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-zinc-400">Segundos</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={59}
-                      value={medicalTime.seconds}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        medicalTimeMs: parseMinSecToMs(medicalTime.minutes, parseInt(e.target.value) || 0)
-                      }))}
-                      className="bg-zinc-800 border-zinc-600 text-white"
-                    />
+                    <Select
+                      value={String(medicalTime.seconds)}
+                      onValueChange={(value) => setConfig(prev => {
+                        const cur = formatMsToMinSec(prev.medicalTimeMs);
+                        return {
+                          ...prev,
+                          medicalTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
+                        };
+                      })}
+                    >
+                      <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {secondOptions.map((sec) => (
+                          <SelectItem key={sec} value={String(sec)}>
+                            {sec.toString().padStart(2, '0')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
@@ -216,31 +267,51 @@ export default function ChampionshipSetup() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-zinc-400">Minutos</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={5}
-                      value={breakTime.minutes}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        breakTimeMs: parseMinSecToMs(parseInt(e.target.value) || 0, breakTime.seconds)
-                      }))}
-                      className="bg-zinc-800 border-zinc-600 text-white"
-                    />
+                    <Select
+                      value={String(breakTime.minutes)}
+                      onValueChange={(value) => setConfig(prev => {
+                        const cur = formatMsToMinSec(prev.breakTimeMs);
+                        return {
+                          ...prev,
+                          breakTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
+                        };
+                      })}
+                    >
+                      <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {minuteOptions.map((min) => (
+                          <SelectItem key={min} value={String(min)}>
+                            {min}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-zinc-400">Segundos</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={59}
-                      value={breakTime.seconds}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        breakTimeMs: parseMinSecToMs(breakTime.minutes, parseInt(e.target.value) || 0)
-                      }))}
-                      className="bg-zinc-800 border-zinc-600 text-white"
-                    />
+                    <Select
+                      value={String(breakTime.seconds)}
+                      onValueChange={(value) => setConfig(prev => {
+                        const cur = formatMsToMinSec(prev.breakTimeMs);
+                        return {
+                          ...prev,
+                          breakTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
+                        };
+                      })}
+                    >
+                      <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {secondOptions.map((sec) => (
+                          <SelectItem key={sec} value={String(sec)}>
+                            {sec.toString().padStart(2, '0')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
