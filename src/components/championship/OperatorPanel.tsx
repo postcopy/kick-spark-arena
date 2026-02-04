@@ -136,7 +136,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             {isRoundEnd && state.round < state.config.maxRounds && (
               <Button
                 onClick={actions.nextRound}
-                className="w-full h-12 rounded-md bg-purple-600 hover:bg-purple-500 text-white font-bold uppercase"
+                className="w-full h-12 rounded-md bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase"
               >
                 <Play className="w-5 h-5 mr-2" />
                 PRÓXIMO ROUND
@@ -307,7 +307,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
                   "w-full h-10 rounded-md font-bold text-sm uppercase",
                   serialPort.isConnected
                     ? "bg-zinc-700 hover:bg-zinc-600"
-                    : "bg-purple-600 hover:bg-purple-500 text-white"
+                    : "bg-yellow-600 hover:bg-yellow-500 text-black"
                 )}
               >
                 <Usb className="w-4 h-4 mr-2" />
@@ -426,7 +426,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
                 actions.resetMatch();
                 setShowResetDialog(false);
               }}
-              className="bg-purple-600 hover:bg-purple-500"
+              className="bg-yellow-600 hover:bg-yellow-500 text-black"
             >
               Nova Luta
             </AlertDialogAction>

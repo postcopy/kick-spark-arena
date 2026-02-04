@@ -156,26 +156,26 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           {/* Championship */}
           <button
             onClick={handleChampionship}
-            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-purple-500/20 to-purple-500/5 border-2 border-purple-500/50 rounded-2xl hover:border-purple-500 hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[120px]"
+            className="group p-4 md:p-5 lg:p-6 bg-gradient-to-br from-yellow-500/20 to-yellow-500/5 border-2 border-yellow-500/50 rounded-2xl hover:border-yellow-500 hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] min-h-[90px] md:min-h-[100px] lg:min-h-[120px]"
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center lg:flex-col lg:items-center gap-3 lg:gap-2 flex-1">
-                <div className="p-2 md:p-3 bg-purple-500/20 rounded-xl group-hover:bg-purple-500/30 transition-colors lg:mb-2">
-                  <Trophy className="w-6 h-6 md:w-7 md:h-7 text-purple-500" />
+                <div className="p-2 md:p-3 bg-yellow-500/20 rounded-xl group-hover:bg-yellow-500/30 transition-colors lg:mb-2">
+                  <Trophy className="w-6 h-6 md:w-7 md:h-7 text-yellow-500" />
                 </div>
                 
                 <div className="flex-1 lg:flex-none text-left lg:text-center">
                   <h2 className="text-base md:text-lg lg:text-xl font-bold text-foreground">
                     CAMPEONATO
                   </h2>
-                  <p className="text-sm text-purple-500 font-medium">
+                  <p className="text-sm text-yellow-500 font-medium">
                     Placar profissional
                   </p>
                 </div>
               </div>
               
               <div className="hidden lg:flex items-center justify-center gap-2 mt-auto pt-2">
-                <span className="text-xs text-purple-500/70 bg-purple-500/10 px-2 py-0.5 rounded">
+                <span className="text-xs text-yellow-500/70 bg-yellow-500/10 px-2 py-0.5 rounded">
                   2 telas
                 </span>
               </div>

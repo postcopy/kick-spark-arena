@@ -33,7 +33,7 @@ export function ScoreboardMain({
       {/* MATCH END Overlay */}
       {isMatchEnd && <div className="absolute inset-0 bg-black/85 flex items-center justify-center z-10">
           <div className="text-center space-y-6">
-            <h2 className="text-4xl font-black uppercase tracking-wider text-primary">
+            <h2 className="text-4xl font-black uppercase tracking-wider text-[hsl(var(--sulsport-yellow))]">
               LUTA ENCERRADA
             </h2>
             <div className={cn("text-3xl font-bold uppercase", winnerSide === 'RED' ? "text-[hsl(var(--sulsport-red-light))]" : "text-[hsl(var(--sulsport-blue-light))]")}>
@@ -42,7 +42,7 @@ export function ScoreboardMain({
             <div className="text-zinc-400 text-lg">
               {state.roundWinsBlue} x {state.roundWinsRed} rounds
             </div>
-            {onResetMatch && <Button onClick={onResetMatch} className="h-14 px-8 rounded-md bg-purple-600 hover:bg-purple-500 text-white text-lg font-bold uppercase">
+            {onResetMatch && <Button onClick={onResetMatch} className="h-14 px-8 rounded-md bg-yellow-600 hover:bg-yellow-500 text-black text-lg font-bold uppercase">
                 <RotateCcw className="w-5 h-5 mr-2" />
                 INICIAR NOVA LUTA
               </Button>}

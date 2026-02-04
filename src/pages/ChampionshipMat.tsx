@@ -118,7 +118,7 @@ export default function ChampionshipMat() {
               sync.state.status === 'RUNNING' 
                 ? "bg-green-500/20 text-green-500" 
                 : sync.state.status === 'MATCH_END'
-                ? "bg-purple-500/20 text-purple-500"
+                ? "bg-yellow-500/20 text-yellow-500"
                 : "bg-zinc-700 text-zinc-400"
             )}>
               {sync.state.status === 'IDLE' && 'PRONTO'}
@@ -222,7 +222,7 @@ export default function ChampionshipMat() {
                 sync.resetMatch();
                 setShowResetDialog(false);
               }}
-              className="bg-purple-600 hover:bg-purple-500"
+              className="bg-yellow-600 hover:bg-yellow-500 text-black"
             >
               Iniciar Nova Luta
             </AlertDialogAction>
