@@ -1,99 +1,79 @@
 
-# Mover "Luta Encerrada" para o Centro da Tela
+# Substituir Roxo por Dourado/Amarelo
 
-## Situacao Atual
+## Escopo da Mudanca
 
-O feedback de fim de luta está no **OperatorPanel** (sidebar direita):
-- Seção roxa com "LUTA ENCERRADA"
-- Botão "INICIAR NOVA LUTA"
-- Pequeno e pouco visível durante operação
-
-```text
-+---------------------------+----------+
-|                           | LUTA     |
-|      ScoreboardMain       | ENCERRADA|
-|  (apenas vencedor pequeno)|          |
-|                           | [BOTÃO]  |
-+---------------------------+----------+
-```
-
-## Solucao Proposta
-
-Criar um **overlay central** sobre o ScoreboardMain quando `status === 'MATCH_END'`:
-
-```text
-+-------------------------------------+
-|          ScoreboardMain             |
-|  +-------------------------------+  |
-|  |     LUTA ENCERRADA            |  |
-|  |                               |  |
-|  |     HONG VENCEU               |  |
-|  |     (ou estatísticas)         |  |
-|  |                               |  |
-|  |   [INICIAR NOVA LUTA]         |  |
-|  +-------------------------------+  |
-+-------------------------------------+
-```
-
----
+A cor roxa (`purple-500`, `purple-600`) é usada em 5 arquivos para elementos de destaque e acões secundárias no modo campeonato. Vou substituir por **amarelo/dourado** (`yellow-500`, `yellow-600`) que combina com a faixa do timer.
 
 ## Arquivos a Modificar
 
-### 1. ScoreboardMain.tsx
-
-Adicionar overlay de fim de luta centralizado:
-
+### 1. ChampionshipMat.tsx
+**Status indicator e botão de reset:**
 ```tsx
-{isMatchEnd && (
-  <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-10">
-    <div className="text-center">
-      <h2 className="text-3xl font-bold text-purple-400 uppercase mb-4">
-        LUTA ENCERRADA
-      </h2>
-      <p className="text-xl text-white mb-6">
-        {winner} VENCEU
-      </p>
-      <Button onClick={onResetMatch}>
-        INICIAR NOVA LUTA
-      </Button>
-    </div>
-  </div>
-)}
+// DE:
+"bg-purple-500/20 text-purple-500"
+"bg-purple-600 hover:bg-purple-500"
+
+// PARA:
+"bg-yellow-500/20 text-yellow-500"
+"bg-yellow-600 hover:bg-yellow-500 text-black"
 ```
 
-- Adicionar `onResetMatch` como prop do componente
-- Adicionar `position: relative` no container pai
-
-### 2. ChampionshipMat.tsx
-
-Passar a função `resetMatch` para o ScoreboardMain:
-
+### 2. ScoreboardMain.tsx
+**Overlay de fim de luta:**
 ```tsx
-<ScoreboardMain 
-  state={sync.state} 
-  onResetMatch={() => setShowResetDialog(true)}
-/>
+// DE:
+"bg-purple-600 hover:bg-purple-500"
+"text-primary" (roxo atual)
+
+// PARA:
+"bg-yellow-600 hover:bg-yellow-500 text-black"
+"text-[hsl(var(--sulsport-yellow))]"
 ```
 
 ### 3. OperatorPanel.tsx
+**Botões de próximo round, conectar e reset:**
+```tsx
+// DE:
+"bg-purple-600 hover:bg-purple-500"
 
-Remover a seção "LUTA ENCERRADA" do topo (linhas 84-107), mantendo apenas na área de configurações o botão "NOVA LUTA" como opção secundária.
+// PARA:
+"bg-yellow-600 hover:bg-yellow-500 text-black"
+```
+
+### 4. EventLogDialog.tsx
+**Cor do evento MATCH_END:**
+```tsx
+// DE:
+"text-purple-400"
+
+// PARA:
+"text-yellow-400"
+```
+
+### 5. HomeScreen.tsx
+**Botão de campeonato na home:**
+```tsx
+// DE:
+"from-purple-500/20 to-purple-500/5 border-purple-500/50"
+"bg-purple-500/20 text-purple-500"
+
+// PARA:
+"from-yellow-500/20 to-yellow-500/5 border-yellow-500/50"
+"bg-yellow-500/20 text-yellow-500"
+```
 
 ---
 
-## Detalhes Visuais
+## Paleta Final
 
-O overlay central terá:
-- Fundo semi-transparente escuro (`bg-black/80`)
-- Texto "LUTA ENCERRADA" em destaque (roxo/dourado)
-- Nome do vencedor com cor do lado (azul ou vermelho)
-- Botão grande e claro para iniciar nova luta
-- Estatísticas opcionais (pontos, gam-jeoms, etc)
+| Uso | Antes (Roxo) | Depois (Dourado) |
+|-----|--------------|------------------|
+| Botões primários | `bg-purple-600` | `bg-yellow-600 text-black` |
+| Hover | `bg-purple-500` | `bg-yellow-500` |
+| Texto destaque | `text-purple-500` | `text-yellow-500` |
+| Background sutil | `bg-purple-500/20` | `bg-yellow-500/20` |
 
-## Benefícios
+## Nota Tecnica
 
-| Antes | Depois |
-|-------|--------|
-| Ação escondida na sidebar | Ação central e visível |
-| Fácil de perder | Impossível de ignorar |
-| Requer olhar para o lado | Foco natural no centro |
+Como o amarelo é uma cor clara, os botões precisam de `text-black` para garantir contraste e legibilidade.
