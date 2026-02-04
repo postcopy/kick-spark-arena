@@ -1,129 +1,109 @@
 
 
-# Plano: Adicionar Logo SPE nas Telas do Campeonato
+# Corrigir Layout da Mesa de Luta
 
-## Objetivo
-Adicionar a logo SPE branca em duas localizacoes:
-1. **Mesa de Luta** (`/championship/mat`): No header, substituindo o texto "MESA DE LUTA • MAT 1"
-2. **Placar TV** (`/championship/tv`): Centralizada acima do "MATCH" na coluna central
+## Problema Identificado
 
----
+O layout atual usa `flex-col` onde:
+- **Scoreboard** tem `flex-1 min-h-0` (cresce/encolhe)
+- **ScoringButtons** e **EventLog** têm altura implícita
 
-## Passo 1: Copiar a Logo para o Projeto
+Quando eventos são adicionados, o navegador recalcula o layout e o Scoreboard é "empurrado para cima" porque os elementos inferiores competem pelo espaço.
 
-Copiar o arquivo `user-uploads://logo-SPE-branca.png` para `src/assets/logo-spe-branca.png`
-
----
-
-## Passo 2: Modificar ChampionshipMat.tsx
-
-**Localizacao**: Header (linhas 88-94)
-
-**Antes**:
-```tsx
-<div className="flex items-center gap-4">
-  <Trophy className="w-5 h-5 text-purple-500" />
-  <h1 className="text-lg font-bold text-white uppercase">
-    MESA DE LUTA • MAT {matId}
-  </h1>
-</div>
-```
-
-**Depois**:
-```tsx
-import logoSpe from '@/assets/logo-spe-branca.png';
-
-// No header:
-<div className="flex items-center gap-4">
-  <img 
-    src={logoSpe} 
-    alt="SPE" 
-    className="h-8 w-auto object-contain"
-  />
-</div>
-```
-
-O icone Trophy e o texto serao substituidos pela logo. A logo tera altura fixa de 32px (`h-8`) para caber no header de 56px.
-
----
-
-## Passo 3: Modificar ChampionshipTV.tsx
-
-**Localizacao**: Centro - acima do "MATCH" (linhas 174-181)
-
-**Antes**:
-```tsx
-{/* MATCH header + number */}
-<div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
-  <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
-  <span className="text-4xl font-bold text-white tabular-nums">
-    {state.config.matchNumber || '001'}
-  </span>
-</div>
-```
-
-**Depois**:
-```tsx
-import logoSpe from '@/assets/logo-spe-branca.png';
-
-{/* Logo SPE + MATCH header + number */}
-<div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
-  {/* Logo SPE - Centralizada acima do MATCH */}
-  <img 
-    src={logoSpe} 
-    alt="SPE" 
-    className="h-12 w-auto object-contain mb-4"
-  />
-  <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
-  <span className="text-4xl font-bold text-white tabular-nums">
-    {state.config.matchNumber || '001'}
-  </span>
-</div>
-```
-
-A logo tera altura de 48px (`h-12`) e margem inferior (`mb-4`) para separar visualmente do texto "MATCH".
-
----
-
-## Arquivos Modificados
-
-| Arquivo | Acao |
-|---------|------|
-| `src/assets/logo-spe-branca.png` | COPIAR do upload do usuario |
-| `src/pages/ChampionshipMat.tsx` | EDITAR - Substituir header por logo |
-| `src/pages/ChampionshipTV.tsx` | EDITAR - Adicionar logo acima do MATCH |
-
----
-
-## Resultado Visual Esperado
-
-### Mesa de Luta (Header)
 ```text
-+----------------------------------------------------------+
-| [LOGO SPE]                        USB | STATUS | ROUND 1 |
-+----------------------------------------------------------+
+ANTES (problema):
++---------------------------+
+| Header (h-14 - FIXO)      |
++---------------------------+
+| Scoreboard (flex-1)       | ← Encolhe quando itens abaixo crescem
+|                           |
++---------------------------+
+| ScoringButtons (implícito)| ← Altura não definida
++---------------------------+
+| EventLog (implícito)      | ← Cresce com eventos, empurra acima
++---------------------------+
 ```
 
-### Placar TV (Coluna Central)
+## Solucao
+
+Fixar as alturas dos elementos inferiores para que o `flex-1` do Scoreboard funcione corretamente:
+
 ```text
-+----------------+
-|                |
-|   [LOGO SPE]   |
-|                |
-|     MATCH      |
-|      001       |
-|                |
-+----------------+
+DEPOIS (corrigido):
++---------------------------+
+| Header (h-14 - FIXO)      |
++---------------------------+
+| Scoreboard (flex-1)       | ← Ocupa todo espaço restante
+|                           |
++---------------------------+
+| ScoringButtons (h-28 FIXO)| ← Altura fixa
++---------------------------+
+| EventLog (h-32 FIXO)      | ← Altura fixa com scroll interno
++---------------------------+
+```
+
+## Arquivos a Modificar
+
+### 1. ChampionshipMat.tsx
+
+Adicionar `shrink-0` nos containers dos elementos inferiores para prevenir encolhimento:
+
+```tsx
+{/* Scoreboard - flex-1 para ocupar espaço restante */}
+<div className="flex-1 min-h-0 overflow-hidden">
+  <ScoreboardMain state={sync.state} />
+</div>
+
+{/* ScoringButtons - altura fixa, nao encolhe */}
+<div className="shrink-0">
+  <ScoringButtons ... />
+</div>
+
+{/* EventLog - altura fixa, nao encolhe */}
+<div className="shrink-0">
+  <EventLog ... />
+</div>
+```
+
+### 2. EventLog.tsx
+
+Garantir altura fixa do container:
+
+```tsx
+// Mudar de:
+<div className="border-t border-zinc-700 p-3 bg-zinc-900/30">
+
+// Para:
+<div className="border-t border-zinc-700 p-3 bg-zinc-900/30 h-32 flex flex-col">
+  ...
+  <div className="space-y-1 flex-1 overflow-y-auto">
+```
+
+### 3. ScoringButtons.tsx
+
+Garantir altura consistente:
+
+```tsx
+// Mudar de:
+<div className="border-t border-zinc-700 p-4 bg-zinc-900/50">
+
+// Para:
+<div className="border-t border-zinc-700 p-4 bg-zinc-900/50 shrink-0">
 ```
 
 ---
 
-## Criterios de Aceite
+## Resumo das Mudancas
 
-| # | Criterio |
-|---|----------|
-| 1 | Logo aparece no header da Mesa de Luta |
-| 2 | Logo aparece centralizada acima de MATCH no Placar TV |
-| 3 | Logo esta bem dimensionada e proporcional em ambas as telas |
-| 4 | Importacao ES6 usada para melhor otimizacao |
+| Arquivo | Mudanca |
+|---------|---------|
+| `ChampionshipMat.tsx` | Adicionar `shrink-0` e `overflow-hidden` |
+| `EventLog.tsx` | Altura fixa `h-32` com scroll interno |
+| `ScoringButtons.tsx` | Adicionar `shrink-0` para prevenir encolhimento |
+
+## Resultado Esperado
+
+- O Scoreboard permanece estável independente de quantos eventos sejam adicionados
+- EventLog faz scroll interno quando há muitos eventos
+- Layout não "pula" quando pontuação é aplicada
 
