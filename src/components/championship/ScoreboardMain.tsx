@@ -10,88 +10,115 @@ export function ScoreboardMain({ state }: ScoreboardMainProps) {
   const isMedical = state.isMedicalTime;
   const isMatchEnd = state.status === 'MATCH_END';
   
-  // Generate round win indicators
-  const renderRoundIndicators = (wins: number, side: 'red' | 'blue') => {
-    const maxRounds = state.config.maxRounds === 1 ? 1 : 2;
+  // Generate round win indicators (●●○)
+  const renderRoundIndicators = (wins: number, maxRounds: number) => {
+    const neededToWin = maxRounds === 1 ? 1 : 2;
     const indicators = [];
-    for (let i = 0; i < maxRounds; i++) {
+    for (let i = 0; i < neededToWin; i++) {
       indicators.push(
-        <div
-          key={i}
-          className={cn(
-            "w-4 h-4 rounded-full border-2",
-            i < wins 
-              ? side === 'red' ? 'bg-red-500 border-red-500' : 'bg-blue-500 border-blue-500'
-              : 'bg-transparent border-zinc-600'
-          )}
-        />
+        <span key={i} className="text-lg">
+          {i < wins ? '●' : '○'}
+        </span>
       );
     }
     return indicators;
   };
   
   return (
-    <div className="h-full flex items-center justify-center p-4 gap-4">
-      {/* Blue Side */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 rounded-2xl bg-gradient-to-br from-blue-600/20 to-blue-600/5 border-2 border-blue-500/30">
+    <div className="h-full flex items-stretch p-4 gap-2">
+      {/* BLUE Side - Left Column */}
+      <div className="flex-1 flex flex-col bg-[hsl(var(--sulsport-blue))] rounded-lg overflow-hidden">
         {/* Athlete Name */}
-        <div className="text-lg font-bold text-blue-400 mb-1">
-          {state.config.athleteBlue?.name || 'CHUNG'}
-        </div>
-        {state.config.athleteBlue?.country && (
-          <div className="text-sm text-blue-400/70 mb-2">
-            {state.config.athleteBlue.country}
+        <div className="h-16 flex items-center justify-center border-b border-white/10">
+          <div className="text-center">
+            <div className="text-xl font-bold text-white uppercase tracking-wider">
+              {state.config.athleteBlue?.name || 'CHUNG'}
+            </div>
+            {state.config.athleteBlue?.country && (
+              <div className="text-sm text-white/70">
+                ({state.config.athleteBlue.country})
+              </div>
+            )}
           </div>
-        )}
+        </div>
         
         {/* Score */}
-        <div className="text-7xl md:text-8xl font-black text-blue-400 leading-none">
-          {state.roundScoreBlue}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-[clamp(80px,12vw,140px)] font-black text-white leading-none tabular-nums">
+            {state.roundScoreBlue}
+          </div>
         </div>
         
-        {/* Gamjeom & Rounds */}
-        <div className="flex items-center gap-4 mt-4">
-          <div className="text-center">
-            <div className="text-xs text-zinc-500">GJ</div>
-            <div className="text-xl font-bold text-blue-400">
-              {state.gamjeomBlue}
+        {/* Footer: GAM-JEOM / ROUNDS / HITS */}
+        <div className="h-24 bg-[hsl(var(--sulsport-blue-dark))] grid grid-cols-3 divide-x divide-white/10">
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-xs text-white/60 uppercase font-bold">GAM-JEOM</div>
+            <div className="text-2xl font-black text-white">{state.gamjeomBlue}</div>
+          </div>
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-xs text-white/60 uppercase font-bold">ROUNDS</div>
+            <div className="flex gap-1 text-white">
+              {renderRoundIndicators(state.roundWinsBlue, state.config.maxRounds)}
             </div>
           </div>
-          <div className="flex gap-1">
-            {renderRoundIndicators(state.roundWinsBlue, 'blue')}
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-xs text-white/60 uppercase font-bold">HITS</div>
+            <div className="text-2xl font-black text-white">0</div>
           </div>
         </div>
       </div>
       
-      {/* Timer Center */}
-      <div className="flex flex-col items-center justify-center min-w-[180px]">
-        <div 
-          className={cn(
-            "text-5xl md:text-6xl font-black leading-none tabular-nums",
-            isMedical ? "text-yellow-500" : "text-white",
-            state.timeLeftMs <= 10000 && isRunning && "text-red-500 animate-pulse"
-          )}
-        >
-          {formatTime(state.timeLeftMs)}
+      {/* CENTER Column - Timer & Round */}
+      <div className="w-40 flex flex-col bg-[hsl(var(--sulsport-black))] rounded-lg overflow-hidden">
+        {/* MATCH header */}
+        <div className="h-16 flex items-center justify-center border-b border-white/10">
+          <span className="text-lg font-bold text-white uppercase tracking-widest">MATCH</span>
         </div>
         
-        <div className="text-sm text-zinc-400 mt-2">
-          ROUND {state.round}/{state.config.maxRounds}
+        {/* Timer - Yellow Band */}
+        <div className={cn(
+          "flex-1 flex items-center justify-center",
+          isMedical 
+            ? "bg-[hsl(var(--sulsport-yellow-dark))]" 
+            : "bg-[hsl(var(--sulsport-yellow))]"
+        )}>
+          <div 
+            className={cn(
+              "text-[clamp(32px,5vw,48px)] font-black leading-none tabular-nums",
+              isMedical ? "text-black/80" : "text-black",
+              state.timeLeftMs <= 10000 && isRunning && "animate-pulse"
+            )}
+          >
+            {formatTime(state.timeLeftMs)}
+          </div>
         </div>
         
+        {/* ROUND info */}
+        <div className="h-24 flex flex-col items-center justify-center border-t border-white/10">
+          <div className="text-xs text-white/60 uppercase font-bold">ROUND</div>
+          <div className="text-3xl font-black text-white">
+            {state.round}
+          </div>
+        </div>
+        
+        {/* Medical indicator */}
         {isMedical && (
-          <div className="mt-2 px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded text-xs font-medium">
-            TEMPO MÉDICO
+          <div className="h-8 bg-[hsl(var(--sulsport-yellow))]/20 flex items-center justify-center">
+            <span className="text-xs font-bold text-[hsl(var(--sulsport-yellow))] uppercase">
+              T. MÉDICO
+            </span>
           </div>
         )}
         
         {/* Match winner */}
         {isMatchEnd && (
-          <div className="mt-4 text-center">
-            <div className="text-xs text-zinc-500 mb-1">VENCEDOR</div>
+          <div className="h-16 flex flex-col items-center justify-center bg-white/5">
+            <div className="text-xs text-white/60 uppercase">VENCEDOR</div>
             <div className={cn(
-              "text-xl font-black",
-              state.roundWinsRed > state.roundWinsBlue ? "text-red-500" : "text-blue-500"
+              "text-sm font-black uppercase",
+              state.roundWinsRed > state.roundWinsBlue 
+                ? "text-[hsl(var(--sulsport-red-light))]" 
+                : "text-[hsl(var(--sulsport-blue-light))]"
             )}>
               {state.roundWinsRed > state.roundWinsBlue 
                 ? (state.config.athleteRed?.name || 'HONG')
@@ -102,33 +129,44 @@ export function ScoreboardMain({ state }: ScoreboardMainProps) {
         )}
       </div>
       
-      {/* Red Side */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 rounded-2xl bg-gradient-to-br from-red-600/20 to-red-600/5 border-2 border-red-500/30">
+      {/* RED Side - Right Column */}
+      <div className="flex-1 flex flex-col bg-[hsl(var(--sulsport-red))] rounded-lg overflow-hidden">
         {/* Athlete Name */}
-        <div className="text-lg font-bold text-red-400 mb-1">
-          {state.config.athleteRed?.name || 'HONG'}
-        </div>
-        {state.config.athleteRed?.country && (
-          <div className="text-sm text-red-400/70 mb-2">
-            {state.config.athleteRed.country}
+        <div className="h-16 flex items-center justify-center border-b border-white/10">
+          <div className="text-center">
+            <div className="text-xl font-bold text-white uppercase tracking-wider">
+              {state.config.athleteRed?.name || 'HONG'}
+            </div>
+            {state.config.athleteRed?.country && (
+              <div className="text-sm text-white/70">
+                ({state.config.athleteRed.country})
+              </div>
+            )}
           </div>
-        )}
+        </div>
         
         {/* Score */}
-        <div className="text-7xl md:text-8xl font-black text-red-400 leading-none">
-          {state.roundScoreRed}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-[clamp(80px,12vw,140px)] font-black text-white leading-none tabular-nums">
+            {state.roundScoreRed}
+          </div>
         </div>
         
-        {/* Gamjeom & Rounds */}
-        <div className="flex items-center gap-4 mt-4">
-          <div className="flex gap-1">
-            {renderRoundIndicators(state.roundWinsRed, 'red')}
+        {/* Footer: GAM-JEOM / ROUNDS / HITS */}
+        <div className="h-24 bg-[hsl(var(--sulsport-red-dark))] grid grid-cols-3 divide-x divide-white/10">
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-xs text-white/60 uppercase font-bold">GAM-JEOM</div>
+            <div className="text-2xl font-black text-white">{state.gamjeomRed}</div>
           </div>
-          <div className="text-center">
-            <div className="text-xs text-zinc-500">GJ</div>
-            <div className="text-xl font-bold text-red-400">
-              {state.gamjeomRed}
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-xs text-white/60 uppercase font-bold">ROUNDS</div>
+            <div className="flex gap-1 text-white">
+              {renderRoundIndicators(state.roundWinsRed, state.config.maxRounds)}
             </div>
+          </div>
+          <div className="flex flex-col items-center justify-center">
+            <div className="text-xs text-white/60 uppercase font-bold">HITS</div>
+            <div className="text-2xl font-black text-white">0</div>
           </div>
         </div>
       </div>

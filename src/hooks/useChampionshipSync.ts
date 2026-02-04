@@ -13,6 +13,9 @@ import {
   getScoreValue,
 } from '@/types/championship';
 
+// Maximum events to keep in history
+const MAX_EVENTS = 500;
+
 interface UseChampionshipSyncOptions {
   role: 'master' | 'listener';
   matId?: number;
@@ -39,6 +42,7 @@ interface UseChampionshipSyncReturn {
   // Scoring (master only)
   addScore: (side: MatchSide, type: ScoreType) => void;
   addGamjeom: (side: MatchSide) => void;
+  removeGamjeom: (side: MatchSide) => void;
   adjustScore: (side: MatchSide, roundScore: number, gamjeom: number) => void;
   
   // Undo (master only)
@@ -167,7 +171,7 @@ export function useChampionshipSync({
         ...prev,
         timeLeftMs: 0,
         status: 'ROUND_END',
-        events: [createEvent('ROUND_END', 'Empate! Aguardando decisão'), ...prev.events].slice(0, 100),
+        events: [createEvent('ROUND_END', 'Empate! Aguardando decisão'), ...prev.events].slice(0, MAX_EVENTS),
       };
     }
   }, []);
@@ -190,7 +194,7 @@ export function useChampionshipSync({
       status: isMatchEnd ? 'MATCH_END' : 'ROUND_END',
       roundWinsRed: newWinsRed,
       roundWinsBlue: newWinsBlue,
-      events: [createEvent(eventType, description, winner), ...prev.events].slice(0, 100),
+      events: [createEvent(eventType, description, winner), ...prev.events].slice(0, MAX_EVENTS),
     };
   }, []);
   
@@ -211,7 +215,7 @@ export function useChampionshipSync({
               status: 'PAUSED',
               isMedicalTime: false,
               savedTimeMs: undefined,
-              events: [createEvent('MEDICAL_END', 'Tempo médico encerrado'), ...prev.events].slice(0, 100),
+              events: [createEvent('MEDICAL_END', 'Tempo médico encerrado'), ...prev.events].slice(0, MAX_EVENTS),
             };
             broadcast(restoredState, true);
             return restoredState;
@@ -304,7 +308,7 @@ export function useChampionshipSync({
         events: [
           createEvent('TIMER_START', prev.isMedicalTime ? 'Tempo médico iniciado' : 'Round iniciado'),
           ...prev.events
-        ].slice(0, 100),
+        ].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -321,7 +325,7 @@ export function useChampionshipSync({
       const newState: MatchState = {
         ...prev,
         status: 'PAUSED',
-        events: [createEvent('TIMER_PAUSE', 'Timer pausado'), ...prev.events].slice(0, 100),
+        events: [createEvent('TIMER_PAUSE', 'Timer pausado'), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -338,7 +342,7 @@ export function useChampionshipSync({
         ...prev,
         timeLeftMs: prev.isMedicalTime ? prev.config.medicalTimeMs : prev.config.roundTimeMs,
         status: 'PAUSED',
-        events: [createEvent('TIMER_RESET', 'Tempo zerado'), ...prev.events].slice(0, 100),
+        events: [createEvent('TIMER_RESET', 'Tempo zerado'), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -357,7 +361,7 @@ export function useChampionshipSync({
         isMedicalTime: true,
         savedTimeMs: prev.timeLeftMs,
         timeLeftMs: prev.config.medicalTimeMs,
-        events: [createEvent('MEDICAL_START', 'Tempo médico solicitado'), ...prev.events].slice(0, 100),
+        events: [createEvent('MEDICAL_START', 'Tempo médico solicitado'), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -377,7 +381,7 @@ export function useChampionshipSync({
         isMedicalTime: false,
         timeLeftMs: prev.savedTimeMs || prev.config.roundTimeMs,
         savedTimeMs: undefined,
-        events: [createEvent('MEDICAL_END', 'Tempo médico encerrado'), ...prev.events].slice(0, 100),
+        events: [createEvent('MEDICAL_END', 'Tempo médico encerrado'), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -416,7 +420,7 @@ export function useChampionshipSync({
         gamjeomBlue: 0,
         isMedicalTime: false,
         savedTimeMs: undefined,
-        events: [createEvent('ROUND_END', `Round ${prev.round + 1} preparado`), ...prev.events].slice(0, 100),
+        events: [createEvent('ROUND_END', `Round ${prev.round + 1} preparado`), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -432,7 +436,7 @@ export function useChampionshipSync({
       const newState: MatchState = {
         ...prev,
         status: 'MATCH_END',
-        events: [createEvent('MATCH_END', 'Luta encerrada'), ...prev.events].slice(0, 100),
+        events: [createEvent('MATCH_END', 'Luta encerrada'), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -492,7 +496,7 @@ export function useChampionshipSync({
         ...prev,
         roundScoreRed: side === 'RED' ? prev.roundScoreRed + points : prev.roundScoreRed,
         roundScoreBlue: side === 'BLUE' ? prev.roundScoreBlue + points : prev.roundScoreBlue,
-        events: [createEvent(type, `+${points} ${sideLabel} (${typeLabel})`, side, points), ...prev.events].slice(0, 100),
+        events: [createEvent(type, `+${points} ${sideLabel} (${typeLabel})`, side, points), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -501,6 +505,7 @@ export function useChampionshipSync({
   
   const addGamjeom = useCallback((side: MatchSide) => {
     if (role !== 'master') return;
+    // [+] enabled ONLY when status === 'RUNNING'
     if (state.status !== 'RUNNING') return;
     
     saveToHistory(state);
@@ -515,7 +520,36 @@ export function useChampionshipSync({
         gamjeomBlue: side === 'BLUE' ? prev.gamjeomBlue + 1 : prev.gamjeomBlue,
         roundScoreRed: side === 'BLUE' ? prev.roundScoreRed + 1 : prev.roundScoreRed,
         roundScoreBlue: side === 'RED' ? prev.roundScoreBlue + 1 : prev.roundScoreBlue,
-        events: [createEvent('GAMJEOM', `Gam-jeom ${sideLabel} (+1 ${opponentLabel})`, side, 1), ...prev.events].slice(0, 100),
+        events: [createEvent('GAMJEOM', `GAM-JEOM ${sideLabel} (+1 ponto ${opponentLabel})`, side, 1), ...prev.events].slice(0, MAX_EVENTS),
+      };
+      broadcast(newState, true);
+      return newState;
+    });
+  }, [role, state, saveToHistory, broadcast]);
+  
+  const removeGamjeom = useCallback((side: MatchSide) => {
+    if (role !== 'master') return;
+    // [-] enabled ONLY when status !== 'RUNNING' and gamjeom > 0
+    if (state.status === 'RUNNING') return;
+    
+    const currentGamjeom = side === 'RED' ? state.gamjeomRed : state.gamjeomBlue;
+    if (currentGamjeom <= 0) return;
+    
+    saveToHistory(state);
+    
+    const sideLabel = side === 'RED' ? 'Vermelho' : 'Azul';
+    const opponentLabel = side === 'RED' ? 'Azul' : 'Vermelho';
+    
+    setState(prev => {
+      const newState: MatchState = {
+        ...prev,
+        // Decrement gamjeom for the side
+        gamjeomRed: side === 'RED' ? prev.gamjeomRed - 1 : prev.gamjeomRed,
+        gamjeomBlue: side === 'BLUE' ? prev.gamjeomBlue - 1 : prev.gamjeomBlue,
+        // Remove 1 point from opponent (reverse of addGamjeom)
+        roundScoreRed: side === 'BLUE' ? Math.max(0, prev.roundScoreRed - 1) : prev.roundScoreRed,
+        roundScoreBlue: side === 'RED' ? Math.max(0, prev.roundScoreBlue - 1) : prev.roundScoreBlue,
+        events: [createEvent('GAMJEOM', `GAM-JEOM REMOVIDO (${sideLabel}) → -1 ponto ${opponentLabel}`, side, -1), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -536,7 +570,7 @@ export function useChampionshipSync({
         roundScoreBlue: side === 'BLUE' ? roundScore : prev.roundScoreBlue,
         gamjeomRed: side === 'RED' ? gamjeom : prev.gamjeomRed,
         gamjeomBlue: side === 'BLUE' ? gamjeom : prev.gamjeomBlue,
-        events: [createEvent('ADJUST', `Placar ${sideLabel} ajustado: ${roundScore} pts, ${gamjeom} GJ`, side), ...prev.events].slice(0, 100),
+        events: [createEvent('ADJUST', `Placar ${sideLabel} ajustado: ${roundScore} pts, ${gamjeom} GJ`, side), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -553,7 +587,7 @@ export function useChampionshipSync({
     
     const newState: MatchState = {
       ...previousState,
-      events: [createEvent('UNDO', 'Ação desfeita'), ...previousState.events].slice(0, 100),
+      events: [createEvent('UNDO', 'Ação desfeita'), ...previousState.events].slice(0, MAX_EVENTS),
     };
     
     setState(newState);
@@ -593,6 +627,7 @@ export function useChampionshipSync({
     resetMatch,
     addScore,
     addGamjeom,
+    removeGamjeom,
     adjustScore,
     undoLast,
     canUndo: history.length > 0,

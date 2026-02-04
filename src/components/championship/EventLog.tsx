@@ -10,7 +10,8 @@ interface EventLogProps {
 }
 
 export function EventLog({ events, onUndo, canUndo }: EventLogProps) {
-  const recentEvents = events.slice(0, 5);
+  // Show last 10 events in UI (hook stores up to 500)
+  const recentEvents = events.slice(0, 10);
   
   const formatTime = (ts: number) => {
     const date = new Date(ts);

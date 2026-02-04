@@ -7,14 +7,13 @@ import {
   List, 
   Edit, 
   XCircle,
-  Settings,
   Monitor,
   Plus,
   Minus,
   Undo2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MatchState, MatchSide, formatTime } from '@/types/championship';
+import { MatchState, MatchSide } from '@/types/championship';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { ScoreAdjustDialog } from './ScoreAdjustDialog';
@@ -42,6 +41,7 @@ interface OperatorPanelProps {
     nextRound: () => void;
     resetMatch: () => void;
     addGamjeom: (side: MatchSide) => void;
+    removeGamjeom: (side: MatchSide) => void;
     adjustScore: (side: MatchSide, roundScore: number, gamjeom: number) => void;
     undoLast: () => void;
     canUndo: boolean;
@@ -68,11 +68,18 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
   const canStart = (isIdle || isPaused) && !isMatchEnd;
   const canPause = isRunning;
   
+  // GAM-JEOM button rules:
+  // [+] enabled ONLY when status === 'RUNNING'
+  // [-] enabled ONLY when status !== 'RUNNING' and gamjeom > 0
+  const canAddGamjeom = isRunning;
+  const canRemoveGamjeomBlue = !isRunning && state.gamjeomBlue > 0;
+  const canRemoveGamjeomRed = !isRunning && state.gamjeomRed > 0;
+  
   return (
     <>
-      <aside className="w-[340px] bg-zinc-900 border-l border-zinc-700 flex flex-col overflow-y-auto">
+      <aside className="w-[340px] bg-[hsl(var(--sulsport-dark))] border-l border-[hsl(var(--sulsport-gray))] flex flex-col overflow-y-auto">
         {/* CONTROLES */}
-        <section className="p-4 border-b border-zinc-700">
+        <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
           <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
             CONTROLES
           </h3>
@@ -81,30 +88,30 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
             <Button
               onClick={actions.startTimer}
               disabled={!canStart || !actions.hasConfig}
-              className="w-full h-12 bg-green-600 hover:bg-green-500 text-white font-bold disabled:opacity-50"
+              className="w-full h-12 rounded-md bg-green-600 hover:bg-green-500 text-white font-bold uppercase disabled:opacity-50"
             >
               <Play className="w-5 h-5 mr-2" />
-              {isMedical ? 'Iniciar T. Médico' : 'Iniciar Round'}
+              {isMedical ? 'INICIAR T. MÉDICO' : 'INICIAR ROUND'}
             </Button>
             
             {/* Pausar */}
             <Button
               onClick={actions.pauseTimer}
               disabled={!canPause}
-              className="w-full h-12 bg-zinc-700 hover:bg-zinc-600 font-medium disabled:opacity-50"
+              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
             >
               <Pause className="w-5 h-5 mr-2" />
-              Pausar
+              PAUSAR
             </Button>
             
             {/* Zerar Tempo */}
             <Button
               onClick={actions.resetTime}
               disabled={isRunning}
-              className="w-full h-12 bg-zinc-700 hover:bg-zinc-600 font-medium disabled:opacity-50"
+              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
             >
               <RotateCcw className="w-5 h-5 mr-2" />
-              Zerar Tempo
+              ZERAR TEMPO
             </Button>
             
             {/* Tempo Médico */}
@@ -112,69 +119,69 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
               onClick={isMedical ? actions.endMedicalTime : actions.startMedicalTime}
               disabled={isMatchEnd}
               className={cn(
-                "w-full h-12 font-medium disabled:opacity-50",
+                "w-full h-12 rounded-md font-bold uppercase disabled:opacity-50",
                 isMedical 
-                  ? "bg-yellow-600 hover:bg-yellow-500 text-black" 
+                  ? "bg-[hsl(var(--sulsport-yellow))] hover:bg-[hsl(var(--sulsport-yellow-dark))] text-black" 
                   : "bg-zinc-700 hover:bg-zinc-600"
               )}
             >
               <Stethoscope className="w-5 h-5 mr-2" />
-              {isMedical ? 'Voltar p/ Round' : 'Tempo Médico'}
+              {isMedical ? 'VOLTAR P/ ROUND' : 'TEMPO MÉDICO'}
             </Button>
             
             {/* Próximo Round */}
             {isRoundEnd && state.round < state.config.maxRounds && (
               <Button
                 onClick={actions.nextRound}
-                className="w-full h-12 bg-purple-600 hover:bg-purple-500 text-white font-bold"
+                className="w-full h-12 rounded-md bg-purple-600 hover:bg-purple-500 text-white font-bold uppercase"
               >
                 <Play className="w-5 h-5 mr-2" />
-                Próximo Round
+                PRÓXIMO ROUND
               </Button>
             )}
             
             {/* Logs */}
             <Button
               onClick={() => setShowEventLog(true)}
-              className="w-full h-12 bg-zinc-700 hover:bg-zinc-600 font-medium"
+              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase"
             >
               <List className="w-5 h-5 mr-2" />
-              Logs
+              LOGS
             </Button>
             
             {/* Alterar Placar */}
             <Button
               onClick={() => setShowScoreAdjust(true)}
-              className="w-full h-12 bg-zinc-700 hover:bg-zinc-600 font-medium"
+              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase"
             >
               <Edit className="w-5 h-5 mr-2" />
-              Alterar Placar
+              ALTERAR PLACAR
             </Button>
             
             {/* Desfazer */}
             <Button
               onClick={actions.undoLast}
               disabled={!actions.canUndo}
-              className="w-full h-12 bg-zinc-700 hover:bg-zinc-600 font-medium disabled:opacity-50"
+              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
             >
               <Undo2 className="w-5 h-5 mr-2" />
-              Desfazer
+              DESFAZER
             </Button>
             
             {/* Encerrar Luta */}
             <Button
               onClick={() => setShowEndMatchDialog(true)}
               disabled={isMatchEnd}
-              className="w-full h-12 bg-red-600 hover:bg-red-500 text-white font-bold disabled:opacity-50"
+              className="w-full h-12 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase disabled:opacity-50"
             >
               <XCircle className="w-5 h-5 mr-2" />
-              Encerrar Luta
+              ENCERRAR LUTA
             </Button>
           </div>
         </section>
         
         {/* GAM-JEOM */}
-        <section className="p-4 border-b border-zinc-700">
+        <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
           <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
             GAM-JEOM
           </h3>
@@ -182,22 +189,33 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
             {/* BLUE */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-blue-400 font-bold text-sm">BLUE</span>
-                <span className="text-blue-400 font-bold text-lg">{state.gamjeomBlue}</span>
+                <span className="text-[hsl(var(--sulsport-blue-light))] font-bold text-sm uppercase">BLUE</span>
+                <span className="text-[hsl(var(--sulsport-blue-light))] font-bold text-xl">{state.gamjeomBlue}</span>
               </div>
               <div className="flex gap-2">
                 <Button
                   size="icon"
-                  disabled
-                  className="bg-blue-600/20 border border-blue-500/30 text-blue-400/50"
+                  onClick={() => actions.removeGamjeom('BLUE')}
+                  disabled={!canRemoveGamjeomBlue}
+                  className={cn(
+                    "rounded-md h-10 w-10",
+                    canRemoveGamjeomBlue
+                      ? "bg-[hsl(var(--sulsport-blue))]/30 border border-[hsl(var(--sulsport-blue-light))]/50 text-[hsl(var(--sulsport-blue-light))] hover:bg-[hsl(var(--sulsport-blue))]/50"
+                      : "bg-zinc-800 border border-zinc-700 text-zinc-600"
+                  )}
                 >
                   <Minus className="w-4 h-4" />
                 </Button>
                 <Button
                   size="icon"
                   onClick={() => actions.addGamjeom('BLUE')}
-                  disabled={!isRunning}
-                  className="bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
+                  disabled={!canAddGamjeom}
+                  className={cn(
+                    "rounded-md h-10 w-10",
+                    canAddGamjeom
+                      ? "bg-[hsl(var(--sulsport-blue))] hover:bg-[hsl(var(--sulsport-blue-light))] text-white"
+                      : "bg-zinc-800 text-zinc-600"
+                  )}
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -207,35 +225,46 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
             {/* RED */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-red-400 font-bold text-sm">RED</span>
-                <span className="text-red-400 font-bold text-lg">{state.gamjeomRed}</span>
+                <span className="text-[hsl(var(--sulsport-red-light))] font-bold text-sm uppercase">RED</span>
+                <span className="text-[hsl(var(--sulsport-red-light))] font-bold text-xl">{state.gamjeomRed}</span>
               </div>
               <div className="flex gap-2">
                 <Button
                   size="icon"
-                  disabled
-                  className="bg-red-600/20 border border-red-500/30 text-red-400/50"
+                  onClick={() => actions.removeGamjeom('RED')}
+                  disabled={!canRemoveGamjeomRed}
+                  className={cn(
+                    "rounded-md h-10 w-10",
+                    canRemoveGamjeomRed
+                      ? "bg-[hsl(var(--sulsport-red))]/30 border border-[hsl(var(--sulsport-red-light))]/50 text-[hsl(var(--sulsport-red-light))] hover:bg-[hsl(var(--sulsport-red))]/50"
+                      : "bg-zinc-800 border border-zinc-700 text-zinc-600"
+                  )}
                 >
                   <Minus className="w-4 h-4" />
                 </Button>
                 <Button
                   size="icon"
                   onClick={() => actions.addGamjeom('RED')}
-                  disabled={!isRunning}
-                  className="bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
+                  disabled={!canAddGamjeom}
+                  className={cn(
+                    "rounded-md h-10 w-10",
+                    canAddGamjeom
+                      ? "bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white"
+                      : "bg-zinc-800 text-zinc-600"
+                  )}
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
             </div>
           </div>
-          <p className="text-xs text-zinc-500 mt-2">
-            [-] apenas via "Alterar Placar"
+          <p className="text-xs text-zinc-500 mt-3">
+            [+] durante round • [-] quando pausado
           </p>
         </section>
         
         {/* STATUS */}
-        <section className="p-4 border-b border-zinc-700">
+        <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
           <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
             STATUS
           </h3>
@@ -243,9 +272,9 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
             <div className="flex items-center gap-2">
               <div className={cn(
                 "w-2 h-2 rounded-full",
-                actions.hasConfig ? "bg-green-500" : "bg-red-500"
+                actions.hasConfig ? "bg-green-500" : "bg-[hsl(var(--sulsport-red-light))]"
               )} />
-              <span className={actions.hasConfig ? "text-green-400" : "text-red-400"}>
+              <span className={actions.hasConfig ? "text-green-400" : "text-[hsl(var(--sulsport-red-light))]"}>
                 {actions.hasConfig ? "Configurado" : "Não configurado"}
               </span>
             </div>
@@ -257,27 +286,27 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
         </section>
         
         {/* CONFIGURAÇÕES */}
-        <section className="p-4 border-b border-zinc-700">
+        <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
           <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
             CONFIGURAÇÕES
           </h3>
           <div className="space-y-2">
             <Button
               onClick={() => navigate('/championship/setup')}
-              className="w-full h-10 bg-zinc-700 hover:bg-zinc-600 font-medium text-sm"
+              className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
             >
               GERENCIAR LUTA
             </Button>
             <Button
               onClick={() => navigate('/championship/setup?tab=rules')}
-              className="w-full h-10 bg-zinc-700 hover:bg-zinc-600 font-medium text-sm"
+              className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
             >
               CONFIGURAÇÕES
             </Button>
             <Button
               onClick={() => setShowResetDialog(true)}
               disabled={isIdle && state.roundScoreRed === 0 && state.roundScoreBlue === 0}
-              className="w-full h-10 bg-zinc-700 hover:bg-zinc-600 font-medium text-sm disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase disabled:opacity-50"
             >
               NOVA LUTA
             </Button>
@@ -292,16 +321,16 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-zinc-400">2ª Tela:</span>
-              <span className={isTVOpen ? "text-green-400" : "text-zinc-500"}>
+              <span className={isTVOpen ? "text-green-400 font-bold" : "text-zinc-500"}>
                 {isTVOpen ? "ABERTA" : "FECHADA"}
               </span>
             </div>
             <Button
               onClick={onOpenTV}
-              className="w-full h-12 bg-red-600 hover:bg-red-500 text-white font-bold"
+              className="w-full h-12 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase"
             >
               <Monitor className="w-5 h-5 mr-2" />
-              Abrir Placar TV
+              ABRIR PLACAR TV
             </Button>
             <p className="text-xs text-zinc-500 text-center">
               Para tela cheia na TV, pressione F11
@@ -312,7 +341,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
       
       {/* End Match Dialog */}
       <AlertDialog open={showEndMatchDialog} onOpenChange={setShowEndMatchDialog}>
-        <AlertDialogContent className="bg-zinc-900 border-zinc-700">
+        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Encerrar Luta?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
@@ -325,7 +354,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={actions.endMatch}
-              className="bg-red-600 hover:bg-red-500"
+              className="bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))]"
             >
               Encerrar
             </AlertDialogAction>
@@ -335,7 +364,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen }: OperatorPa
       
       {/* Reset Match Dialog */}
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-        <AlertDialogContent className="bg-zinc-900 border-zinc-700">
+        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Nova Luta?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
