@@ -1,211 +1,287 @@
-# Plano: Ajustes Visuais Sulsport + Correções Técnicas
 
-## Status: APROVADO ✅
+# Plano: Refinamento Visual Final Sulsport
 
-## Confirmações Finais Alinhadas
-
-| # | Requisito | Implementação |
-|---|-----------|---------------|
-| 1 | GAM-JEOM [+] habilitado SOMENTE quando `status === 'RUNNING'` | ✅ |
-| 2 | GAM-JEOM [-] habilitado SOMENTE quando `status !== 'RUNNING'` E `gamjeom > 0` | ✅ |
-| 3 | Regra do [-]: NÃO durante RUNNING (mais seguro em competição) | ✅ |
-| 4 | CSS variables HEX dentro de `:root { }`, fáceis de ajustar | ✅ |
-| 5 | removeGamjeom: log claro + sem negativos | ✅ |
-| 6 | `const MAX_EVENTS = 500` como constante, usar `.slice(0, MAX_EVENTS)` | ✅ |
-
----
-
-## Arquivos a Modificar (ordem de execução)
-
-1. `src/index.css` - Adicionar CSS variables Sulsport no `:root`
-2. `src/hooks/useChampionshipSync.ts` - Adicionar `removeGamjeom` + `MAX_EVENTS = 500`
-3. `src/components/championship/ScoreboardMain.tsx` - Redesign layout 3 colunas Sulsport
-4. `src/pages/ChampionshipTV.tsx` - Redesign layout 3 colunas Sulsport fullscreen
-5. `src/components/championship/OperatorPanel.tsx` - GAM-JEOM [-][+] ativos + botões quadrados uppercase
-6. `src/pages/ChampionshipMat.tsx` - Detectar fechamento real da janela TV via `windowRef.closed`
-7. `src/components/championship/EventLog.tsx` - Exibir últimos 10 eventos (slice apenas na UI)
-
----
-
-## Mudanças Detalhadas
-
-### 1. CSS Variables Sulsport (`src/index.css`)
-
-Adicionar dentro do `:root { ... }` existente:
-
+## Confirmação CSS Variables
+As variáveis Sulsport estão em **formato HSL triplet**:
 ```css
-/* ========================================
-   SULSPORT CHAMPIONSHIP COLORS
-   Solid HEX - Easy to adjust for 100% match
-   ======================================== */
---sulsport-blue: #1e40af;        /* Main blue panel */
---sulsport-blue-light: #3b82f6;  /* Blue text/accents */
---sulsport-blue-dark: #1e3a8a;   /* Blue darker variant */
---sulsport-red: #b91c1c;         /* Main red panel */
---sulsport-red-light: #ef4444;   /* Red text/accents */
---sulsport-red-dark: #991b1b;    /* Red darker variant */
---sulsport-yellow: #eab308;      /* Timer band */
---sulsport-yellow-dark: #ca8a04; /* Yellow darker */
---sulsport-black: #0a0a0a;       /* Center column */
---sulsport-dark: #18181b;        /* Panel backgrounds */
---sulsport-gray: #27272a;        /* Borders/dividers */
+--sulsport-yellow: 45 93% 47%;
 ```
+✅ Portanto, `hsl(var(--sulsport-x))` está **correto** e não precisa mudar.
 
-### 2. Hook - MAX_EVENTS + removeGamjeom (`src/hooks/useChampionshipSync.ts`)
+---
 
-#### Adicionar constante no topo:
-```typescript
-const MAX_EVENTS = 500;
-```
+## Arquivos a Modificar
 
-#### Adicionar no interface `UseChampionshipSyncReturn`:
-```typescript
-removeGamjeom: (side: MatchSide) => void;
-```
+| # | Arquivo | Mudanças |
+|---|---------|----------|
+| 1 | `src/types/championship.ts` | Adicionar `matchNumber?: string` ao MatchConfig |
+| 2 | `src/components/championship/ScoreboardMain.tsx` | Centro: faixa `h-20`, matchNumber, status PAUSADO/T.MÉDICO no lugar certo |
+| 3 | `src/pages/ChampionshipTV.tsx` | Remover TODOS os badges, faixa fina, overlay VENCEDOR só em MATCH_END |
 
-#### Adicionar função `removeGamjeom` após `addGamjeom`:
-```typescript
-const removeGamjeom = useCallback((side: MatchSide) => {
-  if (role !== 'master') return;
-  // [-] só habilitado quando NÃO está RUNNING
-  if (state.status === 'RUNNING') return;
-  
-  // Não permite negativo
-  const currentGamjeom = side === 'RED' ? state.gamjeomRed : state.gamjeomBlue;
-  if (currentGamjeom <= 0) return;
-  
-  saveToHistory(state);
-  
-  const sideLabel = side === 'RED' ? 'Vermelho' : 'Azul';
-  const opponentLabel = side === 'RED' ? 'Azul' : 'Vermelho';
-  
-  setState(prev => {
-    const newState: MatchState = {
-      ...prev,
-      gamjeomRed: side === 'RED' ? prev.gamjeomRed - 1 : prev.gamjeomRed,
-      gamjeomBlue: side === 'BLUE' ? prev.gamjeomBlue - 1 : prev.gamjeomBlue,
-      // Remove 1 ponto do oponente (reverso do addGamjeom)
-      roundScoreRed: side === 'BLUE' ? Math.max(0, prev.roundScoreRed - 1) : prev.roundScoreRed,
-      roundScoreBlue: side === 'RED' ? Math.max(0, prev.roundScoreBlue - 1) : prev.roundScoreBlue,
-      events: [
-        createEvent('GAMJEOM', `GAM-JEOM REMOVIDO (${sideLabel}) → -1 ponto ${opponentLabel}`, side, -1),
-        ...prev.events
-      ].slice(0, MAX_EVENTS),
-    };
-    broadcast(newState, true);
-    return newState;
-  });
-}, [role, state, saveToHistory, broadcast]);
-```
+---
 
-#### Alterar todos os `.slice(0, 100)` para `.slice(0, MAX_EVENTS)` (encontrar e substituir)
-
-#### Adicionar no return:
-```typescript
-removeGamjeom,
-```
-
-### 3. ScoreboardMain - Layout 3 Colunas Sulsport
-
-Layout visual:
-```
-┌────────────────────────────────────────────────────────────────┐
-│ ┌──────────────┐ ┌────────────────────┐ ┌──────────────┐      │
-│ │              │ │       MATCH        │ │              │      │
-│ │    CHUNG     │ ├────────────────────┤ │     HONG     │      │
-│ │    (BRA)     │ │ ████████████████   │ │    (KOR)     │      │
-│ │              │ │      1:30          │ │              │      │
-│ │      08      │ │  (faixa amarela)   │ │      12      │      │
-│ │              │ ├────────────────────┤ │              │      │
-│ │              │ │       ROUND        │ │              │      │
-│ │              │ │         1          │ │              │      │
-│ ├──────────────┤ └────────────────────┘ ├──────────────┤      │
-│ │ GAM-JEOM   1 │                        │ GAM-JEOM   2 │      │
-│ │ ROUNDS  ● ○  │                        │ ROUNDS  ● ●  │      │
-│ │ HITS      0  │                        │ HITS      0  │      │
-│ └──────────────┘                        └──────────────┘      │
-└────────────────────────────────────────────────────────────────┘
-```
-
-- Lado AZUL: `bg-[var(--sulsport-blue)]` (sem gradiente)
-- Lado VERMELHO: `bg-[var(--sulsport-red)]` (sem gradiente)
-- Centro: `bg-[var(--sulsport-black)]`
-- Timer band: `bg-[var(--sulsport-yellow)] text-black`
-- ROUNDS = `roundWinsRed/Blue` (indicadores ●●○)
-- HITS = placeholder `0`
-
-### 4. ChampionshipTV - Layout Sulsport Fullscreen
-
-Mesmo layout 3 colunas, adaptado para fullscreen:
-- Timer: `font-size: clamp(100px, 15vw, 200px)`
-- Placares: `font-size: clamp(140px, 20vw, 280px)`
-- Cores sólidas usando CSS variables
-- Animação `scale` sutil quando pontuação muda (sem glow)
-
-### 5. OperatorPanel - GAM-JEOM [-][+] Ativos
-
-Regras exatas implementadas nos botões:
-- **[+]** `disabled={!isRunning}` - habilitado SOMENTE quando `status === 'RUNNING'`
-- **[-]** `disabled={isRunning || state.gamjeomBlue === 0}` - habilitado SOMENTE quando `status !== 'RUNNING'` E `gamjeom > 0`
-
-Estilo dos botões:
-- `rounded-md` (mais quadrados)
-- Texto UPPERCASE
-- Cores Sulsport via CSS variables
-
-Remover texto: "[-] apenas via Alterar Placar"
-
-### 6. ChampionshipMat - Detecção Real de Fechamento TV
+## 1. MatchConfig - Adicionar matchNumber
 
 ```typescript
-const [isTVOpen, setIsTVOpen] = useState(false);
-const tvWindowRef = useRef<Window | null>(null);
-
-const handleOpenTV = () => {
-  tvWindowRef.current = window.open(
-    `/championship/tv?mat=${matId}`, 
-    `championship-tv-${matId}`,
-    'width=1920,height=1080'
-  );
-  if (tvWindowRef.current) {
-    setIsTVOpen(true);
-  }
-};
-
-// Polling para detectar fechamento
-useEffect(() => {
-  if (!isTVOpen || !tvWindowRef.current) return;
-  
-  const checkClosed = setInterval(() => {
-    if (tvWindowRef.current?.closed) {
-      setIsTVOpen(false);
-      tvWindowRef.current = null;
-    }
-  }, 1000);
-  
-  return () => clearInterval(checkClosed);
-}, [isTVOpen]);
-```
-
-### 7. EventLog - Mostrar 10 Eventos na UI
-
-Alterar de `slice(0, 5)` para `slice(0, 10)`:
-
-```typescript
-const recentEvents = events.slice(0, 10);
+// Adicionar em MatchConfig (após matId):
+matchNumber?: string;  // "001", "002", etc.
 ```
 
 ---
 
-## Resumo Técnico
+## 2. ScoreboardMain.tsx - Centro Redesenhado
 
-| Item | Implementação |
-|------|---------------|
-| MAX_EVENTS | Constante `500`, usar `.slice(0, MAX_EVENTS)` em todos os pontos |
-| removeGamjeom | Decrementa gamjeom, remove 1 ponto do oponente, log claro |
-| CSS Variables | HEX dentro de `:root { }`, fácil ajustar |
-| GAM-JEOM [+] | Habilitado SOMENTE quando `status === 'RUNNING'` |
-| GAM-JEOM [-] | Habilitado SOMENTE quando `status !== 'RUNNING'` E `gamjeom > 0` |
-| TV Status | Polling real com `windowRef.closed` |
-| ROUNDS | = `roundWinsRed/Blue` (indicadores ●●○) |
-| HITS | = placeholder `0` |
+### Estrutura Atual (Problema)
+```text
+┌──────────────────┐
+│      MATCH       │ ← Sem número
+├──────────────────┤
+│                  │
+│     1:30         │ ← flex-1 (bloco grande)
+│                  │
+├──────────────────┤
+│      ROUND 1     │
+├──────────────────┤
+│    T. MÉDICO     │ ← Posição errada (embaixo)
+└──────────────────┘
+```
+
+### Nova Estrutura (Sulsport)
+```text
+┌──────────────────┐
+│      MATCH       │ ← Label
+│       001        │ ← config.matchNumber || "001"
+├──────────────────┤
+│ ████ 1:30 ██████ │ ← h-20 (faixa fina amarela)
+├──────────────────┤
+│     PAUSADO      │ ← Só quando !isRunning && !isMatchEnd
+├──────────────────┤
+│      ROUND       │
+│        1         │
+└──────────────────┘
+(VENCEDOR só quando MATCH_END, integrado no centro)
+```
+
+### Mudanças Específicas
+
+**Linhas 71-130 - Coluna Central:**
+
+```tsx
+{/* CENTER Column - Timer & Round */}
+<div className="w-48 flex flex-col bg-[hsl(var(--sulsport-black))] rounded-lg overflow-hidden">
+  {/* MATCH header + number */}
+  <div className="flex-1 flex flex-col items-center justify-center border-b border-white/10">
+    <span className="text-lg font-bold text-white uppercase tracking-[0.2em]">MATCH</span>
+    <span className="text-2xl font-bold text-white tabular-nums">
+      {state.config.matchNumber || '001'}
+    </span>
+  </div>
+  
+  {/* Timer - Yellow BAND (thin, fixed height h-20) */}
+  <div className={cn(
+    "h-20 flex items-center justify-center",
+    isMedical 
+      ? "bg-[hsl(var(--sulsport-yellow-dark))]" 
+      : "bg-[hsl(var(--sulsport-yellow))]"
+  )}>
+    <div 
+      className={cn(
+        "text-[clamp(36px,6vw,56px)] font-black leading-none tabular-nums text-black",
+        state.timeLeftMs <= 10000 && isRunning && "animate-pulse"
+      )}
+    >
+      {formatTime(state.timeLeftMs)}
+    </div>
+  </div>
+  
+  {/* Status (PAUSADO / T. MÉDICO) - abaixo da faixa amarela */}
+  {!isRunning && !isMatchEnd && (
+    <div className="h-10 flex items-center justify-center bg-[hsl(var(--sulsport-yellow))]/10">
+      <span className="text-sm font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
+        {isMedical ? 'T. MÉDICO' : 'PAUSADO'}
+      </span>
+    </div>
+  )}
+  
+  {/* ROUND info */}
+  <div className="flex-1 flex flex-col items-center justify-center border-t border-white/10">
+    <span className="text-xs text-white/60 uppercase font-bold tracking-wider">ROUND</span>
+    <span className="text-4xl font-black text-white">{state.round}</span>
+  </div>
+  
+  {/* Match winner - só quando MATCH_END, integrado no centro */}
+  {isMatchEnd && (
+    <div className="h-16 flex flex-col items-center justify-center bg-white/5 border-t border-white/10">
+      <div className="text-xs text-white/60 uppercase tracking-wider">VENCEDOR</div>
+      <div className={cn(
+        "text-sm font-black uppercase",
+        state.roundWinsRed > state.roundWinsBlue 
+          ? "text-[hsl(var(--sulsport-red-light))]" 
+          : "text-[hsl(var(--sulsport-blue-light))]"
+      )}>
+        {state.roundWinsRed > state.roundWinsBlue 
+          ? (state.config.athleteRed?.name || 'HONG')
+          : (state.config.athleteBlue?.name || 'CHUNG')
+        }
+      </div>
+    </div>
+  )}
+</div>
+```
+
+**Remover:** Linhas 104-111 (indicador T. MÉDICO duplicado no final)
+
+---
+
+## 3. ChampionshipTV.tsx - 100% Read-Only
+
+### Remover Completamente
+
+**Linhas 154-176:** Todos os badges de status
+```tsx
+// REMOVER TUDO ISSO:
+{isMedical && (
+  <span className="px-4 py-1 bg-[hsl(var(--sulsport-yellow))]/20 ...">TEMPO MÉDICO</span>
+)}
+{isRunning && !isMedical && (
+  <span className="px-4 py-1 bg-green-500/20 ...">AO VIVO</span>
+)}
+{isRoundEnd && !isMatchEnd && (
+  <span className="px-4 py-1 bg-[hsl(var(--sulsport-yellow))]/20 ...">FIM ROUND</span>
+)}
+{isMatchEnd && (
+  <span className="px-4 py-1 bg-purple-500/20 ...">FIM LUTA</span>
+)}
+```
+
+**Linhas 231-249:** Barra fixa VENCEDOR no rodapé
+```tsx
+// REMOVER TUDO ISSO:
+{isMatchEnd && (
+  <div className="h-24 bg-gradient-to-r from-...">
+    <div className="text-center">
+      <div className="text-lg ...">VENCEDOR</div>
+      ...
+    </div>
+  </div>
+)}
+```
+
+### Nova Coluna Central (Linhas 120-177)
+
+```tsx
+{/* CENTER Column - Timer & Round */}
+<div className="w-72 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
+  {/* MATCH header + number */}
+  <div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
+    <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
+    <span className="text-4xl font-bold text-white tabular-nums">
+      {state.config.matchNumber || '001'}
+    </span>
+  </div>
+  
+  {/* Timer - Yellow BAND (thin, fixed height h-24) */}
+  <div className={cn(
+    "h-24 flex items-center justify-center",
+    isMedical 
+      ? "bg-[hsl(var(--sulsport-yellow-dark))]" 
+      : "bg-[hsl(var(--sulsport-yellow))]"
+  )}>
+    <div 
+      className={cn(
+        "font-black leading-none tabular-nums text-black",
+        state.timeLeftMs <= 10000 && isRunning && "animate-pulse"
+      )}
+      style={{ fontSize: 'clamp(48px, 8vw, 80px)' }}
+    >
+      {formatTime(state.timeLeftMs)}
+    </div>
+  </div>
+  
+  {/* Status (PAUSADO / T. MÉDICO) - texto simples, NÃO badge */}
+  {!isRunning && !isMatchEnd && (
+    <div className="h-12 flex items-center justify-center">
+      <span className="text-xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
+        {isMedical ? 'T. MÉDICO' : 'PAUSADO'}
+      </span>
+    </div>
+  )}
+  
+  {/* ROUND info */}
+  <div className="flex-1 flex flex-col items-center justify-center border-t border-[hsl(var(--sulsport-gray))]">
+    <span className="text-lg text-white/60 uppercase font-bold tracking-wider">ROUND</span>
+    <span className="text-7xl font-black text-white">{state.round}</span>
+  </div>
+</div>
+```
+
+### Novo Overlay VENCEDOR (após o main layout, antes do fechamento)
+
+```tsx
+{/* VENCEDOR - Overlay discreto SOMENTE quando MATCH_END */}
+{isMatchEnd && (
+  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div className="text-center">
+      <div className="text-3xl text-white/60 uppercase tracking-[0.3em] mb-4">VENCEDOR</div>
+      <div className={cn(
+        "text-7xl font-black uppercase",
+        state.roundWinsRed > state.roundWinsBlue 
+          ? "text-[hsl(var(--sulsport-red-light))]" 
+          : "text-[hsl(var(--sulsport-blue-light))]"
+      )}>
+        {state.roundWinsRed > state.roundWinsBlue 
+          ? (state.config.athleteRed?.name || 'HONG')
+          : (state.config.athleteBlue?.name || 'CHUNG')
+        }
+      </div>
+    </div>
+  </div>
+)}
+```
+
+**Manter:** Linhas 251-257 (barra de empate) - faz sentido manter para decisão do árbitro.
+
+---
+
+## Resumo Visual das Mudanças
+
+### ScoreboardMain - Centro
+| Antes | Depois |
+|-------|--------|
+| Timer `flex-1` (bloco) | Timer `h-20` (faixa fina) |
+| MATCH sem número | MATCH + "001" |
+| T. MÉDICO no fundo | Status abaixo da faixa |
+| Sem PAUSADO | PAUSADO quando pausado |
+
+### ChampionshipTV
+| Antes | Depois |
+|-------|--------|
+| Badges (AO VIVO, FIM LUTA, etc.) | Removidos |
+| Timer `flex-1` (bloco) | Timer `h-24` (faixa fina) |
+| MATCH sem número | MATCH + "001" |
+| Barra fixa VENCEDOR | Overlay central só em MATCH_END |
+| Sem status de pausa | PAUSADO/T.MÉDICO como texto simples |
+
+---
+
+## Ordem de Execução
+
+1. `src/types/championship.ts` - Adicionar `matchNumber?: string`
+2. `src/components/championship/ScoreboardMain.tsx` - Redesign centro completo
+3. `src/pages/ChampionshipTV.tsx` - Remover badges, redesign centro, overlay VENCEDOR
+
+---
+
+## Critérios de Aceite
+
+| # | Critério | Status |
+|---|----------|--------|
+| 1 | Centro com faixa amarela fina (`h-20`/`h-24`) | ⬜ |
+| 2 | MATCH + matchNumber no topo do centro | ⬜ |
+| 3 | Status PAUSADO/T.MÉDICO abaixo da faixa (texto simples) | ⬜ |
+| 4 | ROUND + número grande embaixo | ⬜ |
+| 5 | TV sem badges (AO VIVO, FIM LUTA removidos) | ⬜ |
+| 6 | TV sem barra fixa VENCEDOR | ⬜ |
+| 7 | VENCEDOR como overlay central só em MATCH_END | ⬜ |
+| 8 | CSS usando `hsl(var(--sulsport-x))` corretamente | ✅ |
+
