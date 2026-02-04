@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { OperatorPanel } from '@/components/championship/OperatorPanel';
@@ -15,18 +15,39 @@ export default function ChampionshipMat() {
   
   const sync = useChampionshipSync({ role: 'master', matId });
   const [isTVOpen, setIsTVOpen] = useState(false);
+  const tvWindowRef = useRef<Window | null>(null);
   
   const handleOpenTV = () => {
-    window.open(`/championship/tv?mat=${matId}`, '_blank', 'width=1920,height=1080');
-    setIsTVOpen(true);
+    tvWindowRef.current = window.open(
+      `/championship/tv?mat=${matId}`, 
+      `championship-tv-${matId}`,
+      'width=1920,height=1080'
+    );
+    if (tvWindowRef.current) {
+      setIsTVOpen(true);
+    }
   };
+  
+  // Polling to detect when TV window is closed
+  useEffect(() => {
+    if (!isTVOpen || !tvWindowRef.current) return;
+    
+    const checkClosed = setInterval(() => {
+      if (tvWindowRef.current?.closed) {
+        setIsTVOpen(false);
+        tvWindowRef.current = null;
+      }
+    }, 1000);
+    
+    return () => clearInterval(checkClosed);
+  }, [isTVOpen]);
   
   // Show setup prompt if no config
   if (!sync.hasConfig) {
     return (
-      <div className="h-screen flex flex-col bg-zinc-950">
+      <div className="h-screen flex flex-col bg-[hsl(var(--sulsport-black))]">
         {/* Header */}
-        <header className="h-14 bg-zinc-900 border-b border-zinc-700 flex items-center px-6 gap-4">
+        <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center px-6 gap-4">
           <Trophy className="w-5 h-5 text-purple-500" />
           <h1 className="text-lg font-bold text-white">MESA DE LUTA • MAT {matId}</h1>
         </header>
@@ -34,7 +55,7 @@ export default function ChampionshipMat() {
         {/* Setup Required */}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md p-8">
-            <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <AlertTriangle className="w-16 h-16 text-[hsl(var(--sulsport-yellow))] mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">
               Configuração Necessária
             </h2>
@@ -43,7 +64,7 @@ export default function ChampionshipMat() {
             </p>
             <Button
               onClick={() => navigate('/championship/setup')}
-              className="bg-purple-600 hover:bg-purple-500 text-white px-8 py-6 text-lg"
+              className="bg-purple-600 hover:bg-purple-500 text-white px-8 py-6 text-lg rounded-md font-bold uppercase"
             >
               Configurar Luta
             </Button>
@@ -58,20 +79,20 @@ export default function ChampionshipMat() {
                 sync.state.roundScoreRed === sync.state.roundScoreBlue;
   
   return (
-    <div className="h-screen flex bg-zinc-950">
+    <div className="h-screen flex bg-[hsl(var(--sulsport-black))]">
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-14 bg-zinc-900 border-b border-zinc-700 flex items-center justify-between px-6">
+        <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
             <Trophy className="w-5 h-5 text-purple-500" />
-            <h1 className="text-lg font-bold text-white">
+            <h1 className="text-lg font-bold text-white uppercase">
               MESA DE LUTA • MAT {matId}
             </h1>
           </div>
           <div className="flex items-center gap-4 text-sm">
             <span className={cn(
-              "px-2 py-1 rounded font-medium",
+              "px-2 py-1 rounded-md font-bold uppercase",
               sync.state.status === 'RUNNING' 
                 ? "bg-green-500/20 text-green-500" 
                 : sync.state.status === 'MATCH_END'
@@ -85,7 +106,7 @@ export default function ChampionshipMat() {
               {sync.state.status === 'ROUND_END' && 'FIM DO ROUND'}
               {sync.state.status === 'MATCH_END' && 'FIM DA LUTA'}
             </span>
-            <span className="text-zinc-400">
+            <span className="text-zinc-400 font-bold">
               ROUND {sync.state.round}/{sync.state.config.maxRounds}
             </span>
           </div>
@@ -98,24 +119,24 @@ export default function ChampionshipMat() {
         
         {/* Tie Decision */}
         {isTie && (
-          <div className="bg-yellow-500/10 border-y border-yellow-500/30 p-4">
+          <div className="bg-[hsl(var(--sulsport-yellow))]/10 border-y border-[hsl(var(--sulsport-yellow))]/30 p-4">
             <div className="text-center mb-3">
-              <span className="text-lg font-bold text-yellow-500">
+              <span className="text-lg font-bold text-[hsl(var(--sulsport-yellow))] uppercase">
                 EMPATE — Declarar Vencedor do Round
               </span>
             </div>
             <div className="flex justify-center gap-4">
               <Button
                 onClick={() => sync.declareRoundWinner('BLUE')}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-6 text-lg font-bold"
+                className="bg-[hsl(var(--sulsport-blue))] hover:bg-[hsl(var(--sulsport-blue-light))] text-white px-8 py-6 text-lg font-bold uppercase rounded-md"
               >
-                Vitória AZUL
+                VITÓRIA AZUL
               </Button>
               <Button
                 onClick={() => sync.declareRoundWinner('RED')}
-                className="bg-red-600 hover:bg-red-500 text-white px-8 py-6 text-lg font-bold"
+                className="bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white px-8 py-6 text-lg font-bold uppercase rounded-md"
               >
-                Vitória VERMELHO
+                VITÓRIA VERMELHO
               </Button>
             </div>
           </div>

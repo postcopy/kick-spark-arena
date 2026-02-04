@@ -11,6 +11,22 @@
     --background: 230 25% 8%;
     --foreground: 0 0% 98%;
 
+    /* ========================================
+       SULSPORT CHAMPIONSHIP COLORS
+       Solid HEX - Easy to adjust for exact match
+       ======================================== */
+    --sulsport-blue: 217 91% 40%;        /* #1e40af - Main blue panel */
+    --sulsport-blue-light: 217 91% 60%;  /* #3b82f6 - Blue text/accents */
+    --sulsport-blue-dark: 224 76% 33%;   /* #1e3a8a - Blue darker variant */
+    --sulsport-red: 0 74% 42%;           /* #b91c1c - Main red panel */
+    --sulsport-red-light: 0 84% 60%;     /* #ef4444 - Red text/accents */
+    --sulsport-red-dark: 0 74% 35%;      /* #991b1b - Red darker variant */
+    --sulsport-yellow: 45 93% 47%;       /* #eab308 - Timer band */
+    --sulsport-yellow-dark: 45 93% 40%;  /* #ca8a04 - Yellow darker */
+    --sulsport-black: 0 0% 4%;           /* #0a0a0a - Center column */
+    --sulsport-dark: 240 6% 10%;         /* #18181b - Panel backgrounds */
+    --sulsport-gray: 240 4% 16%;         /* #27272a - Borders/dividers */
+
     --card: 230 20% 12%;
     --card-foreground: 0 0% 98%;
 
