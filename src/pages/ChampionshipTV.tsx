@@ -213,25 +213,164 @@ export default function ChampionshipTV() {
         </div>
       </div>
       
-      {/* VENCEDOR - Overlay discreto SOMENTE quando MATCH_END */}
-      {isMatchEnd && (
-        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="text-center">
-            <div className="text-3xl text-white/60 uppercase tracking-[0.3em] mb-4">VENCEDOR</div>
+      {/* TELA DE VITÓRIA - Fullscreen quando MATCH_END */}
+      {isMatchEnd && (() => {
+        const isBlueWinner = state.roundWinsBlue > state.roundWinsRed;
+        const isRedWinner = state.roundWinsRed > state.roundWinsBlue;
+        const isTie = state.roundWinsBlue === state.roundWinsRed;
+        
+        const winnerName = isBlueWinner 
+          ? (state.config.athleteBlue?.name || 'CHUNG')
+          : isRedWinner
+            ? (state.config.athleteRed?.name || 'HONG')
+            : null;
+        
+        const winnerCountry = isBlueWinner 
+          ? state.config.athleteBlue?.country
+          : isRedWinner
+            ? state.config.athleteRed?.country
+            : null;
+        
+        // Country code to emoji flag mapping with fallback
+        const countryFlags: Record<string, string> = {
+          'BRA': '🇧🇷', 'KOR': '🇰🇷', 'USA': '🇺🇸', 'CHN': '🇨🇳', 'JPN': '🇯🇵',
+          'MEX': '🇲🇽', 'GBR': '🇬🇧', 'ESP': '🇪🇸', 'FRA': '🇫🇷', 'ITA': '🇮🇹',
+          'GER': '🇩🇪', 'ARG': '🇦🇷', 'POR': '🇵🇹', 'RUS': '🇷🇺', 'TUR': '🇹🇷',
+          'IRI': '🇮🇷', 'THA': '🇹🇭', 'TPE': '🇹🇼', 'CRO': '🇭🇷', 'GRE': '🇬🇷',
+        };
+        
+        const getFlag = (code?: string) => {
+          if (!code) return null;
+          const upper = code.toUpperCase();
+          return countryFlags[upper] || upper; // Fallback to code (BRA/KOR)
+        };
+        
+        const flagDisplay = getFlag(winnerCountry);
+        
+        return (
+          <div className="absolute inset-0 bg-[hsl(var(--sulsport-black))] flex flex-col items-center justify-center z-50 animate-in fade-in duration-500">
+            {/* Background gradient based on winner */}
             <div className={cn(
-              "text-7xl font-black uppercase",
-              state.roundWinsRed > state.roundWinsBlue 
-                ? "text-[hsl(var(--sulsport-red-light))]" 
-                : "text-[hsl(var(--sulsport-blue-light))]"
-            )}>
-              {state.roundWinsRed > state.roundWinsBlue 
-                ? (state.config.athleteRed?.name || 'HONG')
-                : (state.config.athleteBlue?.name || 'CHUNG')
-              }
+              "absolute inset-0 opacity-20",
+              isBlueWinner && "bg-gradient-to-br from-[hsl(var(--sulsport-blue))] to-transparent",
+              isRedWinner && "bg-gradient-to-br from-[hsl(var(--sulsport-red))] to-transparent",
+              isTie && "bg-gradient-to-br from-[hsl(var(--sulsport-yellow))] to-transparent"
+            )} />
+            
+            <div className="relative z-10 flex flex-col items-center max-w-[90vw]">
+              {/* Header: MATCH 001 RESULT */}
+              <div className="text-center mb-8">
+                <h1 
+                  className="font-black text-white uppercase tracking-[0.2em]"
+                  style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}
+                >
+                  MATCH {state.config.matchNumber || '001'} RESULT
+                </h1>
+              </div>
+              
+              {/* Faixa VENCEDOR/EMPATE + Placar Final (pontos) */}
+              <div className="flex items-stretch mb-8">
+                {/* VENCEDOR / EMPATE - Faixa amarela */}
+                <div className="bg-[hsl(var(--sulsport-yellow))] px-8 py-4 flex items-center">
+                  <span 
+                    className="font-black text-black uppercase"
+                    style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}
+                  >
+                    {isTie ? 'EMPATE' : 'VENCEDOR'}
+                  </span>
+                </div>
+                
+                {/* Placar Final AZUL (pontos) */}
+                <div className="bg-[hsl(var(--sulsport-blue))] px-6 py-4 flex flex-col items-center justify-center min-w-[80px]">
+                  <span 
+                    className="font-black text-white tabular-nums leading-none"
+                    style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)' }}
+                  >
+                    {state.roundScoreBlue}
+                  </span>
+                </div>
+                
+                {/* Placar Final VERMELHO (pontos) */}
+                <div className="bg-[hsl(var(--sulsport-red))] px-6 py-4 flex flex-col items-center justify-center min-w-[80px]">
+                  <span 
+                    className="font-black text-white tabular-nums leading-none"
+                    style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)' }}
+                  >
+                    {state.roundScoreRed}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Rounds ganhos - Secundário */}
+              <div className="flex items-center gap-4 mb-8 text-white/60">
+                <span className="uppercase tracking-wider" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>
+                  Rounds:
+                </span>
+                <span className="font-bold text-[hsl(var(--sulsport-blue-light))]" style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
+                  {state.roundWinsBlue}
+                </span>
+                <span>x</span>
+                <span className="font-bold text-[hsl(var(--sulsport-red-light))]" style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>
+                  {state.roundWinsRed}
+                </span>
+              </div>
+              
+              {/* Nome do Vencedor ou ambos em caso de empate */}
+              {!isTie ? (
+                <div className="flex items-stretch">
+                  {/* Bandeira/País */}
+                  {flagDisplay && (
+                    <div className="bg-zinc-800 px-6 flex items-center justify-center border-r border-white/20">
+                      <span style={{ fontSize: 'clamp(2rem, 4vw, 4rem)' }}>
+                        {flagDisplay}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Nome do Vencedor */}
+                  <div className={cn(
+                    "px-12 py-6 flex items-center",
+                    isBlueWinner ? "bg-[hsl(var(--sulsport-blue))]" : "bg-[hsl(var(--sulsport-red))]"
+                  )}>
+                    <span 
+                      className="font-black text-white uppercase"
+                      style={{ fontSize: 'clamp(2.5rem, 6vw, 5rem)' }}
+                    >
+                      {winnerName}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                /* Empate - Mostra ambos os nomes */
+                <div className="flex items-center gap-4">
+                  <div className="bg-[hsl(var(--sulsport-blue))] px-8 py-4">
+                    <span 
+                      className="font-bold text-white uppercase"
+                      style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}
+                    >
+                      {state.config.athleteBlue?.name || 'CHUNG'}
+                    </span>
+                  </div>
+                  <span 
+                    className="text-white/60 font-bold"
+                    style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}
+                  >
+                    vs
+                  </span>
+                  <div className="bg-[hsl(var(--sulsport-red))] px-8 py-4">
+                    <span 
+                      className="font-bold text-white uppercase"
+                      style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}
+                    >
+                      {state.config.athleteRed?.name || 'HONG'}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       
       {isRoundEnd && !isMatchEnd && state.roundScoreRed === state.roundScoreBlue && (
         <div className="h-20 bg-[hsl(var(--sulsport-yellow))]/10 flex items-center justify-center">
