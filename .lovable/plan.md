@@ -1,250 +1,129 @@
 
-# Fix: Substituir Inputs por Selects no ChampionshipSetup
 
-## Problema
-Os campos `<Input type="number">` para Minutos/Segundos estao concatenando digitos quando o usuario digita:
-- Input mostra `1` minuto
-- Usuario digita `2`
-- Resultado: `12` minutos (em vez de substituir para `2`)
+# Plano: Adicionar Logo SPE nas Telas do Campeonato
 
-Alem disso, o codigo atual tem bug de **stale state** - usa `roundTime.seconds` (valor derivado) em vez de ler de `prev` no callback.
+## Objetivo
+Adicionar a logo SPE branca em duas localizacoes:
+1. **Mesa de Luta** (`/championship/mat`): No header, substituindo o texto "MESA DE LUTA • MAT 1"
+2. **Placar TV** (`/championship/tv`): Centralizada acima do "MATCH" na coluna central
 
 ---
 
-## Solucao
+## Passo 1: Copiar a Logo para o Projeto
 
-Substituir os 6 inputs numericos por componentes `<Select>` com opcoes predefinidas e corrigir o stale state.
+Copiar o arquivo `user-uploads://logo-SPE-branca.png` para `src/assets/logo-spe-branca.png`
 
 ---
 
-## Mudancas no Codigo
+## Passo 2: Modificar ChampionshipMat.tsx
 
-### 1. Adicionar Import do Select
+**Localizacao**: Header (linhas 88-94)
 
+**Antes**:
+```tsx
+<div className="flex items-center gap-4">
+  <Trophy className="w-5 h-5 text-purple-500" />
+  <h1 className="text-lg font-bold text-white uppercase">
+    MESA DE LUTA • MAT {matId}
+  </h1>
+</div>
+```
+
+**Depois**:
+```tsx
+import logoSpe from '@/assets/logo-spe-branca.png';
+
+// No header:
+<div className="flex items-center gap-4">
+  <img 
+    src={logoSpe} 
+    alt="SPE" 
+    className="h-8 w-auto object-contain"
+  />
+</div>
+```
+
+O icone Trophy e o texto serao substituidos pela logo. A logo tera altura fixa de 32px (`h-8`) para caber no header de 56px.
+
+---
+
+## Passo 3: Modificar ChampionshipTV.tsx
+
+**Localizacao**: Centro - acima do "MATCH" (linhas 174-181)
+
+**Antes**:
+```tsx
+{/* MATCH header + number */}
+<div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
+  <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
+  <span className="text-4xl font-bold text-white tabular-nums">
+    {state.config.matchNumber || '001'}
+  </span>
+</div>
+```
+
+**Depois**:
+```tsx
+import logoSpe from '@/assets/logo-spe-branca.png';
+
+{/* Logo SPE + MATCH header + number */}
+<div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
+  {/* Logo SPE - Centralizada acima do MATCH */}
+  <img 
+    src={logoSpe} 
+    alt="SPE" 
+    className="h-12 w-auto object-contain mb-4"
+  />
+  <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
+  <span className="text-4xl font-bold text-white tabular-nums">
+    {state.config.matchNumber || '001'}
+  </span>
+</div>
+```
+
+A logo tera altura de 48px (`h-12`) e margem inferior (`mb-4`) para separar visualmente do texto "MATCH".
+
+---
+
+## Arquivos Modificados
+
+| Arquivo | Acao |
+|---------|------|
+| `src/assets/logo-spe-branca.png` | COPIAR do upload do usuario |
+| `src/pages/ChampionshipMat.tsx` | EDITAR - Substituir header por logo |
+| `src/pages/ChampionshipTV.tsx` | EDITAR - Adicionar logo acima do MATCH |
+
+---
+
+## Resultado Visual Esperado
+
+### Mesa de Luta (Header)
 ```text
-Linha 5: Adicionar import do Select apos o Input
++----------------------------------------------------------+
+| [LOGO SPE]                        USB | STATUS | ROUND 1 |
++----------------------------------------------------------+
 ```
 
-```typescript
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-```
-
-### 2. Criar Arrays de Opcoes
-
+### Placar TV (Coluna Central)
 ```text
-Linha 99 (apos breakTime): Adicionar arrays de opcoes
-```
-
-```typescript
-// Options for time selects - avoid concatenation bug
-const minuteOptions = Array.from({ length: 16 }, (_, i) => i); // 0..15
-const secondOptions = Array.from({ length: 12 }, (_, i) => i * 5); // 0,5,10...55
-```
-
-### 3. Substituir os 6 Inputs por Selects
-
-#### 3.1 Tempo de Round - Minutos (linhas 143-153)
-
-```text
-Antes:
-<Input type="number" min={0} max={10} value={roundTime.minutes} onChange={...} />
-
-Depois:
-```
-
-```tsx
-<Select
-  value={String(roundTime.minutes)}
-  onValueChange={(value) => setConfig(prev => {
-    const cur = formatMsToMinSec(prev.roundTimeMs);
-    return {
-      ...prev,
-      roundTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
-    };
-  })}
->
-  <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
-    <SelectValue />
-  </SelectTrigger>
-  <SelectContent>
-    {minuteOptions.map((min) => (
-      <SelectItem key={min} value={String(min)}>
-        {min}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
-```
-
-#### 3.2 Tempo de Round - Segundos (linhas 157-167)
-
-```tsx
-<Select
-  value={String(roundTime.seconds)}
-  onValueChange={(value) => setConfig(prev => {
-    const cur = formatMsToMinSec(prev.roundTimeMs);
-    return {
-      ...prev,
-      roundTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
-    };
-  })}
->
-  <SelectTrigger className="bg-zinc-800 border-zinc-600 text-white">
-    <SelectValue />
-  </SelectTrigger>
-  <SelectContent>
-    {secondOptions.map((sec) => (
-      <SelectItem key={sec} value={String(sec)}>
-        {sec.toString().padStart(2, '0')}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
-```
-
-#### 3.3 Tempo Medico - Minutos (linhas 181-191)
-
-```tsx
-<Select
-  value={String(medicalTime.minutes)}
-  onValueChange={(value) => setConfig(prev => {
-    const cur = formatMsToMinSec(prev.medicalTimeMs);
-    return {
-      ...prev,
-      medicalTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
-    };
-  })}
->
-  {/* SelectTrigger + SelectContent com minuteOptions */}
-</Select>
-```
-
-#### 3.4 Tempo Medico - Segundos (linhas 195-205)
-
-```tsx
-<Select
-  value={String(medicalTime.seconds)}
-  onValueChange={(value) => setConfig(prev => {
-    const cur = formatMsToMinSec(prev.medicalTimeMs);
-    return {
-      ...prev,
-      medicalTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
-    };
-  })}
->
-  {/* SelectTrigger + SelectContent com secondOptions */}
-</Select>
-```
-
-#### 3.5 Intervalo entre Rounds - Minutos (linhas 219-229)
-
-```tsx
-<Select
-  value={String(breakTime.minutes)}
-  onValueChange={(value) => setConfig(prev => {
-    const cur = formatMsToMinSec(prev.breakTimeMs);
-    return {
-      ...prev,
-      breakTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
-    };
-  })}
->
-  {/* SelectTrigger + SelectContent com minuteOptions */}
-</Select>
-```
-
-#### 3.6 Intervalo entre Rounds - Segundos (linhas 233-243)
-
-```tsx
-<Select
-  value={String(breakTime.seconds)}
-  onValueChange={(value) => setConfig(prev => {
-    const cur = formatMsToMinSec(prev.breakTimeMs);
-    return {
-      ...prev,
-      breakTimeMs: parseMinSecToMs(cur.minutes, parseInt(value))
-    };
-  })}
->
-  {/* SelectTrigger + SelectContent com secondOptions */}
-</Select>
-```
-
----
-
-## Resumo das Substituicoes
-
-| Campo | Input Antes | Select Depois |
-|-------|-------------|---------------|
-| Round Time (min) | `type="number" min=0 max=10` | `Select 0-15` |
-| Round Time (seg) | `type="number" min=0 max=59` | `Select 0-55 step 5` |
-| Medical Time (min) | `type="number" min=0 max=5` | `Select 0-15` |
-| Medical Time (seg) | `type="number" min=0 max=59` | `Select 0-55 step 5` |
-| Break Time (min) | `type="number" min=0 max=5` | `Select 0-15` |
-| Break Time (seg) | `type="number" min=0 max=59` | `Select 0-55 step 5` |
-
----
-
-## Correcao do Stale State
-
-O codigo atual tinha este bug:
-
-```tsx
-// ERRADO - roundTime.seconds e valor derivado, pode estar stale
-onChange={(e) => setConfig(prev => ({
-  ...prev,
-  roundTimeMs: parseMinSecToMs(parseInt(e.target.value), roundTime.seconds) // stale!
-}))}
-```
-
-Corrigido para:
-
-```tsx
-// CORRETO - lê de prev.roundTimeMs dentro do callback
-onValueChange={(value) => setConfig(prev => {
-  const cur = formatMsToMinSec(prev.roundTimeMs); // sempre fresco
-  return {
-    ...prev,
-    roundTimeMs: parseMinSecToMs(parseInt(value), cur.seconds)
-  };
-})}
++----------------+
+|                |
+|   [LOGO SPE]   |
+|                |
+|     MATCH      |
+|      001       |
+|                |
++----------------+
 ```
 
 ---
 
 ## Criterios de Aceite
 
-| # | Criterio | Validacao |
-|---|----------|-----------|
-| 1 | Selecionar 1 min + 30 seg | Timer mostra 01:30 na Mesa/TV (90.000ms) |
-| 2 | Segundos apenas valores validos | Select oferece 0, 5, 10, 15...55 |
-| 3 | Minutos de 0 a 15 | Cobre kids (1:00), padrao (2:00), variacoes (5:00+) |
-| 4 | Persistencia localStorage | Reabrir Setup mantem selecao |
-| 5 | Sem bug de concatenacao | Impossivel com Select |
-| 6 | Stale state corrigido | Usa `prev.xxxTimeMs` no callback |
+| # | Criterio |
+|---|----------|
+| 1 | Logo aparece no header da Mesa de Luta |
+| 2 | Logo aparece centralizada acima de MATCH no Placar TV |
+| 3 | Logo esta bem dimensionada e proporcional em ambas as telas |
+| 4 | Importacao ES6 usada para melhor otimizacao |
 
----
-
-## Secao Tecnica
-
-### Arquivo Modificado
-- `src/pages/ChampionshipSetup.tsx`
-
-### Linhas Afetadas
-- Linha 5: Novo import
-- Linha 99: Arrays de opcoes
-- Linhas 143-153: Round Time minutos
-- Linhas 157-167: Round Time segundos
-- Linhas 181-191: Medical Time minutos
-- Linhas 195-205: Medical Time segundos
-- Linhas 219-229: Break Time minutos
-- Linhas 233-243: Break Time segundos
-
-### Dependencias Usadas
-- `@/components/ui/select` (ja existe no projeto)
