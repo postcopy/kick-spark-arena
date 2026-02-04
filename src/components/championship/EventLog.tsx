@@ -26,8 +26,8 @@ export function EventLog({ events, onUndo, canUndo }: EventLogProps) {
   };
   
   return (
-    <div className="border-t border-zinc-700 p-3 bg-zinc-900/30">
-      <div className="flex items-center justify-between mb-2">
+    <div className="border-t border-zinc-700 p-3 bg-zinc-900/30 h-32 flex flex-col">
+      <div className="flex items-center justify-between mb-2 shrink-0">
         <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
           ÚLTIMOS EVENTOS
         </h3>
@@ -43,7 +43,7 @@ export function EventLog({ events, onUndo, canUndo }: EventLogProps) {
         </Button>
       </div>
       
-      <div className="space-y-1 max-h-24 overflow-y-auto">
+      <div className="space-y-1 flex-1 overflow-y-auto">
         {recentEvents.length === 0 ? (
           <p className="text-xs text-zinc-500 italic">Nenhum evento registrado</p>
         ) : (
