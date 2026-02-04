@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { formatTime, MatchEvent, ScoreType } from '@/types/championship';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { cn } from '@/lib/utils';
+import logoSpe from '@/assets/logo-spe-branca.png';
 
 // Calculate match statistics from events
 interface MatchStats {
@@ -172,8 +173,13 @@ export default function ChampionshipTV() {
         
         {/* CENTER Column - Timer & Round */}
         <div className="w-72 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
-          {/* MATCH header + number */}
+          {/* Logo SPE + MATCH header + number */}
           <div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
+            <img 
+              src={logoSpe} 
+              alt="SPE" 
+              className="h-12 w-auto object-contain mb-4"
+            />
             <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
             <span className="text-4xl font-bold text-white tabular-nums">
               {state.config.matchNumber || '001'}

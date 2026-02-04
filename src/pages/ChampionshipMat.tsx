@@ -6,9 +6,9 @@ import { ScoreboardMain } from '@/components/championship/ScoreboardMain';
 import { ScoringButtons } from '@/components/championship/ScoringButtons';
 import { EventLog } from '@/components/championship/EventLog';
 import { MatchConfigDialog } from '@/components/championship/MatchConfigDialog';
-import { Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import logoSpe from '@/assets/logo-spe-branca.png';
 import type { Side, HitType } from '@/types/game';
 import type { MatchSide, ScoreType, MatchConfig } from '@/types/championship';
 
@@ -87,10 +87,11 @@ export default function ChampionshipMat() {
         {/* Header */}
         <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
-            <Trophy className="w-5 h-5 text-purple-500" />
-            <h1 className="text-lg font-bold text-white uppercase">
-              MESA DE LUTA • MAT {matId}
-            </h1>
+            <img 
+              src={logoSpe} 
+              alt="SPE" 
+              className="h-8 w-auto object-contain"
+            />
           </div>
           <div className="flex items-center gap-4 text-sm">
             <span className={cn(
