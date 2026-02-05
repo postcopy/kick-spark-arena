@@ -403,12 +403,18 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
       
       // === FINALIZE INACTIVE IMPACTS ===
       activeImpactsRef.current.forEach((active, deviceId) => {
-        if (now - active.lastAboveTs > SILENCE_GAP_MS) {
+        const gapMs = now - active.lastAboveTs;
+        if (gapMs > SILENCE_GAP_MS) {
           const durationMs = active.lastAboveTs - active.startTs;
           
           // ANTI-NOISE: relaxed criteria during wizard mode
           const minPkts = wizardModeRef.current ? 1 : MIN_IMPACT_PKTS;
           const minDur = wizardModeRef.current ? 1 : MIN_IMPACT_DURATION_MS;
+          
+          const isWizard = wizardModeRef.current;
+          if (isWizard) {
+            console.log(`[IMPACT_DEBUG] FINALIZING device=${deviceId} pkts=${active.packetCount} dur=${durationMs}ms peak=${active.peak} minPkts=${minPkts} minDur=${minDur}`);
+          }
           
           // ANTI-NOISE: only create ImpactEvent if meets criteria
           if (active.packetCount >= minPkts || durationMs >= minDur) {
@@ -429,12 +435,17 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
             }
             dirtyRef.current = true;
             
+            if (isWizard) console.log(`[IMPACT_DEBUG] CREATED impact id=${impact.id} peak=${impact.peakIntensity}`);
+            
             // === WIZARD: Collect impact if wizard is active ===
             const wizardStep = wizardActiveRef.current;
             if (wizardStep !== 'idle' && wizardStep !== 'result') {
               wizardImpactsRef.current.push(impact);
               wizardLastImpactRef.current = impact;
+              if (isWizard) console.log(`[IMPACT_DEBUG] WIZARD collected impact, total=${wizardImpactsRef.current.length}`);
             }
+          } else {
+            if (isWizard) console.log(`[IMPACT_DEBUG] DISCARDED as noise (pkts=${active.packetCount} < ${minPkts} AND dur=${durationMs}ms < ${minDur})`);
           }
           // If doesn't meet criteria: discard silently (noise/isolated spike)
           
@@ -534,6 +545,12 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     
     let active = activeImpactsRef.current.get(deviceKey);
     
+    // DEBUG: Log impact detection decision
+    const isWizard = wizardModeRef.current;
+    if (isWizard && pkt.intensity > 2) {
+      console.log(`[IMPACT_DEBUG] device=${deviceKey} intensity=${pkt.intensity} floor=${floor} startTh=${startThreshold} contTh=${continueThreshold} active=${!!active}`);
+    }
+    
     if (!active) {
       // No active impact: check if should start new
       if (pkt.intensity > startThreshold) {
@@ -544,6 +561,7 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
           sum: pkt.intensity,
           packetCount: 1,
         });
+        if (isWizard) console.log(`[IMPACT_DEBUG] STARTED new impact for device ${deviceKey}`);
       }
     } else {
       // Active impact: check if should continue
@@ -554,6 +572,7 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
         if (pkt.intensity > active.peak) {
           active.peak = pkt.intensity;
         }
+        if (isWizard) console.log(`[IMPACT_DEBUG] EXTENDED impact for device ${deviceKey}, pkts=${active.packetCount}`);
       }
       // If pkt.intensity <= continueThreshold: don't update lastAboveTs
       // The throttle loop will finalize when gap > SILENCE_GAP_MS
