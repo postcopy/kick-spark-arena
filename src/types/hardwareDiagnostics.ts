@@ -168,6 +168,7 @@ export interface UseHardwareDiagnosticsReturn {
   calibrationWizard: CalibrationWizardState;
   wizardImpactCount: number;
   wizardLastImpact: ImpactEvent | null;
+  wizardRawPacketCount: number;
   startCalibrationWizard: () => void;
   advanceWizardStep: () => void;
   cancelWizard: () => void;

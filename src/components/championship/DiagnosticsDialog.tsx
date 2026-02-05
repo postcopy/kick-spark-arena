@@ -610,6 +610,7 @@ export function DiagnosticsDialog({
         onApply={diagnostics.applyWizardThresholds}
         currentImpactCount={diagnostics.wizardImpactCount}
         lastImpact={diagnostics.wizardLastImpact}
+        rawPacketCount={diagnostics.wizardRawPacketCount}
       />
     </>
   );
