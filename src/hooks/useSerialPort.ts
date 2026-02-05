@@ -92,6 +92,7 @@ function createInitialEquipment(): Map<EquipmentSlot, EquipmentState> {
 
 export function useSerialPort({ 
   onKick, 
+  onRawPacket,
   debounceMs = DEFAULT_DEBOUNCE_MS 
 }: UseSerialPortOptions): UseSerialPortReturn {
   const [isConnected, setIsConnected] = useState(false);
@@ -103,6 +104,7 @@ export function useSerialPort({
   const readerRef = useRef<ReadableStreamDefaultReader<string> | null>(null);
   const lastKickTimeRef = useRef<{ red: number; blue: number }>({ red: 0, blue: 0 });
   const onKickRef = useRef(onKick);
+  const onRawPacketRef = useRef(onRawPacket);
   const isReadingRef = useRef(false);
   const equipmentRef = useRef<Map<EquipmentSlot, EquipmentState>>(createInitialEquipment());
 
@@ -110,6 +112,11 @@ export function useSerialPort({
   useEffect(() => {
     onKickRef.current = onKick;
   }, [onKick]);
+
+  // Keep onRawPacket ref updated
+  useEffect(() => {
+    onRawPacketRef.current = onRawPacket;
+  }, [onRawPacket]);
 
   const shouldDebounce = useCallback((side: Side): boolean => {
     const now = Date.now();
@@ -179,6 +186,16 @@ export function useSerialPort({
           
           const { intensity, deviceId, battery } = parsed;
           console.log('[Serial] Parsed OK:', { intensity, deviceId, battery });
+          
+          // NEW: Raw packet for diagnostics (before any filter)
+          if (onRawPacketRef.current) {
+            onRawPacketRef.current({
+              intensity,
+              deviceId,
+              battery,
+              ts: Date.now(),
+            });
+          }
           
           // Update equipment battery state
           updateEquipment(deviceId, battery);

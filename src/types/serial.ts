@@ -15,6 +15,12 @@ export interface SerialPortState {
 
 export interface UseSerialPortOptions {
   onKick: (side: Side, hitType: HitType) => void;
+  onRawPacket?: (pkt: { 
+    intensity: number; 
+    deviceId: number; 
+    battery?: number; 
+    ts: number; 
+  }) => void;
   debounceMs?: number;
 }
 
