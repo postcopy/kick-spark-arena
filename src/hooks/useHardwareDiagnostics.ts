@@ -14,6 +14,8 @@ import type {
   NoiseFloor,
   ObservedScale,
   DiagnosticsViewMode,
+  CalibrationWizardState,
+  CalibrationWizardStep,
 } from '@/types/hardwareDiagnostics';
 
 // Portable timeout type (works in browser without NodeJS types)
@@ -35,6 +37,7 @@ const MIN_IMPACT_DURATION_MS = 40;
 const DEFAULT_DELTA_START = 4;     // Hysteresis: to start impact
 const DEFAULT_DELTA_CONTINUE = 2;  // Hysteresis: to continue impact
 const CALIBRATION_DURATION_MS = 3000;
+const WIZARD_STEP_DURATION_MS = 8000; // 8 seconds per wizard step
 
 const DEFAULT_DEVICE_LABELS: DeviceLabels = {
   '1': 'Colete Azul',
@@ -54,6 +57,16 @@ const DEFAULT_OBSERVED_SCALE: ObservedScale = {
   globalMin: Infinity,
   globalMax: 0,
   observedSince: Date.now(),
+};
+
+const DEFAULT_WIZARD_STATE: CalibrationWizardState = {
+  step: 'idle',
+  stepStartedAt: null,
+  stepDurationMs: WIZARD_STEP_DURATION_MS,
+  raspagem: { impacts: [], stats: null },
+  toque: { impacts: [], stats: null },
+  ponto: { impacts: [], stats: null },
+  suggestedThresholds: null,
 };
 
 // Active impact state (no packet storage, only stats)
@@ -229,6 +242,11 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
   const recordingCategoryRef = useRef<SampleCategory>('OUTRO');
   const recordingIntervalRef = useRef<TimeoutHandle | null>(null);
   
+  // Wizard refs
+  const wizardImpactsRef = useRef<ImpactEvent[]>([]);
+  const wizardActiveRef = useRef<CalibrationWizardStep>('idle');
+  const wizardLastImpactRef = useRef<ImpactEvent | null>(null);
+  
   // === UI STATES (throttled) ===
   const [uiLastPacket, setUiLastPacket] = useState<HardwareRawPacket | null>(null);
   const [peakIntensity, setPeakIntensity] = useState(0);
@@ -251,6 +269,11 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
   const [deviceLabels, setDeviceLabelsState] = useState<DeviceLabels>(DEFAULT_DEVICE_LABELS);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingProgress, setRecordingProgress] = useState(0);
+  
+  // Wizard state
+  const [calibrationWizard, setCalibrationWizard] = useState<CalibrationWizardState>({ ...DEFAULT_WIZARD_STATE });
+  const [wizardImpactCount, setWizardImpactCount] = useState(0);
+  const [wizardLastImpact, setWizardLastImpact] = useState<ImpactEvent | null>(null);
   
   // Set view mode (syncs state + ref + triggers UI refresh)
   const setViewMode = useCallback((mode: DiagnosticsViewMode) => {
@@ -398,6 +421,13 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
               impactsRef.current = impactsRef.current.slice(-MAX_IMPACTS);
             }
             dirtyRef.current = true;
+            
+            // === WIZARD: Collect impact if wizard is active ===
+            const wizardStep = wizardActiveRef.current;
+            if (wizardStep !== 'idle' && wizardStep !== 'result') {
+              wizardImpactsRef.current.push(impact);
+              wizardLastImpactRef.current = impact;
+            }
           }
           // If doesn't meet criteria: discard silently (noise/isolated spike)
           
@@ -434,6 +464,12 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
         }
         
         setUiRecentImpacts(impactsRef.current.slice(-30).reverse());
+        
+        // Wizard UI updates
+        if (wizardActiveRef.current !== 'idle') {
+          setWizardImpactCount(wizardImpactsRef.current.length);
+          setWizardLastImpact(wizardLastImpactRef.current);
+        }
       }
     }, UI_THROTTLE_MS);
     
@@ -657,6 +693,123 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     }
   }, [samples]);
   
+  // === WIZARD FUNCTIONS ===
+  
+  // Calculate suggested thresholds from wizard data
+  const calculateSuggestedThresholds = useCallback((
+    raspagem: { count: number; min: number; max: number; avg: number; p90: number; p95: number } | null,
+    toque: { count: number; min: number; max: number; avg: number; p90: number; p95: number } | null,
+    ponto: { count: number; min: number; max: number; avg: number; p90: number; p95: number } | null
+  ): HardwareThresholds => {
+    const raspagemP95 = raspagem?.p95 ?? 0;
+    const toqueP95 = toque?.p95 ?? 0;
+    const pontoP95 = ponto?.p95 ?? 0;
+    
+    // HIT threshold: midpoint between RASPAGEM and TOQUE
+    const hitThreshold = Math.round((raspagemP95 + toqueP95) / 2);
+    
+    // PONTO threshold: midpoint between TOQUE and PONTO
+    const pointThreshold = Math.round((toqueP95 + pontoP95) / 2);
+    
+    // Helmet factor (usually 20% lower)
+    const helmetFactor = 0.8;
+    
+    return {
+      vestHitMin: Math.max(1, hitThreshold),
+      vestPointMin: Math.max(hitThreshold + 1, pointThreshold),
+      helmetHitMin: Math.max(1, Math.round(hitThreshold * helmetFactor)),
+      helmetPointMin: Math.max(Math.round(hitThreshold * helmetFactor) + 1, Math.round(pointThreshold * helmetFactor)),
+    };
+  }, []);
+  
+  const startCalibrationWizard = useCallback(() => {
+    wizardImpactsRef.current = [];
+    wizardLastImpactRef.current = null;
+    wizardActiveRef.current = 'raspagem';
+    setWizardImpactCount(0);
+    setWizardLastImpact(null);
+    setCalibrationWizard({
+      step: 'raspagem',
+      stepStartedAt: Date.now(),
+      stepDurationMs: WIZARD_STEP_DURATION_MS,
+      raspagem: { impacts: [], stats: null },
+      toque: { impacts: [], stats: null },
+      ponto: { impacts: [], stats: null },
+      suggestedThresholds: null,
+    });
+    uiDirtyTickRef.current++;
+  }, []);
+  
+  const advanceWizardStep = useCallback(() => {
+    const currentStep = wizardActiveRef.current;
+    const collectedImpacts = [...wizardImpactsRef.current];
+    wizardImpactsRef.current = [];
+    wizardLastImpactRef.current = null;
+    
+    // Calculate stats from peakIntensity
+    const peaks = collectedImpacts.map(i => i.peakIntensity);
+    const stats = peaks.length > 0 ? calculateStats(peaks) : null;
+    
+    setCalibrationWizard(prev => {
+      const updated = { ...prev };
+      
+      // Save current step data
+      if (currentStep === 'raspagem') {
+        updated.raspagem = { impacts: collectedImpacts, stats };
+      } else if (currentStep === 'toque') {
+        updated.toque = { impacts: collectedImpacts, stats };
+      } else if (currentStep === 'ponto') {
+        updated.ponto = { impacts: collectedImpacts, stats };
+      }
+      
+      // Advance to next step
+      if (currentStep === 'raspagem') {
+        updated.step = 'toque';
+        updated.stepStartedAt = Date.now();
+        wizardActiveRef.current = 'toque';
+      } else if (currentStep === 'toque') {
+        updated.step = 'ponto';
+        updated.stepStartedAt = Date.now();
+        wizardActiveRef.current = 'ponto';
+      } else if (currentStep === 'ponto') {
+        updated.step = 'result';
+        updated.stepStartedAt = null;
+        wizardActiveRef.current = 'result';
+        updated.suggestedThresholds = calculateSuggestedThresholds(
+          updated.raspagem.stats,
+          updated.toque.stats,
+          updated.ponto.stats
+        );
+      }
+      
+      return updated;
+    });
+    
+    setWizardImpactCount(0);
+    setWizardLastImpact(null);
+    uiDirtyTickRef.current++;
+  }, [calculateSuggestedThresholds]);
+  
+  const cancelWizard = useCallback(() => {
+    wizardImpactsRef.current = [];
+    wizardLastImpactRef.current = null;
+    wizardActiveRef.current = 'idle';
+    setWizardImpactCount(0);
+    setWizardLastImpact(null);
+    setCalibrationWizard({ ...DEFAULT_WIZARD_STATE });
+    uiDirtyTickRef.current++;
+  }, []);
+  
+  const applyWizardThresholds = useCallback(() => {
+    setCalibrationWizard(prev => {
+      if (prev.suggestedThresholds) {
+        setThresholds(prev.suggestedThresholds);
+      }
+      return prev;
+    });
+    cancelWizard();
+  }, [cancelWizard]);
+  
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -703,5 +856,13 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     exportCSV,
     eventCount: eventsRef.current.length,
     sampleCount: samples.length,
+    // Wizard
+    calibrationWizard,
+    wizardImpactCount,
+    wizardLastImpact,
+    startCalibrationWizard,
+    advanceWizardStep,
+    cancelWizard,
+    applyWizardThresholds,
   };
 }
