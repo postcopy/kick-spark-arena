@@ -1,79 +1,117 @@
 
-# Substituir Roxo por Dourado/Amarelo
+# Corrigir Reconhecimento da Placa no Modo Campeonato
 
-## Escopo da Mudanca
+## Problema Identificado
 
-A cor roxa (`purple-500`, `purple-600`) é usada em 5 arquivos para elementos de destaque e acões secundárias no modo campeonato. Vou substituir por **amarelo/dourado** (`yellow-500`, `yellow-600`) que combina com a faixa do timer.
+O callback `handleHardwareKick` no ChampionshipMat.tsx esta capturando uma versao desatualizada de `sync.state.status`. Quando a luta inicia e o status muda para `'RUNNING'`, o callback ainda verifica a versao antiga do estado.
 
-## Arquivos a Modificar
+### Codigo Atual com Problema
 
-### 1. ChampionshipMat.tsx
-**Status indicator e botão de reset:**
 ```tsx
-// DE:
-"bg-purple-500/20 text-purple-500"
-"bg-purple-600 hover:bg-purple-500"
-
-// PARA:
-"bg-yellow-500/20 text-yellow-500"
-"bg-yellow-600 hover:bg-yellow-500 text-black"
+const handleHardwareKick = useCallback((side: Side, hitType: HitType) => {
+  // BUG: sync.state.status esta desatualizado dentro desta closure!
+  if (sync.state.status !== 'RUNNING') return;
+  
+  const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
+  const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
+  
+  sync.addScore(matchSide, scoreType);
+}, [sync]); // sync e um objeto estavel, nao muda mesmo quando state.status muda
 ```
 
-### 2. ScoreboardMain.tsx
-**Overlay de fim de luta:**
+### Por Que Funciona nos Outros Modos?
+
+Nos modos time_attack e arcade, o callback nao verifica o estado diretamente - ele delega para `registerKick()` que tem acesso ao estado atualizado internamente:
+
 ```tsx
-// DE:
-"bg-purple-600 hover:bg-purple-500"
-"text-primary" (roxo atual)
-
-// PARA:
-"bg-yellow-600 hover:bg-yellow-500 text-black"
-"text-[hsl(var(--sulsport-yellow))]"
-```
-
-### 3. OperatorPanel.tsx
-**Botões de próximo round, conectar e reset:**
-```tsx
-// DE:
-"bg-purple-600 hover:bg-purple-500"
-
-// PARA:
-"bg-yellow-600 hover:bg-yellow-500 text-black"
-```
-
-### 4. EventLogDialog.tsx
-**Cor do evento MATCH_END:**
-```tsx
-// DE:
-"text-purple-400"
-
-// PARA:
-"text-yellow-400"
-```
-
-### 5. HomeScreen.tsx
-**Botão de campeonato na home:**
-```tsx
-// DE:
-"from-purple-500/20 to-purple-500/5 border-purple-500/50"
-"bg-purple-500/20 text-purple-500"
-
-// PARA:
-"from-yellow-500/20 to-yellow-500/5 border-yellow-500/50"
-"bg-yellow-500/20 text-yellow-500"
+// Index.tsx - funciona porque registerKick verifica estado internamente
+const handleSerialKick = useCallback((side: Side, hitType: HitType) => {
+  if (gameMode === 'arcade') {
+    arcadeState.registerKick(side, hitType); // registerKick verifica estado atualizado
+  }
+}, [gameMode, arcadeState]);
 ```
 
 ---
 
-## Paleta Final
+## Solucao
 
-| Uso | Antes (Roxo) | Depois (Dourado) |
-|-----|--------------|------------------|
-| Botões primários | `bg-purple-600` | `bg-yellow-600 text-black` |
-| Hover | `bg-purple-500` | `bg-yellow-500` |
-| Texto destaque | `text-purple-500` | `text-yellow-500` |
-| Background sutil | `bg-purple-500/20` | `bg-yellow-500/20` |
+Usar uma **ref** para armazenar a funcao de callback, permitindo que ela sempre use a versao mais recente do estado. Este e o mesmo padrao usado no Index.tsx (veja linhas 67-85).
 
-## Nota Tecnica
+### ChampionshipMat.tsx - Modificacoes
 
-Como o amarelo é uma cor clara, os botões precisam de `text-black` para garantir contraste e legibilidade.
+**Adicionar import de useRef:**
+```tsx
+import { useState, useRef, useEffect, useCallback } from 'react';
+```
+
+**Criar ref para o callback:**
+```tsx
+// Ref para manter callback atualizado
+const handleHardwareKickRef = useRef<(side: Side, hitType: HitType) => void>(() => {});
+
+// Atualizar ref quando estado muda
+useEffect(() => {
+  handleHardwareKickRef.current = (side: Side, hitType: HitType) => {
+    // Agora sync.state.status esta sempre atualizado
+    if (sync.state.status !== 'RUNNING') return;
+    
+    const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
+    const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
+    
+    sync.addScore(matchSide, scoreType);
+  };
+}, [sync.state.status, sync.addScore]);
+
+// Callback wrapper que chama a ref
+const handleHardwareKick = useCallback((side: Side, hitType: HitType) => {
+  handleHardwareKickRef.current(side, hitType);
+}, []);
+```
+
+---
+
+## Diagrama do Problema
+
+```text
+ANTES (BUG):
++-------------------+     +-------------------+
+| useSerialPort     |     | handleHardwareKick|
+| onKickRef.current |--->| status = 'IDLE'   | <-- Closure captura valor antigo
++-------------------+     +-------------------+
+                                   |
+                                   v
+                          if (status !== 'RUNNING')
+                              return; // SEMPRE RETORNA!
+
+DEPOIS (FIX):
++-------------------+     +-------------------+     +-----------------------+
+| useSerialPort     |     | handleHardwareKick|     | handleHardwareKickRef |
+| onKickRef.current |--->| wrapper estavel   |--->| status = sync.state   |
++-------------------+     +-------------------+     +-----------------------+
+                                                            |
+                                                            v
+                                                   if (status !== 'RUNNING')
+                                                       // Verifica valor atual!
+```
+
+---
+
+## Arquivo a Modificar
+
+**src/pages/ChampionshipMat.tsx**
+
+Substituir o bloco de handleHardwareKick (linhas 41-56) pelo novo codigo com useRef + useEffect.
+
+---
+
+## Validacao
+
+Apos a correcao:
+1. Abrir modo campeonato
+2. Conectar placa USB
+3. Iniciar round (status = RUNNING)
+4. Golpear equipamento
+5. Verificar que pontos sao registrados
+
+O problema original era que os chutes da placa eram **ignorados** porque o callback verificava `status !== 'RUNNING'` mas a closure tinha o valor antigo `'IDLE'`.
