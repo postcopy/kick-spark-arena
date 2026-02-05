@@ -1,564 +1,347 @@
 
-
-# Implementar Diagnóstico de Intensidade - Versão Final com Micro-Ajustes
+# Wizard de Calibração Guiada com 3 Etapas
 
 ## Visão Geral
 
-Ferramenta de diagnóstico para coletar pacotes RAW do hardware (intensity, deviceId, battery, ts) para calibrar thresholds futuros. O placar do campeonato NÃO será alterado nesta fase.
+Implementar um wizard de calibração que guia o usuário em 3 etapas sequenciais (RASPAGEM, TOQUE, PONTO), coletando impactos em cada fase e sugerindo automaticamente os thresholds baseados na distribuição de `peakIntensity` observada.
 
 ---
 
-## Arquivos a Criar
+## Fluxo do Wizard
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/types/hardwareDiagnostics.ts` | Tipos e interfaces |
-| `src/hooks/useHardwareDiagnostics.ts` | Hook com performance otimizada |
-| `src/components/championship/DiagnosticsDialog.tsx` | Dialog fullscreen responsivo |
-| `src/components/championship/NewSampleDialog.tsx` | Modal para gravar amostra |
-
-## Arquivos a Modificar
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/types/serial.ts` | Adicionar `onRawPacket` opcional |
-| `src/hooks/useSerialPort.ts` | Chamar onRawPacket antes do debounce (linha ~180) |
-| `src/pages/ChampionshipMat.tsx` | Instanciar diagnostics e passar para OperatorPanel |
-| `src/components/championship/OperatorPanel.tsx` | Botão DIAGNÓSTICO + Dialog |
-
----
-
-## Micro-Ajustes Aplicados
-
-### 1. Ring Buffer sem Spread (Performance)
-
-```typescript
-// ANTES (aloca array novo a cada pacote):
-eventsRef.current = [...eventsRef.current, pkt].slice(-2000);
-
-// DEPOIS (push + trim in-place):
-const MAX_EVENTS = 2000;
-eventsRef.current.push(pkt);
-if (eventsRef.current.length > MAX_EVENTS) {
-  eventsRef.current = eventsRef.current.slice(-MAX_EVENTS);
-}
-```
-
-### 2. Peak Hold Força Refresh ao Zerar
-
-```typescript
-type TimeoutHandle = ReturnType<typeof setTimeout>;
-
-const peakRef = useRef<{ value: number; timeout: TimeoutHandle | null }>({ 
-  value: 0, 
-  timeout: null 
-});
-const uiDirtyTickRef = useRef(0);
-
-// No onRawPacket:
-if (pkt.intensity > peakRef.current.value) {
-  peakRef.current.value = pkt.intensity;
-}
-if (peakRef.current.timeout) {
-  clearTimeout(peakRef.current.timeout);
-}
-peakRef.current.timeout = setTimeout(() => {
-  peakRef.current.value = 0;
-  // Força refresh da UI mesmo sem novo pacote
-  uiDirtyTickRef.current++;
-}, 2000);
-
-// No throttle (100ms):
-useEffect(() => {
-  let lastTick = uiDirtyTickRef.current;
-  
-  const interval = setInterval(() => {
-    const currentTs = lastPacketRef.current?.ts ?? null;
-    const currentTick = uiDirtyTickRef.current;
-    
-    // Atualiza se: novo pacote OU dirtyTick mudou (peak zerou)
-    if (currentTs !== lastUiTsRef.current || currentTick !== lastTick) {
-      lastUiTsRef.current = currentTs;
-      lastTick = currentTick;
-      setUiLastPacket(lastPacketRef.current);
-      setUiRecentEvents(eventsRef.current.slice(-30).reverse());
-      setUiStatsByDevice(calculateAllStats(eventsRef.current));
-      setPeakIntensity(peakRef.current.value);
-    }
-  }, 100);
-  return () => clearInterval(interval);
-}, []);
-```
-
-### 3. Persistência Otimizada (300 eventos max)
-
-```typescript
-const MAX_PERSISTED_EVENTS = 300;  // Reduzido para localStorage
-const MAX_MEMORY_EVENTS = 2000;    // Buffer em memória completo
-
-// No save debounced (2s):
-const saveToStorage = useCallback(() => {
-  const data: DiagnosticsStorage = {
-    version: 1,
-    createdAt: createdAtRef.current,
-    updatedAt: Date.now(),
-    deviceLabels,
-    thresholds,
-    // Persistir apenas os últimos 300 eventos (economia de storage)
-    events: eventsRef.current.slice(-MAX_PERSISTED_EVENTS),
-    samples,
-  };
-  localStorage.setItem(storageKey, JSON.stringify(data));
-  dirtyRef.current = false;
-}, [deviceLabels, thresholds, samples, storageKey]);
-```
-
-### 4. Export CSV com Escaping Correto
-
-```typescript
-// Função auxiliar para escapar campos CSV
-function escapeCSV(value: string | number): string {
-  const str = String(value);
-  // Se contém vírgula, aspas ou quebra de linha, encapsula em aspas
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-// Gera CSV com vírgula (padrão internacional)
-function generateEventsCSV(events: HardwareRawPacket[]): string {
-  const header = 'ts_iso,deviceId,intensity,battery';
-  const rows = events.map(e => [
-    new Date(e.ts).toISOString(),
-    e.deviceId,
-    e.intensity,
-    e.battery ?? ''
-  ].map(escapeCSV).join(','));
-  return [header, ...rows].join('\n');
-}
-
-function generateSamplesCSV(samples: HardwareSample[]): string {
-  const header = 'sampleId,label,category,deviceId,count,min,max,avg,p90,p95';
-  const rows: string[] = [];
-  
-  samples.forEach(sample => {
-    Object.entries(sample.statsByDevice).forEach(([deviceId, stats]) => {
-      rows.push([
-        sample.id,
-        escapeCSV(sample.label),
-        sample.category,
-        deviceId,
-        stats.count,
-        stats.min,
-        stats.max,
-        stats.avg,
-        stats.p90,
-        stats.p95
-      ].join(','));
-    });
-  });
-  
-  return [header, ...rows].join('\n');
-}
-
-// Download como 2 arquivos separados
-const exportCSV = useCallback(() => {
-  const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
-  
-  // Events CSV
-  const eventsCSV = generateEventsCSV(eventsRef.current);
-  downloadFile(`events_${timestamp}.csv`, eventsCSV, 'text/csv');
-  
-  // Samples CSV
-  if (samples.length > 0) {
-    const samplesCSV = generateSamplesCSV(samples);
-    downloadFile(`samples_${timestamp}.csv`, samplesCSV, 'text/csv');
-  }
-}, [samples]);
-
-function downloadFile(filename: string, content: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-```
-
-### 5. Device Labels Padrão no First Run
-
-```typescript
-const DEFAULT_DEVICE_LABELS: DeviceLabels = {
-  '1': 'Colete Azul',
-  '2': 'Colete Vermelho',
-  '3': 'Capacete Azul',
-  '4': 'Capacete Vermelho',
-};
-
-const DEFAULT_THRESHOLDS: HardwareThresholds = {
-  vestHitMin: 150,
-  vestPointMin: 400,
-  helmetHitMin: 100,
-  helmetPointMin: 300,
-};
-
-// No carregamento inicial:
-useEffect(() => {
-  const stored = localStorage.getItem(storageKey);
-  if (stored) {
-    try {
-      const data = JSON.parse(stored) as DiagnosticsStorage;
-      eventsRef.current = data.events || [];
-      setSamples(data.samples || []);
-      setThresholds(data.thresholds || DEFAULT_THRESHOLDS);
-      setDeviceLabels(data.deviceLabels || DEFAULT_DEVICE_LABELS);
-      createdAtRef.current = data.createdAt;
-    } catch (e) {
-      console.error('Failed to load diagnostics:', e);
-    }
-  } else {
-    // First run: usar defaults
-    setDeviceLabels(DEFAULT_DEVICE_LABELS);
-    setThresholds(DEFAULT_THRESHOLDS);
-    createdAtRef.current = Date.now();
-  }
-}, [storageKey]);
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          WIZARD DE CALIBRAÇÃO                                   │
+│                                                                                 │
+│   ETAPA 1: RASPAGEM                ETAPA 2: TOQUE               ETAPA 3: PONTO │
+│   ┌──────────────────┐            ┌──────────────────┐         ┌──────────────────┐
+│   │ "Encoste leve    │            │ "Dê toques       │         │ "Dê chutes com   │
+│   │  no equipamento  │   PRÓXIMO  │  moderados no    │  PRÓXIMO│  força total     │
+│   │  sem força"      │ ────────▶  │  equipamento"    │ ────────▶  para pontuar"   │
+│   │                  │            │                  │         │                  │
+│   │ [Barra 8s]       │            │ [Barra 8s]       │         │ [Barra 8s]       │
+│   │ Impactos: 12     │            │ Impactos: 15     │         │ Impactos: 10     │
+│   │ Peak max: 8      │            │ Peak max: 22     │         │ Peak max: 45     │
+│   └──────────────────┘            └──────────────────┘         └──────────────────┘
+│                                                                         │
+│                                                                         ▼
+│                                   RESULTADO                                      │
+│   ┌──────────────────────────────────────────────────────────────────────────┐  │
+│   │ Análise dos impactos coletados:                                          │  │
+│   │                                                                          │  │
+│   │   RASPAGEM: P95 = 7    ▓▓░░░░░░░░░░░░░░░░░░                              │  │
+│   │   TOQUE:    P95 = 20   ▓▓▓▓▓▓▓░░░░░░░░░░░░░                              │  │
+│   │   PONTO:    P95 = 42   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░                              │  │
+│   │                                                                          │  │
+│   │   Thresholds sugeridos:                                                  │  │
+│   │   ┌────────────────┬───────────┬────────────┐                            │  │
+│   │   │ Tipo           │ HIT mín   │ PONTO mín  │                            │  │
+│   │   ├────────────────┼───────────┼────────────┤                            │  │
+│   │   │ Colete         │ 14        │ 31         │                            │  │
+│   │   │ Capacete       │ 10        │ 25         │                            │  │
+│   │   └────────────────┴───────────┴────────────┘                            │  │
+│   │                                                                          │  │
+│   │   [APLICAR THRESHOLDS]     [DESCARTAR]                                   │  │
+│   └──────────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Tipos (hardwareDiagnostics.ts)
+## Arquitetura
+
+### Novos Tipos (`src/types/hardwareDiagnostics.ts`)
 
 ```typescript
-/** Pacote raw do hardware. ts gerado via Date.now() no momento do parse. */
-export interface HardwareRawPacket {
-  ts: number;
-  deviceId: number;
-  intensity: number;
-  battery?: number;
+/** Etapa do wizard de calibração */
+export type CalibrationWizardStep = 'idle' | 'raspagem' | 'toque' | 'ponto' | 'result';
+
+/** Dados coletados em uma etapa do wizard */
+export interface CalibrationStepData {
+  impacts: ImpactEvent[];
+  stats: HardwareStats | null;  // Calculado sobre peakIntensity
 }
 
-export type SampleCategory = 'RASPAGEM' | 'TOQUE' | 'PONTO' | 'OUTRO';
-
-export interface HardwareStats {
-  count: number;
-  min: number;
-  max: number;
-  avg: number;
-  p90: number;
-  p95: number;
+/** Estado completo do wizard */
+export interface CalibrationWizardState {
+  step: CalibrationWizardStep;
+  stepStartedAt: number | null;
+  stepDurationMs: number;
+  raspagem: CalibrationStepData;
+  toque: CalibrationStepData;
+  ponto: CalibrationStepData;
+  suggestedThresholds: HardwareThresholds | null;
 }
 
-export interface HardwareSample {
-  id: string;
-  label: string;
-  category: SampleCategory;
-  startedAt: number;
-  durationMs: number;
-  events: HardwareRawPacket[];
-  statsByDevice: Record<string, HardwareStats>;
-}
-
-export interface HardwareThresholds {
-  vestHitMin: number;
-  vestPointMin: number;
-  helmetHitMin: number;
-  helmetPointMin: number;
-}
-
-export type DeviceLabels = Record<string, string>;
-
-export interface DiagnosticsStorage {
-  version: 1;
-  createdAt: number;
-  updatedAt: number;
-  deviceLabels: DeviceLabels;
-  thresholds: HardwareThresholds;
-  events: HardwareRawPacket[];
-  samples: HardwareSample[];
-}
-```
-
----
-
-## Hook useHardwareDiagnostics - Interface Exposta
-
-```typescript
+/** Extensão do UseHardwareDiagnosticsReturn */
 export interface UseHardwareDiagnosticsReturn {
-  // Callback para useSerialPort
-  onRawPacket: (pkt: HardwareRawPacket) => void;
+  // ... existentes ...
   
-  // UI states (throttled 100ms)
-  uiLastPacket: HardwareRawPacket | null;
-  peakIntensity: number;
-  uiRecentEvents: HardwareRawPacket[];
-  uiStatsByDevice: Record<string, HardwareStats>;
-  
-  // Samples
-  samples: HardwareSample[];
-  isRecording: boolean;
-  recordingProgress: number;
-  startSample: (label: string, category: SampleCategory, durationMs?: number) => void;
-  deleteSample: (id: string) => void;
-  
-  // Thresholds
-  thresholds: HardwareThresholds;
-  setThresholds: (t: HardwareThresholds) => void;
-  
-  // Device labels
-  deviceLabels: DeviceLabels;
-  setDeviceLabel: (id: string, label: string) => void;
-  
-  // Actions
-  clearEvents: () => void;
-  clearAll: () => void;
-  exportJSON: () => void;
-  exportCSV: () => void;
-  
-  // Info
-  eventCount: number;
-  sampleCount: number;
+  // Wizard de calibração
+  calibrationWizard: CalibrationWizardState;
+  startCalibrationWizard: () => void;
+  advanceWizardStep: () => void;
+  cancelWizard: () => void;
+  applyWizardThresholds: () => void;
 }
+```
+
+### Constantes
+
+```typescript
+const WIZARD_STEP_DURATION_MS = 8000;  // 8 segundos por etapa
+const WIZARD_STEPS: CalibrationWizardStep[] = ['raspagem', 'toque', 'ponto'];
 ```
 
 ---
 
-## Calculo Correto de Percentis
+## Lógica no Hook (`src/hooks/useHardwareDiagnostics.ts`)
+
+### Estado do Wizard
 
 ```typescript
-function calculateStats(intensities: number[]): HardwareStats {
-  if (intensities.length === 0) {
-    return { count: 0, min: 0, max: 0, avg: 0, p90: 0, p95: 0 };
+// Wizard state
+const [calibrationWizard, setCalibrationWizard] = useState<CalibrationWizardState>({
+  step: 'idle',
+  stepStartedAt: null,
+  stepDurationMs: WIZARD_STEP_DURATION_MS,
+  raspagem: { impacts: [], stats: null },
+  toque: { impacts: [], stats: null },
+  ponto: { impacts: [], stats: null },
+  suggestedThresholds: null,
+});
+
+// Ref para coletar impactos durante o wizard
+const wizardImpactsRef = useRef<ImpactEvent[]>([]);
+const wizardActiveRef = useRef<CalibrationWizardStep>('idle');
+```
+
+### Coleta de Impactos Durante Wizard
+
+No throttle loop, quando finalizar um impacto e o wizard estiver ativo:
+
+```typescript
+// No throttle loop, ao criar ImpactEvent:
+if (wizardActiveRef.current !== 'idle' && wizardActiveRef.current !== 'result') {
+  wizardImpactsRef.current.push(impact);
+}
+```
+
+### Funções do Wizard
+
+```typescript
+const startCalibrationWizard = useCallback(() => {
+  wizardImpactsRef.current = [];
+  wizardActiveRef.current = 'raspagem';
+  setCalibrationWizard({
+    step: 'raspagem',
+    stepStartedAt: Date.now(),
+    stepDurationMs: WIZARD_STEP_DURATION_MS,
+    raspagem: { impacts: [], stats: null },
+    toque: { impacts: [], stats: null },
+    ponto: { impacts: [], stats: null },
+    suggestedThresholds: null,
+  });
+}, []);
+
+const advanceWizardStep = useCallback(() => {
+  const currentStep = wizardActiveRef.current;
+  const collectedImpacts = [...wizardImpactsRef.current];
+  wizardImpactsRef.current = [];
+  
+  // Calcular stats sobre peakIntensity
+  const peaks = collectedImpacts.map(i => i.peakIntensity);
+  const stats = peaks.length > 0 ? calculateStats(peaks) : null;
+  
+  setCalibrationWizard(prev => {
+    const updated = { ...prev };
+    
+    // Salvar dados da etapa atual
+    if (currentStep === 'raspagem') {
+      updated.raspagem = { impacts: collectedImpacts, stats };
+    } else if (currentStep === 'toque') {
+      updated.toque = { impacts: collectedImpacts, stats };
+    } else if (currentStep === 'ponto') {
+      updated.ponto = { impacts: collectedImpacts, stats };
+    }
+    
+    // Avançar para próxima etapa
+    if (currentStep === 'raspagem') {
+      updated.step = 'toque';
+      updated.stepStartedAt = Date.now();
+      wizardActiveRef.current = 'toque';
+    } else if (currentStep === 'toque') {
+      updated.step = 'ponto';
+      updated.stepStartedAt = Date.now();
+      wizardActiveRef.current = 'ponto';
+    } else if (currentStep === 'ponto') {
+      // Finalizar: calcular thresholds sugeridos
+      updated.step = 'result';
+      updated.stepStartedAt = null;
+      wizardActiveRef.current = 'result';
+      updated.suggestedThresholds = calculateSuggestedThresholds(
+        updated.raspagem.stats,
+        updated.toque.stats,
+        updated.ponto.stats
+      );
+    }
+    
+    return updated;
+  });
+}, []);
+
+const cancelWizard = useCallback(() => {
+  wizardImpactsRef.current = [];
+  wizardActiveRef.current = 'idle';
+  setCalibrationWizard({
+    step: 'idle',
+    stepStartedAt: null,
+    stepDurationMs: WIZARD_STEP_DURATION_MS,
+    raspagem: { impacts: [], stats: null },
+    toque: { impacts: [], stats: null },
+    ponto: { impacts: [], stats: null },
+    suggestedThresholds: null,
+  });
+}, []);
+
+const applyWizardThresholds = useCallback(() => {
+  if (calibrationWizard.suggestedThresholds) {
+    setThresholds(calibrationWizard.suggestedThresholds);
   }
+  cancelWizard();
+}, [calibrationWizard.suggestedThresholds, cancelWizard]);
+```
+
+### Algoritmo de Sugestão de Thresholds
+
+```typescript
+function calculateSuggestedThresholds(
+  raspagem: HardwareStats | null,
+  toque: HardwareStats | null,
+  ponto: HardwareStats | null
+): HardwareThresholds {
+  // Usar P95 de cada categoria como referência
+  const raspagemP95 = raspagem?.p95 ?? 0;
+  const toqueP95 = toque?.p95 ?? 0;
+  const pontoP95 = ponto?.p95 ?? 0;
   
-  const n = intensities.length;
-  const sorted = [...intensities].sort((a, b) => a - b);
+  // HIT threshold: ponto médio entre RASPAGEM e TOQUE
+  // (queremos aceitar TOQUE como HIT mas rejeitar RASPAGEM)
+  const hitThreshold = Math.round((raspagemP95 + toqueP95) / 2);
   
-  const sum = intensities.reduce((a, b) => a + b, 0);
-  const avg = Math.round(sum / n);
+  // PONTO threshold: ponto médio entre TOQUE e PONTO
+  // (queremos aceitar PONTO como ponto válido mas TOQUE é só HIT)
+  const pointThreshold = Math.round((toqueP95 + pontoP95) / 2);
   
-  // Percentis: indice = floor(percentil * (n-1))
-  const p90Index = Math.floor(0.90 * (n - 1));
-  const p95Index = Math.floor(0.95 * (n - 1));
+  // Aplicar fator de segurança para capacete (geralmente 20% menor)
+  const helmetFactor = 0.8;
   
   return {
-    count: n,
-    min: sorted[0],
-    max: sorted[n - 1],
-    avg,
-    p90: sorted[p90Index],
-    p95: sorted[p95Index],
+    vestHitMin: Math.max(1, hitThreshold),
+    vestPointMin: Math.max(hitThreshold + 1, pointThreshold),
+    helmetHitMin: Math.max(1, Math.round(hitThreshold * helmetFactor)),
+    helmetPointMin: Math.max(Math.round(hitThreshold * helmetFactor) + 1, Math.round(pointThreshold * helmetFactor)),
   };
 }
-
-function calculateAllStats(events: HardwareRawPacket[]): Record<string, HardwareStats> {
-  const byDevice: Record<string, number[]> = {};
-  
-  for (const evt of events) {
-    const key = String(evt.deviceId);
-    if (!byDevice[key]) byDevice[key] = [];
-    byDevice[key].push(evt.intensity);
-  }
-  
-  const result: Record<string, HardwareStats> = {};
-  for (const [deviceId, intensities] of Object.entries(byDevice)) {
-    result[deviceId] = calculateStats(intensities);
-  }
-  
-  return result;
-}
 ```
 
 ---
 
-## useSerialPort - Adicionar onRawPacket
+## UI: Wizard Dialog (`src/components/championship/CalibrationWizardDialog.tsx`)
 
-```typescript
-// Em src/types/serial.ts - adicionar:
-export interface UseSerialPortOptions {
-  onKick: (side: Side, hitType: HitType) => void;
-  onRawPacket?: (pkt: { 
-    intensity: number; 
-    deviceId: number; 
-    battery?: number; 
-    ts: number; 
-  }) => void;
-  debounceMs?: number;
+Novo componente dialog para o wizard:
+
+```tsx
+interface CalibrationWizardDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  wizard: CalibrationWizardState;
+  onAdvance: () => void;
+  onCancel: () => void;
+  onApply: () => void;
+  currentImpactCount: number;  // Impactos coletados na etapa atual
+  lastImpact: ImpactEvent | null;
 }
-
-// Em src/hooks/useSerialPort.ts:
-// 1. Adicionar ref (apos onKickRef, linha ~105):
-const onRawPacketRef = useRef(options.onRawPacket);
-
-// 2. Manter atualizado (apos useEffect do onKick, linha ~112):
-useEffect(() => {
-  onRawPacketRef.current = options.onRawPacket;
-}, [options.onRawPacket]);
-
-// 3. Chamar ANTES do debounce (linha ~180, apos parsed):
-const { intensity, deviceId, battery } = parsed;
-
-// NOVO: Raw packet para diagnostico (antes de qualquer filtro)
-if (onRawPacketRef.current) {
-  onRawPacketRef.current({
-    intensity,
-    deviceId,
-    battery,
-    ts: Date.now(),
-  });
-}
-
-// Codigo existente continua (updateEquipment, debounce, onKick...)
 ```
+
+### Layout por Etapa
+
+**Etapa RASPAGEM / TOQUE / PONTO:**
+- Título: "Etapa 1/3: RASPAGEM" (ou TOQUE, PONTO)
+- Instrução clara: "Encoste levemente no equipamento várias vezes"
+- Barra de progresso com tempo restante
+- Contador de impactos coletados
+- Último impacto detectado (peak)
+- Botões: [CANCELAR] [PRÓXIMO - aguardando timer ou manual]
+
+**Etapa RESULTADO:**
+- Resumo das 3 etapas com stats (count, P95)
+- Barras visuais mostrando a distribuição
+- Thresholds sugeridos em tabela editável
+- Validação: alerta se overlap entre categorias
+- Botões: [DESCARTAR] [APLICAR THRESHOLDS]
 
 ---
 
-## ChampionshipMat - Integracao
+## Integração no DiagnosticsDialog
 
-```typescript
-import { useHardwareDiagnostics } from '@/hooks/useHardwareDiagnostics';
+Adicionar botão "WIZARD DE CALIBRAÇÃO" que abre o CalibrationWizardDialog:
 
-// Dentro do componente:
-const diagnostics = useHardwareDiagnostics({ 
-  storageKey: 'sulsport:championship:diag:v1' 
-});
+```tsx
+<Button
+  size="sm"
+  onClick={diagnostics.startCalibrationWizard}
+  disabled={diagnostics.isRecording || !isConnected || diagnostics.calibrationWizard.step !== 'idle'}
+  className="bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white"
+>
+  WIZARD DE CALIBRAÇÃO
+</Button>
 
-const serialPort = useSerialPort({
-  onKick: handleHardwareKick,
-  onRawPacket: diagnostics.onRawPacket,  // NOVO
-  debounceMs: 150,
-});
-
-// Passar para OperatorPanel:
-<OperatorPanel
-  state={sync.state}
-  actions={sync}
-  onOpenTV={handleOpenTV}
-  isTVOpen={isTVOpen}
-  serialPort={serialPort}
-  diagnostics={diagnostics}  // NOVO
-  onOpenConfig={() => setShowConfigDialog(true)}
+<CalibrationWizardDialog
+  open={diagnostics.calibrationWizard.step !== 'idle'}
+  onOpenChange={(open) => !open && diagnostics.cancelWizard()}
+  wizard={diagnostics.calibrationWizard}
+  onAdvance={diagnostics.advanceWizardStep}
+  onCancel={diagnostics.cancelWizard}
+  onApply={diagnostics.applyWizardThresholds}
+  currentImpactCount={...}
+  lastImpact={...}
 />
 ```
 
 ---
 
-## OperatorPanel - Botao e Dialog
+## Arquivos a Criar/Modificar
 
-```typescript
-// Adicionar import:
-import { Activity } from 'lucide-react';
-import { DiagnosticsDialog } from './DiagnosticsDialog';
-import type { UseHardwareDiagnosticsReturn } from '@/hooks/useHardwareDiagnostics';
-
-// Adicionar prop:
-interface OperatorPanelProps {
-  // ... existentes
-  diagnostics?: UseHardwareDiagnosticsReturn;
-}
-
-// Adicionar estado:
-const [showDiagnostics, setShowDiagnostics] = useState(false);
-
-// Na secao HARDWARE (apos botao CONECTAR USB, linha ~319):
-{diagnostics && (
-  <Button
-    onClick={() => setShowDiagnostics(true)}
-    className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
-  >
-    <Activity className="w-4 h-4 mr-2" />
-    DIAGNOSTICO
-  </Button>
-)}
-
-// No final do componente (antes do fechamento de aside):
-{diagnostics && (
-  <DiagnosticsDialog
-    open={showDiagnostics}
-    onOpenChange={setShowDiagnostics}
-    diagnostics={diagnostics}
-    serialPort={serialPort}
-  />
-)}
-```
+| Arquivo | Ação | Mudanças |
+|---------|------|----------|
+| `src/types/hardwareDiagnostics.ts` | Modificar | Adicionar CalibrationWizardStep, CalibrationStepData, CalibrationWizardState; expandir UseHardwareDiagnosticsReturn |
+| `src/hooks/useHardwareDiagnostics.ts` | Modificar | Estado do wizard, coleta de impactos durante wizard, funções start/advance/cancel/apply, algoritmo de sugestão |
+| `src/components/championship/CalibrationWizardDialog.tsx` | Criar | Novo componente dialog com UI do wizard |
+| `src/components/championship/DiagnosticsDialog.tsx` | Modificar | Adicionar botão "WIZARD DE CALIBRAÇÃO" e integrar CalibrationWizardDialog |
 
 ---
 
-## DiagnosticsDialog - Layout Responsivo
+## Critérios de Aceite
 
-```text
-+--------------------------------------------------------------------------------+
-| DIAGNOSTICO DE HARDWARE                      [LIMPAR] [LIMPAR TUDO] [JSON] [CSV]
-| USB: (verde) CONECTADO                                        [CONECTAR USB]
-+--------------------------------------------------------------------------------+
-|                                                                                |
-|  +---------------------------+   +------------------------------------------+  |
-|  |   ULTIMO IMPACTO          |   |   EVENTOS RECENTES                       |  |
-|  |                           |   |                                          |  |
-|  |         847              |   |   HH:MM:SS  DevID  Intens.  Bat.         |  |
-|  |     (peak: 892)          |   |   12:30:45    2      847     85%         |  |
-|  |                           |   |   12:30:44    1      234     92%         |  |
-|  |   Device: 2 (Colete Verm) |   |   ... (30 linhas)                        |  |
-|  |   Bateria: 85%            |   |                                          |  |
-|  |   agora                   |   |                                          |  |
-|  +---------------------------+   +------------------------------------------+  |
-|                                                                                |
-|  +--------------------------------------------------------------------------+  |
-|  |   STATS POR DEVICE                                                       |  |
-|  |   +--------------------------------------------------------------------+ |  |
-|  |   | DevID | Label (edit)    | Count | Min | Max | Avg  | P90  | P95  | |  |
-|  |   |   1   | [Colete Azul  ] |  142  |  45 | 923 |  412 |  756 |  845 | |  |
-|  |   |   2   | [Colete Verm. ] |  138  |  52 | 987 |  445 |  789 |  876 | |  |
-|  |   +--------------------------------------------------------------------+ |  |
-|  +--------------------------------------------------------------------------+  |
-|                                                                                |
-|  +---------------------------+   +------------------------------------------+  |
-|  |   AMOSTRAS                |   |   THRESHOLDS (pre-configuracao)          |  |
-|  |                           |   |                                          |  |
-|  |   [+ NOVA AMOSTRA]        |   |   Colete HIT min:    [___150___]         |  |
-|  |                           |   |   Colete PONTO min:  [___400___]         |  |
-|  |   * "Raspagem colete"     |   |   Capacete HIT min:  [___100___]         |  |
-|  |     RASPAGEM | Dev2 |     |   |   Capacete PONTO min:[___300___]         |  |
-|  |     P90: 234 | 45 evts    |   |                                          |  |
-|  |                           |   |   (!) Ainda nao aplicado no placar       |  |
-|  +---------------------------+   +------------------------------------------+  |
-+--------------------------------------------------------------------------------+
-```
-
-### Classes CSS
-
-```css
-/* Container do Dialog */
-max-w-[96vw] max-h-[92vh] overflow-auto p-0
-
-/* Grid principal */
-grid gap-4 lg:grid-cols-2 grid-cols-1 p-4
-
-/* Numero grande de intensidade */
-font-size: clamp(3rem, 8vw, 6rem)
-font-family: monospace
-font-weight: bold
-
-/* Stats table em 2 colunas no lg */
-lg:col-span-2
-```
+| # | Critério |
+|---|----------|
+| 1 | Botão "WIZARD DE CALIBRAÇÃO" abre o wizard |
+| 2 | Wizard tem 3 etapas (RASPAGEM, TOQUE, PONTO) com 8s cada |
+| 3 | Impactos são coletados separadamente por etapa |
+| 4 | Ao finalizar, mostra stats de cada etapa (count, P95) |
+| 5 | Thresholds são sugeridos automaticamente baseado nos P95 |
+| 6 | "APLICAR THRESHOLDS" atualiza os thresholds do diagnóstico |
+| 7 | Wizard pode ser cancelado a qualquer momento |
+| 8 | Se não houver dados suficientes em alguma etapa, exibe aviso |
 
 ---
 
-## Criterios de Aceite
+## Detalhes de UX
 
-1. Dialog "DIAGNOSTICO" nao corta em 1366x768
-2. UI nao engasga com spam de pacotes (throttle 100ms + push in-place)
-3. Peak hold zera apos 2s e UI atualiza mesmo sem novo pacote
-4. Stats por deviceId corretas (min/max/avg/p90/p95)
-5. Samples gravam ~12s e persistem apos reload
-6. Apenas 300 eventos persistidos (2000 em memoria)
-7. Export JSON + 2 CSV com escaping correto
-8. Device labels default preenchidos no first run
-9. Placar do Campeonato NAO afetado
-
+- **Timer visual**: Barra de progresso de 8s com countdown
+- **Feedback sonoro** (opcional): beep ao iniciar/finalizar etapa
+- **Instruções claras**: Texto grande explicando o que fazer
+- **Contador de impactos**: Mostra quantos golpes foram registrados
+- **Preview do último impacto**: Mostra o peak em tempo real
+- **Validação no resultado**: Se TOQUE.P95 >= PONTO.P95, exibe alerta de que os dados podem estar incorretos
