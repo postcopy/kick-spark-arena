@@ -19,14 +19,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Trash2,
-  Download,
   FileJson,
   FileSpreadsheet,
   Usb,
   Plus,
   AlertTriangle,
+  Zap,
+  Radio,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UseHardwareDiagnosticsReturn } from '@/types/hardwareDiagnostics';
@@ -64,6 +66,16 @@ export function DiagnosticsDialog({
     return `${Math.floor(diff / 60000)}m atrás`;
   };
 
+  const isImpactMode = diagnostics.viewMode === 'impacts';
+  const lastImpact = diagnostics.uiRecentImpacts[0];
+  const statsToShow = isImpactMode 
+    ? diagnostics.uiImpactStatsByDevice 
+    : diagnostics.uiStatsByDevice;
+  
+  const { observedScale } = diagnostics;
+  const hasObservedData = observedScale.globalMax > 0 && observedScale.globalMin !== Infinity;
+  const isLowScale = hasObservedData && observedScale.globalMax <= 100;
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,13 +102,36 @@ export function DiagnosticsDialog({
                 </Badge>
               </div>
               <div className="flex gap-2 flex-wrap">
+                {/* Toggle RAW / IMPACTOS */}
+                <ToggleGroup 
+                  type="single" 
+                  value={diagnostics.viewMode} 
+                  onValueChange={(v) => v && diagnostics.setViewMode(v as 'impacts' | 'raw')}
+                  className="bg-zinc-800 rounded-md"
+                >
+                  <ToggleGroupItem 
+                    value="impacts" 
+                    className="text-xs px-3 data-[state=on]:bg-[hsl(var(--sulsport-blue))] data-[state=on]:text-white"
+                  >
+                    <Zap className="w-3 h-3 mr-1" />
+                    IMPACTOS ({diagnostics.impactCount})
+                  </ToggleGroupItem>
+                  <ToggleGroupItem 
+                    value="raw" 
+                    className="text-xs px-3 data-[state=on]:bg-zinc-600 data-[state=on]:text-white"
+                  >
+                    <Radio className="w-3 h-3 mr-1" />
+                    RAW ({diagnostics.eventCount})
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={diagnostics.clearEvents}
+                  onClick={isImpactMode ? diagnostics.clearImpacts : diagnostics.clearEvents}
                   className="border-zinc-600 text-zinc-300 hover:bg-zinc-700"
                 >
-                  LIMPAR EVENTOS
+                  LIMPAR {isImpactMode ? 'IMPACTOS' : 'EVENTOS'}
                 </Button>
                 <Button
                   size="sm"
@@ -151,11 +186,11 @@ export function DiagnosticsDialog({
 
           {/* Content Grid */}
           <div className="p-4 grid gap-4 lg:grid-cols-2 grid-cols-1">
-            {/* Último Impacto */}
+            {/* Último Impacto / Pacote */}
             <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
-                  ÚLTIMO IMPACTO
+                  {isImpactMode ? 'ÚLTIMO IMPACTO' : 'ÚLTIMO PACOTE'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-center py-4">
@@ -163,12 +198,36 @@ export function DiagnosticsDialog({
                   className="font-mono font-bold text-white"
                   style={{ fontSize: 'clamp(3rem, 8vw, 5rem)' }}
                 >
-                  {diagnostics.uiLastPacket?.intensity ?? '---'}
+                  {isImpactMode 
+                    ? (lastImpact?.peakIntensity ?? '---')
+                    : (diagnostics.uiLastPacket?.intensity ?? '---')
+                  }
                 </div>
                 <div className="text-zinc-400 text-sm mt-1">
                   (peak: <span className="text-[hsl(var(--sulsport-yellow))] font-bold">{diagnostics.peakIntensity}</span>)
                 </div>
-                {diagnostics.uiLastPacket && (
+                
+                {isImpactMode && lastImpact && (
+                  <div className="mt-3 text-sm text-zinc-400 space-y-1">
+                    <div>
+                      avg: <span className="text-white font-mono">{lastImpact.avgIntensity}</span> | 
+                      pkts: <span className="text-white font-mono">{lastImpact.packetCount}</span> | 
+                      <span className="text-white font-mono">{lastImpact.durationMs}ms</span>
+                    </div>
+                    <div className="text-zinc-500">
+                      Device: <span className="text-zinc-300">{lastImpact.deviceId}</span>
+                      {' '}
+                      <span className="text-zinc-400">
+                        ({diagnostics.deviceLabels[String(lastImpact.deviceId)] || 'N/A'})
+                      </span>
+                    </div>
+                    <div className="text-zinc-600">
+                      {formatRelativeTime(lastImpact.endedAt)}
+                    </div>
+                  </div>
+                )}
+                
+                {!isImpactMode && diagnostics.uiLastPacket && (
                   <div className="mt-3 text-sm text-zinc-500 space-y-1">
                     <div>
                       Device: <span className="text-zinc-300">{diagnostics.uiLastPacket.deviceId}</span>
@@ -190,51 +249,112 @@ export function DiagnosticsDialog({
               </CardContent>
             </Card>
 
-            {/* Eventos Recentes */}
+            {/* Eventos/Impactos Recentes */}
             <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
-                  EVENTOS RECENTES ({diagnostics.eventCount} total)
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
+                    {isImpactMode 
+                      ? `IMPACTOS RECENTES (${diagnostics.impactCount} total)` 
+                      : `EVENTOS RECENTES (${diagnostics.eventCount} total)`
+                    }
+                  </CardTitle>
+                  {hasObservedData && (
+                    <span className={cn(
+                      "text-xs",
+                      isLowScale ? "text-yellow-400" : "text-zinc-500"
+                    )}>
+                      Escala: {observedScale.globalMin}–{observedScale.globalMax}
+                      {isLowScale && ' (baixa)'}
+                    </span>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[200px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-[hsl(var(--sulsport-gray))]">
-                        <TableHead className="text-zinc-500 text-xs">HORA</TableHead>
-                        <TableHead className="text-zinc-500 text-xs">DEV</TableHead>
-                        <TableHead className="text-zinc-500 text-xs text-right">INTENS.</TableHead>
-                        <TableHead className="text-zinc-500 text-xs text-right">BAT.</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {diagnostics.uiRecentEvents.length === 0 ? (
+                  {isImpactMode ? (
+                    <Table>
+                      <TableHeader>
                         <TableRow className="border-[hsl(var(--sulsport-gray))]">
-                          <TableCell colSpan={4} className="text-center text-zinc-600 py-8">
-                            Nenhum evento
-                          </TableCell>
+                          <TableHead className="text-zinc-500 text-xs">HORA</TableHead>
+                          <TableHead className="text-zinc-500 text-xs">DEV</TableHead>
+                          <TableHead className="text-zinc-500 text-xs text-right">PEAK</TableHead>
+                          <TableHead className="text-zinc-500 text-xs text-right">AVG</TableHead>
+                          <TableHead className="text-zinc-500 text-xs text-right">PKTS</TableHead>
+                          <TableHead className="text-zinc-500 text-xs text-right">DUR.</TableHead>
                         </TableRow>
-                      ) : (
-                        diagnostics.uiRecentEvents.map((evt, idx) => (
-                          <TableRow key={`${evt.ts}-${idx}`} className="border-[hsl(var(--sulsport-gray))]">
-                            <TableCell className="text-zinc-400 text-xs font-mono py-1">
-                              {formatTime(evt.ts)}
-                            </TableCell>
-                            <TableCell className="text-zinc-300 text-xs py-1">
-                              {evt.deviceId}
-                            </TableCell>
-                            <TableCell className="text-white text-xs text-right font-mono py-1">
-                              {evt.intensity}
-                            </TableCell>
-                            <TableCell className="text-zinc-400 text-xs text-right py-1">
-                              {evt.battery !== undefined ? `${evt.battery}%` : '-'}
+                      </TableHeader>
+                      <TableBody>
+                        {diagnostics.uiRecentImpacts.length === 0 ? (
+                          <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                            <TableCell colSpan={6} className="text-center text-zinc-600 py-8">
+                              Nenhum impacto
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : (
+                          diagnostics.uiRecentImpacts.map((impact) => (
+                            <TableRow key={impact.id} className="border-[hsl(var(--sulsport-gray))]">
+                              <TableCell className="text-zinc-400 text-xs font-mono py-1">
+                                {formatTime(impact.startedAt)}
+                              </TableCell>
+                              <TableCell className="text-zinc-300 text-xs py-1">
+                                {impact.deviceId}
+                              </TableCell>
+                              <TableCell className="text-white text-xs text-right font-mono font-bold py-1">
+                                {impact.peakIntensity}
+                              </TableCell>
+                              <TableCell className="text-zinc-300 text-xs text-right font-mono py-1">
+                                {impact.avgIntensity}
+                              </TableCell>
+                              <TableCell className="text-zinc-400 text-xs text-right py-1">
+                                {impact.packetCount}
+                              </TableCell>
+                              <TableCell className="text-zinc-400 text-xs text-right py-1">
+                                {impact.durationMs}ms
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                          <TableHead className="text-zinc-500 text-xs">HORA</TableHead>
+                          <TableHead className="text-zinc-500 text-xs">DEV</TableHead>
+                          <TableHead className="text-zinc-500 text-xs text-right">INTENS.</TableHead>
+                          <TableHead className="text-zinc-500 text-xs text-right">BAT.</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {diagnostics.uiRecentEvents.length === 0 ? (
+                          <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                            <TableCell colSpan={4} className="text-center text-zinc-600 py-8">
+                              Nenhum evento
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          diagnostics.uiRecentEvents.map((evt, idx) => (
+                            <TableRow key={`${evt.ts}-${idx}`} className="border-[hsl(var(--sulsport-gray))]">
+                              <TableCell className="text-zinc-400 text-xs font-mono py-1">
+                                {formatTime(evt.ts)}
+                              </TableCell>
+                              <TableCell className="text-zinc-300 text-xs py-1">
+                                {evt.deviceId}
+                              </TableCell>
+                              <TableCell className="text-white text-xs text-right font-mono py-1">
+                                {evt.intensity}
+                              </TableCell>
+                              <TableCell className="text-zinc-400 text-xs text-right py-1">
+                                {evt.battery !== undefined ? `${evt.battery}%` : '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  )}
                 </ScrollArea>
               </CardContent>
             </Card>
@@ -242,9 +362,31 @@ export function DiagnosticsDialog({
             {/* Stats por Device */}
             <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))] lg:col-span-2">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
-                  STATS POR DEVICE
-                </CardTitle>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
+                    STATS POR DEVICE {isImpactMode && '(IMPACTOS)'}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {Object.keys(diagnostics.noiseFloor).length > 0 && (
+                      <span className="text-xs text-zinc-600">
+                        Noise: {Object.entries(diagnostics.noiseFloor).map(([d, v]) => `Dev${d}=${v}`).join(', ')}
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={diagnostics.calibrateNoiseFloor}
+                      disabled={diagnostics.isCalibrating || !isConnected}
+                      className={cn(
+                        "h-7 text-xs",
+                        diagnostics.isCalibrating 
+                          ? "bg-[hsl(var(--sulsport-red))] text-white"
+                          : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"
+                      )}
+                    >
+                      {diagnostics.isCalibrating ? '● CALIBRANDO...' : 'CALIBRAR REPOUSO (3s)'}
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -261,14 +403,14 @@ export function DiagnosticsDialog({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Object.keys(diagnostics.uiStatsByDevice).length === 0 ? (
+                    {Object.keys(statsToShow).length === 0 ? (
                       <TableRow className="border-[hsl(var(--sulsport-gray))]">
                         <TableCell colSpan={8} className="text-center text-zinc-600 py-4">
                           Sem dados
                         </TableCell>
                       </TableRow>
                     ) : (
-                      Object.entries(diagnostics.uiStatsByDevice).map(([deviceId, stats]) => (
+                      Object.entries(statsToShow).map(([deviceId, stats]) => (
                         <TableRow key={deviceId} className="border-[hsl(var(--sulsport-gray))]">
                           <TableCell className="text-white font-bold py-2">{deviceId}</TableCell>
                           <TableCell className="py-2">
