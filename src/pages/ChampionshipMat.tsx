@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { useSerialPort } from '@/hooks/useSerialPort';
+import { useHardwareDiagnostics } from '@/hooks/useHardwareDiagnostics';
 import { OperatorPanel } from '@/components/championship/OperatorPanel';
 import { ScoreboardMain } from '@/components/championship/ScoreboardMain';
 import { ScoringButtons } from '@/components/championship/ScoringButtons';
@@ -59,8 +60,14 @@ export default function ChampionshipMat() {
     handleHardwareKickRef.current(side, hitType);
   }, []);
   
+  // Hardware diagnostics
+  const diagnostics = useHardwareDiagnostics({ 
+    storageKey: 'sulsport:championship:diag:v1' 
+  });
+  
   const serialPort = useSerialPort({
     onKick: handleHardwareKick,
+    onRawPacket: diagnostics.onRawPacket,
     debounceMs: 150,
   });
   
@@ -201,6 +208,7 @@ export default function ChampionshipMat() {
         onOpenTV={handleOpenTV}
         isTVOpen={isTVOpen}
         serialPort={serialPort}
+        diagnostics={diagnostics}
         onOpenConfig={() => setShowConfigDialog(true)}
       />
       

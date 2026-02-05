@@ -11,7 +11,8 @@ import {
   Minus,
   Undo2,
   Usb,
-  Settings
+  Settings,
+  Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MatchState, MatchSide } from '@/types/championship';
@@ -19,7 +20,9 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { ScoreAdjustDialog } from './ScoreAdjustDialog';
 import { EventLogDialog } from './EventLogDialog';
+import { DiagnosticsDialog } from './DiagnosticsDialog';
 import type { UseSerialPortReturn } from '@/types/serial';
+import type { UseHardwareDiagnosticsReturn } from '@/types/hardwareDiagnostics';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,14 +55,16 @@ interface OperatorPanelProps {
   onOpenTV: () => void;
   isTVOpen: boolean;
   serialPort?: UseSerialPortReturn;
+  diagnostics?: UseHardwareDiagnosticsReturn;
   onOpenConfig?: () => void;
 }
 
-export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, onOpenConfig }: OperatorPanelProps) {
+export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, diagnostics, onOpenConfig }: OperatorPanelProps) {
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showScoreAdjust, setShowScoreAdjust] = useState(false);
   const [showEventLog, setShowEventLog] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   
   const isRunning = state.status === 'RUNNING';
   const isPaused = state.status === 'PAUSED';
@@ -318,6 +323,16 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
                     : 'CONECTAR USB'}
               </Button>
               
+              {diagnostics && (
+                <Button
+                  onClick={() => setShowDiagnostics(true)}
+                  className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
+                >
+                  <Activity className="w-4 h-4 mr-2" />
+                  DIAGNÓSTICO
+                </Button>
+              )}
+              
               {serialPort.error && (
                 <p className="text-xs text-[hsl(var(--sulsport-red-light))]">
                   {serialPort.error}
@@ -448,6 +463,16 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
         onOpenChange={setShowEventLog}
         events={state.events}
       />
+      
+      {/* Diagnostics Dialog */}
+      {diagnostics && (
+        <DiagnosticsDialog
+          open={showDiagnostics}
+          onOpenChange={setShowDiagnostics}
+          diagnostics={diagnostics}
+          serialPort={serialPort}
+        />
+      )}
     </>
   );
 }
