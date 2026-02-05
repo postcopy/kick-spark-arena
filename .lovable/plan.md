@@ -1,324 +1,124 @@
 
-# Wizard de Calibração Guiada com 3 Etapas
+# Correção do Wizard de Calibração
 
-## Visão Geral
+## Problema Identificado
 
-Implementar um wizard de calibração que guia o usuário em 3 etapas sequenciais (RASPAGEM, TOQUE, PONTO), coletando impactos em cada fase e sugerindo automaticamente os thresholds baseados na distribuição de `peakIntensity` observada.
+O wizard não está coletando impactos porque a detecção de impactos está muito restritiva. Há 3 problemas:
+
+### 1. Thresholds dependem do NoiseFloor não calibrado
+```typescript
+const floor = noiseFloorRef.current[String(deviceKey)] ?? 0;
+const startThreshold = floor + 4;  // Se floor=0, threshold=4
+```
+Se o noise floor não foi calibrado, usa 0. Mas se os valores de intensidade do hardware forem de escala baixa (ex: 0-50) ou alta (ex: 0-1000), o threshold de 4 pode não ser adequado.
+
+### 2. Critérios anti-ruído muito restritivos
+```typescript
+// Só cria impacto se:
+if (packetCount >= 3 || durationMs >= 40) { ... }
+```
+Chutes rápidos com menos de 3 pacotes E menos de 40ms são descartados.
+
+### 3. Wizard depende do sistema de detecção normal
+O wizard usa os mesmos impactos que o sistema normal detecta. Se não há impactos sendo detectados normalmente, o wizard também não coleta nada.
 
 ---
 
-## Fluxo do Wizard
+## Solução Proposta
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                          WIZARD DE CALIBRAÇÃO                                   │
-│                                                                                 │
-│   ETAPA 1: RASPAGEM                ETAPA 2: TOQUE               ETAPA 3: PONTO │
-│   ┌──────────────────┐            ┌──────────────────┐         ┌──────────────────┐
-│   │ "Encoste leve    │            │ "Dê toques       │         │ "Dê chutes com   │
-│   │  no equipamento  │   PRÓXIMO  │  moderados no    │  PRÓXIMO│  força total     │
-│   │  sem força"      │ ────────▶  │  equipamento"    │ ────────▶  para pontuar"   │
-│   │                  │            │                  │         │                  │
-│   │ [Barra 8s]       │            │ [Barra 8s]       │         │ [Barra 8s]       │
-│   │ Impactos: 12     │            │ Impactos: 15     │         │ Impactos: 10     │
-│   │ Peak max: 8      │            │ Peak max: 22     │         │ Peak max: 45     │
-│   └──────────────────┘            └──────────────────┘         └──────────────────┘
-│                                                                         │
-│                                                                         ▼
-│                                   RESULTADO                                      │
-│   ┌──────────────────────────────────────────────────────────────────────────┐  │
-│   │ Análise dos impactos coletados:                                          │  │
-│   │                                                                          │  │
-│   │   RASPAGEM: P95 = 7    ▓▓░░░░░░░░░░░░░░░░░░                              │  │
-│   │   TOQUE:    P95 = 20   ▓▓▓▓▓▓▓░░░░░░░░░░░░░                              │  │
-│   │   PONTO:    P95 = 42   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░                              │  │
-│   │                                                                          │  │
-│   │   Thresholds sugeridos:                                                  │  │
-│   │   ┌────────────────┬───────────┬────────────┐                            │  │
-│   │   │ Tipo           │ HIT mín   │ PONTO mín  │                            │  │
-│   │   ├────────────────┼───────────┼────────────┤                            │  │
-│   │   │ Colete         │ 14        │ 31         │                            │  │
-│   │   │ Capacete       │ 10        │ 25         │                            │  │
-│   │   └────────────────┴───────────┴────────────┘                            │  │
-│   │                                                                          │  │
-│   │   [APLICAR THRESHOLDS]     [DESCARTAR]                                   │  │
-│   └──────────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+### Opção A: Ajustar critérios anti-ruído para o wizard
+
+Durante o wizard, usar critérios mais permissivos para capturar mais impactos:
+- `MIN_IMPACT_PKTS = 1` (era 3)
+- `MIN_IMPACT_DURATION_MS = 1` (era 40)
+
+Isso garante que qualquer impacto detectado seja coletado, mesmo rápido.
+
+### Opção B: Wizard coleta pacotes RAW ao invés de impactos
+
+Modificar o wizard para coletar diretamente os pacotes raw acima de um threshold mínimo absoluto (ex: intensity > 5), sem depender do sistema de detecção de impactos.
+
+### Opção C (Recomendada): Ambas + Diagnóstico
+
+1. Relaxar critérios durante wizard
+2. Mostrar feedback em tempo real dos pacotes recebidos
+3. Adicionar indicador "Recebendo dados" para confirmar que hardware está funcionando
 
 ---
 
-## Arquitetura
+## Implementação (Opção C)
 
-### Novos Tipos (`src/types/hardwareDiagnostics.ts`)
-
-```typescript
-/** Etapa do wizard de calibração */
-export type CalibrationWizardStep = 'idle' | 'raspagem' | 'toque' | 'ponto' | 'result';
-
-/** Dados coletados em uma etapa do wizard */
-export interface CalibrationStepData {
-  impacts: ImpactEvent[];
-  stats: HardwareStats | null;  // Calculado sobre peakIntensity
-}
-
-/** Estado completo do wizard */
-export interface CalibrationWizardState {
-  step: CalibrationWizardStep;
-  stepStartedAt: number | null;
-  stepDurationMs: number;
-  raspagem: CalibrationStepData;
-  toque: CalibrationStepData;
-  ponto: CalibrationStepData;
-  suggestedThresholds: HardwareThresholds | null;
-}
-
-/** Extensão do UseHardwareDiagnosticsReturn */
-export interface UseHardwareDiagnosticsReturn {
-  // ... existentes ...
-  
-  // Wizard de calibração
-  calibrationWizard: CalibrationWizardState;
-  startCalibrationWizard: () => void;
-  advanceWizardStep: () => void;
-  cancelWizard: () => void;
-  applyWizardThresholds: () => void;
-}
-```
-
-### Constantes
+### 1. Adicionar flag para modo wizard permissivo
 
 ```typescript
-const WIZARD_STEP_DURATION_MS = 8000;  // 8 segundos por etapa
-const WIZARD_STEPS: CalibrationWizardStep[] = ['raspagem', 'toque', 'ponto'];
-```
+// No hook
+const wizardModeRef = useRef(false);
 
----
-
-## Lógica no Hook (`src/hooks/useHardwareDiagnostics.ts`)
-
-### Estado do Wizard
-
-```typescript
-// Wizard state
-const [calibrationWizard, setCalibrationWizard] = useState<CalibrationWizardState>({
-  step: 'idle',
-  stepStartedAt: null,
-  stepDurationMs: WIZARD_STEP_DURATION_MS,
-  raspagem: { impacts: [], stats: null },
-  toque: { impacts: [], stats: null },
-  ponto: { impacts: [], stats: null },
-  suggestedThresholds: null,
+const startCalibrationWizard = useCallback(() => {
+  wizardModeRef.current = true;
+  // ...
 });
 
-// Ref para coletar impactos durante o wizard
-const wizardImpactsRef = useRef<ImpactEvent[]>([]);
-const wizardActiveRef = useRef<CalibrationWizardStep>('idle');
-```
-
-### Coleta de Impactos Durante Wizard
-
-No throttle loop, quando finalizar um impacto e o wizard estiver ativo:
-
-```typescript
-// No throttle loop, ao criar ImpactEvent:
-if (wizardActiveRef.current !== 'idle' && wizardActiveRef.current !== 'result') {
-  wizardImpactsRef.current.push(impact);
-}
-```
-
-### Funções do Wizard
-
-```typescript
-const startCalibrationWizard = useCallback(() => {
-  wizardImpactsRef.current = [];
-  wizardActiveRef.current = 'raspagem';
-  setCalibrationWizard({
-    step: 'raspagem',
-    stepStartedAt: Date.now(),
-    stepDurationMs: WIZARD_STEP_DURATION_MS,
-    raspagem: { impacts: [], stats: null },
-    toque: { impacts: [], stats: null },
-    ponto: { impacts: [], stats: null },
-    suggestedThresholds: null,
-  });
-}, []);
-
-const advanceWizardStep = useCallback(() => {
-  const currentStep = wizardActiveRef.current;
-  const collectedImpacts = [...wizardImpactsRef.current];
-  wizardImpactsRef.current = [];
-  
-  // Calcular stats sobre peakIntensity
-  const peaks = collectedImpacts.map(i => i.peakIntensity);
-  const stats = peaks.length > 0 ? calculateStats(peaks) : null;
-  
-  setCalibrationWizard(prev => {
-    const updated = { ...prev };
-    
-    // Salvar dados da etapa atual
-    if (currentStep === 'raspagem') {
-      updated.raspagem = { impacts: collectedImpacts, stats };
-    } else if (currentStep === 'toque') {
-      updated.toque = { impacts: collectedImpacts, stats };
-    } else if (currentStep === 'ponto') {
-      updated.ponto = { impacts: collectedImpacts, stats };
-    }
-    
-    // Avançar para próxima etapa
-    if (currentStep === 'raspagem') {
-      updated.step = 'toque';
-      updated.stepStartedAt = Date.now();
-      wizardActiveRef.current = 'toque';
-    } else if (currentStep === 'toque') {
-      updated.step = 'ponto';
-      updated.stepStartedAt = Date.now();
-      wizardActiveRef.current = 'ponto';
-    } else if (currentStep === 'ponto') {
-      // Finalizar: calcular thresholds sugeridos
-      updated.step = 'result';
-      updated.stepStartedAt = null;
-      wizardActiveRef.current = 'result';
-      updated.suggestedThresholds = calculateSuggestedThresholds(
-        updated.raspagem.stats,
-        updated.toque.stats,
-        updated.ponto.stats
-      );
-    }
-    
-    return updated;
-  });
-}, []);
-
 const cancelWizard = useCallback(() => {
-  wizardImpactsRef.current = [];
-  wizardActiveRef.current = 'idle';
-  setCalibrationWizard({
-    step: 'idle',
-    stepStartedAt: null,
-    stepDurationMs: WIZARD_STEP_DURATION_MS,
-    raspagem: { impacts: [], stats: null },
-    toque: { impacts: [], stats: null },
-    ponto: { impacts: [], stats: null },
-    suggestedThresholds: null,
-  });
-}, []);
-
-const applyWizardThresholds = useCallback(() => {
-  if (calibrationWizard.suggestedThresholds) {
-    setThresholds(calibrationWizard.suggestedThresholds);
-  }
-  cancelWizard();
-}, [calibrationWizard.suggestedThresholds, cancelWizard]);
+  wizardModeRef.current = false;
+  // ...
+});
 ```
 
-### Algoritmo de Sugestão de Thresholds
+### 2. Relaxar anti-ruído durante wizard
+
+No throttle loop, ao validar impacto:
+```typescript
+// Critérios normais
+const minPkts = wizardModeRef.current ? 1 : MIN_IMPACT_PKTS;
+const minDur = wizardModeRef.current ? 1 : MIN_IMPACT_DURATION_MS;
+
+if (active.packetCount >= minPkts || durationMs >= minDur) {
+  // Cria impacto
+}
+```
+
+### 3. Adicionar contador de pacotes raw no wizard
+
+Expor `wizardRawPacketCount` para mostrar na UI que dados estão chegando, mesmo que não virem impactos:
 
 ```typescript
-function calculateSuggestedThresholds(
-  raspagem: HardwareStats | null,
-  toque: HardwareStats | null,
-  ponto: HardwareStats | null
-): HardwareThresholds {
-  // Usar P95 de cada categoria como referência
-  const raspagemP95 = raspagem?.p95 ?? 0;
-  const toqueP95 = toque?.p95 ?? 0;
-  const pontoP95 = ponto?.p95 ?? 0;
-  
-  // HIT threshold: ponto médio entre RASPAGEM e TOQUE
-  // (queremos aceitar TOQUE como HIT mas rejeitar RASPAGEM)
-  const hitThreshold = Math.round((raspagemP95 + toqueP95) / 2);
-  
-  // PONTO threshold: ponto médio entre TOQUE e PONTO
-  // (queremos aceitar PONTO como ponto válido mas TOQUE é só HIT)
-  const pointThreshold = Math.round((toqueP95 + pontoP95) / 2);
-  
-  // Aplicar fator de segurança para capacete (geralmente 20% menor)
-  const helmetFactor = 0.8;
-  
-  return {
-    vestHitMin: Math.max(1, hitThreshold),
-    vestPointMin: Math.max(hitThreshold + 1, pointThreshold),
-    helmetHitMin: Math.max(1, Math.round(hitThreshold * helmetFactor)),
-    helmetPointMin: Math.max(Math.round(hitThreshold * helmetFactor) + 1, Math.round(pointThreshold * helmetFactor)),
-  };
+const wizardRawCountRef = useRef(0);
+
+// No onRawPacket:
+if (wizardModeRef.current) {
+  wizardRawCountRef.current++;
 }
 ```
 
----
-
-## UI: Wizard Dialog (`src/components/championship/CalibrationWizardDialog.tsx`)
-
-Novo componente dialog para o wizard:
+### 4. Mostrar no CalibrationWizardDialog
 
 ```tsx
-interface CalibrationWizardDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  wizard: CalibrationWizardState;
-  onAdvance: () => void;
-  onCancel: () => void;
-  onApply: () => void;
-  currentImpactCount: number;  // Impactos coletados na etapa atual
-  lastImpact: ImpactEvent | null;
-}
+<div className="text-sm text-zinc-500">
+  Pacotes recebidos: {wizardRawPacketCount}
+</div>
 ```
 
-### Layout por Etapa
+### 5. Adicionar indicador visual de conexão
 
-**Etapa RASPAGEM / TOQUE / PONTO:**
-- Título: "Etapa 1/3: RASPAGEM" (ou TOQUE, PONTO)
-- Instrução clara: "Encoste levemente no equipamento várias vezes"
-- Barra de progresso com tempo restante
-- Contador de impactos coletados
-- Último impacto detectado (peak)
-- Botões: [CANCELAR] [PRÓXIMO - aguardando timer ou manual]
-
-**Etapa RESULTADO:**
-- Resumo das 3 etapas com stats (count, P95)
-- Barras visuais mostrando a distribuição
-- Thresholds sugeridos em tabela editável
-- Validação: alerta se overlap entre categorias
-- Botões: [DESCARTAR] [APLICAR THRESHOLDS]
-
----
-
-## Integração no DiagnosticsDialog
-
-Adicionar botão "WIZARD DE CALIBRAÇÃO" que abre o CalibrationWizardDialog:
-
+Se após 2 segundos não houver pacotes, mostrar alerta:
 ```tsx
-<Button
-  size="sm"
-  onClick={diagnostics.startCalibrationWizard}
-  disabled={diagnostics.isRecording || !isConnected || diagnostics.calibrationWizard.step !== 'idle'}
-  className="bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white"
->
-  WIZARD DE CALIBRAÇÃO
-</Button>
-
-<CalibrationWizardDialog
-  open={diagnostics.calibrationWizard.step !== 'idle'}
-  onOpenChange={(open) => !open && diagnostics.cancelWizard()}
-  wizard={diagnostics.calibrationWizard}
-  onAdvance={diagnostics.advanceWizardStep}
-  onCancel={diagnostics.cancelWizard}
-  onApply={diagnostics.applyWizardThresholds}
-  currentImpactCount={...}
-  lastImpact={...}
-/>
+{wizardRawPacketCount === 0 && timeProgress > 25 && (
+  <div className="text-yellow-400 text-sm">
+    Nenhum dado recebido. Verifique a conexão USB.
+  </div>
+)}
 ```
 
 ---
 
-## Arquivos a Criar/Modificar
+## Arquivos a Modificar
 
-| Arquivo | Ação | Mudanças |
-|---------|------|----------|
-| `src/types/hardwareDiagnostics.ts` | Modificar | Adicionar CalibrationWizardStep, CalibrationStepData, CalibrationWizardState; expandir UseHardwareDiagnosticsReturn |
-| `src/hooks/useHardwareDiagnostics.ts` | Modificar | Estado do wizard, coleta de impactos durante wizard, funções start/advance/cancel/apply, algoritmo de sugestão |
-| `src/components/championship/CalibrationWizardDialog.tsx` | Criar | Novo componente dialog com UI do wizard |
-| `src/components/championship/DiagnosticsDialog.tsx` | Modificar | Adicionar botão "WIZARD DE CALIBRAÇÃO" e integrar CalibrationWizardDialog |
+| Arquivo | Mudanças |
+|---------|----------|
+| `src/hooks/useHardwareDiagnostics.ts` | Adicionar wizardModeRef, relaxar critérios durante wizard, expor wizardRawPacketCount |
+| `src/types/hardwareDiagnostics.ts` | Adicionar wizardRawPacketCount ao UseHardwareDiagnosticsReturn |
+| `src/components/championship/CalibrationWizardDialog.tsx` | Mostrar contador de pacotes e alerta de conexão |
 
 ---
 
@@ -326,22 +126,8 @@ Adicionar botão "WIZARD DE CALIBRAÇÃO" que abre o CalibrationWizardDialog:
 
 | # | Critério |
 |---|----------|
-| 1 | Botão "WIZARD DE CALIBRAÇÃO" abre o wizard |
-| 2 | Wizard tem 3 etapas (RASPAGEM, TOQUE, PONTO) com 8s cada |
-| 3 | Impactos são coletados separadamente por etapa |
-| 4 | Ao finalizar, mostra stats de cada etapa (count, P95) |
-| 5 | Thresholds são sugeridos automaticamente baseado nos P95 |
-| 6 | "APLICAR THRESHOLDS" atualiza os thresholds do diagnóstico |
-| 7 | Wizard pode ser cancelado a qualquer momento |
-| 8 | Se não houver dados suficientes em alguma etapa, exibe aviso |
-
----
-
-## Detalhes de UX
-
-- **Timer visual**: Barra de progresso de 8s com countdown
-- **Feedback sonoro** (opcional): beep ao iniciar/finalizar etapa
-- **Instruções claras**: Texto grande explicando o que fazer
-- **Contador de impactos**: Mostra quantos golpes foram registrados
-- **Preview do último impacto**: Mostra o peak em tempo real
-- **Validação no resultado**: Se TOQUE.P95 >= PONTO.P95, exibe alerta de que os dados podem estar incorretos
+| 1 | Durante wizard, impactos rápidos (1 pacote) são coletados |
+| 2 | UI mostra contador de pacotes raw recebidos |
+| 3 | Se não receber dados em 2s, mostra alerta de conexão |
+| 4 | Após wizard, critérios voltam ao normal (3 pkts / 40ms) |
+| 5 | Thresholds sugeridos são calculados corretamente |
