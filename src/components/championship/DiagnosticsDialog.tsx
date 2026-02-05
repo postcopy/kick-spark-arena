@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import type { UseHardwareDiagnosticsReturn } from '@/types/hardwareDiagnostics';
 import type { UseSerialPortReturn } from '@/types/serial';
 import { NewSampleDialog } from './NewSampleDialog';
+import { CalibrationWizardDialog } from './CalibrationWizardDialog';
 
 interface DiagnosticsDialogProps {
   open: boolean;
@@ -385,6 +386,14 @@ export function DiagnosticsDialog({
                     >
                       {diagnostics.isCalibrating ? '● CALIBRANDO...' : 'CALIBRAR REPOUSO (3s)'}
                     </Button>
+                    <Button
+                      size="sm"
+                      onClick={diagnostics.startCalibrationWizard}
+                      disabled={diagnostics.isRecording || !isConnected || diagnostics.calibrationWizard.step !== 'idle'}
+                      className="h-7 text-xs bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white"
+                    >
+                      WIZARD DE CALIBRAÇÃO
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -590,6 +599,17 @@ export function DiagnosticsDialog({
         open={showNewSample}
         onOpenChange={setShowNewSample}
         onStart={diagnostics.startSample}
+      />
+
+      <CalibrationWizardDialog
+        open={diagnostics.calibrationWizard.step !== 'idle'}
+        onOpenChange={(open) => !open && diagnostics.cancelWizard()}
+        wizard={diagnostics.calibrationWizard}
+        onAdvance={diagnostics.advanceWizardStep}
+        onCancel={diagnostics.cancelWizard}
+        onApply={diagnostics.applyWizardThresholds}
+        currentImpactCount={diagnostics.wizardImpactCount}
+        lastImpact={diagnostics.wizardLastImpact}
       />
     </>
   );

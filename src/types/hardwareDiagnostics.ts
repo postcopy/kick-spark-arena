@@ -62,6 +62,26 @@ export interface ObservedScale {
 /** View mode do diagnóstico */
 export type DiagnosticsViewMode = 'impacts' | 'raw';
 
+/** Etapa do wizard de calibração */
+export type CalibrationWizardStep = 'idle' | 'raspagem' | 'toque' | 'ponto' | 'result';
+
+/** Dados coletados em uma etapa do wizard */
+export interface CalibrationStepData {
+  impacts: ImpactEvent[];
+  stats: HardwareStats | null;
+}
+
+/** Estado completo do wizard de calibração */
+export interface CalibrationWizardState {
+  step: CalibrationWizardStep;
+  stepStartedAt: number | null;
+  stepDurationMs: number;
+  raspagem: CalibrationStepData;
+  toque: CalibrationStepData;
+  ponto: CalibrationStepData;
+  suggestedThresholds: HardwareThresholds | null;
+}
+
 /** Storage v1 (legacy) */
 export interface DiagnosticsStorageV1 {
   version: 1;
@@ -143,4 +163,13 @@ export interface UseHardwareDiagnosticsReturn {
   // Info
   eventCount: number;
   sampleCount: number;
+  
+  // Wizard de calibração
+  calibrationWizard: CalibrationWizardState;
+  wizardImpactCount: number;
+  wizardLastImpact: ImpactEvent | null;
+  startCalibrationWizard: () => void;
+  advanceWizardStep: () => void;
+  cancelWizard: () => void;
+  applyWizardThresholds: () => void;
 }
