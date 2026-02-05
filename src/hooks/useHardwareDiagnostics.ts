@@ -245,6 +245,8 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
   // Wizard refs
   const wizardImpactsRef = useRef<ImpactEvent[]>([]);
   const wizardActiveRef = useRef<CalibrationWizardStep>('idle');
+  const wizardModeRef = useRef(false);  // Relaxes anti-noise criteria during wizard
+  const wizardRawCountRef = useRef(0);  // Raw packet counter for wizard
   const wizardLastImpactRef = useRef<ImpactEvent | null>(null);
   
   // === UI STATES (throttled) ===
@@ -273,6 +275,7 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
   // Wizard state
   const [calibrationWizard, setCalibrationWizard] = useState<CalibrationWizardState>({ ...DEFAULT_WIZARD_STATE });
   const [wizardImpactCount, setWizardImpactCount] = useState(0);
+  const [wizardRawPacketCount, setWizardRawPacketCount] = useState(0);
   const [wizardLastImpact, setWizardLastImpact] = useState<ImpactEvent | null>(null);
   
   // Set view mode (syncs state + ref + triggers UI refresh)
@@ -403,8 +406,12 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
         if (now - active.lastAboveTs > SILENCE_GAP_MS) {
           const durationMs = active.lastAboveTs - active.startTs;
           
+          // ANTI-NOISE: relaxed criteria during wizard mode
+          const minPkts = wizardModeRef.current ? 1 : MIN_IMPACT_PKTS;
+          const minDur = wizardModeRef.current ? 1 : MIN_IMPACT_DURATION_MS;
+          
           // ANTI-NOISE: only create ImpactEvent if meets criteria
-          if (active.packetCount >= MIN_IMPACT_PKTS || durationMs >= MIN_IMPACT_DURATION_MS) {
+          if (active.packetCount >= minPkts || durationMs >= minDur) {
             const impact: ImpactEvent = {
               id: `impact_${active.startTs}_${deviceId}`,
               deviceId,
@@ -466,9 +473,10 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
         setUiRecentImpacts(impactsRef.current.slice(-30).reverse());
         
         // Wizard UI updates
-        if (wizardActiveRef.current !== 'idle') {
+        if (wizardModeRef.current) {
           setWizardImpactCount(wizardImpactsRef.current.length);
           setWizardLastImpact(wizardLastImpactRef.current);
+          setWizardRawPacketCount(wizardRawCountRef.current);
         }
       }
     }, UI_THROTTLE_MS);
@@ -499,6 +507,11 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
       const buffer = calibrationBufferRef.current.get(pkt.deviceId) || [];
       buffer.push(pkt.intensity);
       calibrationBufferRef.current.set(pkt.deviceId, buffer);
+    }
+    
+    // 3b. Wizard raw packet counting
+    if (wizardModeRef.current) {
+      wizardRawCountRef.current++;
     }
     
     // 4. Peak hold 2s
@@ -726,8 +739,11 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     wizardImpactsRef.current = [];
     wizardLastImpactRef.current = null;
     wizardActiveRef.current = 'raspagem';
+    wizardModeRef.current = true;  // Enable permissive mode
+    wizardRawCountRef.current = 0;
     setWizardImpactCount(0);
     setWizardLastImpact(null);
+    setWizardRawPacketCount(0);
     setCalibrationWizard({
       step: 'raspagem',
       stepStartedAt: Date.now(),
@@ -794,8 +810,11 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     wizardImpactsRef.current = [];
     wizardLastImpactRef.current = null;
     wizardActiveRef.current = 'idle';
+    wizardModeRef.current = false;  // Disable permissive mode
+    wizardRawCountRef.current = 0;
     setWizardImpactCount(0);
     setWizardLastImpact(null);
+    setWizardRawPacketCount(0);
     setCalibrationWizard({ ...DEFAULT_WIZARD_STATE });
     uiDirtyTickRef.current++;
   }, []);
@@ -860,6 +879,7 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     calibrationWizard,
     wizardImpactCount,
     wizardLastImpact,
+    wizardRawPacketCount,
     startCalibrationWizard,
     advanceWizardStep,
     cancelWizard,

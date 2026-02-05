@@ -30,6 +30,7 @@ interface CalibrationWizardDialogProps {
   onApply: () => void;
   currentImpactCount: number;
   lastImpact: ImpactEvent | null;
+  rawPacketCount: number;
 }
 
 const STEP_INSTRUCTIONS = {
@@ -62,6 +63,7 @@ export function CalibrationWizardDialog({
   onApply,
   currentImpactCount,
   lastImpact,
+  rawPacketCount,
 }: CalibrationWizardDialogProps) {
   const [timeProgress, setTimeProgress] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -158,6 +160,16 @@ export function CalibrationWizardDialog({
               <Progress value={timeProgress} className="h-3" />
             </div>
             
+            {/* Connection Warning */}
+            {rawPacketCount === 0 && timeProgress > 25 && (
+              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+                <div className="text-sm text-yellow-200">
+                  <strong>Nenhum dado recebido.</strong> Verifique a conexão USB e se o hardware está ligado.
+                </div>
+              </div>
+            )}
+            
             {/* Impact Counter */}
             <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
               <CardContent className="p-4 flex items-center justify-between">
@@ -175,6 +187,11 @@ export function CalibrationWizardDialog({
                 )}
               </CardContent>
             </Card>
+            
+            {/* Raw Packet Counter */}
+            <div className="text-center text-xs text-zinc-500">
+              Pacotes raw recebidos: <span className="font-mono">{rawPacketCount}</span>
+            </div>
             
             {/* Actions */}
             <div className="flex gap-2 pt-2">
