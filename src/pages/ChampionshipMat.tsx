@@ -40,15 +40,24 @@ export default function ChampionshipMat() {
   
   // Handle kick from hardware - convert game types to championship types
   // Side from hook is already "who scores" (inverted from equipment hit)
+  // Using ref pattern to avoid stale closure (same pattern as Index.tsx)
+  const handleHardwareKickRef = useRef<(side: Side, hitType: HitType) => void>(() => {});
+  
+  useEffect(() => {
+    handleHardwareKickRef.current = (side: Side, hitType: HitType) => {
+      // Only score when match is running (now always uses fresh status)
+      if (sync.state.status !== 'RUNNING') return;
+      
+      const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
+      const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
+      
+      sync.addScore(matchSide, scoreType);
+    };
+  }, [sync.state.status, sync.addScore]);
+  
   const handleHardwareKick = useCallback((side: Side, hitType: HitType) => {
-    // Only score when match is running
-    if (sync.state.status !== 'RUNNING') return;
-    
-    const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
-    const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
-    
-    sync.addScore(matchSide, scoreType);
-  }, [sync]);
+    handleHardwareKickRef.current(side, hitType);
+  }, []);
   
   const serialPort = useSerialPort({
     onKick: handleHardwareKick,
