@@ -37,13 +37,53 @@ export interface HardwareThresholds {
 
 export type DeviceLabels = Record<string, string>;
 
-export interface DiagnosticsStorage {
+/** Um impacto detectado (1 chute = 1 impacto) */
+export interface ImpactEvent {
+  id: string;
+  deviceId: number;
+  startedAt: number;
+  endedAt: number;
+  durationMs: number;
+  peakIntensity: number;
+  avgIntensity: number;
+  packetCount: number;
+}
+
+/** Noise floor calibrado por device */
+export type NoiseFloor = Record<string, number>;
+
+/** Escala observada */
+export interface ObservedScale {
+  globalMin: number;
+  globalMax: number;
+  observedSince: number;
+}
+
+/** View mode do diagnóstico */
+export type DiagnosticsViewMode = 'impacts' | 'raw';
+
+/** Storage v1 (legacy) */
+export interface DiagnosticsStorageV1 {
   version: 1;
   createdAt: number;
   updatedAt: number;
   deviceLabels: DeviceLabels;
   thresholds: HardwareThresholds;
   events: HardwareRawPacket[];
+  samples: HardwareSample[];
+}
+
+/** Storage v2 (com impactos, noiseFloor, observedScale) */
+export interface DiagnosticsStorage {
+  version: 2;
+  createdAt: number;
+  updatedAt: number;
+  deviceLabels: DeviceLabels;
+  thresholds: HardwareThresholds;
+  noiseFloor: NoiseFloor;
+  observedScale: ObservedScale;
+  events: HardwareRawPacket[];
+  impacts: ImpactEvent[];
   samples: HardwareSample[];
 }
 
@@ -60,6 +100,23 @@ export interface UseHardwareDiagnosticsReturn {
   peakIntensity: number;
   uiRecentEvents: HardwareRawPacket[];
   uiStatsByDevice: Record<string, HardwareStats>;
+  
+  // Impacts
+  uiRecentImpacts: ImpactEvent[];
+  uiImpactStatsByDevice: Record<string, HardwareStats>;
+  impactCount: number;
+  
+  // View mode
+  viewMode: DiagnosticsViewMode;
+  setViewMode: (mode: DiagnosticsViewMode) => void;
+  
+  // Noise floor
+  noiseFloor: NoiseFloor;
+  isCalibrating: boolean;
+  calibrateNoiseFloor: () => void;
+  
+  // Observed scale
+  observedScale: ObservedScale;
   
   // Samples
   samples: HardwareSample[];
@@ -78,6 +135,7 @@ export interface UseHardwareDiagnosticsReturn {
   
   // Actions
   clearEvents: () => void;
+  clearImpacts: () => void;
   clearAll: () => void;
   exportJSON: () => void;
   exportCSV: () => void;
