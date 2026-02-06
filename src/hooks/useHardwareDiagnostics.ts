@@ -17,6 +17,7 @@ import type {
   CalibrationWizardState,
   CalibrationWizardStep,
 } from '@/types/hardwareDiagnostics';
+import { ImpactDetector } from '@/lib/impactDetector';
 
 // Portable timeout type (works in browser without NodeJS types)
 type TimeoutHandle = ReturnType<typeof setTimeout>;
@@ -29,13 +30,6 @@ const SAVE_DEBOUNCE_MS = 2000;
 const PEAK_HOLD_MS = 2000;
 const UI_THROTTLE_MS = 100;
 const DEFAULT_SAMPLE_DURATION_MS = 12000;
-
-// Impact detection constants
-const SILENCE_GAP_MS = 200;
-const MIN_IMPACT_PKTS = 3;
-const MIN_IMPACT_DURATION_MS = 40;
-const DEFAULT_DELTA_START = 4;     // Hysteresis: to start impact
-const DEFAULT_DELTA_CONTINUE = 2;  // Hysteresis: to continue impact
 const CALIBRATION_DURATION_MS = 3000;
 const WIZARD_STEP_DURATION_MS = 8000; // 8 seconds per wizard step
 
@@ -69,14 +63,7 @@ const DEFAULT_WIZARD_STATE: CalibrationWizardState = {
   suggestedThresholds: null,
 };
 
-// Active impact state (no packet storage, only stats)
-interface ActiveImpactState {
-  startTs: number;
-  lastAboveTs: number;
-  peak: number;
-  sum: number;
-  packetCount: number;
-}
+// Active impact state removed -- now using shared ImpactDetector
 
 // Calculate stats with correct percentiles
 function calculateStats(intensities: number[]): HardwareStats {
@@ -212,7 +199,7 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
   // === REFS (no re-render per packet) ===
   const eventsRef = useRef<HardwareRawPacket[]>([]);
   const impactsRef = useRef<ImpactEvent[]>([]);
-  const activeImpactsRef = useRef<Map<number, ActiveImpactState>>(new Map());
+  const detectorRef = useRef<ImpactDetector>(new ImpactDetector());
   const lastPacketRef = useRef<HardwareRawPacket | null>(null);
   const peakRef = useRef<{ value: number; timeout: TimeoutHandle | null }>({ value: 0, timeout: null });
   const dirtyRef = useRef(false);
@@ -285,10 +272,11 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     uiDirtyTickRef.current++;
   }, []);
   
-  // Set noise floor (syncs state + ref)
+  // Set noise floor (syncs state + ref + detector)
   const setNoiseFloor = useCallback((nf: NoiseFloor) => {
     noiseFloorRef.current = nf;
     setNoiseFloorState(nf);
+    detectorRef.current.updateConfig({ noiseFloor: nf });
   }, []);
   
   // Load from storage on mount (with v1 -> v2 migration)
@@ -381,9 +369,10 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
       }
     });
     
-    // Sync state + ref
+    // Sync state + ref + detector
     noiseFloorRef.current = newNoiseFloor;
     setNoiseFloorState(newNoiseFloor);
+    detectorRef.current.updateConfig({ noiseFloor: newNoiseFloor });
     
     isCalibrationActiveRef.current = false;
     calibrationBufferRef.current = new Map();
@@ -401,60 +390,35 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     const interval = setInterval(() => {
       const now = Date.now();
       
-      // === FINALIZE INACTIVE IMPACTS ===
-      activeImpactsRef.current.forEach((active, deviceId) => {
-        const gapMs = now - active.lastAboveTs;
-        if (gapMs > SILENCE_GAP_MS) {
-          const durationMs = active.lastAboveTs - active.startTs;
-          
-          // ANTI-NOISE: relaxed criteria during wizard mode
-          const minPkts = wizardModeRef.current ? 1 : MIN_IMPACT_PKTS;
-          const minDur = wizardModeRef.current ? 1 : MIN_IMPACT_DURATION_MS;
-          
-          const isWizard = wizardModeRef.current;
-          if (isWizard) {
-            console.log(`[IMPACT_DEBUG] FINALIZING device=${deviceId} pkts=${active.packetCount} dur=${durationMs}ms peak=${active.peak} minPkts=${minPkts} minDur=${minDur}`);
-          }
-          
-          // ANTI-NOISE: only create ImpactEvent if meets criteria
-          if (active.packetCount >= minPkts || durationMs >= minDur) {
-            const impact: ImpactEvent = {
-              id: `impact_${active.startTs}_${deviceId}`,
-              deviceId,
-              startedAt: active.startTs,
-              endedAt: active.lastAboveTs,
-              durationMs,
-              peakIntensity: active.peak,
-              avgIntensity: Math.round(active.sum / active.packetCount),
-              packetCount: active.packetCount,
-            };
-            
-            impactsRef.current.push(impact);
-            if (impactsRef.current.length > MAX_IMPACTS) {
-              impactsRef.current = impactsRef.current.slice(-MAX_IMPACTS);
-            }
-            dirtyRef.current = true;
-            
-            if (isWizard) console.log(`[IMPACT_DEBUG] CREATED impact id=${impact.id} peak=${impact.peakIntensity}`);
-            
-            // === WIZARD: Collect impact if wizard is active ===
-            const wizardStep = wizardActiveRef.current;
-            if (wizardStep !== 'idle' && wizardStep !== 'result') {
-              wizardImpactsRef.current.push(impact);
-              wizardLastImpactRef.current = impact;
-              if (isWizard) console.log(`[IMPACT_DEBUG] WIZARD collected impact, total=${wizardImpactsRef.current.length}`);
-            }
-          } else {
-            if (isWizard) console.log(`[IMPACT_DEBUG] DISCARDED as noise (pkts=${active.packetCount} < ${minPkts} AND dur=${durationMs}ms < ${minDur})`);
-          }
-          // If doesn't meet criteria: discard silently (noise/isolated spike)
-          
-          activeImpactsRef.current.delete(deviceId);
-          
-          // Force UI refresh when impact is finalized (created or discarded)
-          uiDirtyTickRef.current++;
+      // === FINALIZE INACTIVE IMPACTS via shared ImpactDetector ===
+      const finalized = detectorRef.current.flush(now);
+      for (const fin of finalized) {
+        const impact: ImpactEvent = {
+          id: `impact_${fin.startTs}_${fin.deviceId}`,
+          deviceId: fin.deviceId,
+          startedAt: fin.startTs,
+          endedAt: fin.endTs,
+          durationMs: fin.durationMs,
+          peakIntensity: fin.peakIntensity,
+          avgIntensity: fin.avgIntensity,
+          packetCount: fin.packetCount,
+        };
+        
+        impactsRef.current.push(impact);
+        if (impactsRef.current.length > MAX_IMPACTS) {
+          impactsRef.current = impactsRef.current.slice(-MAX_IMPACTS);
         }
-      });
+        dirtyRef.current = true;
+        
+        // === WIZARD: Collect impact if wizard is active ===
+        const wizardStep = wizardActiveRef.current;
+        if (wizardStep !== 'idle' && wizardStep !== 'result') {
+          wizardImpactsRef.current.push(impact);
+          wizardLastImpactRef.current = impact;
+        }
+        
+        uiDirtyTickRef.current++;
+      }
       
       // === CHECK CALIBRATION ===
       if (isCalibrationActiveRef.current && now - calibrationStartRef.current >= CALIBRATION_DURATION_MS) {
@@ -537,46 +501,8 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
       uiDirtyTickRef.current++;
     }, PEAK_HOLD_MS);
     
-    // 5. Impact detection (HYSTERESIS)
-    const deviceKey = pkt.deviceId;
-    const floor = noiseFloorRef.current[String(deviceKey)] ?? 0;
-    const startThreshold = floor + DEFAULT_DELTA_START;
-    const continueThreshold = floor + DEFAULT_DELTA_CONTINUE;
-    
-    let active = activeImpactsRef.current.get(deviceKey);
-    
-    // DEBUG: Log impact detection decision
-    const isWizard = wizardModeRef.current;
-    if (isWizard && pkt.intensity > 2) {
-      console.log(`[IMPACT_DEBUG] device=${deviceKey} intensity=${pkt.intensity} floor=${floor} startTh=${startThreshold} contTh=${continueThreshold} active=${!!active}`);
-    }
-    
-    if (!active) {
-      // No active impact: check if should start new
-      if (pkt.intensity > startThreshold) {
-        activeImpactsRef.current.set(deviceKey, {
-          startTs: pkt.ts,
-          lastAboveTs: pkt.ts,
-          peak: pkt.intensity,
-          sum: pkt.intensity,
-          packetCount: 1,
-        });
-        if (isWizard) console.log(`[IMPACT_DEBUG] STARTED new impact for device ${deviceKey}`);
-      }
-    } else {
-      // Active impact: check if should continue
-      if (pkt.intensity > continueThreshold) {
-        active.sum += pkt.intensity;
-        active.packetCount++;
-        active.lastAboveTs = pkt.ts;
-        if (pkt.intensity > active.peak) {
-          active.peak = pkt.intensity;
-        }
-        if (isWizard) console.log(`[IMPACT_DEBUG] EXTENDED impact for device ${deviceKey}, pkts=${active.packetCount}`);
-      }
-      // If pkt.intensity <= continueThreshold: don't update lastAboveTs
-      // The throttle loop will finalize when gap > SILENCE_GAP_MS
-    }
+    // 5. Impact detection via shared ImpactDetector (feed packet)
+    detectorRef.current.feed(pkt.deviceId, pkt.intensity, pkt.ts);
     
     // 6. Recording (samples)
     if (recordingRef.current) {
@@ -669,7 +595,7 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
   // Clear impacts
   const clearImpacts = useCallback(() => {
     impactsRef.current = [];
-    activeImpactsRef.current = new Map();
+    detectorRef.current.reset();
     uiDirtyTickRef.current++;
     setUiRecentImpacts([]);
     setUiImpactStatsByDevice({});
@@ -758,7 +684,8 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     wizardImpactsRef.current = [];
     wizardLastImpactRef.current = null;
     wizardActiveRef.current = 'raspagem';
-    wizardModeRef.current = true;  // Enable permissive mode
+    wizardModeRef.current = true;
+    detectorRef.current.setWizardMode(true);
     wizardRawCountRef.current = 0;
     setWizardImpactCount(0);
     setWizardLastImpact(null);
@@ -829,7 +756,8 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     wizardImpactsRef.current = [];
     wizardLastImpactRef.current = null;
     wizardActiveRef.current = 'idle';
-    wizardModeRef.current = false;  // Disable permissive mode
+    wizardModeRef.current = false;
+    detectorRef.current.setWizardMode(false);
     wizardRawCountRef.current = 0;
     setWizardImpactCount(0);
     setWizardLastImpact(null);

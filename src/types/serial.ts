@@ -13,6 +13,15 @@ export interface SerialPortState {
   error: string | null;
 }
 
+export interface ImpactCallbackData {
+  deviceId: number;
+  peakIntensity: number;
+  avgIntensity: number;
+  durationMs: number;
+  packetCount: number;
+  ts: number;
+}
+
 export interface UseSerialPortOptions {
   onKick: (side: Side, hitType: HitType) => void;
   onRawPacket?: (pkt: { 
@@ -21,6 +30,11 @@ export interface UseSerialPortOptions {
     battery?: number; 
     ts: number; 
   }) => void;
+  onImpact?: (impact: ImpactCallbackData) => void;
+  impactDetectorConfig?: {
+    enabled: boolean;
+    noiseFloor: Record<string, number>;
+  };
   debounceMs?: number;
 }
 

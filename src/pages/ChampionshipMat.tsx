@@ -10,8 +10,10 @@ import { MatchConfigDialog } from '@/components/championship/MatchConfigDialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import logoSpe from '@/assets/logo-spe-branca.png';
+import { deviceIdToMatchSide, deviceIdToEquipmentType } from '@/lib/deviceMapping';
 import type { Side, HitType } from '@/types/game';
 import type { MatchSide, ScoreType, MatchConfig } from '@/types/championship';
+import type { ImpactCallbackData } from '@/types/serial';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +25,24 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+// ─── Shadow Log Types ───
+export interface ShadowLogEntry {
+  ts: number;
+  deviceId: number;
+  peakIntensity: number;
+  peakAboveFloor: number;
+  avgIntensity: number;
+  durationMs: number;
+  packetCount: number;
+  side: MatchSide;
+  hitType: 'vest' | 'helmet';
+  decision: 'IGNORED' | 'HIT' | 'POINT' | 'MERGED' | 'DUPLICATE';
+  threshold: number;
+  scored: boolean;
+}
+
+const MAX_SHADOW_LOG = 500;
+
 export default function ChampionshipMat() {
   const matId = 1;
   
@@ -32,6 +52,12 @@ export default function ChampionshipMat() {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const tvWindowRef = useRef<Window | null>(null);
   
+  // Shadow log for impact scoring
+  const shadowLogRef = useRef<ShadowLogEntry[]>([]);
+  
+  // Anti-duplicate tracking per side
+  const lastScoredRef = useRef<Map<MatchSide, { ts: number; hitType: string; entryIndex: number }>>(new Map());
+  
   // Auto-open config dialog if no config
   useEffect(() => {
     if (!sync.hasConfig) {
@@ -39,19 +65,14 @@ export default function ChampionshipMat() {
     }
   }, [sync.hasConfig]);
   
-  // Handle kick from hardware - convert game types to championship types
-  // Side from hook is already "who scores" (inverted from equipment hit)
-  // Using ref pattern to avoid stale closure (same pattern as Index.tsx)
+  // ─── Legacy onKick handler (RAW mode) ───
   const handleHardwareKickRef = useRef<(side: Side, hitType: HitType) => void>(() => {});
   
   useEffect(() => {
     handleHardwareKickRef.current = (side: Side, hitType: HitType) => {
-      // Only score when match is running (now always uses fresh status)
       if (sync.state.status !== 'RUNNING') return;
-      
       const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
       const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
-      
       sync.addScore(matchSide, scoreType);
     };
   }, [sync.state.status, sync.addScore]);
@@ -60,15 +81,133 @@ export default function ChampionshipMat() {
     handleHardwareKickRef.current(side, hitType);
   }, []);
   
+  // ─── Impact handler (IMPACTS mode) ───
+  const handleImpactRef = useRef<(impact: ImpactCallbackData) => void>(() => {});
+  
+  useEffect(() => {
+    handleImpactRef.current = (impact: ImpactCallbackData) => {
+      if (sync.state.status !== 'RUNNING') return;
+      
+      const config = sync.state.config;
+      if (config.scoringInput !== 'impacts' || !config.impactThresholds) return;
+      
+      const matchSide = deviceIdToMatchSide(impact.deviceId);
+      const equipType = deviceIdToEquipmentType(impact.deviceId);
+      if (!matchSide) return;
+      
+      const thresholds = config.impactThresholds;
+      const floor = thresholds.noiseFloor[String(impact.deviceId)] ?? 0;
+      const peakAboveFloor = impact.peakIntensity - floor;
+      
+      const isHelmet = equipType === 'helmet';
+      const pointMin = isHelmet ? thresholds.helmetPointMin : thresholds.vestPointMin;
+      const hitMin = isHelmet ? thresholds.helmetHitMin : thresholds.vestHitMin;
+      
+      const antiDupMs = config.antiDuplicateWindowMs ?? 300;
+      const now = impact.ts;
+      
+      // Build base log entry
+      const baseEntry: Omit<ShadowLogEntry, 'decision' | 'scored'> = {
+        ts: now,
+        deviceId: impact.deviceId,
+        peakIntensity: impact.peakIntensity,
+        peakAboveFloor,
+        avgIntensity: impact.avgIntensity,
+        durationMs: impact.durationMs,
+        packetCount: impact.packetCount,
+        side: matchSide,
+        hitType: equipType,
+        threshold: pointMin,
+      };
+      
+      // Threshold check first
+      let decision: ShadowLogEntry['decision'];
+      if (peakAboveFloor >= pointMin) {
+        decision = 'POINT';
+      } else if (peakAboveFloor >= hitMin) {
+        decision = 'HIT';
+      } else {
+        decision = 'IGNORED';
+      }
+      
+      // Only apply anti-duplicate for POINT decisions
+      if (decision === 'POINT') {
+        const lastScored = lastScoredRef.current.get(matchSide);
+        if (lastScored && (now - lastScored.ts) < antiDupMs) {
+          // Collision detected
+          if (equipType === 'helmet' && lastScored.hitType === 'vest') {
+            // HEAD trumps BODY: retroactively mark previous as MERGED
+            if (lastScored.entryIndex < shadowLogRef.current.length) {
+              shadowLogRef.current[lastScored.entryIndex].decision = 'MERGED';
+              shadowLogRef.current[lastScored.entryIndex].scored = false;
+            }
+            // Score HEAD (falls through to scoring below)
+          } else if (equipType === 'vest' && lastScored.hitType === 'helmet') {
+            // BODY after HEAD: mark new as MERGED
+            decision = 'MERGED';
+          } else {
+            // Same type: mark new as DUPLICATE
+            decision = 'DUPLICATE';
+          }
+        }
+      }
+      
+      const scored = decision === 'POINT';
+      const entry: ShadowLogEntry = { ...baseEntry, decision, scored };
+      
+      shadowLogRef.current.push(entry);
+      if (shadowLogRef.current.length > MAX_SHADOW_LOG) {
+        shadowLogRef.current = shadowLogRef.current.slice(-MAX_SHADOW_LOG);
+      }
+      
+      // Score if POINT
+      if (scored) {
+        const scoreType: ScoreType = isHelmet ? 'HEAD' : 'BODY';
+        sync.addScore(matchSide, scoreType);
+        lastScoredRef.current.set(matchSide, {
+          ts: now,
+          hitType: equipType,
+          entryIndex: shadowLogRef.current.length - 1,
+        });
+      }
+    };
+  }, [sync.state.status, sync.state.config, sync.addScore]);
+  
+  const handleImpact = useCallback((impact: ImpactCallbackData) => {
+    handleImpactRef.current(impact);
+  }, []);
+  
+  // Export shadow log
+  const handleExportShadowLog = useCallback(() => {
+    const data = JSON.stringify(shadowLogRef.current, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `shadow-log-${new Date().toISOString().slice(0, 16).replace('T', '_')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+  
   // Hardware diagnostics
   const diagnostics = useHardwareDiagnostics({ 
     storageKey: 'sulsport:championship:diag:v1' 
   });
   
+  // Determine scoring mode from config
+  const scoringInput = sync.state.config.scoringInput ?? 'raw';
+  const impactThresholds = sync.state.config.impactThresholds;
+  
   const serialPort = useSerialPort({
     onKick: handleHardwareKick,
     onRawPacket: diagnostics.onRawPacket,
+    onImpact: handleImpact,
     debounceMs: 150,
+    impactDetectorConfig: scoringInput === 'impacts'
+      ? { enabled: true, noiseFloor: impactThresholds?.noiseFloor ?? {} }
+      : { enabled: false, noiseFloor: {} },
   });
   
   const handleOpenTV = () => {
@@ -100,10 +239,8 @@ export default function ChampionshipMat() {
     sync.saveConfig(config);
   };
   
-  // Block editing when running
   const isConfigLocked = sync.state.status === 'RUNNING';
   
-  // Check for tie at round end
   const isTie = sync.state.status === 'ROUND_END' && 
                 sync.state.roundScoreRed === sync.state.roundScoreBlue;
   
@@ -113,14 +250,14 @@ export default function ChampionshipMat() {
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-center relative px-6">
-          {/* Logo centralizada */}
-          <img 
-            src={logoSpe} 
-            alt="SPE" 
-            className="h-8 w-auto object-contain"
-          />
-          {/* Status indicators à direita */}
+          <img src={logoSpe} alt="SPE" className="h-8 w-auto object-contain" />
           <div className="absolute right-6 flex items-center gap-4 text-sm">
+            {/* Scoring mode indicator */}
+            {scoringInput === 'impacts' && (
+              <span className="px-2 py-1 rounded-md font-bold text-xs uppercase bg-purple-500/20 text-purple-400">
+                IMPACTOS
+              </span>
+            )}
             <span className={cn(
               "px-2 py-1 rounded-md font-bold text-xs uppercase",
               serialPort.isConnected 
@@ -150,7 +287,7 @@ export default function ChampionshipMat() {
           </div>
         </header>
         
-        {/* Scoreboard - flex-1 ocupa espaço restante */}
+        {/* Scoreboard */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScoreboardMain 
             state={sync.state} 
@@ -183,7 +320,7 @@ export default function ChampionshipMat() {
           </div>
         )}
         
-        {/* Scoring Buttons - shrink-0 para não encolher */}
+        {/* Scoring Buttons */}
         <div className="shrink-0">
           <ScoringButtons 
             state={sync.state}
@@ -191,7 +328,7 @@ export default function ChampionshipMat() {
           />
         </div>
         
-        {/* Event Log - shrink-0 para não encolher */}
+        {/* Event Log */}
         <div className="shrink-0">
           <EventLog 
             events={sync.state.events}
@@ -210,6 +347,8 @@ export default function ChampionshipMat() {
         serialPort={serialPort}
         diagnostics={diagnostics}
         onOpenConfig={() => setShowConfigDialog(true)}
+        scoringInput={scoringInput}
+        onExportShadowLog={handleExportShadowLog}
       />
       
       {/* Config Dialog */}

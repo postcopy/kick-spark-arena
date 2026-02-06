@@ -102,11 +102,12 @@ export function MatchConfigDialog({
         )}
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid grid-cols-4 bg-zinc-900 mx-4 shrink-0">
+          <TabsList className="grid grid-cols-5 bg-zinc-900 mx-4 shrink-0">
             <TabsTrigger value="time" className="text-xs sm:text-sm">Tempo</TabsTrigger>
             <TabsTrigger value="rules" className="text-xs sm:text-sm">Regras</TabsTrigger>
             <TabsTrigger value="athletes" className="text-xs sm:text-sm">Atletas</TabsTrigger>
             <TabsTrigger value="scoring" className="text-xs sm:text-sm">Pontos</TabsTrigger>
+            <TabsTrigger value="hardware" className="text-xs sm:text-sm">Hardware</TabsTrigger>
           </TabsList>
           
           <ScrollArea className="flex-1 min-h-0">
@@ -454,6 +455,227 @@ export function MatchConfigDialog({
                     </div>
                   ))}
                 </div>
+              </TabsContent>
+              
+              {/* HARDWARE */}
+              <TabsContent value="hardware" className="mt-0 space-y-3">
+                {/* Scoring Mode Toggle */}
+                <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                  <Label className="text-white text-sm font-bold mb-2 block">Entrada de Pontuação</Label>
+                  <RadioGroup
+                    value={config.scoringInput ?? 'raw'}
+                    onValueChange={(value) => setConfig(prev => ({
+                      ...prev,
+                      scoringInput: value as 'raw' | 'impacts',
+                    }))}
+                    className="flex gap-4"
+                    disabled={isLocked}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="raw" id="scoring-raw" className="border-zinc-500" disabled={isLocked} />
+                      <Label htmlFor="scoring-raw" className={cn("cursor-pointer text-sm", isLocked ? "text-zinc-500" : "text-white")}>
+                        RAW (legado)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="impacts" id="scoring-impacts" className="border-zinc-500" disabled={isLocked} />
+                      <Label htmlFor="scoring-impacts" className={cn("cursor-pointer text-sm", isLocked ? "text-zinc-500" : "text-white")}>
+                        IMPACTOS (recomendado)
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  <p className="text-xs text-zinc-500 mt-2">
+                    {config.scoringInput === 'impacts' 
+                      ? 'Pontuação baseada em impactos finalizados com thresholds configuráveis.' 
+                      : 'Pontuação por pacote individual (1 pacote = 1 ponto). Modo legado.'}
+                  </p>
+                </div>
+                
+                {/* Impact Thresholds (only when impacts mode) */}
+                {config.scoringInput === 'impacts' && (
+                  <>
+                    <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                      <Label className="text-white text-sm font-bold mb-2 block">Thresholds de Intensidade</Label>
+                      <p className="text-xs text-zinc-500 mb-3">
+                        Valores relativos ao noise floor. Peak acima do floor ≥ threshold = pontuação.
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-zinc-400 text-xs mb-1 block">Colete HIT (min)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={config.impactThresholds?.vestHitMin ?? 150}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              impactThresholds: {
+                                ...prev.impactThresholds!,
+                                vestHitMin: parseInt(e.target.value) || 150,
+                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 400,
+                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 100,
+                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 300,
+                                noiseFloor: prev.impactThresholds?.noiseFloor ?? {},
+                              }
+                            }))}
+                            disabled={isLocked}
+                            className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-zinc-400 text-xs mb-1 block">Colete PONTO (min)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={config.impactThresholds?.vestPointMin ?? 400}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              impactThresholds: {
+                                ...prev.impactThresholds!,
+                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 150,
+                                vestPointMin: parseInt(e.target.value) || 400,
+                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 100,
+                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 300,
+                                noiseFloor: prev.impactThresholds?.noiseFloor ?? {},
+                              }
+                            }))}
+                            disabled={isLocked}
+                            className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-zinc-400 text-xs mb-1 block">Capacete HIT (min)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={config.impactThresholds?.helmetHitMin ?? 100}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              impactThresholds: {
+                                ...prev.impactThresholds!,
+                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 150,
+                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 400,
+                                helmetHitMin: parseInt(e.target.value) || 100,
+                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 300,
+                                noiseFloor: prev.impactThresholds?.noiseFloor ?? {},
+                              }
+                            }))}
+                            disabled={isLocked}
+                            className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-zinc-400 text-xs mb-1 block">Capacete PONTO (min)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={config.impactThresholds?.helmetPointMin ?? 300}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              impactThresholds: {
+                                ...prev.impactThresholds!,
+                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 150,
+                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 400,
+                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 100,
+                                helmetPointMin: parseInt(e.target.value) || 300,
+                                noiseFloor: prev.impactThresholds?.noiseFloor ?? {},
+                              }
+                            }))}
+                            disabled={isLocked}
+                            className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Anti-duplicate window */}
+                    <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                      <Label className="text-white text-sm font-bold mb-1 block">Janela Anti-Duplicado (ms)</Label>
+                      <p className="text-xs text-zinc-500 mb-2">
+                        Impactos do mesmo lado dentro desta janela são mesclados (HEAD priorizado).
+                      </p>
+                      <Input
+                        type="number"
+                        min={50}
+                        max={1000}
+                        value={config.antiDuplicateWindowMs ?? 300}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          antiDuplicateWindowMs: parseInt(e.target.value) || 300,
+                        }))}
+                        disabled={isLocked}
+                        className="bg-zinc-800 border-zinc-600 text-white w-24 h-9"
+                      />
+                    </div>
+                    
+                    {/* Noise Floor per device */}
+                    <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                      <Label className="text-white text-sm font-bold mb-2 block">Noise Floor por Equipamento</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { id: '1', label: 'Colete Azul (ID 1)' },
+                          { id: '2', label: 'Colete Vermelho (ID 2)' },
+                          { id: '3', label: 'Capacete Azul (ID 3)' },
+                          { id: '4', label: 'Capacete Vermelho (ID 4)' },
+                        ].map(({ id, label }) => (
+                          <div key={id}>
+                            <Label className="text-zinc-400 text-xs mb-1 block">{label}</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={config.impactThresholds?.noiseFloor?.[id] ?? 0}
+                              onChange={(e) => setConfig(prev => ({
+                                ...prev,
+                                impactThresholds: {
+                                  ...prev.impactThresholds!,
+                                  vestHitMin: prev.impactThresholds?.vestHitMin ?? 150,
+                                  vestPointMin: prev.impactThresholds?.vestPointMin ?? 400,
+                                  helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 100,
+                                  helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 300,
+                                  noiseFloor: {
+                                    ...prev.impactThresholds?.noiseFloor,
+                                    [id]: parseInt(e.target.value) || 0,
+                                  },
+                                }
+                              }))}
+                              disabled={isLocked}
+                              className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Use Calibration Button */}
+                    <Button
+                      onClick={() => {
+                        try {
+                          const stored = localStorage.getItem('sulsport:championship:diag:v1');
+                          if (!stored) return;
+                          const data = JSON.parse(stored);
+                          const nf = data.noiseFloor || {};
+                          const th = data.thresholds || {};
+                          setConfig(prev => ({
+                            ...prev,
+                            impactThresholds: {
+                              vestHitMin: th.vestHitMin ?? prev.impactThresholds?.vestHitMin ?? 150,
+                              vestPointMin: th.vestPointMin ?? prev.impactThresholds?.vestPointMin ?? 400,
+                              helmetHitMin: th.helmetHitMin ?? prev.impactThresholds?.helmetHitMin ?? 100,
+                              helmetPointMin: th.helmetPointMin ?? prev.impactThresholds?.helmetPointMin ?? 300,
+                              noiseFloor: nf,
+                            },
+                          }));
+                        } catch (e) {
+                          console.error('Failed to load calibration data:', e);
+                        }
+                      }}
+                      disabled={isLocked}
+                      className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold"
+                    >
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Usar Calibração (Diagnóstico)
+                    </Button>
+                  </>
+                )}
               </TabsContent>
             </div>
           </ScrollArea>

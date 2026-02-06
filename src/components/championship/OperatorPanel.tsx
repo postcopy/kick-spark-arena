@@ -12,7 +12,8 @@ import {
   Undo2,
   Usb,
   Settings,
-  Activity
+  Activity,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MatchState, MatchSide } from '@/types/championship';
@@ -57,9 +58,11 @@ interface OperatorPanelProps {
   serialPort?: UseSerialPortReturn;
   diagnostics?: UseHardwareDiagnosticsReturn;
   onOpenConfig?: () => void;
+  scoringInput?: 'raw' | 'impacts';
+  onExportShadowLog?: () => void;
 }
 
-export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, diagnostics, onOpenConfig }: OperatorPanelProps) {
+export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, diagnostics, onOpenConfig, scoringInput, onExportShadowLog }: OperatorPanelProps) {
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showScoreAdjust, setShowScoreAdjust] = useState(false);
@@ -330,6 +333,16 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
                 >
                   <Activity className="w-4 h-4 mr-2" />
                   DIAGNÓSTICO
+                </Button>
+              )}
+              
+              {scoringInput === 'impacts' && onExportShadowLog && (
+                <Button
+                  onClick={onExportShadowLog}
+                  className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  EXPORTAR SHADOW LOG
                 </Button>
               )}
               

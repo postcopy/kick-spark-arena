@@ -61,6 +61,21 @@ export interface MatchConfig {
   
   // Match number for display
   matchNumber?: string; // "001", "002", etc.
+  
+  // Hardware scoring mode
+  scoringInput?: 'raw' | 'impacts'; // default 'raw'
+  
+  // Impact thresholds (used when scoringInput = 'impacts')
+  impactThresholds?: {
+    vestHitMin: number;
+    vestPointMin: number;
+    helmetHitMin: number;
+    helmetPointMin: number;
+    noiseFloor: Record<string, number>; // per deviceId
+  };
+  
+  // Anti-duplicate window in ms (for merging BODY+HEAD on same side)
+  antiDuplicateWindowMs?: number; // default 300
 }
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
@@ -72,6 +87,7 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   pointGap: 20,
   scoring: DEFAULT_SCORE_CONFIG,
   matId: 1,
+  scoringInput: 'raw',
 };
 
 // Match event for logging
