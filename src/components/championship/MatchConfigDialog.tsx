@@ -309,7 +309,7 @@ export function MatchConfigDialog({
                   </div>
                   
                   {/* Gam-jeom Limit */}
-                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3 lg:col-span-2">
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
                     <Label className="text-white text-sm font-bold mb-1 block">Limite de Gam-jeom</Label>
                     <p className="text-zinc-500 text-xs mb-2">Máximo de penalidades antes de desqualificação</p>
                     <Input
@@ -324,6 +324,36 @@ export function MatchConfigDialog({
                       disabled={isLocked}
                       className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
                     />
+                  </div>
+                  
+                  {/* Tiebreak by Hits */}
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-white text-sm font-bold block">Desempate por HITS</Label>
+                        <p className="text-zinc-500 text-xs mt-1">Em empate de pontos no round, o lutador com mais HITS vence automaticamente</p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={config.tiebreakByHits !== false}
+                        onClick={() => setConfig(prev => ({
+                          ...prev,
+                          tiebreakByHits: prev.tiebreakByHits === false ? true : false
+                        }))}
+                        disabled={isLocked}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                          config.tiebreakByHits !== false ? "bg-green-600" : "bg-zinc-600",
+                          isLocked && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <span className={cn(
+                          "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform",
+                          config.tiebreakByHits !== false ? "translate-x-5" : "translate-x-0"
+                        )} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </TabsContent>

@@ -175,7 +175,7 @@ export default function ChampionshipTV() {
             </div>
             <div className="flex flex-col items-center justify-center">
               <div className="text-sm text-white/60 uppercase font-bold tracking-wider">HITS</div>
-              <div className="text-4xl font-black text-white">0</div>
+              <div className="text-4xl font-black text-white">{state.hitsBlue}</div>
             </div>
           </div>
         </div>
@@ -270,7 +270,7 @@ export default function ChampionshipTV() {
             </div>
             <div className="flex flex-col items-center justify-center">
               <div className="text-sm text-white/60 uppercase font-bold tracking-wider">HITS</div>
-              <div className="text-4xl font-black text-white">0</div>
+              <div className="text-4xl font-black text-white">{state.hitsRed}</div>
             </div>
           </div>
         </div>
@@ -295,7 +295,16 @@ export default function ChampionshipTV() {
             isRedWinner = true;
             isTie = false;
           }
-          // If both rounds AND points are tied, it remains a tie
+          // If still tied, try hits tiebreak
+          if (isTie && state.config.tiebreakByHits !== false) {
+            if (state.hitsBlue > state.hitsRed) {
+              isBlueWinner = true;
+              isTie = false;
+            } else if (state.hitsRed > state.hitsBlue) {
+              isRedWinner = true;
+              isTie = false;
+            }
+          }
         }
         
         const winnerName = isBlueWinner 
@@ -530,6 +539,26 @@ export default function ChampionshipTV() {
                       style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
                     >
                       {stats.red.totalHits}
+                    </div>
+                    
+                    {/* HITS (hardware touches) */}
+                    <div 
+                      className="text-[hsl(var(--sulsport-blue-light))] font-black tabular-nums"
+                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
+                    >
+                      {state.hitsBlue}
+                    </div>
+                    <div 
+                      className="text-white font-bold uppercase"
+                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                    >
+                      HITS
+                    </div>
+                    <div 
+                      className="text-[hsl(var(--sulsport-red-light))] font-black tabular-nums"
+                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
+                    >
+                      {state.hitsRed}
                     </div>
                     
                     {/* Gam-jeoms */}

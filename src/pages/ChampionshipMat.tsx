@@ -55,8 +55,11 @@ export default function ChampionshipMat() {
   // Shadow log for impact scoring
   const shadowLogRef = useRef<ShadowLogEntry[]>([]);
   
-  // Anti-duplicate tracking per side
+  // Anti-duplicate tracking per side (for score merging)
   const lastScoredRef = useRef<Map<MatchSide, { ts: number; hitType: string; entryIndex: number }>>(new Map());
+  
+  // Anti-duplicate tracking for HIT counter (max 1 hit per side per window)
+  const lastHitTsRef = useRef<Map<MatchSide, number>>(new Map());
   
   // Auto-open config dialog if no config
   useEffect(() => {
@@ -170,8 +173,17 @@ export default function ChampionshipMat() {
           entryIndex: shadowLogRef.current.length - 1,
         });
       }
+      
+      // Increment HIT counter for POINT or HIT decisions (anti-duplo: max 1 per side per window)
+      if (decision === 'POINT' || decision === 'HIT') {
+        const lastHitTs = lastHitTsRef.current.get(matchSide) ?? 0;
+        if (now - lastHitTs >= antiDupMs) {
+          sync.addHit(matchSide);
+          lastHitTsRef.current.set(matchSide, now);
+        }
+      }
     };
-  }, [sync.state.status, sync.state.config, sync.addScore]);
+  }, [sync.state.status, sync.state.config, sync.addScore, sync.addHit]);
   
   const handleImpact = useCallback((impact: ImpactCallbackData) => {
     handleImpactRef.current(impact);

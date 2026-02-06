@@ -41,6 +41,7 @@ interface UseChampionshipSyncReturn {
   
   // Scoring (master only)
   addScore: (side: MatchSide, type: ScoreType) => void;
+  addHit: (side: MatchSide) => void;
   addGamjeom: (side: MatchSide) => void;
   removeGamjeom: (side: MatchSide) => void;
   adjustScore: (side: MatchSide, roundScore: number, gamjeom: number) => void;
@@ -160,13 +161,22 @@ export function useChampionshipSync({
   
   // Handle round end (time up)
   const handleRoundEnd = useCallback((prev: MatchState): MatchState => {
-    const { roundScoreRed, roundScoreBlue } = prev;
+    const { roundScoreRed, roundScoreBlue, hitsRed, hitsBlue, config } = prev;
     
     if (roundScoreRed > roundScoreBlue) {
       return handleRoundEndWithWinner(prev, 'RED', 'ROUND_END', 'Tempo! Vermelho vence o round');
     } else if (roundScoreBlue > roundScoreRed) {
       return handleRoundEndWithWinner(prev, 'BLUE', 'ROUND_END', 'Tempo! Azul vence o round');
     } else {
+      // Tied on points — check tiebreak by hits
+      if (config.tiebreakByHits !== false) {
+        if (hitsRed > hitsBlue) {
+          return handleRoundEndWithWinner(prev, 'RED', 'ROUND_END', 'Tempo! Vermelho vence por superioridade (HITS)');
+        } else if (hitsBlue > hitsRed) {
+          return handleRoundEndWithWinner(prev, 'BLUE', 'ROUND_END', 'Tempo! Azul vence por superioridade (HITS)');
+        }
+      }
+      // Hits also tied or tiebreak disabled — manual decision
       return {
         ...prev,
         timeLeftMs: 0,
@@ -416,6 +426,8 @@ export function useChampionshipSync({
         timeLeftMs: prev.config.roundTimeMs,
         roundScoreRed: 0,
         roundScoreBlue: 0,
+        hitsRed: 0,
+        hitsBlue: 0,
         gamjeomRed: 0,
         gamjeomBlue: 0,
         isMedicalTime: false,
@@ -612,6 +624,22 @@ export function useChampionshipSync({
     broadcast(newState, true);
   }, [role, broadcast]);
   
+  // Add hit (silent, no event log)
+  const addHit = useCallback((side: MatchSide) => {
+    if (role !== 'master') return;
+    if (state.status !== 'RUNNING') return;
+    
+    setState(prev => {
+      const newState: MatchState = {
+        ...prev,
+        hitsRed: side === 'RED' ? prev.hitsRed + 1 : prev.hitsRed,
+        hitsBlue: side === 'BLUE' ? prev.hitsBlue + 1 : prev.hitsBlue,
+      };
+      broadcast(newState, true);
+      return newState;
+    });
+  }, [role, state.status, broadcast]);
+  
   return {
     state,
     isConnected,
@@ -626,6 +654,7 @@ export function useChampionshipSync({
     declareRoundWinner,
     resetMatch,
     addScore,
+    addHit,
     addGamjeom,
     removeGamjeom,
     adjustScore,

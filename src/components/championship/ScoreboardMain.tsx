@@ -83,7 +83,7 @@ export function ScoreboardMain({
           </div>
           <div className="flex flex-col items-center justify-center">
             <div className="text-xs text-white/60 uppercase font-bold">HITS</div>
-            <div className="text-2xl font-black text-white">0</div>
+            <div className="text-2xl font-black text-white">{state.hitsBlue}</div>
           </div>
         </div>
       </div>
@@ -162,7 +162,7 @@ export function ScoreboardMain({
           </div>
           <div className="flex flex-col items-center justify-center">
             <div className="text-xs text-white/60 uppercase font-bold">HITS</div>
-            <div className="text-2xl font-black text-white">0</div>
+            <div className="text-2xl font-black text-white">{state.hitsRed}</div>
           </div>
         </div>
       </div>

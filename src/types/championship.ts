@@ -40,6 +40,7 @@ export interface MatchConfig {
   maxRounds: 1 | 3;
   maxGamjeom: number;       // 10 default - opponent wins when reached
   pointGap: number;         // 20 default - auto-ends round when difference reached
+  tiebreakByHits?: boolean; // default true - use hits as tiebreaker when round score is tied
   
   // Scoring values (configurable)
   scoring: ScoreConfig;
@@ -112,6 +113,10 @@ export interface MatchState {
   roundScoreRed: number;
   roundScoreBlue: number;
   
+  // Hit counters (reset each round) - for statistics and tiebreak
+  hitsRed: number;
+  hitsBlue: number;
+  
   // Round wins (Best of 3)
   roundWinsRed: number;
   roundWinsBlue: number;
@@ -142,6 +147,8 @@ export const INITIAL_MATCH_STATE: MatchState = {
   timeLeftMs: 120000,
   roundScoreRed: 0,
   roundScoreBlue: 0,
+  hitsRed: 0,
+  hitsBlue: 0,
   roundWinsRed: 0,
   roundWinsBlue: 0,
   gamjeomRed: 0,
