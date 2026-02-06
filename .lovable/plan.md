@@ -1,203 +1,112 @@
 
 
-# Scoring por Impacto no Campeonato
+# HIT como Contador Real + Desempate Configuravel
 
 ## Resumo
 
-Criar um detector de impactos compartilhado (core puro), integrar ao useSerialPort com flush via setInterval, e conectar ao ChampionshipMat com thresholds relativos ao noiseFloor, anti-duplicado por lado, e shadow log. Modo RAW (legado) fica intocado.
+Adicionar `hitsRed`/`hitsBlue` ao `MatchState`, criar `addHit()` no sync, implementar anti-duplo Opcao A (max 1 HIT por lado por janela) SEM atrasar score, e usar HITS como criterio de desempate configuravel. HITS reseta por round.
 
-## Arquivos e Ordem
+## Mudancas por Arquivo
 
-### 1. Criar `src/lib/impactDetector.ts` -- Core puro (sem React)
+### 1. `src/types/championship.ts`
 
-Extrair a logica de histerese que hoje vive nas linhas 540-579 e 404-456 do `useHardwareDiagnostics.ts` para uma classe reutilizavel.
+- Adicionar `hitsRed: number` e `hitsBlue: number` ao `MatchState` (default 0)
+- Adicionar `tiebreakByHits?: boolean` ao `MatchConfig` (default true)
+- Atualizar `INITIAL_MATCH_STATE` com `hitsRed: 0, hitsBlue: 0`
 
-**Exportacoes:**
-- Constantes: `SILENCE_GAP_MS` (200), `MIN_IMPACT_PKTS` (3), `MIN_IMPACT_DURATION_MS` (40), `DEFAULT_DELTA_START` (4), `DEFAULT_DELTA_CONTINUE` (2)
-- Interface `ImpactDetectorConfig`: `noiseFloor`, `deltaStart`, `deltaContinue`, `silenceGapMs`, `minPackets`, `minDurationMs`
-- Interface `FinalizedImpact`: `deviceId`, `startTs`, `endTs`, `durationMs`, `peakIntensity`, `avgIntensity`, `packetCount`
-- Classe `ImpactDetector`:
-  - `feed(deviceId, intensity, ts)` -- alimenta pacote, gerencia activeImpacts Map internamente
-  - `flush(now): FinalizedImpact[]` -- verifica impactos inativos (gap > silenceGapMs), finaliza os que atendem criterios (minPackets/minDurationMs), retorna array de finalizados. Importante: funciona mesmo sem novos pacotes (o setInterval externo garante chamadas periodicas)
-  - `updateConfig(partial)` -- atualiza config em runtime (ex: noiseFloor mudou)
-  - `setWizardMode(active)` -- relaxa criterios para 1 pkt / 1 ms
+### 2. `src/hooks/useChampionshipSync.ts`
 
-A logica interna e identica a atual: histerese com `startThreshold = noiseFloor[deviceId] + deltaStart` e `continueThreshold = noiseFloor[deviceId] + deltaContinue`. Impacto ativo continua enquanto intensity > continueThreshold. Finaliza quando gap > silenceGapMs.
+**Nova funcao `addHit(side: MatchSide)`:**
+- Incrementa `hitsRed` ou `hitsBlue` no state
+- Broadcast atualizado
+- Silencioso (sem evento no log)
+- So funciona quando `status === 'RUNNING'`
 
-### 2. Atualizar `src/types/serial.ts`
+**Expor `addHit` no retorno** (adicionar a `UseChampionshipSyncReturn`)
 
-Adicionar ao `UseSerialPortOptions`:
-- `onImpact?: (impact: { deviceId: number; peakIntensity: number; avgIntensity: number; durationMs: number; packetCount: number; ts: number }) => void`
-- `impactDetectorConfig?: { noiseFloor: Record<string, number>; enabled: boolean }`
+**Desempate no `handleRoundEnd` (linhas 162-177):**
+- Quando `roundScoreRed === roundScoreBlue`:
+  - Se `config.tiebreakByHits !== false`:
+    - `hitsRed > hitsBlue` -> Vermelho vence automaticamente ("Tempo! Vermelho vence por superioridade (HITS)")
+    - `hitsBlue > hitsRed` -> Azul vence automaticamente
+    - HITS tambem empatam -> manter comportamento atual (decisao manual)
+  - Se `tiebreakByHits === false`: manter decisao manual
 
-Adicionar ao `UseSerialPortReturn`:
-- Nenhuma mudanca necessaria (onImpact e callback, nao retorno)
+**Reset no `nextRound` (linhas 411-427):** Adicionar `hitsRed: 0, hitsBlue: 0` ao novo estado
 
-### 3. Atualizar `src/types/championship.ts`
+**`resetMatch` e `saveConfig`:** Ja cobertos pelo spread de `INITIAL_MATCH_STATE` que tera os novos campos zerados
 
-Adicionar ao `MatchConfig`:
-```typescript
-scoringInput?: 'raw' | 'impacts';  // default 'raw'
-impactThresholds?: {
-  vestHitMin: number;
-  vestPointMin: number;
-  helmetHitMin: number;
-  helmetPointMin: number;
-  noiseFloor: Record<string, number>;
-};
-antiDuplicateWindowMs?: number;  // default 300
-```
+### 3. `src/pages/ChampionshipMat.tsx`
 
-Atualizar `DEFAULT_MATCH_CONFIG` com `scoringInput: 'raw'`.
+**Anti-duplo reformulado - Opcao A aplicada SOMENTE ao HIT:**
 
-### 4. Refatorar `src/hooks/useHardwareDiagnostics.ts`
+Substituir `lastScoredRef` por `lastHitTsRef: Map<MatchSide, number>`. O score (addScore) continua sendo chamado imediatamente sem atraso.
 
-Substituir a logica inline de deteccao de impactos pelo `ImpactDetector` importado:
-- Remover a `ActiveImpactState` interface local e `activeImpactsRef`
-- Criar `detectorRef = useRef(new ImpactDetector(config))`
-- No `onRawPacket` (linha 540+): substituir logica de histerese por `detectorRef.current.feed(deviceKey, intensity, ts)`
-- No `setInterval` de UI throttle (linha 404+): substituir loop de finalizacao por `const finalized = detectorRef.current.flush(now)` e processar cada impacto finalizado da mesma forma (criar ImpactEvent, push em impactsRef, wizard collection)
-- Conectar `setWizardMode` do detector ao wizardModeRef
-- Comportamento externo 100% identico
+No `handleImpact`, apos decidir POINT/HIT/IGNORED:
 
-### 5. Atualizar `src/hooks/useSerialPort.ts`
+- Se `decision === 'POINT'`:
+  - `sync.addScore(matchSide, scoreType)` -- imediato, sem espera
+  - Verificar anti-duplo para HIT: se `now - lastHitTs[side] >= antiDuplicateWindowMs` -> `sync.addHit(matchSide)` e atualizar `lastHitTsRef`
+  - Se dentro da janela: nao incrementa HIT (ja contou 1 nesta janela)
+- Se `decision === 'HIT'`:
+  - Nao pontua
+  - Verificar anti-duplo: se fora da janela -> `sync.addHit(matchSide)` e atualizar `lastHitTsRef`
+  - Se dentro da janela: nao incrementa HIT
+- Se `decision === 'IGNORED'`, `'MERGED'`, `'DUPLICATE'`: nada
 
-Mudancas condicionais (so quando `impactDetectorConfig?.enabled === true`):
+O anti-duplo no score (MERGED/DUPLICATE para POINTs) permanece como esta hoje -- o HEAD retroativamente marca BODY como MERGED e pontua no lugar. A novidade e que o contador de HIT e limitado a 1 por janela por lado, independente do score.
 
-- Importar `ImpactDetector` do core
-- Adicionar `detectorRef`, `onImpactRef`, `flushIntervalRef`
-- No connect/mount: se enabled, instanciar `new ImpactDetector({ noiseFloor: config.noiseFloor })`
-- **setInterval de 30ms** que chama `detectorRef.current.flush(Date.now())` e dispara `onImpactRef.current(impact)` para cada impacto finalizado. Isso garante que o ultimo impacto finaliza mesmo no silencio (ajuste obrigatorio #1)
-- No loop de leitura (linha 191+): apos `onRawPacket`, se detector existe, chamar `detectorRef.current.feed(deviceId, intensity, Date.now())`
-- O `onKick` legado permanece intocado (debounce por side, sem mudancas)
-- No disconnect: limpar o setInterval
+Shadow log continua registrando todas as decisoes normalmente.
 
-### 6. Atualizar `src/pages/ChampionshipMat.tsx`
+### 4. `src/components/championship/ScoreboardMain.tsx`
 
-**Novo tipo ShadowLogEntry:**
-```typescript
-interface ShadowLogEntry {
-  ts: number;
-  deviceId: number;
-  peakIntensity: number;
-  peakAboveFloor: number;
-  avgIntensity: number;
-  durationMs: number;
-  packetCount: number;
-  side: MatchSide;
-  hitType: 'vest' | 'helmet';
-  decision: 'IGNORED' | 'HIT' | 'POINT' | 'MERGED' | 'DUPLICATE';
-  threshold: number;
-  scored: boolean;
-}
-```
+- Linha 86: substituir `0` por `{state.hitsBlue}`
+- Linha 165: substituir `0` por `{state.hitsRed}`
 
-**Logica condicional:** Ler `scoringInput` do `sync.state.config`. Se `'impacts'`, usar `onImpact`; se `'raw'`, usar `onKick` como hoje.
+### 5. `src/pages/ChampionshipTV.tsx`
 
-**handleImpact (novo callback):**
+- Linha 178: substituir `0` por `{state.hitsBlue}`
+- Linha 273: substituir `0` por `{state.hitsRed}`
 
-1. Converter deviceId usando funcoes existentes `deviceIdToKickingSide(deviceId)` e `deviceIdToHitType(deviceId)` -- exportar essas funcoes do useSerialPort ou mover para um util
+**Tela de vitoria (linha 280+):** Apos verificar rounds e totalPoints empatados, adicionar verificacao por HITS:
+- Se `state.config.tiebreakByHits !== false` e rounds + totalPoints empatados: comparar `state.hitsBlue` vs `state.hitsRed`
+- Adicionar linha "HITS" no grid de estatisticas da vitoria
 
-2. Se `sync.state.status !== 'RUNNING'`: ignorar
+### 6. `src/components/championship/MatchConfigDialog.tsx`
 
-3. **Threshold relativo ao floor (ajuste obrigatorio #2):**
-   - `floor = config.impactThresholds.noiseFloor[String(deviceId)] ?? 0`
-   - `peakAboveFloor = impact.peakIntensity - floor`
-   - Comparar `peakAboveFloor` contra `vestPointMin` / `helmetPointMin` / `vestHitMin` / `helmetHitMin`
+Adicionar toggle `tiebreakByHits` na tab de Regras:
+- Label: "Desempate por HITS"
+- Descricao: "Em empate de pontos no round, o lutador com mais HITS vence automaticamente"
+- Default: ativado (checked)
 
-4. **Anti-duplicado por lado (ajuste obrigatorio #3):**
-   - Manter `lastScoredRef: Map<MatchSide, { ts: number; hitType: string; entryIndex: number }>`
-   - Se mesmo lado foi pontuado ha menos de `antiDuplicateWindowMs` ms:
-     - Se novo e HEAD e anterior era BODY: retroativamente marcar anterior como MERGED no shadow log, pontuar HEAD
-     - Se novo e BODY e anterior era HEAD: marcar novo como MERGED (HEAD ja pontuou)
-     - Se mesmo tipo (2x BODY ou 2x HEAD): marcar novo como DUPLICATE
-   - Se nao ha colisao: processar normalmente
-
-5. **Decisao:**
-   - `peakAboveFloor >= pointMin` -> POINT, chamar `sync.addScore(matchSide, scoreType)`
-   - `peakAboveFloor >= hitMin` mas `< pointMin` -> HIT (shadow log only)
-   - `peakAboveFloor < hitMin` -> IGNORED
-
-6. **Shadow log:** `shadowLogRef.current.push(entry)`, max 500 entradas
-
-**Passar config ao useSerialPort:**
-```typescript
-const serialPort = useSerialPort({
-  onKick: handleHardwareKick,
-  onRawPacket: diagnostics.onRawPacket,
-  onImpact: handleImpact,
-  debounceMs: 150,
-  impactDetectorConfig: scoringInput === 'impacts' 
-    ? { enabled: true, noiseFloor: config.impactThresholds?.noiseFloor ?? {} }
-    : { enabled: false, noiseFloor: {} },
-});
-```
-
-**Exportar funcoes de mapeamento:** Mover `deviceIdToKickingSide` e `deviceIdToHitType` do `useSerialPort.ts` para `src/lib/deviceMapping.ts` (ou exportar diretamente) para uso no ChampionshipMat.
-
-### 7. Atualizar `src/components/championship/MatchConfigDialog.tsx`
-
-Adicionar nova tab "Hardware" (5a tab):
-
-- **Toggle:** `RAW (legado)` / `IMPACTOS (recomendado)` -- controla `scoringInput`
-- **Quando IMPACTOS selecionado:**
-  - Campos numericos: `vestHitMin`, `vestPointMin`, `helmetHitMin`, `helmetPointMin`
-  - Campo `antiDuplicateWindowMs` (default 300)
-  - Campos de noiseFloor por device (4 campos: devices 1-4)
-  - Botao "Usar Calibracao" que le do localStorage (`sulsport:championship:diag:v1`) e preenche os campos. Valores ficam salvos no MatchConfig, sem dependencia implicita de localStorage em runtime
-
-### 8. Atualizar `src/components/championship/OperatorPanel.tsx`
-
-Quando `scoringInput === 'impacts'`, adicionar botao "Exportar Shadow Log" na secao de controles. Ao clicar, baixa JSON com todas as entradas do shadowLogRef. O OperatorPanel precisa receber o shadowLog como prop (ou um callback `onExportShadowLog`).
-
-## Pipeline Final (modo impacts)
+## Fluxo Final
 
 ```text
-Pacote Serial (intensity, deviceId, battery)
+Impacto finalizado
        |
-       +---> onRawPacket -> diagnostics (inalterado)
-       |
-       +---> onKick -> scoring legado (quando scoringInput='raw', inalterado)
-       |
-       +---> ImpactDetector.feed() (quando scoringInput='impacts')
-       |
-       +---> setInterval 30ms -> ImpactDetector.flush()
-                    |
-                    v
-              onImpact(deviceId, peakIntensity, ...)
-                    |
-                    v
-              ChampionshipMat.handleImpact()
-                    |
-                    +---> peakAboveFloor = peak - noiseFloor[deviceId]
-                    |
-                    +---> anti-duplo check (por lado, janela configuravel)
-                    |     HEAD > BODY; mesmo tipo = DUPLICATE
-                    |
-                    +---> threshold check:
-                    |       >= pointMin -> POINT (addScore)
-                    |       >= hitMin   -> HIT (shadow log only)
-                    |       < hitMin    -> IGNORED
-                    |
-                    +---> shadow log (sempre, toda decisao)
+  peakAboveFloor >= pointMin?
+  SIM: POINT -> addScore() imediato
+       -> anti-duplo HIT: fora da janela? addHit() : skip
+  NAO: peakAboveFloor >= hitMin?
+  SIM: HIT -> sem score
+       -> anti-duplo HIT: fora da janela? addHit() : skip
+  NAO: IGNORED -> nada
 ```
 
 ## O que NAO muda
 
-- Modo RAW: zero alteracoes no debounce, onKick, pipeline
-- Botoes manuais de scoring (PUNCH, SPIN_BODY, SPIN_HEAD)
-- onRawPacket para diagnostics
-- TV sync, rounds, gam-jeom, point gap
-- useHardwareDiagnostics: comportamento externo identico (motor interno muda para core compartilhado)
+- Modo RAW: HITS permanece em 0
+- Botoes manuais: nao incrementam HITS
+- Score entra imediatamente (zero latencia no placar)
+- Shadow log inalterado
+- Anti-duplo de SCORE (MERGED/DUPLICATE para POINTs) inalterado
 
 ## Ordem de Implementacao
 
-1. `src/lib/impactDetector.ts` -- core puro
-2. `src/lib/deviceMapping.ts` -- extrair funcoes de mapeamento
-3. `src/types/serial.ts` + `src/types/championship.ts` -- tipos
-4. `src/hooks/useHardwareDiagnostics.ts` -- refatorar para usar core
-5. `src/hooks/useSerialPort.ts` -- adicionar onImpact + detector + setInterval flush
-6. `src/pages/ChampionshipMat.tsx` -- handleImpact + shadow log
-7. `src/components/championship/MatchConfigDialog.tsx` -- tab Hardware
-8. `src/components/championship/OperatorPanel.tsx` -- botao exportar shadow log
+1. `src/types/championship.ts` -- hitsRed/Blue + tiebreakByHits
+2. `src/hooks/useChampionshipSync.ts` -- addHit + desempate + reset
+3. `src/pages/ChampionshipMat.tsx` -- anti-duplo HIT com lastHitTsRef
+4. `src/components/championship/ScoreboardMain.tsx` -- exibir hits reais
+5. `src/pages/ChampionshipTV.tsx` -- exibir hits reais + stats vitoria
+6. `src/components/championship/MatchConfigDialog.tsx` -- toggle tiebreakByHits
 
