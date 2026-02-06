@@ -5,8 +5,11 @@ import {
   UseSerialPortReturn, 
   EquipmentSlot, 
   EquipmentState,
-  EquipmentType
+  EquipmentType,
+  ImpactCallbackData,
 } from '@/types/serial';
+import { deviceIdToKickingSide, deviceIdToHitType } from '@/lib/deviceMapping';
+import { ImpactDetector } from '@/lib/impactDetector';
 
 // Type declarations for Web Serial API
 declare global {
@@ -30,18 +33,18 @@ declare global {
 const BAUD_RATE = 115200;
 const DEFAULT_DEBOUNCE_MS = 150;
 const LINE_REGEX = /^\d+,\d+,\d+$/;
+const FLUSH_INTERVAL_MS = 30;
 
 interface ParsedLine {
-  intensity: number;  // Value 1: Intensity (0-1023) or Button
-  deviceId: number;   // Value 2: Device ID (1-4 = equipment, 5-7 = judges)
-  battery: number;    // Value 3: Battery (0-100%)
+  intensity: number;
+  deviceId: number;
+  battery: number;
 }
 
 function parseLine(line: string): ParsedLine | null {
-  // Clean the line: remove \r, ANSI codes, and trim whitespace
   const cleanLine = line
-    .replace(/\r/g, '')                    // Remove carriage return (ESP32 sends \r\n)
-    .replace(/\x1b\[[0-9;]*m/g, '')        // Remove ANSI color codes from debug output
+    .replace(/\r/g, '')
+    .replace(/\x1b\[[0-9;]*m/g, '')
     .trim();
   
   if (!LINE_REGEX.test(cleanLine)) return null;
@@ -59,22 +62,7 @@ function getEquipmentType(id: number): EquipmentType {
 }
 
 function getEquipmentSide(id: number): 'red' | 'blue' {
-  // Documentação oficial: IDs 1 e 3 = azul, IDs 2 e 4 = vermelho
   return id % 2 === 1 ? 'blue' : 'red';
-}
-
-function deviceIdToKickingSide(deviceId: number): Side | null {
-  // Equipamento atingido → quem chutou é o lado oposto
-  // ID 1 (colete azul) ou ID 3 (capacete azul) → Vermelho chutou
-  // ID 2 (colete vermelho) ou ID 4 (capacete vermelho) → Azul chutou
-  if (deviceId === 1 || deviceId === 3) return 'red';
-  if (deviceId === 2 || deviceId === 4) return 'blue';
-  return null;
-}
-
-function deviceIdToHitType(deviceId: number): HitType {
-  // IDs 1-2 = vests, IDs 3-4 = helmets
-  return deviceId <= 2 ? 'vest' : 'helmet';
 }
 
 function isWebSerialSupported(): boolean {
@@ -83,16 +71,18 @@ function isWebSerialSupported(): boolean {
 
 function createInitialEquipment(): Map<EquipmentSlot, EquipmentState> {
   return new Map([
-    [1, { id: 1, type: 'vest', side: 'blue', battery: null, lastSeen: null }],   // Colete azul
-    [2, { id: 2, type: 'vest', side: 'red', battery: null, lastSeen: null }],    // Colete vermelho
-    [3, { id: 3, type: 'helmet', side: 'blue', battery: null, lastSeen: null }], // Capacete azul
-    [4, { id: 4, type: 'helmet', side: 'red', battery: null, lastSeen: null }],  // Capacete vermelho
+    [1, { id: 1, type: 'vest', side: 'blue', battery: null, lastSeen: null }],
+    [2, { id: 2, type: 'vest', side: 'red', battery: null, lastSeen: null }],
+    [3, { id: 3, type: 'helmet', side: 'blue', battery: null, lastSeen: null }],
+    [4, { id: 4, type: 'helmet', side: 'red', battery: null, lastSeen: null }],
   ]);
 }
 
 export function useSerialPort({ 
   onKick, 
   onRawPacket,
+  onImpact,
+  impactDetectorConfig,
   debounceMs = DEFAULT_DEBOUNCE_MS 
 }: UseSerialPortOptions): UseSerialPortReturn {
   const [isConnected, setIsConnected] = useState(false);
@@ -105,18 +95,68 @@ export function useSerialPort({
   const lastKickTimeRef = useRef<{ red: number; blue: number }>({ red: 0, blue: 0 });
   const onKickRef = useRef(onKick);
   const onRawPacketRef = useRef(onRawPacket);
+  const onImpactRef = useRef(onImpact);
   const isReadingRef = useRef(false);
   const equipmentRef = useRef<Map<EquipmentSlot, EquipmentState>>(createInitialEquipment());
+  
+  // Impact detector refs
+  const detectorRef = useRef<ImpactDetector | null>(null);
+  const flushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Keep onKick ref updated
-  useEffect(() => {
-    onKickRef.current = onKick;
-  }, [onKick]);
+  useEffect(() => { onKickRef.current = onKick; }, [onKick]);
+  useEffect(() => { onRawPacketRef.current = onRawPacket; }, [onRawPacket]);
+  useEffect(() => { onImpactRef.current = onImpact; }, [onImpact]);
 
-  // Keep onRawPacket ref updated
+  // Create/update/destroy ImpactDetector based on config
   useEffect(() => {
-    onRawPacketRef.current = onRawPacket;
-  }, [onRawPacket]);
+    if (impactDetectorConfig?.enabled) {
+      if (!detectorRef.current) {
+        detectorRef.current = new ImpactDetector({
+          noiseFloor: impactDetectorConfig.noiseFloor,
+        });
+      } else {
+        detectorRef.current.updateConfig({
+          noiseFloor: impactDetectorConfig.noiseFloor,
+        });
+      }
+      
+      // Start flush interval (30ms) - ensures last impact finalizes during silence
+      if (!flushIntervalRef.current) {
+        flushIntervalRef.current = setInterval(() => {
+          if (detectorRef.current && onImpactRef.current) {
+            const finalized = detectorRef.current.flush(Date.now());
+            for (const impact of finalized) {
+              onImpactRef.current({
+                deviceId: impact.deviceId,
+                peakIntensity: impact.peakIntensity,
+                avgIntensity: impact.avgIntensity,
+                durationMs: impact.durationMs,
+                packetCount: impact.packetCount,
+                ts: impact.endTs,
+              });
+            }
+          }
+        }, FLUSH_INTERVAL_MS);
+      }
+    } else {
+      // Cleanup detector when disabled
+      if (flushIntervalRef.current) {
+        clearInterval(flushIntervalRef.current);
+        flushIntervalRef.current = null;
+      }
+      if (detectorRef.current) {
+        detectorRef.current.reset();
+        detectorRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (flushIntervalRef.current) {
+        clearInterval(flushIntervalRef.current);
+        flushIntervalRef.current = null;
+      }
+    };
+  }, [impactDetectorConfig?.enabled, impactDetectorConfig?.noiseFloor]);
 
   const shouldDebounce = useCallback((side: Side): boolean => {
     const now = Date.now();
@@ -135,7 +175,6 @@ export function useSerialPort({
           battery,
           lastSeen: Date.now(),
         });
-        // Trigger re-render
         setEquipmentVersion(v => v + 1);
       }
     }
@@ -144,11 +183,7 @@ export function useSerialPort({
   const stopReading = useCallback(async () => {
     isReadingRef.current = false;
     if (readerRef.current) {
-      try {
-        await readerRef.current.cancel();
-      } catch (e) {
-        // Ignore cancel errors
-      }
+      try { await readerRef.current.cancel(); } catch (e) {}
       readerRef.current = null;
     }
   }, []);
@@ -175,7 +210,6 @@ export function useSerialPort({
         buffer = lines.pop() || '';
         
         for (const line of lines) {
-          // DEBUG: Log raw line
           console.log('[Serial] Raw line:', JSON.stringify(line));
           
           const parsed = parseLine(line);
@@ -187,20 +221,20 @@ export function useSerialPort({
           const { intensity, deviceId, battery } = parsed;
           console.log('[Serial] Parsed OK:', { intensity, deviceId, battery });
           
-          // NEW: Raw packet for diagnostics (before any filter)
+          // Raw packet callback (before any filter)
           if (onRawPacketRef.current) {
-            onRawPacketRef.current({
-              intensity,
-              deviceId,
-              battery,
-              ts: Date.now(),
-            });
+            onRawPacketRef.current({ intensity, deviceId, battery, ts: Date.now() });
+          }
+          
+          // Feed impact detector (when enabled)
+          if (detectorRef.current) {
+            detectorRef.current.feed(deviceId, intensity, Date.now());
           }
           
           // Update equipment battery state
           updateEquipment(deviceId, battery);
           
-          // Convert to kicking side and trigger kick with hit type
+          // Legacy onKick pipeline (debounce per side)
           const kickingSide = deviceIdToKickingSide(deviceId);
           const hitType = deviceIdToHitType(deviceId);
           
@@ -235,17 +269,17 @@ export function useSerialPort({
     await stopReading();
     
     if (portRef.current) {
-      try {
-        await portRef.current.close();
-      } catch (e) {
-        // Ignore close errors
-      }
+      try { await portRef.current.close(); } catch (e) {}
       portRef.current = null;
+    }
+    
+    // Reset impact detector
+    if (detectorRef.current) {
+      detectorRef.current.reset();
     }
     
     setIsConnected(false);
     setError(null);
-    // Reset equipment state
     equipmentRef.current = createInitialEquipment();
     setEquipmentVersion(v => v + 1);
   }, [stopReading]);
@@ -260,12 +294,10 @@ export function useSerialPort({
     setError(null);
 
     try {
-      // Request port from user
       console.log('[Serial] Solicitando porta...');
       const port = await navigator.serial.requestPort();
       console.log('[Serial] Porta selecionada, abrindo a', BAUD_RATE, 'baud...');
       
-      // Open port
       await port.open({ baudRate: BAUD_RATE });
       console.log('[Serial] Porta aberta com sucesso!');
       
@@ -273,7 +305,6 @@ export function useSerialPort({
       setIsConnected(true);
       setIsConnecting(false);
       
-      // Start reading
       startReading(port);
       
     } catch (e: any) {
@@ -294,7 +325,7 @@ export function useSerialPort({
     }
   }, [startReading]);
 
-  // Try to auto-reconnect on mount if port was previously authorized
+  // Auto-reconnect on mount
   useEffect(() => {
     async function tryAutoReconnect() {
       if (!isWebSerialSupported()) return;
@@ -304,7 +335,6 @@ export function useSerialPort({
         if (ports.length > 0) {
           const port = ports[0];
           
-          // Check if already open
           if (port.readable) {
             portRef.current = port;
             setIsConnected(true);
@@ -312,14 +342,12 @@ export function useSerialPort({
             return;
           }
           
-          // Try to open
           try {
             await port.open({ baudRate: BAUD_RATE });
             portRef.current = port;
             setIsConnected(true);
             startReading(port);
           } catch (e: any) {
-            // Port might be in use, that's ok
             console.log('[Serial] Auto-reconexão falhou:', e.name, '- porta pode estar em uso');
           }
         }
@@ -343,7 +371,6 @@ export function useSerialPort({
       setIsConnected(false);
       setError('Plaquinha desconectada');
       portRef.current = null;
-      // Reset equipment state
       equipmentRef.current = createInitialEquipment();
       setEquipmentVersion(v => v + 1);
     };
