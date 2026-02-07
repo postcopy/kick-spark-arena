@@ -37,7 +37,7 @@ export interface ShadowLogEntry {
   packetCount: number;
   side: MatchSide;
   hitType: 'vest' | 'helmet';
-  decision: 'IGNORED' | 'HIT' | 'POINT' | 'DUPLICATE';
+  decision: 'HIT' | 'POINT' | 'DUPLICATE';
   threshold: number;
   scored: boolean;
 }
@@ -79,7 +79,7 @@ export default function ChampionshipMat() {
       const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
       sync.addScore(matchSide, scoreType);
     };
-  }, [sync.state.status, sync.addScore]);
+  }, [sync.state.status, sync.addScore, sync.state.config]);
   
   const handleHardwareKick = useCallback((side: Side, hitType: HitType) => {
     handleHardwareKickRef.current(side, hitType);
@@ -105,7 +105,6 @@ export default function ChampionshipMat() {
       
       const isHelmet = equipType === 'helmet';
       const pointMin = isHelmet ? thresholds.helmetPointMin : thresholds.vestPointMin;
-      const hitMin = isHelmet ? thresholds.helmetHitMin : thresholds.vestHitMin;
       
       const antiDupMs = config.antiDuplicateWindowMs ?? 300;
       const now = impact.ts;
@@ -117,38 +116,27 @@ export default function ChampionshipMat() {
           ts: now, deviceId: impact.deviceId, peakIntensity: impact.peakIntensity,
           peakAboveFloor, avgIntensity: impact.avgIntensity, durationMs: impact.durationMs,
           packetCount: impact.packetCount, side: matchSide, hitType: equipType,
-          threshold: hitMin, decision: 'DUPLICATE', scored: false,
+          threshold: pointMin, decision: 'DUPLICATE', scored: false,
         };
         shadowLogRef.current.push(entry);
         if (shadowLogRef.current.length > MAX_SHADOW_LOG) {
           shadowLogRef.current = shadowLogRef.current.slice(-MAX_SHADOW_LOG);
         }
-        console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} hitMin=${hitMin} pointMin=${pointMin} -> DUPLICATE (${equipType}/${matchSide})`);
+        console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} pointMin=${pointMin} -> DUPLICATE (${equipType}/${matchSide})`);
         return;
       }
       
-      // ─── Classification using absolute peakIntensity (legacy logic) ───
-      let decision: ShadowLogEntry['decision'];
-      let thresholdUsed: number;
-      if (impact.peakIntensity >= pointMin) {
-        decision = 'POINT';
-        thresholdUsed = pointMin;
-      } else if (impact.peakIntensity >= hitMin) {
-        decision = 'HIT';
-        thresholdUsed = hitMin;
-      } else {
-        decision = 'IGNORED';
-        thresholdUsed = hitMin;
-      }
+      // ─── Classification: POINT or HIT (no IGNORED — ImpactDetector already filters noise) ───
+      const isPoint = impact.peakIntensity >= pointMin;
+      const decision: ShadowLogEntry['decision'] = isPoint ? 'POINT' : 'HIT';
       
-      console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} hitMin=${hitMin} pointMin=${pointMin} -> ${decision} (${equipType}/${matchSide})`);
+      console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} pointMin=${pointMin} -> ${decision} (${equipType}/${matchSide})`);
       
-      const scored = decision === 'POINT';
       const entry: ShadowLogEntry = {
         ts: now, deviceId: impact.deviceId, peakIntensity: impact.peakIntensity,
         peakAboveFloor, avgIntensity: impact.avgIntensity, durationMs: impact.durationMs,
         packetCount: impact.packetCount, side: matchSide, hitType: equipType,
-        threshold: thresholdUsed, decision, scored,
+        threshold: pointMin, decision, scored: isPoint,
       };
       
       shadowLogRef.current.push(entry);
@@ -156,21 +144,16 @@ export default function ChampionshipMat() {
         shadowLogRef.current = shadowLogRef.current.slice(-MAX_SHADOW_LOG);
       }
       
-      // Accept timestamp for this device
-      if (decision !== 'IGNORED') {
-        lastAcceptedTsRef.current.set(impact.deviceId, now);
-      }
+      // Always accept timestamp (no more IGNORED)
+      lastAcceptedTsRef.current.set(impact.deviceId, now);
+      
+      // Always count as HIT
+      sync.addHit(matchSide);
       
       // Score if POINT
-      if (scored) {
+      if (isPoint) {
         const scoreType: ScoreType = isHelmet ? 'HEAD' : 'BODY';
         sync.addScore(matchSide, scoreType);
-        sync.addHit(matchSide);
-      }
-      
-      // Increment HIT counter only for HIT decisions
-      if (decision === 'HIT') {
-        sync.addHit(matchSide);
       }
     };
   }, [sync.state.status, sync.state.config, sync.addScore, sync.addHit]);
