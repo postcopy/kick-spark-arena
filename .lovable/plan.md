@@ -1,43 +1,48 @@
 
 
-# Corrigir aplicacao dos thresholds do Wizard de Calibracao
+# Ajuste na validacao dos sliders de sensibilidade
 
-## Problema encontrado
+## Mudanca
 
-O wizard calcula e aplica corretamente os valores de `vestHitMin`, `vestPointMin`, `helmetHitMin` e `helmetPointMin` na configuracao da luta. Porem, o **noise floor** (piso de ruido calibrado por dispositivo) que esta guardado no hook de diagnostico **nunca e copiado para a configuracao da luta**.
+Simplificar a logica de validacao dos sliders para usar uma unica regra clara:
 
-Resultado: na hora de pontuar, o sistema usa `noiseFloor = {}`, ou seja `floor = 0` para todos os dispositivos. O `peakAboveFloor` fica igual ao `peakIntensity` bruto, e os thresholds calculados pelo wizard (que foram baseados em valores relativos ao noise floor) nao fazem sentido -- qualquer toque fraco ja passa do threshold.
+**Regra: `sensPoint <= sensHit` (PONTO exige mais forca, logo menos sensivel)**
 
-## Correcao
+- Ao mudar HIT: se `sensPoint > sensHit`, entao `sensPoint = sensHit`
+- Ao mudar PONTO: se `sensPoint > sensHit`, entao `sensHit = sensPoint`
 
-Quando o wizard aplicar os thresholds, tambem copiar o `noiseFloor` atual do diagnostico para a configuracao da luta.
+Isso substitui qualquer logica baseada em "subiu/desceu" por uma verificacao direta da invariante apos cada mudanca.
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/pages/ChampionshipMat.tsx`
+### Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
 
-Na callback `onThresholdsApplied` (linha 386-398), incluir o `noiseFloor` do diagnostico:
+Nos handlers dos sliders de sensibilidade (que serao criados na implementacao dos sliders), usar:
 
 ```typescript
-onThresholdsApplied={(t: HardwareThresholds) => {
-  console.log('[Championship] Applying wizard thresholds to match config:', t);
-  sync.updateConfigInPlace(config => ({
-    ...config,
-    impactThresholds: {
-      ...config.impactThresholds,
-      vestHitMin: t.vestHitMin,
-      vestPointMin: t.vestPointMin,
-      helmetHitMin: t.helmetHitMin,
-      helmetPointMin: t.helmetPointMin,
-      noiseFloor: diagnostics.noiseFloor,  // <-- ESTA LINHA MUDA
-    },
-  }));
-}}
+const handleVestHitSens = (val: number) => {
+  setVestHitSens(val);
+  if (vestPointSens > val) setVestPointSens(val);
+};
+
+const handleVestPointSens = (val: number) => {
+  setVestPointSens(val);
+  if (val > vestHitSens) setVestHitSens(val);
+};
+
+// Idem para helmet
+const handleHelmetHitSens = (val: number) => {
+  setHelmetHitSens(val);
+  if (helmetPointSens > val) setHelmetPointSens(val);
+};
+
+const handleHelmetPointSens = (val: number) => {
+  setHelmetPointSens(val);
+  if (val > helmetHitSens) setHelmetHitSens(val);
+};
 ```
 
-A unica mudanca e na linha 396: em vez de `config.impactThresholds?.noiseFloor ?? {}`, usar `diagnostics.noiseFloor` que contem os valores reais calibrados pelo diagnostico.
+A condicao e sempre `sensPoint > sensHit` -- corrige o outro slider apenas quando a regra e violada.
 
-### Nenhum outro arquivo precisa ser alterado
-
-O `diagnostics.noiseFloor` ja e exposto pelo hook `useHardwareDiagnostics` e ja esta disponivel no escopo do componente.
+Este ajuste sera aplicado junto com a implementacao completa dos sliders (que ja foi aprovada anteriormente).
 
