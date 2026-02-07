@@ -1,64 +1,68 @@
 
-# Fix: Debugging por que o ImpactDetector nao e criado
 
-## Diagnostico
+# Fix: Flush heartbeat runs but flush() never executes
 
-O console mostra dados seriais chegando (`[Serial] Parsed OK`) mas NENHUM log do detector (`[useSerialPort] ImpactDetector ENABLED`) e NENHUM log de flush. Isso significa que ou:
-1. O useEffect que cria o detector nunca roda com `enabled=true`
-2. Ou roda, mas algo destrói o detector logo depois
+## Root Cause (probable)
 
-O codigo parece correto, entao precisamos de logging agressivo para identificar o ponto exato de falha.
-
-## Mudancas
-
-### 1. `src/hooks/useSerialPort.ts` - Logging incondicional
-
-**No useEffect do detector (linha 114):** Adicionar log NO INICIO do efeito, ANTES do if, mostrando o valor de `impactDetectorConfig?.enabled` e `noiseFloorJson`. Isso confirma se o efeito roda e com quais valores.
-
+The flush interval code has this structure:
 ```
-console.log('[useSerialPort] detector useEffect RUNNING, enabled=', impactDetectorConfig?.enabled, 'noiseFloor=', noiseFloorJson);
-```
-
-**No flush interval (linha 131-148):** Adicionar um heartbeat log incondicional a cada 5 segundos (usando um counter no ref). Isso confirma se o interval esta rodando, independente de haver impactos finalizados.
-
-```
-// A cada ~150 iteracoes (30ms * 150 = 4.5s), logar status
-flushCountRef.current++;
-if (flushCountRef.current % 150 === 0) {
-  console.log('[useSerialPort] flush heartbeat, detector exists:', !!detectorRef.current);
+if (detectorRef.current && onImpactRef.current) {
+  const finalized = detectorRef.current.flush(Date.now());
+  ...
 }
 ```
 
-**No startReading, dentro do while loop (linha 249):** Logar se o detector existe quando um pacote chega (apenas o primeiro pacote, usando um flag ref para nao poluir).
+The heartbeat log is BEFORE this guard, so it shows "detector exists: true" even when `onImpactRef.current` is null/undefined. If `onImpactRef` is falsy, `flush()` never runs, and impacts accumulate forever without being finalized or delivered.
+
+## Changes
+
+### 1. `src/hooks/useSerialPort.ts` - Enhanced heartbeat logging
+
+Update the heartbeat (every ~5s) to also log `onImpactRef.current` existence:
 
 ```
-if (!loggedDetectorStatusRef.current) {
-  console.log('[useSerialPort] First packet, detectorRef.current:', !!detectorRef.current);
-  loggedDetectorStatusRef.current = true;
+console.log('[useSerialPort] flush heartbeat, detector:', !!detectorRef.current, 'onImpact:', !!onImpactRef.current);
+```
+
+Also add a one-time log when flush() actually produces results or when the guard blocks execution, to definitively confirm which branch runs.
+
+### 2. `src/hooks/useSerialPort.ts` - Remove onImpactRef guard from flush
+
+The guard `onImpactRef.current` prevents flush() from even running when onImpact is not set. But flush() MUST always run to finalize impacts (otherwise pendingFinalized grows forever and memory leaks). The guard should only wrap the callback delivery, not the flush call itself:
+
+```typescript
+// BEFORE (broken):
+if (detectorRef.current && onImpactRef.current) {
+  const finalized = detectorRef.current.flush(Date.now());
+  for (const impact of finalized) {
+    onImpactRef.current({...});
+  }
+}
+
+// AFTER (fixed):
+if (detectorRef.current) {
+  const finalized = detectorRef.current.flush(Date.now());
+  if (finalized.length > 0) {
+    console.log(`[useSerialPort] flush -> ${finalized.length} impacts finalized`);
+    if (onImpactRef.current) {
+      for (const impact of finalized) {
+        onImpactRef.current({...});
+      }
+    }
+  }
 }
 ```
 
-### 2. `src/pages/ChampionshipMat.tsx` - Log do config memo
+This ensures flush() always runs to clean up stale impacts, and the callback is only invoked when available.
 
-**Apos o useMemo (linha 201):** Adicionar um useEffect que loga quando o `impactDetectorConfigMemo` muda.
+## Files modified
 
-```
-useEffect(() => {
-  console.log('[ChampionshipMat] impactDetectorConfig changed:', impactDetectorConfigMemo);
-}, [impactDetectorConfigMemo]);
-```
+- `src/hooks/useSerialPort.ts` - Fix flush guard structure + enhance heartbeat log
 
-## Resultado esperado
+## Expected result
 
-Com esses logs, ao abrir o console o usuario vera:
-- Se o memo retorna `enabled: true` ou `false`
-- Se o useEffect do detector roda e com quais valores
-- Se o flush interval esta ativo (heartbeat a cada ~5s)
-- Se o primeiro pacote serial ve o detector como existente ou null
+- flush() runs unconditionally when detector exists (no longer blocked by onImpactRef)
+- Impacts finalize correctly after maxDurationMs (2000ms)
+- Console shows "flush -> N impacts finalized" confirming the pipeline works
+- If onImpact callback is missing, impacts still finalize (no memory leak) but aren't delivered to scoring
 
-Isso vai identificar EXATAMENTE onde o pipeline quebra, permitindo o fix definitivo.
-
-## Arquivos modificados
-
-- `src/hooks/useSerialPort.ts` - 3 pontos de logging adicionais
-- `src/pages/ChampionshipMat.tsx` - 1 useEffect de debug
