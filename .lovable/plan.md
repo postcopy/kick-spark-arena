@@ -1,74 +1,79 @@
 
 
-# Fix: Modo IMPACTOS nao registra HIT nem PONTO
+# Fix: ImpactDetector nunca finaliza impactos (impacto infinito)
 
-## Problemas encontrados (3 bugs independentes)
+## Causa raiz
 
-### Bug 1: Logica IGNORED nao existe no legado
+O `ImpactDetector` usa histerese com `continueThreshold = noiseFloor + 2`. Quando o noise floor nao e calibrado (= 0), qualquer pacote com intensidade > 2 mantem o impacto ativo. Sensores tipicamente enviam valores de repouso entre 3-15 continuamente. O impacto NUNCA finaliza porque nunca ha um gap de silencio > 200ms onde TODOS os pacotes estejam abaixo de 2.
 
-O sistema atual tem TRES categorias: POINT, HIT, IGNORED. O legado do Tadashi tem apenas DUAS: POINT e HIT. No legado, o sensor ja filtra raspagem — todo evento que chega ao software e valido e vira HIT ou POINT. No nosso sistema, o ImpactDetector faz a funcao do sensor (filtra ruido). Portanto, todo impacto finalizado pelo detector ja e valido e deve ser no minimo HIT.
+Resultado: um unico impacto eterno que engole todos os golpes reais. O `flush()` nunca retorna impactos finalizados. O handler de scoring nunca e chamado.
 
-O problema: com preset MEDIA e globalMax=30, hitMin = 0.5 * 30 = 15. Um toque com peakIntensity=12 vira IGNORED quando deveria ser HIT. So deveria existir um threshold: o de PONTO.
+```text
+Sensor envia continuamente: 5, 3, 4, 6, 3, 5, ...  (repouso)
+continueThreshold = 0 + 2 = 2
+Todos > 2 -> lastAboveTs atualizado a cada pacote
+gap nunca > 200ms -> flush() retorna [] sempre
+Golpe real (peak=25) -> absorvido pelo impacto infinito
+```
 
-**Solucao**: Remover a categoria IGNORED. Todo impacto finalizado pelo ImpactDetector que passa o anti-duplicata vira HIT. Se peakIntensity >= pointMin, vira POINT.
+## Solucao (3 mudancas)
 
-### Bug 2: Sliders de HIT sao desnecessarios e confundem
+### 1. ImpactDetector: Adicionar limite de duracao maxima
 
-O legado usa UM threshold por equipamento (colete e capacete). Acima = PONTO, abaixo = HIT. Os 4 sliders atuais (vestHit, vestPoint, helmetHit, helmetPoint) nao correspondem ao legado. Os sliders de HIT criam um threshold inferior que gera IGNORED — algo que nao existe no sistema original.
+Novo parametro `maxDurationMs` (default 2000ms). No `flush()`, alem de checar o gap de silencio, tambem forcar finalizacao se `now - startTs > maxDurationMs`. Isso garante que mesmo com ruido continuo, impactos sao entregues.
 
-**Solucao**: Simplificar para 2 sliders (vestPoint e helmetPoint). Remover vestHit e helmetHit. Presets ajustados:
-- BAIXA: point=15 (facil pontuar)
-- MEDIA: point=35
-- ALTA: point=60 (precisa golpe forte)
+### 2. ImpactDetector: Forcar finalizacao antes de iniciar novo impacto
 
-### Bug 3: Closure stale no handleHardwareKickRef
+No `feed()`, se ja existe um impacto ativo para o deviceId e a duracao atual excede `maxDurationMs`, finalizar o impacto atual e iniciar um novo. Isso evita que um impacto "infinito" bloqueie golpes reais.
 
-O useEffect (linha 72-82) que define o handler do modo RAW nao inclui `sync.state.config.scoringInput` nas dependencias. Quando o modo muda de 'raw' para 'impacts', o guard `if (scoringInput === 'impacts') return` usa o valor antigo (stale closure). Isso nao causa o bug atual (o guard no useSerialPort bloqueia), mas e um bug latente.
+### 3. Debug logging no pipeline de scoring
 
-**Solucao**: Adicionar `sync.state.config` nas dependencias do useEffect.
+Adicionar console.log em pontos criticos do useSerialPort e ChampionshipMat para que o operador possa verificar o fluxo no console do navegador:
+- Quando o detector e criado/habilitado
+- Quando flush() produz impactos finalizados
+- No inicio do handleImpactRef mostrando guards (status, scoringInput, thresholds)
 
 ## Mudancas por arquivo
 
-### 1. `src/pages/ChampionshipMat.tsx`
+### `src/lib/impactDetector.ts`
 
-- **handleImpactRef**: Remover logica de hitMin. Classificacao simplificada:
-  - `peakIntensity >= pointMin` -> POINT (addScore + addHit)
-  - Senao -> HIT (addHit)
-  - Sem IGNORED
-- **ShadowLogEntry**: Remover 'IGNORED' do tipo decision
-- **handleHardwareKickRef useEffect**: Adicionar `sync.state.config` ao array de dependencias
+- Novo campo `maxDurationMs: number` no `ImpactDetectorConfig` (default 2000)
+- `flush()`: alem da condicao `gapMs > silenceGapMs`, adicionar `|| (now - active.startTs > maxDurationMs)` para forcar finalizacao
+- `feed()`: antes de atualizar um impacto ativo, checar se `ts - active.startTs > maxDurationMs`. Se sim, finalizar o impacto atual (via logica similar ao flush) e iniciar um novo
 
-### 2. `src/components/championship/DiagnosticsDialog.tsx`
+### `src/hooks/useSerialPort.ts`
 
-- Remover sliders de HIT (vestHitSens, helmetHitSens e handlers)
-- Manter apenas 2 sliders: vestPointSens e helmetPointSens
-- Presets ajustados: BAIXA(15), MEDIA(35), ALTA(60)
-- handleApplyThresholds: enviar hitMin=0 (sem filtro extra) e pointMin calculado
-- Remover regra de separacao hitMin/pointMin (nao precisa mais)
+- Adicionar console.log quando o detector e criado: `'[useSerialPort] ImpactDetector ENABLED, noiseFloor:', parsedNoiseFloor`
+- Adicionar console.log quando o detector e desabilitado: `'[useSerialPort] ImpactDetector DISABLED'`
+- No flush interval, quando impacts sao finalizados: `'[useSerialPort] flush -> N impacts finalized'`
 
-### 3. `src/types/championship.ts`
+### `src/pages/ChampionshipMat.tsx`
 
-- Manter campos hitMin nos types por retrocompatibilidade, mas documentar que sao ignorados no scoring (valor=0)
+- No inicio do `handleImpactRef.current`, log detalhado: `'[handleImpact] status=X scoringInput=Y hasThresholds=Z'`
+- Isso permite rastrear exatamente onde o fluxo para
 
-## Logica final (alinhada com legado Tadashi)
+## Logica final do ImpactDetector
 
 ```text
-ImpactDetector finaliza impacto (filtro de ruido = substitui o sensor)
-  |
-  v
-Anti-duplicata 300ms por deviceId
-  |
-  v
-peakIntensity >= pointMin?
-  SIM -> POINT (addScore + addHit)
-  NAO -> HIT (addHit)
+feed(deviceId, intensity, ts):
+  Se existe impacto ativo E duracao > maxDurationMs:
+    Finalizar impacto atual (guardar internamente)
+    Limpar ativo
+  Se nao existe ativo E intensity > startThreshold:
+    Criar novo impacto
+  Se existe ativo E intensity > continueThreshold:
+    Atualizar peak/sum/lastAboveTs
+
+flush(now):
+  Para cada impacto ativo:
+    Se gap > silenceGapMs OU duracao > maxDurationMs:
+      Finalizar e entregar
 ```
 
 ## Resultado esperado
 
-- Todo toque que o ImpactDetector considera valido (nao ruido) vira no minimo HIT
-- Golpes fortes (acima do threshold de PONTO) viram POINT
-- Sem mais IGNORED — o ImpactDetector ja faz o filtro de ruido
-- UI simplificada com 2 sliders em vez de 4
-- Alinhamento 1:1 com a logica do software legado do Tadashi
+- Impactos finalizados mesmo com ruido continuo (max 2 segundos de duracao)
+- Cada golpe real produz um impacto independente
+- Debug logging permite verificar o fluxo completo no console
+- Compativel com noise floor calibrado (funciona melhor) e sem calibracao (funciona com safety net)
 
