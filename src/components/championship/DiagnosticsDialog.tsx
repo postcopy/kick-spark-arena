@@ -82,7 +82,8 @@ export function DiagnosticsDialog({
   const maxScale = diagnostics.observedScale.globalMax > 0 ? diagnostics.observedScale.globalMax : 100;
   const rangeAboveFloor = Math.max(1, maxScale - avgFloor);
 
-  const sensToThreshold = (sens: number) => Math.round((1 - sens / 100) * rangeAboveFloor);
+  // Legacy: threshold is absolute against globalMax (not relative to floor)
+  const sensToThreshold = (sens: number) => Math.round((1 - sens / 100) * maxScale);
 
   // Validation: sensPoint <= sensHit (PONTO exige mais força)
   const handleVestHitSens = (val: number) => {
@@ -119,11 +120,11 @@ export function DiagnosticsDialog({
     const thresholds = { vestHitMin, vestPointMin, helmetHitMin, helmetPointMin };
 
     console.log(
-      `[APPLY] rangeAboveFloor=${rangeAboveFloor} avgFloor=${avgFloor} globalMax=${maxScale}\n` +
-      `  vestHit: sens=${vestHitSens} -> minAboveFloor=${vestHitMin}\n` +
-      `  vestPoint: sens=${vestPointSens} -> minAboveFloor=${vestPointMin}\n` +
-      `  helmetHit: sens=${helmetHitSens} -> minAboveFloor=${helmetHitMin}\n` +
-      `  helmetPoint: sens=${helmetPointSens} -> minAboveFloor=${helmetPointMin}`
+      `[APPLY] globalMax=${maxScale} avgFloor=${avgFloor} (floor kept for diagnostics only)\n` +
+      `  vestHit: sens=${vestHitSens} -> threshold=${vestHitMin} (absolute)\n` +
+      `  vestPoint: sens=${vestPointSens} -> threshold=${vestPointMin} (absolute)\n` +
+      `  helmetHit: sens=${helmetHitSens} -> threshold=${helmetHitMin} (absolute)\n` +
+      `  helmetPoint: sens=${helmetPointSens} -> threshold=${helmetPointMin} (absolute)`
     );
 
     diagnostics.setThresholds(thresholds);
@@ -622,11 +623,11 @@ export function DiagnosticsDialog({
                   </div>
                 )}
 
-                {hasNoiseFloor && rangeAboveFloor < 5 && (
+                {maxScale < 5 && (
                   <div className="flex items-start gap-2 p-2 rounded bg-[hsl(var(--sulsport-yellow))]/10 border border-[hsl(var(--sulsport-yellow))]/30">
                     <AlertTriangle className="w-4 h-4 text-[hsl(var(--sulsport-yellow))] shrink-0 mt-0.5" />
                     <span className="text-xs text-[hsl(var(--sulsport-yellow))]">
-                      Escala observada muito baixa (range={rangeAboveFloor}). Bata forte no equipamento antes de aplicar para melhorar a calibração.
+                      Escala observada muito baixa (max={maxScale}). Bata forte no equipamento antes de aplicar para melhorar a calibração.
                     </span>
                   </div>
                 )}
@@ -646,7 +647,7 @@ export function DiagnosticsDialog({
                       className="mb-1"
                     />
                     <div className="text-[10px] text-zinc-600 font-mono">
-                      floor {avgFloor} / max {maxScale} | threshold ~ {avgFloor + sensToThreshold(vestHitSens)}
+                      max {maxScale} | threshold = {sensToThreshold(vestHitSens)}
                     </div>
                   </div>
                   <div>
@@ -661,7 +662,7 @@ export function DiagnosticsDialog({
                       className="mb-1"
                     />
                     <div className="text-[10px] text-zinc-600 font-mono">
-                      floor {avgFloor} / max {maxScale} | threshold ~ {avgFloor + sensToThreshold(vestPointSens)}
+                      max {maxScale} | threshold = {sensToThreshold(vestPointSens)}
                     </div>
                   </div>
                 </div>
@@ -681,7 +682,7 @@ export function DiagnosticsDialog({
                       className="mb-1"
                     />
                     <div className="text-[10px] text-zinc-600 font-mono">
-                      floor {avgFloor} / max {maxScale} | threshold ~ {avgFloor + sensToThreshold(helmetHitSens)}
+                      max {maxScale} | threshold = {sensToThreshold(helmetHitSens)}
                     </div>
                   </div>
                   <div>
@@ -696,7 +697,7 @@ export function DiagnosticsDialog({
                       className="mb-1"
                     />
                     <div className="text-[10px] text-zinc-600 font-mono">
-                      floor {avgFloor} / max {maxScale} | threshold ~ {avgFloor + sensToThreshold(helmetPointSens)}
+                      max {maxScale} | threshold = {sensToThreshold(helmetPointSens)}
                     </div>
                   </div>
                 </div>
