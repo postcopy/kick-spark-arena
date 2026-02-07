@@ -135,22 +135,26 @@ export function useSerialPort({
         flushIntervalRef.current = setInterval(() => {
           flushCountRef.current++;
           if (flushCountRef.current % 150 === 0) {
-            console.log('[useSerialPort] flush heartbeat, detector exists:', !!detectorRef.current);
+            console.log('[useSerialPort] flush heartbeat, detector:', !!detectorRef.current, 'onImpact:', !!onImpactRef.current);
           }
-          if (detectorRef.current && onImpactRef.current) {
+          if (detectorRef.current) {
             const finalized = detectorRef.current.flush(Date.now());
             if (finalized.length > 0) {
               console.log(`[useSerialPort] flush -> ${finalized.length} impacts finalized`);
-            }
-            for (const impact of finalized) {
-              onImpactRef.current({
-                deviceId: impact.deviceId,
-                peakIntensity: impact.peakIntensity,
-                avgIntensity: impact.avgIntensity,
-                durationMs: impact.durationMs,
-                packetCount: impact.packetCount,
-                ts: impact.endTs,
-              });
+              if (onImpactRef.current) {
+                for (const impact of finalized) {
+                  onImpactRef.current({
+                    deviceId: impact.deviceId,
+                    peakIntensity: impact.peakIntensity,
+                    avgIntensity: impact.avgIntensity,
+                    durationMs: impact.durationMs,
+                    packetCount: impact.packetCount,
+                    ts: impact.endTs,
+                  });
+                }
+              } else {
+                console.warn('[useSerialPort] onImpact callback missing, impacts finalized but not delivered');
+              }
             }
           }
         }, FLUSH_INTERVAL_MS);
