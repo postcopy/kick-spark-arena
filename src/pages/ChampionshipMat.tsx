@@ -14,6 +14,7 @@ import { deviceIdToMatchSide, deviceIdToEquipmentType } from '@/lib/deviceMappin
 import type { Side, HitType } from '@/types/game';
 import type { MatchSide, ScoreType, MatchConfig } from '@/types/championship';
 import type { ImpactCallbackData } from '@/types/serial';
+import type { HardwareThresholds } from '@/types/hardwareDiagnostics';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -362,6 +363,20 @@ export default function ChampionshipMat() {
         onOpenConfig={() => setShowConfigDialog(true)}
         scoringInput={scoringInput}
         onExportShadowLog={handleExportShadowLog}
+        onThresholdsApplied={(t: HardwareThresholds) => {
+          const current = sync.state.config;
+          sync.saveConfig({
+            ...current,
+            impactThresholds: {
+              ...current.impactThresholds,
+              vestHitMin: t.vestHitMin,
+              vestPointMin: t.vestPointMin,
+              helmetHitMin: t.helmetHitMin,
+              helmetPointMin: t.helmetPointMin,
+              noiseFloor: current.impactThresholds?.noiseFloor ?? {},
+            },
+          });
+        }}
       />
       
       {/* Config Dialog */}
