@@ -92,6 +92,10 @@ export function useChampionshipSync({
   const [history, setHistory] = useState<MatchState[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   
+  // stateRef: always points to latest state, used inside stable callbacks
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+
   const channel = useRef<BroadcastChannel | null>(null);
   const lastSyncedSecond = useRef<number>(-1);
   const lastSyncTime = useRef<number>(0);
@@ -491,11 +495,12 @@ export function useChampionshipSync({
   // Scoring
   const addScore = useCallback((side: MatchSide, type: ScoreType) => {
     if (role !== 'master') return;
-    if (state.status !== 'RUNNING') return;
+    const s = stateRef.current;
+    if (s.status !== 'RUNNING') return;
     
-    saveToHistory(state);
+    saveToHistory(s);
     
-    const points = getScoreValue(type, state.config.scoring);
+    const points = getScoreValue(type, s.config.scoring);
     const sideLabel = side === 'RED' ? 'Vermelho' : 'Azul';
     const typeLabel = type === 'PUNCH' ? 'Soco' :
                       type === 'BODY' ? 'Corpo' :
@@ -513,14 +518,14 @@ export function useChampionshipSync({
       broadcast(newState, true);
       return newState;
     });
-  }, [role, state, saveToHistory, broadcast]);
+  }, [role, saveToHistory, broadcast]);
   
   const addGamjeom = useCallback((side: MatchSide) => {
     if (role !== 'master') return;
-    // [+] enabled ONLY when status === 'RUNNING'
-    if (state.status !== 'RUNNING') return;
+    const s = stateRef.current;
+    if (s.status !== 'RUNNING') return;
     
-    saveToHistory(state);
+    saveToHistory(s);
     
     const sideLabel = side === 'RED' ? 'Vermelho' : 'Azul';
     const opponentLabel = side === 'RED' ? 'Azul' : 'Vermelho';
@@ -537,7 +542,7 @@ export function useChampionshipSync({
       broadcast(newState, true);
       return newState;
     });
-  }, [role, state, saveToHistory, broadcast]);
+  }, [role, saveToHistory, broadcast]);
   
   const removeGamjeom = useCallback((side: MatchSide) => {
     if (role !== 'master') return;
@@ -627,7 +632,7 @@ export function useChampionshipSync({
   // Add hit (silent, no event log)
   const addHit = useCallback((side: MatchSide) => {
     if (role !== 'master') return;
-    if (state.status !== 'RUNNING') return;
+    if (stateRef.current.status !== 'RUNNING') return;
     
     setState(prev => {
       const newState: MatchState = {
@@ -638,7 +643,7 @@ export function useChampionshipSync({
       broadcast(newState, true);
       return newState;
     });
-  }, [role, state.status, broadcast]);
+  }, [role, broadcast]);
   
   return {
     state,
