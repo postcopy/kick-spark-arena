@@ -1,55 +1,43 @@
 
 
-# Corrigir recebimento de dados no modo Campeonato
+# Corrigir aplicacao dos thresholds do Wizard de Calibracao
 
-## Problema raiz
+## Problema encontrado
 
-O `impactDetectorConfig` passado ao `useSerialPort` e recriado como um novo objeto a cada render (a cada 100ms pelo timer). Isso dispara o `useEffect` (linha 111-159 do `useSerialPort.ts`) repetidamente, que no cleanup destroi o `flushIntervalRef` e recria. Durante essas janelas de destruicao/recriacao, impactos sao perdidos. Alem disso, o `noiseFloor` e um objeto novo a cada render, entao o `useEffect` sempre detecta mudanca.
+O wizard calcula e aplica corretamente os valores de `vestHitMin`, `vestPointMin`, `helmetHitMin` e `helmetPointMin` na configuracao da luta. Porem, o **noise floor** (piso de ruido calibrado por dispositivo) que esta guardado no hook de diagnostico **nunca e copiado para a configuracao da luta**.
+
+Resultado: na hora de pontuar, o sistema usa `noiseFloor = {}`, ou seja `floor = 0` para todos os dispositivos. O `peakAboveFloor` fica igual ao `peakIntensity` bruto, e os thresholds calculados pelo wizard (que foram baseados em valores relativos ao noise floor) nao fazem sentido -- qualquer toque fraco ja passa do threshold.
 
 ## Correcao
 
-Estabilizar o `impactDetectorConfig` com `useMemo` no `ChampionshipMat.tsx`, e usar comparacao serializada no `useSerialPort.ts` para evitar re-runs desnecessarios do useEffect.
+Quando o wizard aplicar os thresholds, tambem copiar o `noiseFloor` atual do diagnostico para a configuracao da luta.
 
 ## Detalhes tecnicos
 
-### Arquivo 1: `src/pages/ChampionshipMat.tsx`
+### Arquivo: `src/pages/ChampionshipMat.tsx`
 
-Substituir a criacao inline do `impactDetectorConfig` (linhas 230-232) por um `useMemo`:
-
-```typescript
-const impactDetectorConfigMemo = useMemo(() => {
-  if (scoringInput !== 'impacts') {
-    return { enabled: false as const, noiseFloor: {} };
-  }
-  return {
-    enabled: true as const,
-    noiseFloor: impactThresholds?.noiseFloor ?? {},
-  };
-}, [scoringInput, JSON.stringify(impactThresholds?.noiseFloor ?? {})]);
-```
-
-E passar `impactDetectorConfigMemo` ao `useSerialPort`.
-
-### Arquivo 2: `src/hooks/useSerialPort.ts`
-
-Estabilizar a dependencia do `useEffect` do ImpactDetector (linha 159):
-- Guardar o `noiseFloor` serializado num ref e so atualizar o detector quando realmente mudar.
-- Substituir a dependencia `impactDetectorConfig?.noiseFloor` por uma string serializada para evitar comparacoes por referencia.
+Na callback `onThresholdsApplied` (linha 386-398), incluir o `noiseFloor` do diagnostico:
 
 ```typescript
-const noiseFloorJson = JSON.stringify(impactDetectorConfig?.noiseFloor ?? {});
-
-useEffect(() => {
-  // ... logica existente usando impactDetectorConfig
-}, [impactDetectorConfig?.enabled, noiseFloorJson]);
+onThresholdsApplied={(t: HardwareThresholds) => {
+  console.log('[Championship] Applying wizard thresholds to match config:', t);
+  sync.updateConfigInPlace(config => ({
+    ...config,
+    impactThresholds: {
+      ...config.impactThresholds,
+      vestHitMin: t.vestHitMin,
+      vestPointMin: t.vestPointMin,
+      helmetHitMin: t.helmetHitMin,
+      helmetPointMin: t.helmetPointMin,
+      noiseFloor: diagnostics.noiseFloor,  // <-- ESTA LINHA MUDA
+    },
+  }));
+}}
 ```
 
-Tambem remover a funcao de cleanup que limpa o `flushIntervalRef` no retorno do useEffect, movendo essa limpeza apenas para o caso `enabled === false` e para o cleanup do componente (unmount). Isso evita que o interval seja destruido e recriado desnecessariamente.
+A unica mudanca e na linha 396: em vez de `config.impactThresholds?.noiseFloor ?? {}`, usar `diagnostics.noiseFloor` que contem os valores reais calibrados pelo diagnostico.
 
-## O que nao muda
+### Nenhum outro arquivo precisa ser alterado
 
-- Pipeline serial (leitura, parsing): intocado
-- Logica de pontuacao (thresholds, shadow log): intocada
-- Modos Time Attack / Arcade: intocados
-- stateRef pattern aplicado anteriormente: mantido
+O `diagnostics.noiseFloor` ja e exposto pelo hook `useHardwareDiagnostics` e ja esta disponivel no escopo do componente.
 
