@@ -107,16 +107,20 @@ export function useSerialPort({
   useEffect(() => { onRawPacketRef.current = onRawPacket; }, [onRawPacket]);
   useEffect(() => { onImpactRef.current = onImpact; }, [onImpact]);
 
+  // Stabilize noiseFloor dependency via serialized string comparison
+  const noiseFloorJson = JSON.stringify(impactDetectorConfig?.noiseFloor ?? {});
+
   // Create/update/destroy ImpactDetector based on config
   useEffect(() => {
     if (impactDetectorConfig?.enabled) {
+      const parsedNoiseFloor = JSON.parse(noiseFloorJson);
       if (!detectorRef.current) {
         detectorRef.current = new ImpactDetector({
-          noiseFloor: impactDetectorConfig.noiseFloor,
+          noiseFloor: parsedNoiseFloor,
         });
       } else {
         detectorRef.current.updateConfig({
-          noiseFloor: impactDetectorConfig.noiseFloor,
+          noiseFloor: parsedNoiseFloor,
         });
       }
       
@@ -149,14 +153,21 @@ export function useSerialPort({
         detectorRef.current = null;
       }
     }
-    
+
+    // Only cleanup flush interval on unmount, NOT on every re-run
+    // This prevents the 30ms flush loop from being destroyed/recreated
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [impactDetectorConfig?.enabled, noiseFloorJson]);
+
+  // Separate unmount-only cleanup for flush interval
+  useEffect(() => {
     return () => {
       if (flushIntervalRef.current) {
         clearInterval(flushIntervalRef.current);
         flushIntervalRef.current = null;
       }
     };
-  }, [impactDetectorConfig?.enabled, impactDetectorConfig?.noiseFloor]);
+  }, []);
 
   const shouldDebounce = useCallback((side: Side): boolean => {
     const now = Date.now();

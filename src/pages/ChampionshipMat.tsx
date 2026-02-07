@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { useHardwareDiagnostics } from '@/hooks/useHardwareDiagnostics';
@@ -222,14 +222,26 @@ export default function ChampionshipMat() {
   const scoringInput = sync.state.config.scoringInput ?? 'raw';
   const impactThresholds = sync.state.config.impactThresholds;
   
+  // Stabilize impactDetectorConfig to avoid re-creating on every render (timer runs every 100ms)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const noiseFloorJson = JSON.stringify(impactThresholds?.noiseFloor ?? {});
+  const impactDetectorConfigMemo = useMemo(() => {
+    if (scoringInput !== 'impacts') {
+      return { enabled: false as const, noiseFloor: {} };
+    }
+    return {
+      enabled: true as const,
+      noiseFloor: impactThresholds?.noiseFloor ?? {},
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scoringInput, noiseFloorJson]);
+
   const serialPort = useSerialPort({
     onKick: handleHardwareKick,
     onRawPacket: diagnostics.onRawPacket,
     onImpact: handleImpact,
     debounceMs: 150,
-    impactDetectorConfig: scoringInput === 'impacts'
-      ? { enabled: true, noiseFloor: impactThresholds?.noiseFloor ?? {} }
-      : { enabled: false, noiseFloor: {} },
+    impactDetectorConfig: impactDetectorConfigMemo,
   });
   
   const handleOpenTV = () => {
