@@ -54,9 +54,9 @@ export function DiagnosticsDialog({
 }: DiagnosticsDialogProps) {
   const [showNewSample, setShowNewSample] = useState(false);
   const [vestHitSens, setVestHitSens] = useState(50);
-  const [vestPointSens, setVestPointSens] = useState(50);
+  const [vestPointSens, setVestPointSens] = useState(35);
   const [helmetHitSens, setHelmetHitSens] = useState(50);
-  const [helmetPointSens, setHelmetPointSens] = useState(50);
+  const [helmetPointSens, setHelmetPointSens] = useState(35);
   const [activePreset, setActivePreset] = useState<'low' | 'mid' | 'high' | null>('mid');
 
   const SENSITIVITY_PRESETS = {

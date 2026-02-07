@@ -127,14 +127,6 @@ export default function ChampionshipMat() {
       
       // Threshold check first
       let decision: ShadowLogEntry['decision'];
-      console.log('[Championship] Impact:', {
-        deviceId: impact.deviceId,
-        peak: impact.peakIntensity,
-        peakAboveFloor,
-        hitMin,
-        pointMin,
-        equipType,
-      });
       if (peakAboveFloor >= pointMin) {
         decision = 'POINT';
       } else if (peakAboveFloor >= hitMin) {
@@ -164,6 +156,8 @@ export default function ChampionshipMat() {
           }
         }
       }
+      
+      console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} floor=${floor} above=${peakAboveFloor} hitMin=${hitMin} pointMin=${pointMin} -> ${decision} (${equipType}/${matchSide})`);
       
       const scored = decision === 'POINT';
       const entry: ShadowLogEntry = { ...baseEntry, decision, scored };
