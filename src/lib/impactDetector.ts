@@ -16,6 +16,7 @@ export interface ImpactDetectorConfig {
   silenceGapMs: number;
   minPackets: number;
   minDurationMs: number;
+  maxDurationMs: number;
 }
 
 export interface FinalizedImpact {
@@ -40,6 +41,7 @@ interface ActiveImpactState {
 // ─── ImpactDetector Class ───
 export class ImpactDetector {
   private activeImpacts = new Map<number, ActiveImpactState>();
+  private pendingFinalized: FinalizedImpact[] = [];
   private config: ImpactDetectorConfig;
   private wizardMode = false;
 
@@ -51,8 +53,29 @@ export class ImpactDetector {
       silenceGapMs: SILENCE_GAP_MS,
       minPackets: MIN_IMPACT_PKTS,
       minDurationMs: MIN_IMPACT_DURATION_MS,
+      maxDurationMs: 2000,
       ...config,
     };
+  }
+
+  /** Finalize an active impact into a FinalizedImpact (or null if anti-noise filters reject it) */
+  private finalizeActive(deviceId: number, active: ActiveImpactState): FinalizedImpact | null {
+    const durationMs = active.lastAboveTs - active.startTs;
+    const minPkts = this.wizardMode ? 1 : this.config.minPackets;
+    const minDur = this.wizardMode ? 1 : this.config.minDurationMs;
+
+    if (active.packetCount >= minPkts || durationMs >= minDur) {
+      return {
+        deviceId,
+        startTs: active.startTs,
+        endTs: active.lastAboveTs,
+        durationMs,
+        peakIntensity: active.peak,
+        avgIntensity: Math.round(active.sum / active.packetCount),
+        packetCount: active.packetCount,
+      };
+    }
+    return null;
   }
 
   /** Feed a raw packet into the detector */
@@ -63,7 +86,18 @@ export class ImpactDetector {
 
     const active = this.activeImpacts.get(deviceId);
 
-    if (!active) {
+    // If active impact exceeded max duration, force-finalize before processing new data
+    if (active && (ts - active.startTs) > this.config.maxDurationMs) {
+      const finalized = this.finalizeActive(deviceId, active);
+      if (finalized) {
+        this.pendingFinalized.push(finalized);
+      }
+      this.activeImpacts.delete(deviceId);
+    }
+
+    const currentActive = this.activeImpacts.get(deviceId);
+
+    if (!currentActive) {
       // Start new impact if above start threshold
       if (intensity > startThreshold) {
         this.activeImpacts.set(deviceId, {
@@ -77,11 +111,11 @@ export class ImpactDetector {
     } else {
       // Continue if above continue threshold
       if (intensity > continueThreshold) {
-        active.sum += intensity;
-        active.packetCount++;
-        active.lastAboveTs = ts;
-        if (intensity > active.peak) {
-          active.peak = intensity;
+        currentActive.sum += intensity;
+        currentActive.packetCount++;
+        currentActive.lastAboveTs = ts;
+        if (intensity > currentActive.peak) {
+          currentActive.peak = intensity;
         }
       }
       // If below continueThreshold: don't update lastAboveTs,
@@ -91,29 +125,19 @@ export class ImpactDetector {
 
   /** Check for inactive impacts and finalize them. Call periodically (e.g. every 30ms). */
   flush(now: number): FinalizedImpact[] {
-    const finalized: FinalizedImpact[] = [];
+    // Start with any impacts force-finalized during feed()
+    const finalized: FinalizedImpact[] = this.pendingFinalized.splice(0);
 
     this.activeImpacts.forEach((active, deviceId) => {
       const gapMs = now - active.lastAboveTs;
-      if (gapMs > this.config.silenceGapMs) {
-        const durationMs = active.lastAboveTs - active.startTs;
+      const durationMs = now - active.startTs;
+      const shouldFinalize = gapMs > this.config.silenceGapMs || durationMs > this.config.maxDurationMs;
 
-        // Anti-noise: relaxed in wizard mode
-        const minPkts = this.wizardMode ? 1 : this.config.minPackets;
-        const minDur = this.wizardMode ? 1 : this.config.minDurationMs;
-
-        if (active.packetCount >= minPkts || durationMs >= minDur) {
-          finalized.push({
-            deviceId,
-            startTs: active.startTs,
-            endTs: active.lastAboveTs,
-            durationMs,
-            peakIntensity: active.peak,
-            avgIntensity: Math.round(active.sum / active.packetCount),
-            packetCount: active.packetCount,
-          });
+      if (shouldFinalize) {
+        const result = this.finalizeActive(deviceId, active);
+        if (result) {
+          finalized.push(result);
         }
-
         this.activeImpacts.delete(deviceId);
       }
     });

@@ -118,10 +118,12 @@ export function useSerialPort({
         detectorRef.current = new ImpactDetector({
           noiseFloor: parsedNoiseFloor,
         });
+        console.log('[useSerialPort] ImpactDetector ENABLED, noiseFloor:', parsedNoiseFloor);
       } else {
         detectorRef.current.updateConfig({
           noiseFloor: parsedNoiseFloor,
         });
+        console.log('[useSerialPort] ImpactDetector CONFIG UPDATED, noiseFloor:', parsedNoiseFloor);
       }
       
       // Start flush interval (30ms) - ensures last impact finalizes during silence
@@ -129,6 +131,9 @@ export function useSerialPort({
         flushIntervalRef.current = setInterval(() => {
           if (detectorRef.current && onImpactRef.current) {
             const finalized = detectorRef.current.flush(Date.now());
+            if (finalized.length > 0) {
+              console.log(`[useSerialPort] flush -> ${finalized.length} impacts finalized`);
+            }
             for (const impact of finalized) {
               onImpactRef.current({
                 deviceId: impact.deviceId,
@@ -144,6 +149,9 @@ export function useSerialPort({
       }
     } else {
       // Cleanup detector when disabled
+      if (detectorRef.current) {
+        console.log('[useSerialPort] ImpactDetector DISABLED');
+      }
       if (flushIntervalRef.current) {
         clearInterval(flushIntervalRef.current);
         flushIntervalRef.current = null;
