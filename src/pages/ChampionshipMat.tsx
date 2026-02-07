@@ -37,7 +37,7 @@ export interface ShadowLogEntry {
   packetCount: number;
   side: MatchSide;
   hitType: 'vest' | 'helmet';
-  decision: 'IGNORED' | 'HIT' | 'POINT' | 'MERGED' | 'DUPLICATE';
+  decision: 'IGNORED' | 'HIT' | 'POINT' | 'DUPLICATE';
   threshold: number;
   scored: boolean;
 }
@@ -56,11 +56,8 @@ export default function ChampionshipMat() {
   // Shadow log for impact scoring
   const shadowLogRef = useRef<ShadowLogEntry[]>([]);
   
-  // Anti-duplicate tracking per side (for score merging)
-  const lastScoredRef = useRef<Map<MatchSide, { ts: number; hitType: string; entryIndex: number }>>(new Map());
-  
-  // Anti-duplicate tracking for HIT counter (max 1 hit per side per window)
-  const lastHitTsRef = useRef<Map<MatchSide, number>>(new Map());
+  // Anti-duplicate tracking per deviceId (legacy logic: 300ms per sensor)
+  const lastAcceptedTsRef = useRef<Map<number, number>>(new Map());
   
   // Auto-open config dialog if no config
   useEffect(() => {
@@ -102,7 +99,7 @@ export default function ChampionshipMat() {
       
       const thresholds = config.impactThresholds;
       const floor = thresholds.noiseFloor[String(impact.deviceId)] ?? 0;
-      const peakAboveFloor = impact.peakIntensity - floor;
+      const peakAboveFloor = impact.peakIntensity - floor; // kept for diagnostics only
       
       const isHelmet = equipType === 'helmet';
       const pointMin = isHelmet ? thresholds.helmetPointMin : thresholds.vestPointMin;
@@ -111,80 +108,67 @@ export default function ChampionshipMat() {
       const antiDupMs = config.antiDuplicateWindowMs ?? 300;
       const now = impact.ts;
       
-      // Build base log entry
-      const baseEntry: Omit<ShadowLogEntry, 'decision' | 'scored'> = {
-        ts: now,
-        deviceId: impact.deviceId,
-        peakIntensity: impact.peakIntensity,
-        peakAboveFloor,
-        avgIntensity: impact.avgIntensity,
-        durationMs: impact.durationMs,
-        packetCount: impact.packetCount,
-        side: matchSide,
-        hitType: equipType,
-        threshold: pointMin,
-      };
+      // ─── Anti-duplicate per deviceId (legacy: 300ms per sensor, discard entire impact) ───
+      const lastTs = lastAcceptedTsRef.current.get(impact.deviceId) ?? 0;
+      if (now - lastTs < antiDupMs) {
+        const entry: ShadowLogEntry = {
+          ts: now, deviceId: impact.deviceId, peakIntensity: impact.peakIntensity,
+          peakAboveFloor, avgIntensity: impact.avgIntensity, durationMs: impact.durationMs,
+          packetCount: impact.packetCount, side: matchSide, hitType: equipType,
+          threshold: hitMin, decision: 'DUPLICATE', scored: false,
+        };
+        shadowLogRef.current.push(entry);
+        if (shadowLogRef.current.length > MAX_SHADOW_LOG) {
+          shadowLogRef.current = shadowLogRef.current.slice(-MAX_SHADOW_LOG);
+        }
+        console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} hitMin=${hitMin} pointMin=${pointMin} -> DUPLICATE (${equipType}/${matchSide})`);
+        return;
+      }
       
-      // Threshold check first
+      // ─── Classification using absolute peakIntensity (legacy logic) ───
       let decision: ShadowLogEntry['decision'];
-      if (peakAboveFloor >= pointMin) {
+      let thresholdUsed: number;
+      if (impact.peakIntensity >= pointMin) {
         decision = 'POINT';
-      } else if (peakAboveFloor >= hitMin) {
+        thresholdUsed = pointMin;
+      } else if (impact.peakIntensity >= hitMin) {
         decision = 'HIT';
+        thresholdUsed = hitMin;
       } else {
         decision = 'IGNORED';
+        thresholdUsed = hitMin;
       }
       
-      // Only apply anti-duplicate for POINT decisions
-      if (decision === 'POINT') {
-        const lastScored = lastScoredRef.current.get(matchSide);
-        if (lastScored && (now - lastScored.ts) < antiDupMs) {
-          // Collision detected
-          if (equipType === 'helmet' && lastScored.hitType === 'vest') {
-            // HEAD trumps BODY: retroactively mark previous as MERGED
-            if (lastScored.entryIndex < shadowLogRef.current.length) {
-              shadowLogRef.current[lastScored.entryIndex].decision = 'MERGED';
-              shadowLogRef.current[lastScored.entryIndex].scored = false;
-            }
-            // Score HEAD (falls through to scoring below)
-          } else if (equipType === 'vest' && lastScored.hitType === 'helmet') {
-            // BODY after HEAD: mark new as MERGED
-            decision = 'MERGED';
-          } else {
-            // Same type: mark new as DUPLICATE
-            decision = 'DUPLICATE';
-          }
-        }
-      }
-      
-      console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} floor=${floor} above=${peakAboveFloor} hitMin=${hitMin} pointMin=${pointMin} -> ${decision} (${equipType}/${matchSide})`);
+      console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} hitMin=${hitMin} pointMin=${pointMin} -> ${decision} (${equipType}/${matchSide})`);
       
       const scored = decision === 'POINT';
-      const entry: ShadowLogEntry = { ...baseEntry, decision, scored };
+      const entry: ShadowLogEntry = {
+        ts: now, deviceId: impact.deviceId, peakIntensity: impact.peakIntensity,
+        peakAboveFloor, avgIntensity: impact.avgIntensity, durationMs: impact.durationMs,
+        packetCount: impact.packetCount, side: matchSide, hitType: equipType,
+        threshold: thresholdUsed, decision, scored,
+      };
       
       shadowLogRef.current.push(entry);
       if (shadowLogRef.current.length > MAX_SHADOW_LOG) {
         shadowLogRef.current = shadowLogRef.current.slice(-MAX_SHADOW_LOG);
       }
       
+      // Accept timestamp for this device
+      if (decision !== 'IGNORED') {
+        lastAcceptedTsRef.current.set(impact.deviceId, now);
+      }
+      
       // Score if POINT
       if (scored) {
         const scoreType: ScoreType = isHelmet ? 'HEAD' : 'BODY';
         sync.addScore(matchSide, scoreType);
-        lastScoredRef.current.set(matchSide, {
-          ts: now,
-          hitType: equipType,
-          entryIndex: shadowLogRef.current.length - 1,
-        });
+        sync.addHit(matchSide);
       }
       
-      // Increment HIT counter for POINT or HIT decisions (anti-duplo: max 1 per side per window)
-      if (decision === 'POINT' || decision === 'HIT') {
-        const lastHitTs = lastHitTsRef.current.get(matchSide) ?? 0;
-        if (now - lastHitTs >= antiDupMs) {
-          sync.addHit(matchSide);
-          lastHitTsRef.current.set(matchSide, now);
-        }
+      // Increment HIT counter only for HIT decisions
+      if (decision === 'HIT') {
+        sync.addHit(matchSide);
       }
     };
   }, [sync.state.status, sync.state.config, sync.addScore, sync.addHit]);

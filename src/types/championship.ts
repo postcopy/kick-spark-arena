@@ -75,7 +75,7 @@ export interface MatchConfig {
     noiseFloor: Record<string, number>; // per deviceId
   };
   
-  // Anti-duplicate window in ms (for merging BODY+HEAD on same side)
+  // Anti-duplicate window in ms (per deviceId, discards entire impact within window)
   antiDuplicateWindowMs?: number; // default 300
 }
 
