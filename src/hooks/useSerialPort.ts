@@ -245,24 +245,26 @@ export function useSerialPort({
           // Update equipment battery state
           updateEquipment(deviceId, battery);
           
-          // Legacy onKick pipeline (debounce per side)
-          const kickingSide = deviceIdToKickingSide(deviceId);
-          const hitType = deviceIdToHitType(deviceId);
-          
-          console.log('[Serial] DeviceID', deviceId, '→ kickingSide:', kickingSide, 'hitType:', hitType);
-          
-          if (!kickingSide) {
-            console.log('[Serial] Ignored: deviceId not mapped (1-4 only)');
-            continue;
+          // Legacy onKick pipeline — skip when ImpactDetector is active
+          if (!detectorRef.current) {
+            const kickingSide = deviceIdToKickingSide(deviceId);
+            const hitType = deviceIdToHitType(deviceId);
+            
+            console.log('[Serial] DeviceID', deviceId, '→ kickingSide:', kickingSide, 'hitType:', hitType);
+            
+            if (!kickingSide) {
+              console.log('[Serial] Ignored: deviceId not mapped (1-4 only)');
+              continue;
+            }
+            
+            if (shouldDebounce(kickingSide)) {
+              console.log('[Serial] Debounced:', kickingSide);
+              continue;
+            }
+            
+            console.log('[Serial] ✓ Triggering kick:', kickingSide, hitType);
+            onKickRef.current(kickingSide, hitType);
           }
-          
-          if (shouldDebounce(kickingSide)) {
-            console.log('[Serial] Debounced:', kickingSide);
-            continue;
-          }
-          
-          console.log('[Serial] ✓ Triggering kick:', kickingSide, hitType);
-          onKickRef.current(kickingSide, hitType);
         }
       }
       

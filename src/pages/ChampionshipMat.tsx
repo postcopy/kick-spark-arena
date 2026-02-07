@@ -71,6 +71,8 @@ export default function ChampionshipMat() {
   
   useEffect(() => {
     handleHardwareKickRef.current = (side: Side, hitType: HitType) => {
+      // Block raw scoring when in IMPACTS mode — only ImpactDetector should score
+      if (sync.state.config.scoringInput === 'impacts') return;
       console.log('[Championship] Kick:', side, hitType, 'status:', sync.state.status);
       if (sync.state.status !== 'RUNNING') return;
       const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
