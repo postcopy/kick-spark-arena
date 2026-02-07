@@ -642,11 +642,14 @@ export function DiagnosticsDialog({
                 </div>
 
                 <Button
-                  onClick={handleApplyThresholds}
+                  onClick={() => {
+                    handleApplyThresholds();
+                    console.log('[Diagnostics] Thresholds applied — scoringInput will switch to IMPACTS');
+                  }}
                   className="w-full bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white font-bold uppercase"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  APLICAR NO PLACAR
+                  APLICAR NO PLACAR (modo IMPACTOS)
                 </Button>
               </CardContent>
             </Card>

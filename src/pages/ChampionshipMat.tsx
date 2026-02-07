@@ -384,9 +384,10 @@ export default function ChampionshipMat() {
         scoringInput={scoringInput}
         onExportShadowLog={handleExportShadowLog}
         onThresholdsApplied={(t: HardwareThresholds) => {
-          console.log('[Championship] Applying wizard thresholds to match config:', t);
+          console.log('[Championship] Applying wizard thresholds to match config:', t, '— switching scoringInput to impacts');
           sync.updateConfigInPlace(config => ({
             ...config,
+            scoringInput: 'impacts',
             impactThresholds: {
               ...config.impactThresholds,
               vestHitMin: t.vestHitMin,
