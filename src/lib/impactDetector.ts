@@ -160,6 +160,11 @@ export class ImpactDetector {
     return this.wizardMode;
   }
 
+  /** Get number of active (in-progress) impacts for diagnostics */
+  getActiveCount(): number {
+    return this.activeImpacts.size;
+  }
+
   /** Reset all active impacts (e.g. on disconnect) */
   reset(): void {
     this.activeImpacts.clear();
