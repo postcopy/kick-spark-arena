@@ -393,7 +393,7 @@ export default function ChampionshipMat() {
               vestPointMin: t.vestPointMin,
               helmetHitMin: t.helmetHitMin,
               helmetPointMin: t.helmetPointMin,
-              noiseFloor: config.impactThresholds?.noiseFloor ?? {},
+              noiseFloor: diagnostics.noiseFloor,
             },
           }));
         }}
