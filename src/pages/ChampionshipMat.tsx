@@ -200,6 +200,11 @@ export default function ChampionshipMat() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scoringInput, noiseFloorJson]);
 
+  // Debug: log when impactDetectorConfig changes
+  useEffect(() => {
+    console.log('[ChampionshipMat] impactDetectorConfig changed:', impactDetectorConfigMemo);
+  }, [impactDetectorConfigMemo]);
+
   const serialPort = useSerialPort({
     onKick: handleHardwareKick,
     onRawPacket: diagnostics.onRawPacket,
