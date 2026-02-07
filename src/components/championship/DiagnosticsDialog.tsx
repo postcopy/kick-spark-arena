@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Slider } from '@/components/ui/slider';
 import {
   Trash2,
   FileJson,
@@ -29,12 +30,12 @@ import {
   AlertTriangle,
   Zap,
   Radio,
+  CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UseHardwareDiagnosticsReturn } from '@/types/hardwareDiagnostics';
 import type { UseSerialPortReturn } from '@/types/serial';
 import { NewSampleDialog } from './NewSampleDialog';
-import { CalibrationWizardDialog } from './CalibrationWizardDialog';
 
 interface DiagnosticsDialogProps {
   open: boolean;
@@ -52,7 +53,49 @@ export function DiagnosticsDialog({
   onThresholdsApplied,
 }: DiagnosticsDialogProps) {
   const [showNewSample, setShowNewSample] = useState(false);
+  const [vestHitSens, setVestHitSens] = useState(50);
+  const [vestPointSens, setVestPointSens] = useState(50);
+  const [helmetHitSens, setHelmetHitSens] = useState(50);
+  const [helmetPointSens, setHelmetPointSens] = useState(50);
   const isConnected = serialPort?.isConnected ?? false;
+
+  // Sensitivity mapping helpers
+  const floorValues = Object.values(diagnostics.noiseFloor);
+  const hasNoiseFloor = floorValues.length > 0;
+  const avgFloor = hasNoiseFloor ? Math.round(floorValues.reduce((a, b) => a + b, 0) / floorValues.length) : 0;
+  const maxScale = diagnostics.observedScale.globalMax > 0 ? diagnostics.observedScale.globalMax : 100;
+  const rangeAboveFloor = Math.max(1, maxScale - avgFloor);
+
+  const sensToThreshold = (sens: number) => Math.round((1 - sens / 100) * rangeAboveFloor);
+
+  // Validation: sensPoint <= sensHit (PONTO exige mais força)
+  const handleVestHitSens = (val: number) => {
+    setVestHitSens(val);
+    if (vestPointSens > val) setVestPointSens(val);
+  };
+  const handleVestPointSens = (val: number) => {
+    setVestPointSens(val);
+    if (val > vestHitSens) setVestHitSens(val);
+  };
+  const handleHelmetHitSens = (val: number) => {
+    setHelmetHitSens(val);
+    if (helmetPointSens > val) setHelmetPointSens(val);
+  };
+  const handleHelmetPointSens = (val: number) => {
+    setHelmetPointSens(val);
+    if (val > helmetHitSens) setHelmetHitSens(val);
+  };
+
+  const handleApplyThresholds = () => {
+    const thresholds = {
+      vestHitMin: sensToThreshold(vestHitSens),
+      vestPointMin: sensToThreshold(vestPointSens),
+      helmetHitMin: sensToThreshold(helmetHitSens),
+      helmetPointMin: sensToThreshold(helmetPointSens),
+    };
+    diagnostics.setThresholds(thresholds);
+    onThresholdsApplied?.(thresholds);
+  };
 
   const formatTime = (ts: number) => {
     return new Date(ts).toLocaleTimeString('pt-BR', {
@@ -388,14 +431,6 @@ export function DiagnosticsDialog({
                     >
                       {diagnostics.isCalibrating ? '● CALIBRANDO...' : 'CALIBRAR REPOUSO (3s)'}
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={diagnostics.startCalibrationWizard}
-                      disabled={diagnostics.isRecording || !isConnected || diagnostics.calibrationWizard.step !== 'idle'}
-                      className="h-7 text-xs bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white"
-                    >
-                      WIZARD DE CALIBRAÇÃO
-                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -519,78 +554,100 @@ export function DiagnosticsDialog({
               </CardContent>
             </Card>
 
-            {/* Thresholds */}
+            {/* Sensibilidade */}
             <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
-                  THRESHOLDS (PRÉ-CONFIGURAÇÃO)
+                  SENSIBILIDADE
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+              <CardContent className="space-y-4">
+                {!hasNoiseFloor && (
+                  <div className="flex items-start gap-2 p-2 rounded bg-[hsl(var(--sulsport-yellow))]/10 border border-[hsl(var(--sulsport-yellow))]/30">
+                    <AlertTriangle className="w-4 h-4 text-[hsl(var(--sulsport-yellow))] shrink-0 mt-0.5" />
+                    <span className="text-xs text-[hsl(var(--sulsport-yellow))]">
+                      Sem calibração de ruído — calibre o repouso antes de ajustar.
+                    </span>
+                  </div>
+                )}
+
+                {/* Colete */}
+                <div className="space-y-3">
+                  <div className="text-xs text-zinc-500 uppercase font-bold">Colete</div>
                   <div>
-                    <Label className="text-xs text-zinc-500">Colete HIT mín</Label>
-                    <Input
-                      type="number"
-                      value={diagnostics.thresholds.vestHitMin}
-                      onChange={(e) =>
-                        diagnostics.setThresholds({
-                          ...diagnostics.thresholds,
-                          vestHitMin: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="h-8 bg-zinc-800 border-zinc-700 text-white"
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-xs text-zinc-400">HIT</Label>
+                      <span className="text-xs font-mono text-white">{vestHitSens}</span>
+                    </div>
+                    <Slider
+                      value={[vestHitSens]}
+                      onValueChange={([v]) => handleVestHitSens(v)}
+                      min={0} max={100} step={1}
+                      className="mb-1"
                     />
+                    <div className="text-[10px] text-zinc-600 font-mono">
+                      floor {avgFloor} / max {maxScale} | threshold ~ {avgFloor + sensToThreshold(vestHitSens)}
+                    </div>
                   </div>
                   <div>
-                    <Label className="text-xs text-zinc-500">Colete PONTO mín</Label>
-                    <Input
-                      type="number"
-                      value={diagnostics.thresholds.vestPointMin}
-                      onChange={(e) =>
-                        diagnostics.setThresholds({
-                          ...diagnostics.thresholds,
-                          vestPointMin: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="h-8 bg-zinc-800 border-zinc-700 text-white"
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-xs text-zinc-400">PONTO</Label>
+                      <span className="text-xs font-mono text-white">{vestPointSens}</span>
+                    </div>
+                    <Slider
+                      value={[vestPointSens]}
+                      onValueChange={([v]) => handleVestPointSens(v)}
+                      min={0} max={100} step={1}
+                      className="mb-1"
                     />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-zinc-500">Capacete HIT mín</Label>
-                    <Input
-                      type="number"
-                      value={diagnostics.thresholds.helmetHitMin}
-                      onChange={(e) =>
-                        diagnostics.setThresholds({
-                          ...diagnostics.thresholds,
-                          helmetHitMin: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="h-8 bg-zinc-800 border-zinc-700 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-zinc-500">Capacete PONTO mín</Label>
-                    <Input
-                      type="number"
-                      value={diagnostics.thresholds.helmetPointMin}
-                      onChange={(e) =>
-                        diagnostics.setThresholds({
-                          ...diagnostics.thresholds,
-                          helmetPointMin: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="h-8 bg-zinc-800 border-zinc-700 text-white"
-                    />
+                    <div className="text-[10px] text-zinc-600 font-mono">
+                      floor {avgFloor} / max {maxScale} | threshold ~ {avgFloor + sensToThreshold(vestPointSens)}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-2 p-2 rounded bg-[hsl(var(--sulsport-yellow))]/10 border border-[hsl(var(--sulsport-yellow))]/30">
-                  <AlertTriangle className="w-4 h-4 text-[hsl(var(--sulsport-yellow))] shrink-0 mt-0.5" />
-                  <span className="text-xs text-[hsl(var(--sulsport-yellow))]">
-                    Ainda não aplicado no placar. Configuração para referência futura.
-                  </span>
+
+                {/* Capacete */}
+                <div className="space-y-3">
+                  <div className="text-xs text-zinc-500 uppercase font-bold">Capacete</div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-xs text-zinc-400">HIT</Label>
+                      <span className="text-xs font-mono text-white">{helmetHitSens}</span>
+                    </div>
+                    <Slider
+                      value={[helmetHitSens]}
+                      onValueChange={([v]) => handleHelmetHitSens(v)}
+                      min={0} max={100} step={1}
+                      className="mb-1"
+                    />
+                    <div className="text-[10px] text-zinc-600 font-mono">
+                      floor {avgFloor} / max {maxScale} | threshold ~ {avgFloor + sensToThreshold(helmetHitSens)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-xs text-zinc-400">PONTO</Label>
+                      <span className="text-xs font-mono text-white">{helmetPointSens}</span>
+                    </div>
+                    <Slider
+                      value={[helmetPointSens]}
+                      onValueChange={([v]) => handleHelmetPointSens(v)}
+                      min={0} max={100} step={1}
+                      className="mb-1"
+                    />
+                    <div className="text-[10px] text-zinc-600 font-mono">
+                      floor {avgFloor} / max {maxScale} | threshold ~ {avgFloor + sensToThreshold(helmetPointSens)}
+                    </div>
+                  </div>
                 </div>
+
+                <Button
+                  onClick={handleApplyThresholds}
+                  className="w-full bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white font-bold uppercase"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  APLICAR NO PLACAR
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -603,22 +660,6 @@ export function DiagnosticsDialog({
         onStart={diagnostics.startSample}
       />
 
-      <CalibrationWizardDialog
-        open={diagnostics.calibrationWizard.step !== 'idle'}
-        onOpenChange={(open) => !open && diagnostics.cancelWizard()}
-        wizard={diagnostics.calibrationWizard}
-        onAdvance={diagnostics.advanceWizardStep}
-        onCancel={diagnostics.cancelWizard}
-        onApply={() => {
-          diagnostics.applyWizardThresholds();
-          if (onThresholdsApplied && diagnostics.calibrationWizard.suggestedThresholds) {
-            onThresholdsApplied(diagnostics.calibrationWizard.suggestedThresholds);
-          }
-        }}
-        currentImpactCount={diagnostics.wizardImpactCount}
-        lastImpact={diagnostics.wizardLastImpact}
-        rawPacketCount={diagnostics.wizardRawPacketCount}
-      />
     </>
   );
 }
