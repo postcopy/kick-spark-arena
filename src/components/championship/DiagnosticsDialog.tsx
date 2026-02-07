@@ -53,23 +53,19 @@ export function DiagnosticsDialog({
   onThresholdsApplied,
 }: DiagnosticsDialogProps) {
   const [showNewSample, setShowNewSample] = useState(false);
-  const [vestHitSens, setVestHitSens] = useState(50);
   const [vestPointSens, setVestPointSens] = useState(35);
-  const [helmetHitSens, setHelmetHitSens] = useState(50);
   const [helmetPointSens, setHelmetPointSens] = useState(35);
   const [activePreset, setActivePreset] = useState<'low' | 'mid' | 'high' | null>('mid');
 
   const SENSITIVITY_PRESETS = {
-    low:  { hit: 30, point: 15, label: 'BAIXA' },
-    mid:  { hit: 50, point: 35, label: 'MÉDIA' },
-    high: { hit: 80, point: 60, label: 'ALTA' },
+    low:  { point: 15, label: 'BAIXA' },
+    mid:  { point: 35, label: 'MÉDIA' },
+    high: { point: 60, label: 'ALTA' },
   } as const;
 
   const applyPreset = (key: 'low' | 'mid' | 'high') => {
     const p = SENSITIVITY_PRESETS[key];
-    setVestHitSens(p.hit);
     setVestPointSens(p.point);
-    setHelmetHitSens(p.hit);
     setHelmetPointSens(p.point);
     setActivePreset(key);
   };
@@ -89,46 +85,26 @@ export function DiagnosticsDialog({
     return Math.round((1 - sens / 100) * maxScale);
   };
 
-  // Validation: sensPoint <= sensHit (PONTO exige mais força)
-  const handleVestHitSens = (val: number) => {
-    setVestHitSens(val);
-    if (vestPointSens > val) setVestPointSens(val);
-    setActivePreset(null);
-  };
   const handleVestPointSens = (val: number) => {
     setVestPointSens(val);
-    if (val > vestHitSens) setVestHitSens(val);
-    setActivePreset(null);
-  };
-  const handleHelmetHitSens = (val: number) => {
-    setHelmetHitSens(val);
-    if (helmetPointSens > val) setHelmetPointSens(val);
     setActivePreset(null);
   };
   const handleHelmetPointSens = (val: number) => {
     setHelmetPointSens(val);
-    if (val > helmetHitSens) setHelmetHitSens(val);
     setActivePreset(null);
   };
 
   const handleApplyThresholds = () => {
-    let vestHitMin = sensToThreshold(vestHitSens);
-    let vestPointMin = sensToThreshold(vestPointSens);
-    let helmetHitMin = sensToThreshold(helmetHitSens);
-    let helmetPointMin = sensToThreshold(helmetPointSens);
+    const vestPointMin = sensToThreshold(vestPointSens);
+    const helmetPointMin = sensToThreshold(helmetPointSens);
 
-    // Garantir separação mínima: pointMin >= hitMin + 1
-    if (vestPointMin <= vestHitMin) vestPointMin = vestHitMin + 1;
-    if (helmetPointMin <= helmetHitMin) helmetPointMin = helmetHitMin + 1;
-
-    const thresholds = { vestHitMin, vestPointMin, helmetHitMin, helmetPointMin };
+    // hitMin=0: no lower threshold — ImpactDetector already filters noise
+    const thresholds = { vestHitMin: 0, vestPointMin, helmetHitMin: 0, helmetPointMin };
 
     console.log(
-      `[APPLY] globalMax=${maxScale} avgFloor=${avgFloor} (floor kept for diagnostics only)\n` +
-      `  vestHit: sens=${vestHitSens} -> threshold=${vestHitMin} (absolute)\n` +
-      `  vestPoint: sens=${vestPointSens} -> threshold=${vestPointMin} (absolute)\n` +
-      `  helmetHit: sens=${helmetHitSens} -> threshold=${helmetHitMin} (absolute)\n` +
-      `  helmetPoint: sens=${helmetPointSens} -> threshold=${helmetPointMin} (absolute)`
+      `[APPLY] globalMax=${maxScale} (legacy: hitMin=0, only pointMin matters)\n` +
+      `  vestPoint: sens=${vestPointSens} -> threshold=${vestPointMin}\n` +
+      `  helmetPoint: sens=${helmetPointSens} -> threshold=${helmetPointMin}`
     );
 
     diagnostics.setThresholds(thresholds);
@@ -638,25 +614,10 @@ export function DiagnosticsDialog({
 
                 {/* Colete */}
                 <div className="space-y-3">
-                  <div className="text-xs text-zinc-500 uppercase font-bold">Colete</div>
+                  <div className="text-xs text-zinc-500 uppercase font-bold">Colete — Threshold de PONTO</div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs text-zinc-400">HIT</Label>
-                      <span className="text-xs font-mono text-white">{vestHitSens}</span>
-                    </div>
-                    <Slider
-                      value={[vestHitSens]}
-                      onValueChange={([v]) => handleVestHitSens(v)}
-                      min={0} max={100} step={1}
-                      className="mb-1"
-                    />
-                    <div className="text-[10px] text-zinc-600 font-mono">
-                      max {maxScale} | threshold = {sensToThreshold(vestHitSens)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs text-zinc-400">PONTO</Label>
+                      <Label className="text-xs text-zinc-400">SENSIBILIDADE</Label>
                       <span className="text-xs font-mono text-white">{vestPointSens}</span>
                     </div>
                     <Slider
@@ -666,32 +627,17 @@ export function DiagnosticsDialog({
                       className="mb-1"
                     />
                     <div className="text-[10px] text-zinc-600 font-mono">
-                      max {maxScale} | threshold = {sensToThreshold(vestPointSens)}
+                      max {maxScale} | pointMin = {sensToThreshold(vestPointSens)} | abaixo = HIT, acima = PONTO
                     </div>
                   </div>
                 </div>
 
                 {/* Capacete */}
                 <div className="space-y-3">
-                  <div className="text-xs text-zinc-500 uppercase font-bold">Capacete</div>
+                  <div className="text-xs text-zinc-500 uppercase font-bold">Capacete — Threshold de PONTO</div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs text-zinc-400">HIT</Label>
-                      <span className="text-xs font-mono text-white">{helmetHitSens}</span>
-                    </div>
-                    <Slider
-                      value={[helmetHitSens]}
-                      onValueChange={([v]) => handleHelmetHitSens(v)}
-                      min={0} max={100} step={1}
-                      className="mb-1"
-                    />
-                    <div className="text-[10px] text-zinc-600 font-mono">
-                      max {maxScale} | threshold = {sensToThreshold(helmetHitSens)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs text-zinc-400">PONTO</Label>
+                      <Label className="text-xs text-zinc-400">SENSIBILIDADE</Label>
                       <span className="text-xs font-mono text-white">{helmetPointSens}</span>
                     </div>
                     <Slider
@@ -701,7 +647,7 @@ export function DiagnosticsDialog({
                       className="mb-1"
                     />
                     <div className="text-[10px] text-zinc-600 font-mono">
-                      max {maxScale} | threshold = {sensToThreshold(helmetPointSens)}
+                      max {maxScale} | pointMin = {sensToThreshold(helmetPointSens)} | abaixo = HIT, acima = PONTO
                     </div>
                   </div>
                 </div>
