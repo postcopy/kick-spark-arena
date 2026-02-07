@@ -1,68 +1,62 @@
 
+# Fix: Verify ImpactDetector internal state during flush
 
-# Fix: Flush heartbeat runs but flush() never executes
+## Diagnosis
 
-## Root Cause (probable)
+The heartbeat confirms `detector: true, onImpact: true`, and serial data flows (device 1, intensities 4-40). Yet `flush()` never returns finalized impacts. Two possibilities:
 
-The flush interval code has this structure:
-```
-if (detectorRef.current && onImpactRef.current) {
-  const finalized = detectorRef.current.flush(Date.now());
-  ...
-}
-```
+1. **feed() is called but impacts never start** (all intensities fail the `> startThreshold` check somehow)
+2. **Impacts start but never finalize** (continuous data prevents silence gap AND maxDuration check has a bug)
 
-The heartbeat log is BEFORE this guard, so it shows "detector exists: true" even when `onImpactRef.current` is null/undefined. If `onImpactRef` is falsy, `flush()` never runs, and impacts accumulate forever without being finalized or delivered.
+We need visibility into the detector's internal state to distinguish these cases.
 
 ## Changes
 
-### 1. `src/hooks/useSerialPort.ts` - Enhanced heartbeat logging
+### 1. `src/lib/impactDetector.ts` - Add debug method
 
-Update the heartbeat (every ~5s) to also log `onImpactRef.current` existence:
-
-```
-console.log('[useSerialPort] flush heartbeat, detector:', !!detectorRef.current, 'onImpact:', !!onImpactRef.current);
-```
-
-Also add a one-time log when flush() actually produces results or when the guard blocks execution, to definitively confirm which branch runs.
-
-### 2. `src/hooks/useSerialPort.ts` - Remove onImpactRef guard from flush
-
-The guard `onImpactRef.current` prevents flush() from even running when onImpact is not set. But flush() MUST always run to finalize impacts (otherwise pendingFinalized grows forever and memory leaks). The guard should only wrap the callback delivery, not the flush call itself:
+Add a `getActiveCount()` method to expose how many active (in-progress) impacts exist. This is read-only and safe for production.
 
 ```typescript
-// BEFORE (broken):
-if (detectorRef.current && onImpactRef.current) {
-  const finalized = detectorRef.current.flush(Date.now());
-  for (const impact of finalized) {
-    onImpactRef.current({...});
-  }
+getActiveCount(): number {
+  return this.activeImpacts.size;
 }
+```
 
-// AFTER (fixed):
+### 2. `src/hooks/useSerialPort.ts` - Enhanced diagnostics
+
+**In the flush heartbeat (every ~5s):** Also log the number of active impacts inside the detector. This tells us if impacts are starting but never finalizing.
+
+```typescript
+if (flushCountRef.current % 150 === 0) {
+  console.log('[useSerialPort] flush heartbeat, detector:', !!detectorRef.current, 
+    'onImpact:', !!onImpactRef.current,
+    'activeImpacts:', detectorRef.current?.getActiveCount() ?? 0);
+}
+```
+
+**After feed() call (one-time):** Confirm data is reaching the detector instance.
+
+```typescript
 if (detectorRef.current) {
-  const finalized = detectorRef.current.flush(Date.now());
-  if (finalized.length > 0) {
-    console.log(`[useSerialPort] flush -> ${finalized.length} impacts finalized`);
-    if (onImpactRef.current) {
-      for (const impact of finalized) {
-        onImpactRef.current({...});
-      }
-    }
+  detectorRef.current.feed(deviceId, intensity, Date.now());
+  if (!loggedFeedRef.current) {
+    console.log('[useSerialPort] feed() confirmed on detector, intensity:', intensity, 'deviceId:', deviceId);
+    loggedFeedRef.current = true;
   }
 }
 ```
 
-This ensures flush() always runs to clean up stale impacts, and the callback is only invoked when available.
-
-## Files modified
-
-- `src/hooks/useSerialPort.ts` - Fix flush guard structure + enhance heartbeat log
+Add `loggedFeedRef` as a new `useRef<boolean>(false)`.
 
 ## Expected result
 
-- flush() runs unconditionally when detector exists (no longer blocked by onImpactRef)
-- Impacts finalize correctly after maxDurationMs (2000ms)
-- Console shows "flush -> N impacts finalized" confirming the pipeline works
-- If onImpact callback is missing, impacts still finalize (no memory leak) but aren't delivered to scoring
+The heartbeat will now show one of:
+- `activeImpacts: 0` -- feed() isn't starting impacts (threshold issue)
+- `activeImpacts: 1+` -- impacts start but never finalize (maxDuration or gap issue)
 
+This pinpoints the exact failure layer for the definitive fix.
+
+## Files modified
+
+- `src/lib/impactDetector.ts` - Add `getActiveCount()` debug method
+- `src/hooks/useSerialPort.ts` - Enhanced heartbeat + one-time feed confirmation log
