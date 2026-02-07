@@ -41,6 +41,7 @@ interface DiagnosticsDialogProps {
   onOpenChange: (open: boolean) => void;
   diagnostics: UseHardwareDiagnosticsReturn;
   serialPort?: UseSerialPortReturn;
+  onThresholdsApplied?: (thresholds: import('@/types/hardwareDiagnostics').HardwareThresholds) => void;
 }
 
 export function DiagnosticsDialog({
@@ -48,6 +49,7 @@ export function DiagnosticsDialog({
   onOpenChange,
   diagnostics,
   serialPort,
+  onThresholdsApplied,
 }: DiagnosticsDialogProps) {
   const [showNewSample, setShowNewSample] = useState(false);
   const isConnected = serialPort?.isConnected ?? false;
@@ -607,7 +609,12 @@ export function DiagnosticsDialog({
         wizard={diagnostics.calibrationWizard}
         onAdvance={diagnostics.advanceWizardStep}
         onCancel={diagnostics.cancelWizard}
-        onApply={diagnostics.applyWizardThresholds}
+        onApply={() => {
+          diagnostics.applyWizardThresholds();
+          if (onThresholdsApplied && diagnostics.calibrationWizard.suggestedThresholds) {
+            onThresholdsApplied(diagnostics.calibrationWizard.suggestedThresholds);
+          }
+        }}
         currentImpactCount={diagnostics.wizardImpactCount}
         lastImpact={diagnostics.wizardLastImpact}
         rawPacketCount={diagnostics.wizardRawPacketCount}

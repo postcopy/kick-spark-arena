@@ -60,9 +60,10 @@ interface OperatorPanelProps {
   onOpenConfig?: () => void;
   scoringInput?: 'raw' | 'impacts';
   onExportShadowLog?: () => void;
+  onThresholdsApplied?: (thresholds: import('@/types/hardwareDiagnostics').HardwareThresholds) => void;
 }
 
-export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, diagnostics, onOpenConfig, scoringInput, onExportShadowLog }: OperatorPanelProps) {
+export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, diagnostics, onOpenConfig, scoringInput, onExportShadowLog, onThresholdsApplied }: OperatorPanelProps) {
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showScoreAdjust, setShowScoreAdjust] = useState(false);
@@ -484,6 +485,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
           onOpenChange={setShowDiagnostics}
           diagnostics={diagnostics}
           serialPort={serialPort}
+          onThresholdsApplied={onThresholdsApplied}
         />
       )}
     </>
