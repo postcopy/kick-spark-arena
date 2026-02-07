@@ -1,73 +1,62 @@
 
 
-# Fix: Sensibilidade excessiva e ausencia de HITs
+# Alinhar modo IMPACTOS com logica legacy (Tadashi)
 
-## Causa raiz
+## Resumo das mudancas
 
-O mapeamento `sensToThreshold` usa `rangeAboveFloor = globalMax - avgFloor`. Se o operador aplica os thresholds cedo (antes de observar golpes fortes), `globalMax` pode ser baixo, resultando em thresholds minusculos. Exemplo:
+Tres diferencas fundamentais entre o sistema atual e o legado:
 
-```text
-globalMax=15, avgFloor=10 -> rangeAboveFloor=5
-sensHit=50  -> hitMin   = (1-0.50)*5 = 2.5 -> 3
-sensPoint=35 -> pointMin = (1-0.35)*5 = 3.25 -> 3
-```
-
-Resultado: hitMin=3, pointMin=3 -- qualquer impacto acima de 3 vai direto para POINT, nunca cai na faixa de HIT.
-
-## Solucao (3 partes)
-
-### 1. Log no momento do APLICAR (DiagnosticsDialog)
-
-Adicionar `console.log` em `handleApplyThresholds` mostrando os valores computados:
-
-```text
-[APPLY] rangeAboveFloor=5 avgFloor=10 globalMax=15
-  vestHit: sens=50 -> minAboveFloor=3
-  vestPoint: sens=35 -> minAboveFloor=3
-  helmetHit: sens=50 -> minAboveFloor=3
-  helmetPoint: sens=35 -> minAboveFloor=3
-```
-
-Isso permite diagnosticar imediatamente se os thresholds estao corretos.
-
-### 2. Garantir separacao minima entre hitMin e pointMin
-
-No `handleApplyThresholds`, apos calcular os thresholds, garantir que `pointMin >= hitMin + 1`. Se o arredondamento fizer os dois convergirem, ajustar pointMin para cima:
-
-```text
-if (vestPointMin <= vestHitMin) vestPointMin = vestHitMin + 1;
-if (helmetPointMin <= helmetHitMin) helmetPointMin = helmetHitMin + 1;
-```
-
-Isso garante que sempre exista uma faixa de HIT entre hitMin e pointMin.
-
-### 3. Aviso visual quando rangeAboveFloor e muito pequeno
-
-Se `rangeAboveFloor < 5`, exibir um aviso no card de sensibilidade: "Escala observada muito baixa. Bata forte no equipamento antes de aplicar para melhorar a calibracao."
-
-Isso orienta o operador a gerar impactos de referencia antes de aplicar os thresholds.
+1. **Threshold absoluto** (legado) vs relativo ao floor (atual) -- scoring usa `peakIntensity` direto, sem subtrair noiseFloor
+2. **Anti-duplicata por deviceId** (legado) vs por lado/MatchSide (atual) -- janela de 300ms por sensor individual, descarta o impacto inteiro
+3. **Sem merge HEAD/BODY** (legado) vs merge por lado (atual) -- remove toda a logica de MERGED/DUPLICATE por lado
 
 ## Detalhes tecnicos
 
-### Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
+### 1. Arquivo: `src/pages/ChampionshipMat.tsx` (handler de impacto, linhas ~93-189)
 
-**`handleApplyThresholds` (linha 109-118):**
+**Reescrever a logica de scoring no `handleImpactRef`:**
 
-- Adicionar log completo com rangeAboveFloor, avgFloor, globalMax e todos os thresholds computados
-- Apos calcular os 4 thresholds, aplicar a regra `pointMin >= hitMin + 1`
-- Passar os valores corrigidos para `onThresholdsApplied`
+- Remover calculo de `peakAboveFloor` -- usar `impact.peakIntensity` direto contra os thresholds
+- Classificacao: `peakIntensity >= pointMin` -> POINT; `peakIntensity >= hitMin` -> HIT; senao IGNORED
+- Anti-duplicata por `deviceId` (nao por `matchSide`): manter um Map de `lastAcceptedTs` por deviceId; se `now - lastTs < 300ms`, descartar o impacto inteiro (decision = 'DUPLICATE')
+- Remover toda a logica de merge (MERGED, comparacao HEAD vs BODY, `lastScoredRef` por lado)
+- HIT counter: incrementar quando decision === 'HIT' (nao precisa de anti-duplo extra, o filtro por deviceId ja cobre)
+- POINT: incrementar score + hit quando decision === 'POINT'
+- Log atualizado: `[IMPACT] dev=X peak=Y hitMin=Z pointMin=W -> DECISION (type/side)`
 
-**Card SENSIBILIDADE (corpo do card):**
+**Refs simplificados:**
+- Substituir `lastScoredRef` (Map por MatchSide) por `lastAcceptedTsRef` (Map por deviceId/number)
+- Remover `lastHitTsRef` (nao precisa mais de anti-duplo separado para hits)
 
-- Adicionar alerta condicional: se `rangeAboveFloor < 5`, mostrar um texto amarelo avisando que a escala observada e pequena demais
+### 2. Arquivo: `src/components/championship/DiagnosticsDialog.tsx` (handleApplyThresholds, linhas ~109-131)
 
-### Arquivo: `src/pages/ChampionshipMat.tsx`
+**Mudar `sensToThreshold` para retornar threshold absoluto:**
 
-Nenhuma mudanca necessaria -- o log por impacto ja esta no lugar (linha 160). Com os thresholds corrigidos, os HITs vao aparecer naturalmente.
+Hoje: `sensToThreshold = (1 - sens/100) * rangeAboveFloor` (relativo)
+
+Novo: `sensToThreshold = (1 - sens/100) * globalMax` (absoluto, sem subtrair floor)
+
+- Sensibilidade 100 -> threshold 0 (tudo pontua)
+- Sensibilidade 0 -> threshold = globalMax (precisa do pico maximo)
+- Sensibilidade 50 -> threshold = globalMax * 0.5
+
+Manter a regra `pointMin >= hitMin + 1` e o log de diagnostico.
+
+O noiseFloor continua sendo enviado no config (para diagnostico/UI), mas nao e usado no scoring.
+
+### 3. Arquivo: `src/types/championship.ts` (comentario, linha 78)
+
+Atualizar o comentario do `antiDuplicateWindowMs` de "for merging BODY+HEAD on same side" para "per deviceId, discards entire impact within window".
+
+### 4. ShadowLog (dentro de ChampionshipMat.tsx)
+
+Atualizar o campo `peakAboveFloor` no log entry para ser informativo (pode manter para diagnostico), mas a decisao usa `peakIntensity` absoluto. Adicionar campo `threshold` com o valor usado na decisao (hitMin ou pointMin conforme o caso).
 
 ## Resultado esperado
 
-- Sempre existe uma faixa de intensidade onde impactos sao classificados como HIT (entre hitMin e pointMin)
-- Thresholds nao ficam absurdamente baixos quando globalMax e pequeno
-- Operador recebe feedback visual se a escala observada e insuficiente
-- Log no console mostra exatamente os valores computados ao aplicar
+- Toque leve no colete com `peakIntensity` < `vestPointMin` -> HIT (ou IGNORED se < hitMin)
+- Golpe forte com `peakIntensity` >= `vestPointMin` -> POINT
+- Dois eventos do mesmo sensor em < 300ms -> segundo e DUPLICATE (descartado)
+- Sem mais logica de merge HEAD/BODY por lado
+- Thresholds sao valores absolutos de intensidade, independentes do noise floor
+
