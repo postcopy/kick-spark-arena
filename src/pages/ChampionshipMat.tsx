@@ -90,9 +90,10 @@ export default function ChampionshipMat() {
   
   useEffect(() => {
     handleImpactRef.current = (impact: ImpactCallbackData) => {
-      if (sync.state.status !== 'RUNNING') return;
-      
       const config = sync.state.config;
+      console.log(`[handleImpact] status=${sync.state.status} scoringInput=${config.scoringInput} hasThresholds=${!!config.impactThresholds}`);
+      
+      if (sync.state.status !== 'RUNNING') return;
       if (config.scoringInput !== 'impacts' || !config.impactThresholds) return;
       
       const matchSide = deviceIdToMatchSide(impact.deviceId);
