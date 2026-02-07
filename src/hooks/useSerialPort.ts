@@ -102,6 +102,8 @@ export function useSerialPort({
   // Impact detector refs
   const detectorRef = useRef<ImpactDetector | null>(null);
   const flushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flushCountRef = useRef(0);
+  const loggedDetectorStatusRef = useRef(false);
 
   useEffect(() => { onKickRef.current = onKick; }, [onKick]);
   useEffect(() => { onRawPacketRef.current = onRawPacket; }, [onRawPacket]);
@@ -112,6 +114,7 @@ export function useSerialPort({
 
   // Create/update/destroy ImpactDetector based on config
   useEffect(() => {
+    console.log('[useSerialPort] detector useEffect RUNNING, enabled=', impactDetectorConfig?.enabled, 'noiseFloor=', noiseFloorJson);
     if (impactDetectorConfig?.enabled) {
       const parsedNoiseFloor = JSON.parse(noiseFloorJson);
       if (!detectorRef.current) {
@@ -128,7 +131,12 @@ export function useSerialPort({
       
       // Start flush interval (30ms) - ensures last impact finalizes during silence
       if (!flushIntervalRef.current) {
+        flushCountRef.current = 0;
         flushIntervalRef.current = setInterval(() => {
+          flushCountRef.current++;
+          if (flushCountRef.current % 150 === 0) {
+            console.log('[useSerialPort] flush heartbeat, detector exists:', !!detectorRef.current);
+          }
           if (detectorRef.current && onImpactRef.current) {
             const finalized = detectorRef.current.flush(Date.now());
             if (finalized.length > 0) {
@@ -243,6 +251,12 @@ export function useSerialPort({
           // Raw packet callback (before any filter)
           if (onRawPacketRef.current) {
             onRawPacketRef.current({ intensity, deviceId, battery, ts: Date.now() });
+          }
+          
+          // Log detector status on first packet
+          if (!loggedDetectorStatusRef.current) {
+            console.log('[useSerialPort] First packet, detectorRef.current:', !!detectorRef.current);
+            loggedDetectorStatusRef.current = true;
           }
           
           // Feed impact detector (when enabled)
