@@ -104,6 +104,7 @@ export function useSerialPort({
   const flushIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const flushCountRef = useRef(0);
   const loggedDetectorStatusRef = useRef(false);
+  const loggedFeedRef = useRef(false);
 
   useEffect(() => { onKickRef.current = onKick; }, [onKick]);
   useEffect(() => { onRawPacketRef.current = onRawPacket; }, [onRawPacket]);
@@ -135,7 +136,7 @@ export function useSerialPort({
         flushIntervalRef.current = setInterval(() => {
           flushCountRef.current++;
           if (flushCountRef.current % 150 === 0) {
-            console.log('[useSerialPort] flush heartbeat, detector:', !!detectorRef.current, 'onImpact:', !!onImpactRef.current);
+            console.log('[useSerialPort] flush heartbeat, detector:', !!detectorRef.current, 'onImpact:', !!onImpactRef.current, 'activeImpacts:', detectorRef.current?.getActiveCount() ?? 0);
           }
           if (detectorRef.current) {
             const finalized = detectorRef.current.flush(Date.now());
@@ -266,6 +267,10 @@ export function useSerialPort({
           // Feed impact detector (when enabled)
           if (detectorRef.current) {
             detectorRef.current.feed(deviceId, intensity, Date.now());
+            if (!loggedFeedRef.current) {
+              console.log('[useSerialPort] feed() confirmed on detector, intensity:', intensity, 'deviceId:', deviceId);
+              loggedFeedRef.current = true;
+            }
           }
           
           // Update equipment battery state
