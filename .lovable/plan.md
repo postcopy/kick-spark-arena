@@ -1,48 +1,52 @@
 
+# Fix: Golpes no colete nao pontuam
 
-# Ajuste na validacao dos sliders de sensibilidade
+## Causa raiz
 
-## Mudanca
+O botao "APLICAR NO PLACAR" nos sliders de sensibilidade atualiza os thresholds (`vestHitMin`, `vestPointMin`, etc.) e o `noiseFloor` na config, mas **nao muda `scoringInput` para `'impacts'`**. O valor padrao de `scoringInput` eh `'raw'`.
 
-Simplificar a logica de validacao dos sliders para usar uma unica regra clara:
-
-**Regra: `sensPoint <= sensHit` (PONTO exige mais forca, logo menos sensivel)**
-
-- Ao mudar HIT: se `sensPoint > sensHit`, entao `sensPoint = sensHit`
-- Ao mudar PONTO: se `sensPoint > sensHit`, entao `sensHit = sensPoint`
-
-Isso substitui qualquer logica baseada em "subiu/desceu" por uma verificacao direta da invariante apos cada mudanca.
-
-## Detalhes tecnicos
-
-### Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
-
-Nos handlers dos sliders de sensibilidade (que serao criados na implementacao dos sliders), usar:
-
-```typescript
-const handleVestHitSens = (val: number) => {
-  setVestHitSens(val);
-  if (vestPointSens > val) setVestPointSens(val);
-};
-
-const handleVestPointSens = (val: number) => {
-  setVestPointSens(val);
-  if (val > vestHitSens) setVestHitSens(val);
-};
-
-// Idem para helmet
-const handleHelmetHitSens = (val: number) => {
-  setHelmetHitSens(val);
-  if (helmetPointSens > val) setHelmetPointSens(val);
-};
-
-const handleHelmetPointSens = (val: number) => {
-  setHelmetPointSens(val);
-  if (val > helmetHitSens) setHelmetHitSens(val);
-};
+No handler de impactos (ChampionshipMat.tsx, linha 97):
+```text
+if (config.scoringInput !== 'impacts' || !config.impactThresholds) return;
 ```
 
-A condicao e sempre `sensPoint > sensHit` -- corrige o outro slider apenas quando a regra e violada.
+Se `scoringInput` continua `'raw'`, todos os impactos sao descartados silenciosamente. O modo RAW (legado) usa o callback `onKick` que mapeia 1 pacote = 1 golpe, sem thresholds -- mas quando o ImpactDetector esta ativo, os pacotes individuais podem nao estar disparando `onKick`.
 
-Este ajuste sera aplicado junto com a implementacao completa dos sliders (que ja foi aprovada anteriormente).
+## Solucao
 
+Quando o operador clica "APLICAR NO PLACAR" no painel de sensibilidade, alem de enviar os thresholds, o sistema deve **automaticamente** mudar `scoringInput` para `'impacts'`. Isso elimina o passo manual de ir ate a Config e trocar o modo.
+
+## Mudancas
+
+### 1. `src/pages/ChampionshipMat.tsx` (callback `onThresholdsApplied`)
+
+Na linha 386-399, onde `onThresholdsApplied` eh chamado, adicionar `scoringInput: 'impacts'` no `updateConfigInPlace`:
+
+```text
+sync.updateConfigInPlace(config => ({
+  ...config,
+  scoringInput: 'impacts',        // <-- ADICIONAR
+  impactThresholds: {
+    ...config.impactThresholds,
+    vestHitMin: t.vestHitMin,
+    vestPointMin: t.vestPointMin,
+    helmetHitMin: t.helmetHitMin,
+    helmetPointMin: t.helmetPointMin,
+    noiseFloor: diagnostics.noiseFloor,
+  },
+}));
+```
+
+### 2. `src/components/championship/DiagnosticsDialog.tsx` (feedback visual)
+
+Adicionar um log no console ao aplicar, e opcionalmente um toast/feedback indicando que o modo foi trocado para IMPACTOS.
+
+## Resultado esperado
+
+Apos clicar "APLICAR NO PLACAR":
+- `scoringInput` muda para `'impacts'` automaticamente
+- Os thresholds relativos (minAboveFloor) ficam ativos
+- O badge "IMPACTOS" aparece no header do ChampionshipMat
+- Golpes no colete com peakAboveFloor >= vestPointMin pontuam como BODY
+- Golpes no colete com peakAboveFloor >= vestHitMin contam como HIT (estatistica)
+- Golpes abaixo de vestHitMin sao ignorados
