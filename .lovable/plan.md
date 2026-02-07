@@ -1,79 +1,64 @@
 
+# Fix: Debugging por que o ImpactDetector nao e criado
 
-# Fix: ImpactDetector nunca finaliza impactos (impacto infinito)
+## Diagnostico
 
-## Causa raiz
+O console mostra dados seriais chegando (`[Serial] Parsed OK`) mas NENHUM log do detector (`[useSerialPort] ImpactDetector ENABLED`) e NENHUM log de flush. Isso significa que ou:
+1. O useEffect que cria o detector nunca roda com `enabled=true`
+2. Ou roda, mas algo destrói o detector logo depois
 
-O `ImpactDetector` usa histerese com `continueThreshold = noiseFloor + 2`. Quando o noise floor nao e calibrado (= 0), qualquer pacote com intensidade > 2 mantem o impacto ativo. Sensores tipicamente enviam valores de repouso entre 3-15 continuamente. O impacto NUNCA finaliza porque nunca ha um gap de silencio > 200ms onde TODOS os pacotes estejam abaixo de 2.
+O codigo parece correto, entao precisamos de logging agressivo para identificar o ponto exato de falha.
 
-Resultado: um unico impacto eterno que engole todos os golpes reais. O `flush()` nunca retorna impactos finalizados. O handler de scoring nunca e chamado.
+## Mudancas
 
-```text
-Sensor envia continuamente: 5, 3, 4, 6, 3, 5, ...  (repouso)
-continueThreshold = 0 + 2 = 2
-Todos > 2 -> lastAboveTs atualizado a cada pacote
-gap nunca > 200ms -> flush() retorna [] sempre
-Golpe real (peak=25) -> absorvido pelo impacto infinito
+### 1. `src/hooks/useSerialPort.ts` - Logging incondicional
+
+**No useEffect do detector (linha 114):** Adicionar log NO INICIO do efeito, ANTES do if, mostrando o valor de `impactDetectorConfig?.enabled` e `noiseFloorJson`. Isso confirma se o efeito roda e com quais valores.
+
+```
+console.log('[useSerialPort] detector useEffect RUNNING, enabled=', impactDetectorConfig?.enabled, 'noiseFloor=', noiseFloorJson);
 ```
 
-## Solucao (3 mudancas)
+**No flush interval (linha 131-148):** Adicionar um heartbeat log incondicional a cada 5 segundos (usando um counter no ref). Isso confirma se o interval esta rodando, independente de haver impactos finalizados.
 
-### 1. ImpactDetector: Adicionar limite de duracao maxima
+```
+// A cada ~150 iteracoes (30ms * 150 = 4.5s), logar status
+flushCountRef.current++;
+if (flushCountRef.current % 150 === 0) {
+  console.log('[useSerialPort] flush heartbeat, detector exists:', !!detectorRef.current);
+}
+```
 
-Novo parametro `maxDurationMs` (default 2000ms). No `flush()`, alem de checar o gap de silencio, tambem forcar finalizacao se `now - startTs > maxDurationMs`. Isso garante que mesmo com ruido continuo, impactos sao entregues.
+**No startReading, dentro do while loop (linha 249):** Logar se o detector existe quando um pacote chega (apenas o primeiro pacote, usando um flag ref para nao poluir).
 
-### 2. ImpactDetector: Forcar finalizacao antes de iniciar novo impacto
+```
+if (!loggedDetectorStatusRef.current) {
+  console.log('[useSerialPort] First packet, detectorRef.current:', !!detectorRef.current);
+  loggedDetectorStatusRef.current = true;
+}
+```
 
-No `feed()`, se ja existe um impacto ativo para o deviceId e a duracao atual excede `maxDurationMs`, finalizar o impacto atual e iniciar um novo. Isso evita que um impacto "infinito" bloqueie golpes reais.
+### 2. `src/pages/ChampionshipMat.tsx` - Log do config memo
 
-### 3. Debug logging no pipeline de scoring
+**Apos o useMemo (linha 201):** Adicionar um useEffect que loga quando o `impactDetectorConfigMemo` muda.
 
-Adicionar console.log em pontos criticos do useSerialPort e ChampionshipMat para que o operador possa verificar o fluxo no console do navegador:
-- Quando o detector e criado/habilitado
-- Quando flush() produz impactos finalizados
-- No inicio do handleImpactRef mostrando guards (status, scoringInput, thresholds)
-
-## Mudancas por arquivo
-
-### `src/lib/impactDetector.ts`
-
-- Novo campo `maxDurationMs: number` no `ImpactDetectorConfig` (default 2000)
-- `flush()`: alem da condicao `gapMs > silenceGapMs`, adicionar `|| (now - active.startTs > maxDurationMs)` para forcar finalizacao
-- `feed()`: antes de atualizar um impacto ativo, checar se `ts - active.startTs > maxDurationMs`. Se sim, finalizar o impacto atual (via logica similar ao flush) e iniciar um novo
-
-### `src/hooks/useSerialPort.ts`
-
-- Adicionar console.log quando o detector e criado: `'[useSerialPort] ImpactDetector ENABLED, noiseFloor:', parsedNoiseFloor`
-- Adicionar console.log quando o detector e desabilitado: `'[useSerialPort] ImpactDetector DISABLED'`
-- No flush interval, quando impacts sao finalizados: `'[useSerialPort] flush -> N impacts finalized'`
-
-### `src/pages/ChampionshipMat.tsx`
-
-- No inicio do `handleImpactRef.current`, log detalhado: `'[handleImpact] status=X scoringInput=Y hasThresholds=Z'`
-- Isso permite rastrear exatamente onde o fluxo para
-
-## Logica final do ImpactDetector
-
-```text
-feed(deviceId, intensity, ts):
-  Se existe impacto ativo E duracao > maxDurationMs:
-    Finalizar impacto atual (guardar internamente)
-    Limpar ativo
-  Se nao existe ativo E intensity > startThreshold:
-    Criar novo impacto
-  Se existe ativo E intensity > continueThreshold:
-    Atualizar peak/sum/lastAboveTs
-
-flush(now):
-  Para cada impacto ativo:
-    Se gap > silenceGapMs OU duracao > maxDurationMs:
-      Finalizar e entregar
+```
+useEffect(() => {
+  console.log('[ChampionshipMat] impactDetectorConfig changed:', impactDetectorConfigMemo);
+}, [impactDetectorConfigMemo]);
 ```
 
 ## Resultado esperado
 
-- Impactos finalizados mesmo com ruido continuo (max 2 segundos de duracao)
-- Cada golpe real produz um impacto independente
-- Debug logging permite verificar o fluxo completo no console
-- Compativel com noise floor calibrado (funciona melhor) e sem calibracao (funciona com safety net)
+Com esses logs, ao abrir o console o usuario vera:
+- Se o memo retorna `enabled: true` ou `false`
+- Se o useEffect do detector roda e com quais valores
+- Se o flush interval esta ativo (heartbeat a cada ~5s)
+- Se o primeiro pacote serial ve o detector como existente ou null
 
+Isso vai identificar EXATAMENTE onde o pipeline quebra, permitindo o fix definitivo.
+
+## Arquivos modificados
+
+- `src/hooks/useSerialPort.ts` - 3 pontos de logging adicionais
+- `src/pages/ChampionshipMat.tsx` - 1 useEffect de debug
