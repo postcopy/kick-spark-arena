@@ -79,11 +79,15 @@ export function DiagnosticsDialog({
   const floorValues = Object.values(diagnostics.noiseFloor);
   const hasNoiseFloor = floorValues.length > 0;
   const avgFloor = hasNoiseFloor ? Math.round(floorValues.reduce((a, b) => a + b, 0) / floorValues.length) : 0;
-  const maxScale = diagnostics.observedScale.globalMax > 0 ? diagnostics.observedScale.globalMax : 100;
+  const maxScale = diagnostics.observedScale.globalMax;
   const rangeAboveFloor = Math.max(1, maxScale - avgFloor);
+  const canApply = maxScale > 0;
 
   // Legacy: threshold is absolute against globalMax (not relative to floor)
-  const sensToThreshold = (sens: number) => Math.round((1 - sens / 100) * maxScale);
+  const sensToThreshold = (sens: number) => {
+    if (maxScale <= 0) return 0;
+    return Math.round((1 - sens / 100) * maxScale);
+  };
 
   // Validation: sensPoint <= sensHit (PONTO exige mais força)
   const handleVestHitSens = (val: number) => {
@@ -707,11 +711,17 @@ export function DiagnosticsDialog({
                     handleApplyThresholds();
                     console.log('[Diagnostics] Thresholds applied — scoringInput will switch to IMPACTS');
                   }}
-                  className="w-full bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white font-bold uppercase"
+                  disabled={!canApply}
+                  className="w-full bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white font-bold uppercase disabled:opacity-50"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   APLICAR NO PLACAR (modo IMPACTOS)
                 </Button>
+                {!canApply && (
+                  <p className="text-xs text-yellow-400 mt-2 text-center">
+                    ⚠️ Bata no equipamento para registrar a escala antes de aplicar.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
