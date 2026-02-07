@@ -107,12 +107,25 @@ export function DiagnosticsDialog({
   };
 
   const handleApplyThresholds = () => {
-    const thresholds = {
-      vestHitMin: sensToThreshold(vestHitSens),
-      vestPointMin: sensToThreshold(vestPointSens),
-      helmetHitMin: sensToThreshold(helmetHitSens),
-      helmetPointMin: sensToThreshold(helmetPointSens),
-    };
+    let vestHitMin = sensToThreshold(vestHitSens);
+    let vestPointMin = sensToThreshold(vestPointSens);
+    let helmetHitMin = sensToThreshold(helmetHitSens);
+    let helmetPointMin = sensToThreshold(helmetPointSens);
+
+    // Garantir separação mínima: pointMin >= hitMin + 1
+    if (vestPointMin <= vestHitMin) vestPointMin = vestHitMin + 1;
+    if (helmetPointMin <= helmetHitMin) helmetPointMin = helmetHitMin + 1;
+
+    const thresholds = { vestHitMin, vestPointMin, helmetHitMin, helmetPointMin };
+
+    console.log(
+      `[APPLY] rangeAboveFloor=${rangeAboveFloor} avgFloor=${avgFloor} globalMax=${maxScale}\n` +
+      `  vestHit: sens=${vestHitSens} -> minAboveFloor=${vestHitMin}\n` +
+      `  vestPoint: sens=${vestPointSens} -> minAboveFloor=${vestPointMin}\n` +
+      `  helmetHit: sens=${helmetHitSens} -> minAboveFloor=${helmetHitMin}\n` +
+      `  helmetPoint: sens=${helmetPointSens} -> minAboveFloor=${helmetPointMin}`
+    );
+
     diagnostics.setThresholds(thresholds);
     onThresholdsApplied?.(thresholds);
   };
@@ -605,6 +618,15 @@ export function DiagnosticsDialog({
                     <AlertTriangle className="w-4 h-4 text-[hsl(var(--sulsport-yellow))] shrink-0 mt-0.5" />
                     <span className="text-xs text-[hsl(var(--sulsport-yellow))]">
                       Sem calibração de ruído — calibre o repouso antes de ajustar.
+                    </span>
+                  </div>
+                )}
+
+                {hasNoiseFloor && rangeAboveFloor < 5 && (
+                  <div className="flex items-start gap-2 p-2 rounded bg-[hsl(var(--sulsport-yellow))]/10 border border-[hsl(var(--sulsport-yellow))]/30">
+                    <AlertTriangle className="w-4 h-4 text-[hsl(var(--sulsport-yellow))] shrink-0 mt-0.5" />
+                    <span className="text-xs text-[hsl(var(--sulsport-yellow))]">
+                      Escala observada muito baixa (range={rangeAboveFloor}). Bata forte no equipamento antes de aplicar para melhorar a calibração.
                     </span>
                   </div>
                 )}
