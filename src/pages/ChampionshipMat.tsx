@@ -73,6 +73,7 @@ export default function ChampionshipMat() {
   
   useEffect(() => {
     handleHardwareKickRef.current = (side: Side, hitType: HitType) => {
+      console.log('[Championship] Kick:', side, hitType, 'status:', sync.state.status);
       if (sync.state.status !== 'RUNNING') return;
       const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
       const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
