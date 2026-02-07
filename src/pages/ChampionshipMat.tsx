@@ -127,6 +127,14 @@ export default function ChampionshipMat() {
       
       // Threshold check first
       let decision: ShadowLogEntry['decision'];
+      console.log('[Championship] Impact:', {
+        deviceId: impact.deviceId,
+        peak: impact.peakIntensity,
+        peakAboveFloor,
+        hitMin,
+        pointMin,
+        equipType,
+      });
       if (peakAboveFloor >= pointMin) {
         decision = 'POINT';
       } else if (peakAboveFloor >= hitMin) {
@@ -364,18 +372,18 @@ export default function ChampionshipMat() {
         scoringInput={scoringInput}
         onExportShadowLog={handleExportShadowLog}
         onThresholdsApplied={(t: HardwareThresholds) => {
-          const current = sync.state.config;
-          sync.saveConfig({
-            ...current,
+          console.log('[Championship] Applying wizard thresholds to match config:', t);
+          sync.updateConfigInPlace(config => ({
+            ...config,
             impactThresholds: {
-              ...current.impactThresholds,
+              ...config.impactThresholds,
               vestHitMin: t.vestHitMin,
               vestPointMin: t.vestPointMin,
               helmetHitMin: t.helmetHitMin,
               helmetPointMin: t.helmetPointMin,
-              noiseFloor: current.impactThresholds?.noiseFloor ?? {},
+              noiseFloor: config.impactThresholds?.noiseFloor ?? {},
             },
-          });
+          }));
         }}
       />
       

@@ -52,6 +52,7 @@ interface UseChampionshipSyncReturn {
   
   // Config
   saveConfig: (config: MatchConfig) => void;
+  updateConfigInPlace: (updater: (config: MatchConfig) => MatchConfig) => void;
   hasConfig: boolean;
 }
 
@@ -629,6 +630,18 @@ export function useChampionshipSync({
     broadcast(newState, true);
   }, [role, broadcast]);
   
+  // Update config without resetting match state
+  const updateConfigInPlace = useCallback((updater: (config: MatchConfig) => MatchConfig) => {
+    if (role !== 'master') return;
+    setState(prev => {
+      const newConfig = updater(prev.config);
+      localStorage.setItem(getConfigStorageKey(newConfig.matId), JSON.stringify(newConfig));
+      const newState: MatchState = { ...prev, config: newConfig };
+      broadcast(newState, true);
+      return newState;
+    });
+  }, [role, broadcast]);
+  
   // Add hit (silent, no event log)
   const addHit = useCallback((side: MatchSide) => {
     if (role !== 'master') return;
@@ -666,6 +679,7 @@ export function useChampionshipSync({
     undoLast,
     canUndo: history.length > 0,
     saveConfig,
+    updateConfigInPlace,
     hasConfig: state.hasConfig,
   };
 }
