@@ -1,52 +1,43 @@
 
-# Fix: Golpes no colete nao pontuam
 
-## Causa raiz
+# Presets de Sensibilidade (Baixa, Media, Alta)
 
-O botao "APLICAR NO PLACAR" nos sliders de sensibilidade atualiza os thresholds (`vestHitMin`, `vestPointMin`, etc.) e o `noiseFloor` na config, mas **nao muda `scoringInput` para `'impacts'`**. O valor padrao de `scoringInput` eh `'raw'`.
+## Resumo
 
-No handler de impactos (ChampionshipMat.tsx, linha 97):
+Adicionar 3 botoes de preset acima dos sliders no card "SENSIBILIDADE" do DiagnosticsDialog. Cada preset ajusta os 4 sliders de uma vez, respeitando a regra `sensPoint <= sensHit`.
+
+## Valores dos presets
+
+| Preset | HIT (colete/capacete) | PONTO (colete/capacete) |
+|--------|----------------------|------------------------|
+| Baixa  | 30                   | 15                     |
+| Media  | 50                   | 35                     |
+| Alta   | 80                   | 60                     |
+
+- "Baixa" = menos sensivel, exige golpes mais fortes
+- "Alta" = mais sensivel, detecta golpes mais leves
+- Os valores de PONTO sao sempre menores que HIT, mantendo a invariante
+
+## Mudanca na UI
+
+Tres botoes em linha (estilo toggle/chip) logo abaixo do titulo "SENSIBILIDADE" e acima do aviso de calibracao. O preset ativo fica destacado. Se o operador ajustar manualmente qualquer slider, o destaque do preset some (estado "custom").
+
+## Detalhes tecnicos
+
+### Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
+
+**Adicionar:**
+- Constante com os 3 presets e seus valores
+- Estado `activePreset` (null | 'low' | 'mid' | 'high')
+- Funcao `applyPreset(preset)` que seta os 4 sliders de uma vez
+- Nos handlers dos sliders, setar `activePreset = null` (custom)
+- 3 botoes entre o CardHeader e o aviso de calibracao, com estilo condicional para o preset ativo
+
 ```text
-if (config.scoringInput !== 'impacts' || !config.impactThresholds) return;
+Linha ~563 (apos CardTitle, antes do CardContent.space-y-4):
+
+[  BAIXA  ] [  MEDIA  ] [  ALTA  ]
 ```
 
-Se `scoringInput` continua `'raw'`, todos os impactos sao descartados silenciosamente. O modo RAW (legado) usa o callback `onKick` que mapeia 1 pacote = 1 golpe, sem thresholds -- mas quando o ImpactDetector esta ativo, os pacotes individuais podem nao estar disparando `onKick`.
+Estilo: botoes pequenos com borda, o ativo recebe fundo verde (sulsport-green). Inativos ficam com borda cinza.
 
-## Solucao
-
-Quando o operador clica "APLICAR NO PLACAR" no painel de sensibilidade, alem de enviar os thresholds, o sistema deve **automaticamente** mudar `scoringInput` para `'impacts'`. Isso elimina o passo manual de ir ate a Config e trocar o modo.
-
-## Mudancas
-
-### 1. `src/pages/ChampionshipMat.tsx` (callback `onThresholdsApplied`)
-
-Na linha 386-399, onde `onThresholdsApplied` eh chamado, adicionar `scoringInput: 'impacts'` no `updateConfigInPlace`:
-
-```text
-sync.updateConfigInPlace(config => ({
-  ...config,
-  scoringInput: 'impacts',        // <-- ADICIONAR
-  impactThresholds: {
-    ...config.impactThresholds,
-    vestHitMin: t.vestHitMin,
-    vestPointMin: t.vestPointMin,
-    helmetHitMin: t.helmetHitMin,
-    helmetPointMin: t.helmetPointMin,
-    noiseFloor: diagnostics.noiseFloor,
-  },
-}));
-```
-
-### 2. `src/components/championship/DiagnosticsDialog.tsx` (feedback visual)
-
-Adicionar um log no console ao aplicar, e opcionalmente um toast/feedback indicando que o modo foi trocado para IMPACTOS.
-
-## Resultado esperado
-
-Apos clicar "APLICAR NO PLACAR":
-- `scoringInput` muda para `'impacts'` automaticamente
-- Os thresholds relativos (minAboveFloor) ficam ativos
-- O badge "IMPACTOS" aparece no header do ChampionshipMat
-- Golpes no colete com peakAboveFloor >= vestPointMin pontuam como BODY
-- Golpes no colete com peakAboveFloor >= vestHitMin contam como HIT (estatistica)
-- Golpes abaixo de vestHitMin sao ignorados
