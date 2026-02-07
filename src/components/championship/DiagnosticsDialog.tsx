@@ -57,6 +57,22 @@ export function DiagnosticsDialog({
   const [vestPointSens, setVestPointSens] = useState(50);
   const [helmetHitSens, setHelmetHitSens] = useState(50);
   const [helmetPointSens, setHelmetPointSens] = useState(50);
+  const [activePreset, setActivePreset] = useState<'low' | 'mid' | 'high' | null>('mid');
+
+  const SENSITIVITY_PRESETS = {
+    low:  { hit: 30, point: 15, label: 'BAIXA' },
+    mid:  { hit: 50, point: 35, label: 'MÉDIA' },
+    high: { hit: 80, point: 60, label: 'ALTA' },
+  } as const;
+
+  const applyPreset = (key: 'low' | 'mid' | 'high') => {
+    const p = SENSITIVITY_PRESETS[key];
+    setVestHitSens(p.hit);
+    setVestPointSens(p.point);
+    setHelmetHitSens(p.hit);
+    setHelmetPointSens(p.point);
+    setActivePreset(key);
+  };
   const isConnected = serialPort?.isConnected ?? false;
 
   // Sensitivity mapping helpers
@@ -72,18 +88,22 @@ export function DiagnosticsDialog({
   const handleVestHitSens = (val: number) => {
     setVestHitSens(val);
     if (vestPointSens > val) setVestPointSens(val);
+    setActivePreset(null);
   };
   const handleVestPointSens = (val: number) => {
     setVestPointSens(val);
     if (val > vestHitSens) setVestHitSens(val);
+    setActivePreset(null);
   };
   const handleHelmetHitSens = (val: number) => {
     setHelmetHitSens(val);
     if (helmetPointSens > val) setHelmetPointSens(val);
+    setActivePreset(null);
   };
   const handleHelmetPointSens = (val: number) => {
     setHelmetPointSens(val);
     if (val > helmetHitSens) setHelmetHitSens(val);
+    setActivePreset(null);
   };
 
   const handleApplyThresholds = () => {
@@ -560,6 +580,24 @@ export function DiagnosticsDialog({
                 <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
                   SENSIBILIDADE
                 </CardTitle>
+                <div className="flex gap-2 mt-2">
+                  {(Object.keys(SENSITIVITY_PRESETS) as Array<'low' | 'mid' | 'high'>).map((key) => (
+                    <Button
+                      key={key}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => applyPreset(key)}
+                      className={cn(
+                        'flex-1 h-8 text-xs font-bold uppercase transition-colors',
+                        activePreset === key
+                          ? 'bg-[hsl(var(--sulsport-green))] border-[hsl(var(--sulsport-green))] text-white hover:bg-[hsl(var(--sulsport-green-light))]'
+                          : 'border-zinc-600 text-zinc-400 hover:bg-zinc-700'
+                      )}
+                    >
+                      {SENSITIVITY_PRESETS[key].label}
+                    </Button>
+                  ))}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {!hasNoiseFloor && (
