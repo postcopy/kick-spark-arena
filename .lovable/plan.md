@@ -1,59 +1,55 @@
 
 
-# Fix: Thresholds absolutos ficam altos demais com globalMax=100 (default)
+# Fix: Scoring duplo - onKick raw dispara junto com o modo IMPACTOS
 
-## Causa raiz
+## Causa raiz encontrada
 
-A funcao `sensToThreshold` usa `maxScale` que faz fallback para 100 quando o operador ainda nao observou impactos fortes (ou o `globalMax` observado e baixo). Com preset MEDIA:
+O bug principal NAO esta nos thresholds nem na sensibilidade. O problema e que **os dois caminhos de scoring disparam ao mesmo tempo**:
 
 ```text
-maxScale = 100 (fallback)
-hitMin   = (1 - 0.50) * 100 = 50
-pointMin = (1 - 0.35) * 100 = 65
+Pacote serial chega
+  |
+  +---> ImpactDetector.feed() --> flush --> handleImpact (com thresholds) --> pode virar HIT ou POINT
+  |
+  +---> onKick() --> handleHardwareKick --> sync.addScore() DIRETO (sem threshold nenhum!)
 ```
 
-Se os sensores operam numa escala de 0-30, nenhum impacto atinge 50. Tudo vira IGNORED.
+O `handleHardwareKick` em ChampionshipMat.tsx (linha 73-79) NAO verifica se o modo e 'impacts'. Ele chama `sync.addScore()` para qualquer pacote que passe o debounce de 150ms. Resultado: qualquer toque leve vira POINT instantaneamente pelo caminho raw, ignorando completamente o sistema de thresholds.
 
 ## Solucao
 
-### 1. Bloquear o botao APLICAR enquanto nao houver globalMax real
+### 1. ChampionshipMat.tsx - Bloquear onKick quando scoringInput === 'impacts'
 
-No `DiagnosticsDialog.tsx`, desabilitar o botao "APLICAR NO PLACAR" quando `diagnostics.observedScale.globalMax <= 0`. Exibir uma mensagem: "Bata no equipamento para registrar a escala antes de aplicar."
+No `handleHardwareKickRef` (useEffect, linha 72-80), adicionar um guard no inicio:
 
-Isso impede que o operador aplique thresholds baseados no fallback de 100.
-
-### 2. Remover o fallback de 100
-
-Mudar a linha 82 para usar o `globalMax` real (sem fallback) e so permitir o calculo quando ele for > 0. Se for 0, `sensToThreshold` retorna 0 (mas o botao estara desabilitado, entao nunca sera aplicado).
-
-```text
-const maxScale = diagnostics.observedScale.globalMax;
+```
+if (sync.state.config.scoringInput === 'impacts') return;
 ```
 
-### 3. Log de seguranca no APLICAR
+Isso garante que quando o modo IMPACTOS esta ativo, apenas o `handleImpact` (que tem thresholds) processa os dados. O caminho raw (`onKick`) fica desativado.
 
-Adicionar ao log existente do `handleApplyThresholds` o valor de `maxScale` para confirmar que nao esta usando 100 por engano. (Ja existe parcialmente, so confirmar que mostra o valor correto.)
+### 2. useSerialPort.ts - Pular pipeline onKick quando detector esta ativo
 
-## Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
+Como segunda camada de seguranca, no `startReading` (linha 248-265), envolver o bloco do onKick com um guard:
 
-### Linha 82 - Remover fallback
+```
+if (!detectorRef.current) {
+  // Legacy onKick pipeline
+  ...
+}
+```
 
-De: `const maxScale = diagnostics.observedScale.globalMax > 0 ? diagnostics.observedScale.globalMax : 100;`
+Quando o ImpactDetector esta ativo, o pipeline de onKick nem executa. Isso evita logs desnecessarios e garante que nao ha bypass possivel.
 
-Para: `const maxScale = diagnostics.observedScale.globalMax;`
+## Arquivos modificados
 
-### Botao APLICAR - Adicionar disabled + mensagem
-
-Desabilitar o botao quando `maxScale <= 0` e exibir texto explicativo abaixo do botao.
-
-### sensToThreshold - Proteger contra maxScale=0
-
-Adicionar guard: `if (maxScale <= 0) return 0;` antes do calculo. Isso e uma seguranca extra, ja que o botao estara desabilitado.
+- `src/pages/ChampionshipMat.tsx` - 1 linha adicionada no handleHardwareKickRef
+- `src/hooks/useSerialPort.ts` - Envolver bloco onKick com guard `if (!detectorRef.current)`
 
 ## Resultado esperado
 
-- Operador precisa bater no equipamento (gerando globalMax real) antes de aplicar thresholds
-- Thresholds refletem a escala real do hardware (ex: se globalMax=30, hitMin=15, pointMin=20)
-- Sem mais fallback para 100 que gera thresholds impossiveis de atingir
-- Log confirma o maxScale usado
+- No modo RAW: funciona como antes (onKick dispara, sem thresholds)
+- No modo IMPACTOS: apenas o ImpactDetector processa os dados, com thresholds absolutos
+- Toque leve no modo IMPACTOS: peakIntensity avaliado contra hitMin/pointMin, nao pontua direto
+- Sem mais scoring duplo
 
