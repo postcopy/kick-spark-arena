@@ -1,62 +1,59 @@
 
 
-# Alinhar modo IMPACTOS com logica legacy (Tadashi)
+# Fix: Thresholds absolutos ficam altos demais com globalMax=100 (default)
 
-## Resumo das mudancas
+## Causa raiz
 
-Tres diferencas fundamentais entre o sistema atual e o legado:
+A funcao `sensToThreshold` usa `maxScale` que faz fallback para 100 quando o operador ainda nao observou impactos fortes (ou o `globalMax` observado e baixo). Com preset MEDIA:
 
-1. **Threshold absoluto** (legado) vs relativo ao floor (atual) -- scoring usa `peakIntensity` direto, sem subtrair noiseFloor
-2. **Anti-duplicata por deviceId** (legado) vs por lado/MatchSide (atual) -- janela de 300ms por sensor individual, descarta o impacto inteiro
-3. **Sem merge HEAD/BODY** (legado) vs merge por lado (atual) -- remove toda a logica de MERGED/DUPLICATE por lado
+```text
+maxScale = 100 (fallback)
+hitMin   = (1 - 0.50) * 100 = 50
+pointMin = (1 - 0.35) * 100 = 65
+```
 
-## Detalhes tecnicos
+Se os sensores operam numa escala de 0-30, nenhum impacto atinge 50. Tudo vira IGNORED.
 
-### 1. Arquivo: `src/pages/ChampionshipMat.tsx` (handler de impacto, linhas ~93-189)
+## Solucao
 
-**Reescrever a logica de scoring no `handleImpactRef`:**
+### 1. Bloquear o botao APLICAR enquanto nao houver globalMax real
 
-- Remover calculo de `peakAboveFloor` -- usar `impact.peakIntensity` direto contra os thresholds
-- Classificacao: `peakIntensity >= pointMin` -> POINT; `peakIntensity >= hitMin` -> HIT; senao IGNORED
-- Anti-duplicata por `deviceId` (nao por `matchSide`): manter um Map de `lastAcceptedTs` por deviceId; se `now - lastTs < 300ms`, descartar o impacto inteiro (decision = 'DUPLICATE')
-- Remover toda a logica de merge (MERGED, comparacao HEAD vs BODY, `lastScoredRef` por lado)
-- HIT counter: incrementar quando decision === 'HIT' (nao precisa de anti-duplo extra, o filtro por deviceId ja cobre)
-- POINT: incrementar score + hit quando decision === 'POINT'
-- Log atualizado: `[IMPACT] dev=X peak=Y hitMin=Z pointMin=W -> DECISION (type/side)`
+No `DiagnosticsDialog.tsx`, desabilitar o botao "APLICAR NO PLACAR" quando `diagnostics.observedScale.globalMax <= 0`. Exibir uma mensagem: "Bata no equipamento para registrar a escala antes de aplicar."
 
-**Refs simplificados:**
-- Substituir `lastScoredRef` (Map por MatchSide) por `lastAcceptedTsRef` (Map por deviceId/number)
-- Remover `lastHitTsRef` (nao precisa mais de anti-duplo separado para hits)
+Isso impede que o operador aplique thresholds baseados no fallback de 100.
 
-### 2. Arquivo: `src/components/championship/DiagnosticsDialog.tsx` (handleApplyThresholds, linhas ~109-131)
+### 2. Remover o fallback de 100
 
-**Mudar `sensToThreshold` para retornar threshold absoluto:**
+Mudar a linha 82 para usar o `globalMax` real (sem fallback) e so permitir o calculo quando ele for > 0. Se for 0, `sensToThreshold` retorna 0 (mas o botao estara desabilitado, entao nunca sera aplicado).
 
-Hoje: `sensToThreshold = (1 - sens/100) * rangeAboveFloor` (relativo)
+```text
+const maxScale = diagnostics.observedScale.globalMax;
+```
 
-Novo: `sensToThreshold = (1 - sens/100) * globalMax` (absoluto, sem subtrair floor)
+### 3. Log de seguranca no APLICAR
 
-- Sensibilidade 100 -> threshold 0 (tudo pontua)
-- Sensibilidade 0 -> threshold = globalMax (precisa do pico maximo)
-- Sensibilidade 50 -> threshold = globalMax * 0.5
+Adicionar ao log existente do `handleApplyThresholds` o valor de `maxScale` para confirmar que nao esta usando 100 por engano. (Ja existe parcialmente, so confirmar que mostra o valor correto.)
 
-Manter a regra `pointMin >= hitMin + 1` e o log de diagnostico.
+## Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
 
-O noiseFloor continua sendo enviado no config (para diagnostico/UI), mas nao e usado no scoring.
+### Linha 82 - Remover fallback
 
-### 3. Arquivo: `src/types/championship.ts` (comentario, linha 78)
+De: `const maxScale = diagnostics.observedScale.globalMax > 0 ? diagnostics.observedScale.globalMax : 100;`
 
-Atualizar o comentario do `antiDuplicateWindowMs` de "for merging BODY+HEAD on same side" para "per deviceId, discards entire impact within window".
+Para: `const maxScale = diagnostics.observedScale.globalMax;`
 
-### 4. ShadowLog (dentro de ChampionshipMat.tsx)
+### Botao APLICAR - Adicionar disabled + mensagem
 
-Atualizar o campo `peakAboveFloor` no log entry para ser informativo (pode manter para diagnostico), mas a decisao usa `peakIntensity` absoluto. Adicionar campo `threshold` com o valor usado na decisao (hitMin ou pointMin conforme o caso).
+Desabilitar o botao quando `maxScale <= 0` e exibir texto explicativo abaixo do botao.
+
+### sensToThreshold - Proteger contra maxScale=0
+
+Adicionar guard: `if (maxScale <= 0) return 0;` antes do calculo. Isso e uma seguranca extra, ja que o botao estara desabilitado.
 
 ## Resultado esperado
 
-- Toque leve no colete com `peakIntensity` < `vestPointMin` -> HIT (ou IGNORED se < hitMin)
-- Golpe forte com `peakIntensity` >= `vestPointMin` -> POINT
-- Dois eventos do mesmo sensor em < 300ms -> segundo e DUPLICATE (descartado)
-- Sem mais logica de merge HEAD/BODY por lado
-- Thresholds sao valores absolutos de intensidade, independentes do noise floor
+- Operador precisa bater no equipamento (gerando globalMax real) antes de aplicar thresholds
+- Thresholds refletem a escala real do hardware (ex: se globalMax=30, hitMin=15, pointMin=20)
+- Sem mais fallback para 100 que gera thresholds impossiveis de atingir
+- Log confirma o maxScale usado
 
