@@ -13,7 +13,9 @@ import {
   Usb,
   Settings,
   Activity,
-  Download
+  Download,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MatchState, MatchSide } from '@/types/championship';
@@ -61,9 +63,11 @@ interface OperatorPanelProps {
   scoringInput?: 'impacts';
   onExportShadowLog?: () => void;
   onThresholdsApplied?: (thresholds: import('@/types/hardwareDiagnostics').HardwareThresholds) => void;
+  isMuted?: boolean;
+  onToggleMute?: () => void;
 }
 
-export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, diagnostics, onOpenConfig, scoringInput, onExportShadowLog, onThresholdsApplied }: OperatorPanelProps) {
+export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, diagnostics, onOpenConfig, scoringInput, onExportShadowLog, onThresholdsApplied, isMuted, onToggleMute }: OperatorPanelProps) {
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showScoreAdjust, setShowScoreAdjust] = useState(false);
@@ -382,6 +386,15 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             >
               NOVA LUTA
             </Button>
+            {onToggleMute && (
+              <Button
+                onClick={onToggleMute}
+                className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase"
+              >
+                {isMuted ? <VolumeX className="w-4 h-4 mr-2" /> : <Volume2 className="w-4 h-4 mr-2" />}
+                {isMuted ? 'SOM: DESLIGADO' : 'SOM: LIGADO'}
+              </Button>
+            )}
           </div>
         </section>
         
