@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -101,6 +102,8 @@ export function DiagnosticsDialog({
     const thresholds: HardwareThresholds = { vestHitMin, vestPointMin, helmetHitMin, helmetPointMin };
     diagnostics.setThresholds(thresholds);
     onThresholdsApplied?.(thresholds);
+    toast.success("Configuração salva com sucesso!");
+    onOpenChange(false);
   };
 
   return (
