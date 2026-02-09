@@ -1,26 +1,25 @@
 
-# Trocar o som de ponto do Campeonato
+# Ajuste do Gam-jeom para regras WT
 
-## Resumo
+## Diagnostico
 
-Substituir o som usado para registrar pontos no modo Campeonato pelo arquivo `ponto.mp3` enviado. Para nao afetar os outros modos de jogo (que continuam usando `hit`), sera criado um novo som dedicado `scoreBeep`.
+Apos analisar o codigo, a logica de gam-jeom **ja esta correta** para os itens 1 e 2:
+- Adicionar gam-jeom ja adiciona +1 ao adversario (penalidade cruzada)
+- Remover gam-jeom ja subtrai -1 do adversario
+
+O que precisa mudar:
 
 ## Mudancas
 
-### 1. Copiar o arquivo de audio
-- Copiar `user-uploads://ponto.mp3` para `public/sounds/score-beep.mp3`
+### 1. Alterar o limite padrao de 10 para 5 (`src/types/championship.ts`)
+- Mudar `maxGamjeom: 10` para `maxGamjeom: 5` no `DEFAULT_MATCH_CONFIG`
 
-### 2. Registrar o novo som (`src/hooks/useSoundEffects.ts`)
-- Adicionar `'scoreBeep'` ao tipo `SoundName`
-- Adicionar em `FALLBACK_PATHS`: `scoreBeep: '/sounds/score-beep.mp3'`
-- Adicionar em `POOL_SIZES`: `scoreBeep: 2`
-
-### 3. Usar o novo som no Campeonato (`src/pages/ChampionshipMat.tsx`)
-- Trocar `play('hit')` por `play('scoreBeep')` na linha onde o ponto e registrado pelo hardware (dentro do `handleImpact`, quando `isPoint === true`)
-
-Os outros modos de jogo continuam usando `play('hit')` normalmente -- nenhuma mudanca neles.
+### 2. Melhorar a mensagem de limite de faltas (`src/hooks/useChampionshipSync.ts`)
+- Trocar as mensagens de `"Limite de Gam-jeom! Azul vence o round"` e `"Limite de Gam-jeom! Vermelho vence o round"` para incluir **"Vitoria por Limite de Faltas (PUN)"** conforme solicitado
 
 ### Arquivos modificados
-1. `public/sounds/score-beep.mp3` (novo)
-2. `src/hooks/useSoundEffects.ts` (adicionar scoreBeep)
-3. `src/pages/ChampionshipMat.tsx` (trocar hit por scoreBeep)
+1. `src/types/championship.ts` - maxGamjeom de 10 para 5
+2. `src/hooks/useChampionshipSync.ts` - mensagens do evento GAMJEOM_LIMIT
+
+### Nota
+As regras 1 (penalidade cruzada) e 2 (desfazer) ja estao funcionando corretamente, conforme verificado no teste anterior.
