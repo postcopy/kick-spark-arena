@@ -85,9 +85,9 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
   const canPause = isRunning;
   
   // GAM-JEOM button rules:
-  // [+] enabled ONLY when status === 'RUNNING'
+  // [+] enabled when RUNNING (auto-pause) or PAUSED (apply without status change)
   // [-] enabled ONLY when status !== 'RUNNING' and gamjeom > 0
-  const canAddGamjeom = isRunning;
+  const canAddGamjeom = isRunning || state.status === 'PAUSED';
   const canRemoveGamjeomBlue = !isRunning && state.gamjeomBlue > 0;
   const canRemoveGamjeomRed = !isRunning && state.gamjeomRed > 0;
   

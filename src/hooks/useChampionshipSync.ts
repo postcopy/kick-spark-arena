@@ -524,7 +524,7 @@ export function useChampionshipSync({
   const addGamjeom = useCallback((side: MatchSide) => {
     if (role !== 'master') return;
     const s = stateRef.current;
-    if (s.status !== 'RUNNING') return;
+    if (s.status !== 'RUNNING' && s.status !== 'PAUSED') return;
     
     saveToHistory(s);
     
@@ -532,13 +532,19 @@ export function useChampionshipSync({
     const opponentLabel = side === 'RED' ? 'Azul' : 'Vermelho';
     
     setState(prev => {
+      const isRunning = prev.status === 'RUNNING';
       const newState: MatchState = {
         ...prev,
+        status: isRunning ? 'PAUSED' : prev.status,
         gamjeomRed: side === 'RED' ? prev.gamjeomRed + 1 : prev.gamjeomRed,
         gamjeomBlue: side === 'BLUE' ? prev.gamjeomBlue + 1 : prev.gamjeomBlue,
         roundScoreRed: side === 'BLUE' ? prev.roundScoreRed + 1 : prev.roundScoreRed,
         roundScoreBlue: side === 'RED' ? prev.roundScoreBlue + 1 : prev.roundScoreBlue,
-        events: [createEvent('GAMJEOM', `GAM-JEOM ${sideLabel} (+1 ponto ${opponentLabel})`, side, 1), ...prev.events].slice(0, MAX_EVENTS),
+        events: [
+          createEvent('GAMJEOM', `GAM-JEOM ${sideLabel} (+1 ponto ${opponentLabel})`, side, 1),
+          ...(isRunning ? [createEvent('TIMER_PAUSE', 'Auto-pause: Gam-jeom aplicado')] : []),
+          ...prev.events
+        ].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
