@@ -135,13 +135,12 @@ export default function ChampionshipMat() {
       // Always accept timestamp (no more IGNORED)
       lastAcceptedTsRef.current.set(impact.deviceId, now);
       
-      // Always count as HIT
-      sync.addHit(matchSide);
-      
-      // Score if POINT
+      // Mutually exclusive: POINT increments score only, HIT increments hit counter only
       if (isPoint) {
         const scoreType: ScoreType = isHelmet ? 'HEAD' : 'BODY';
         sync.addScore(matchSide, scoreType);
+      } else {
+        sync.addHit(matchSide);
       }
     };
   }, [sync.state.status, sync.state.config, sync.addScore, sync.addHit]);
