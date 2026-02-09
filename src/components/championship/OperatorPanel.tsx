@@ -333,7 +333,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
                   className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
                 >
                   <Activity className="w-4 h-4 mr-2" />
-                  DIAGNÓSTICO
+                  CALIBRAGEM
                 </Button>
               )}
               
