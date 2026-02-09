@@ -1,28 +1,64 @@
 
-# Separar Botao de Desconectar do Botao de Fechar
 
-## Problema
+# Melhorias de UX: Atalhos de Teclado e Sons para Mesa de Luta
 
-O botao "DESCONECTAR" e o badge "CONECTADO" estao na mesma linha do titulo, colidindo com o botao X de fechar o dialog (canto superior direito).
+## Resumo
 
-## Solucao
+Adicionar atalhos de teclado (Espaco/ESC) e efeitos sonoros (hit para pontos, buzina para fim de round, beep para inicio de round) ao modo campeonato, reutilizando o sistema de audio existente e adicionando o som enviado pelo usuario.
 
-Mover o badge de status e o botao de conexao para uma segunda linha abaixo do titulo, separando-os do botao X.
+## Mudancas
 
-## Detalhes Tecnicos
+### 1. Copiar som de inicio de round
+- Copiar o arquivo `ES_Truck_Reverse_Beep_-_Epidemic_Sound.mp3` para `public/sounds/round-start.mp3`
 
-### Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
+### 2. Registrar novo som no sistema de audio (`src/hooks/useSoundEffects.ts`)
+- Adicionar `'roundStart'` ao tipo `SoundName`
+- Adicionar path em `FALLBACK_PATHS`: `roundStart: '/sounds/round-start.mp3'`
+- Adicionar pool size em `POOL_SIZES`: `roundStart: 1`
 
-Alterar o bloco do DialogHeader (linhas 113-147) para separar em duas linhas:
+### 3. Criar componente interno com SoundProvider (`src/pages/ChampionshipMat.tsx`)
 
-1. **Linha 1**: Apenas o titulo "CALIBRAGEM DE HARDWARE" (o botao X do dialog fica naturalmente no canto direito, sem conflito)
-2. **Linha 2**: Badge de status (CONECTADO/DESCONECTADO) + botao DESCONECTAR/CONECTAR USB lado a lado
+Reestruturar para:
 
-Estrutura resultante:
-
+```text
+ChampionshipMat (exportado)
+  SoundProvider
+    ChampionshipMatInner (toda a logica atual + hooks de som/teclado)
 ```
-CALIBRAGEM DE HARDWARE                    [X]
-[● CONECTADO]  [DESCONECTAR]
-```
 
-Apenas reorganizacao de layout -- nenhuma logica alterada.
+Adicionar dentro de `ChampionshipMatInner`:
+
+**a) Som ao registrar ponto (hardware)**
+- No `handleImpact`, quando `isPoint === true`, chamar `play('hit')`
+
+**b) Som de fim de round / fim de luta**
+- `useEffect` observando `sync.state.status` -- ao mudar para `ROUND_END` ou `MATCH_END`, chamar `play('timeUp')`
+
+**c) Som de inicio de round**
+- `useEffect` observando `sync.state.status` -- ao mudar para `RUNNING` (round iniciou), chamar `play('roundStart')`
+
+**d) Atalhos de teclado**
+- `useEffect` com listener `keydown`:
+  - **Espaco**: se `IDLE` ou `PAUSED` -> `startTimer()` / se `RUNNING` -> `pauseTimer()`
+  - **ESC**: se `RUNNING` -> `pauseTimer()`
+  - Ignora se foco em `INPUT`, `TEXTAREA`, `SELECT` ou `contentEditable`
+  - `e.preventDefault()` para evitar scroll
+
+**e) Unlock audio + preload**
+- Chamar `unlockAudio()` e `initFullPreload()` no mount
+
+**f) Passar `isMuted` e `toggleMute` ao OperatorPanel**
+
+### 4. Botao Mute no OperatorPanel (`src/components/championship/OperatorPanel.tsx`)
+
+- Adicionar props `isMuted?: boolean` e `onToggleMute?: () => void`
+- Adicionar botao na secao CONFIGURACOES com icone `Volume2` (ligado) ou `VolumeX` (desligado)
+- Texto: "SOM: LIGADO" / "SOM: DESLIGADO"
+- Mesmo estilo dos botoes secundarios (zinc-700, border)
+
+## Arquivos modificados
+1. `public/sounds/round-start.mp3` (novo - copia do upload)
+2. `src/hooks/useSoundEffects.ts` (adicionar soundName roundStart)
+3. `src/pages/ChampionshipMat.tsx` (SoundProvider wrapper + atalhos + sons)
+4. `src/components/championship/OperatorPanel.tsx` (botao mute)
+
