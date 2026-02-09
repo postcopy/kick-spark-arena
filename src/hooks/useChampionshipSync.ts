@@ -280,7 +280,7 @@ export function useChampionshipSync({
     if (gamjeomRed >= config.maxGamjeom) {
       setState(prev => {
         const newState = handleRoundEndWithWinner(prev, 'BLUE', 'GAMJEOM_LIMIT',
-          `Limite de Gam-jeom! Azul vence o round`);
+          `Vitória por Limite de Faltas (PUN) — Azul vence o round`);
         broadcast(newState, true);
         return newState;
       });
@@ -290,7 +290,7 @@ export function useChampionshipSync({
     if (gamjeomBlue >= config.maxGamjeom) {
       setState(prev => {
         const newState = handleRoundEndWithWinner(prev, 'RED', 'GAMJEOM_LIMIT',
-          `Limite de Gam-jeom! Vermelho vence o round`);
+          `Vitória por Limite de Faltas (PUN) — Vermelho vence o round`);
         broadcast(newState, true);
         return newState;
       });

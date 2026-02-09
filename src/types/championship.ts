@@ -84,7 +84,7 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   medicalTimeMs: 60000,    // 1:00
   breakTimeMs: 60000,      // 1:00
   maxRounds: 3,
-  maxGamjeom: 10,
+  maxGamjeom: 5,
   pointGap: 20,
   scoring: DEFAULT_SCORE_CONFIG,
   matId: 1,
