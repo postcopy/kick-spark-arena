@@ -145,7 +145,7 @@ function ChampionshipMatInner() {
       if (isPoint) {
         const scoreType: ScoreType = isHelmet ? 'HEAD' : 'BODY';
         sync.addScore(matchSide, scoreType);
-        play('hit');
+        play('scoreBeep');
       } else {
         sync.addHit(matchSide);
       }
