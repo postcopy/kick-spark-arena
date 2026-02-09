@@ -59,20 +59,20 @@ export function DiagnosticsDialog({
   serialPort,
   onThresholdsApplied,
 }: DiagnosticsDialogProps) {
-  const [vestPointMin, setVestPointMin] = useState(20);
+  const [vestPointMin, setVestPointMin] = useState(19);
   const [vestHitMin, setVestHitMin] = useState(15);
-  const [helmetPointMin, setHelmetPointMin] = useState(20);
-  const [helmetHitMin, setHelmetHitMin] = useState(15);
+  const [helmetPointMin, setHelmetPointMin] = useState(10);
+  const [helmetHitMin, setHelmetHitMin] = useState(5);
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
   // Sync from current thresholds when dialog opens
   useEffect(() => {
     if (open) {
       const t = diagnostics.thresholds;
-      setVestPointMin(t.vestPointMin || 20);
+      setVestPointMin(t.vestPointMin || 19);
       setVestHitMin(t.vestHitMin || 15);
-      setHelmetPointMin(t.helmetPointMin || 20);
-      setHelmetHitMin(t.helmetHitMin || 15);
+      setHelmetPointMin(t.helmetPointMin || 10);
+      setHelmetHitMin(t.helmetHitMin || 5);
     }
   }, [open, diagnostics.thresholds]);
 

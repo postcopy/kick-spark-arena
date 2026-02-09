@@ -93,7 +93,7 @@ function ChampionshipMatInner() {
       const equipType = deviceIdToEquipmentType(impact.deviceId);
       if (!matchSide) return;
       
-      const thresholds = config.impactThresholds ?? { vestPointMin: 20, helmetPointMin: 20, vestHitMin: 15, helmetHitMin: 15, noiseFloor: {} };
+      const thresholds = config.impactThresholds ?? { vestPointMin: 19, helmetPointMin: 10, vestHitMin: 15, helmetHitMin: 5, noiseFloor: {} };
       const floor = thresholds.noiseFloor[String(impact.deviceId)] ?? 0;
       const peakAboveFloor = impact.peakIntensity - floor;
       

@@ -91,9 +91,9 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   scoringInput: 'impacts',
   impactThresholds: {
     vestHitMin: 15,
-    vestPointMin: 20,
-    helmetHitMin: 15,
-    helmetPointMin: 20,
+    vestPointMin: 19,
+    helmetHitMin: 5,
+    helmetPointMin: 10,
     noiseFloor: {},
   },
 };
