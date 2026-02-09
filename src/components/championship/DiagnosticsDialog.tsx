@@ -111,39 +111,37 @@ export function DiagnosticsDialog({
       <DialogContent className="max-w-lg max-h-[92vh] overflow-auto bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
         {/* Header */}
         <DialogHeader>
-          <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="text-lg font-bold text-white uppercase">
-              CALIBRAGEM DE HARDWARE
-            </DialogTitle>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
+          <DialogTitle className="text-lg font-bold text-white uppercase">
+            CALIBRAGEM DE HARDWARE
+          </DialogTitle>
+          <div className="flex items-center gap-2 mt-2">
+            <Badge
+              variant="outline"
+              className={cn(
+                'uppercase font-bold text-xs',
+                isConnected
+                  ? 'border-green-500 text-green-400 bg-green-500/10'
+                  : 'border-zinc-600 text-zinc-400 bg-zinc-700'
+              )}
+            >
+              {isConnected ? '● CONECTADO' : '○ DESCONECTADO'}
+            </Badge>
+            {serialPort && (
+              <Button
+                size="sm"
+                onClick={isConnected ? serialPort.disconnect : serialPort.connect}
+                disabled={serialPort.isConnecting}
                 className={cn(
-                  'uppercase font-bold text-xs',
+                  'font-bold uppercase text-xs',
                   isConnected
-                    ? 'border-green-500 text-green-400 bg-green-500/10'
-                    : 'border-zinc-600 text-zinc-400 bg-zinc-700'
+                    ? 'bg-zinc-700 hover:bg-zinc-600'
+                    : 'bg-yellow-600 hover:bg-yellow-500 text-black'
                 )}
               >
-                {isConnected ? '● CONECTADO' : '○ DESCONECTADO'}
-              </Badge>
-              {serialPort && (
-                <Button
-                  size="sm"
-                  onClick={isConnected ? serialPort.disconnect : serialPort.connect}
-                  disabled={serialPort.isConnecting}
-                  className={cn(
-                    'font-bold uppercase text-xs',
-                    isConnected
-                      ? 'bg-zinc-700 hover:bg-zinc-600'
-                      : 'bg-yellow-600 hover:bg-yellow-500 text-black'
-                  )}
-                >
-                  <Usb className="w-4 h-4 mr-1" />
-                  {serialPort.isConnecting ? 'CONECTANDO...' : isConnected ? 'DESCONECTAR' : 'CONECTAR USB'}
-                </Button>
-              )}
-            </div>
+                <Usb className="w-4 h-4 mr-1" />
+                {serialPort.isConnecting ? 'CONECTANDO...' : isConnected ? 'DESCONECTAR' : 'CONECTAR USB'}
+              </Button>
+            )}
           </div>
         </DialogHeader>
 
