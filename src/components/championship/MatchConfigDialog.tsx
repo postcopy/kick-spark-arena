@@ -677,7 +677,7 @@ export function MatchConfigDialog({
                       className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold"
                     >
                       <RotateCcw className="w-4 h-4 mr-2" />
-                      Usar Calibração (Diagnóstico)
+                      Usar Calibração
                     </Button>
                   </>
               </TabsContent>

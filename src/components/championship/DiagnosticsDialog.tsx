@@ -88,7 +88,7 @@ export function DiagnosticsDialog({
         <DialogHeader>
           <div className="flex items-center justify-between gap-3">
             <DialogTitle className="text-lg font-bold text-white uppercase">
-              DIAGNÓSTICO DE HARDWARE
+              CALIBRAGEM DE HARDWARE
             </DialogTitle>
             <div className="flex items-center gap-2">
               <Badge
