@@ -1,29 +1,30 @@
 
-# Correcao da faixa de empate na TV
 
-## Problema
+# Novos Valores Padrao de Calibragem
 
-Na linha 591 de `src/pages/ChampionshipTV.tsx`, a condicao para exibir "EMPATE -- AGUARDANDO DECISAO DO ARBITRO" verifica apenas pontos:
+## Resumo
 
-```
-state.roundScoreRed === state.roundScoreBlue
-```
+Alterar os valores padrao (default) dos thresholds de sensibilidade para os valores da imagem de referencia:
 
-Isso ignora o desempate por HITS, mostrando a faixa mesmo quando ha um vencedor claro por volume de golpes.
+| Campo | Valor Atual | Novo Valor |
+|-------|------------|------------|
+| Colete -- Min. PONTO | 20 | 19 |
+| Colete -- Min. HIT | 15 | 15 (sem mudanca) |
+| Capacete -- Min. PONTO | 20 | 10 |
+| Capacete -- Min. HIT | 15 | 5 |
 
-## Correcao
+## Arquivos a modificar
 
-### `src/pages/ChampionshipTV.tsx` -- Linha 591
+### 1. `src/types/championship.ts` -- Default do impactThresholds
+Linha 93-96: Alterar `vestPointMin: 20` para `19`, `helmetHitMin: 15` para `5`, `helmetPointMin` de `20` para `10`.
 
-Adicionar verificacao de hits na condicao:
+### 2. `src/components/championship/DiagnosticsDialog.tsx` -- useState defaults
+Linhas 62-65: Atualizar os valores iniciais dos estados para `vestPointMin: 19`, `helmetPointMin: 10`, `helmetHitMin: 5`.
+Linhas 72-75: Atualizar os fallbacks no useEffect.
 
-```
-isRoundEnd && !isMatchEnd &&
-state.roundScoreRed === state.roundScoreBlue &&
-state.hitsRed === state.hitsBlue
-```
+### 3. `src/components/championship/MatchConfigDialog.tsx` -- Fallbacks espalhados
+Atualizar todos os fallbacks `?? 20` e `?? 15` para os novos valores (`vestPointMin ?? 19`, `helmetPointMin ?? 10`, `helmetHitMin ?? 5`).
 
-Assim, a faixa de "AGUARDANDO DECISAO" so aparece em empate total (pontos E hits iguais), alinhado com a logica da Mesa.
+### 4. `src/pages/ChampionshipMat.tsx` -- Fallback na linha de scoring
+Linha 96: Atualizar o fallback `vestPointMin: 20, helmetPointMin: 20, helmetHitMin: 15` para os novos valores.
 
-### Arquivo modificado
-1. `src/pages/ChampionshipTV.tsx` -- linha 591, adicionar `&& state.hitsRed === state.hitsBlue`
