@@ -66,23 +66,9 @@ export default function ChampionshipMat() {
     }
   }, [sync.hasConfig]);
   
-  // ─── Legacy onKick handler (RAW mode) ───
-  const handleHardwareKickRef = useRef<(side: Side, hitType: HitType) => void>(() => {});
-  
-  useEffect(() => {
-    handleHardwareKickRef.current = (side: Side, hitType: HitType) => {
-      // Block raw scoring when in IMPACTS mode — only ImpactDetector should score
-      if (sync.state.config.scoringInput === 'impacts') return;
-      console.log('[Championship] Kick:', side, hitType, 'status:', sync.state.status);
-      if (sync.state.status !== 'RUNNING') return;
-      const matchSide: MatchSide = side === 'red' ? 'RED' : 'BLUE';
-      const scoreType: ScoreType = hitType === 'helmet' ? 'HEAD' : 'BODY';
-      sync.addScore(matchSide, scoreType);
-    };
-  }, [sync.state.status, sync.addScore, sync.state.config]);
-  
-  const handleHardwareKick = useCallback((side: Side, hitType: HitType) => {
-    handleHardwareKickRef.current(side, hitType);
+  // ─── onKick no-op (RAW mode removed — all scoring via ImpactDetector) ───
+  const handleHardwareKick = useCallback((_side: Side, _hitType: HitType) => {
+    // No-op: RAW scoring removed. All scoring goes through handleImpact.
   }, []);
   
   // ─── Impact handler (IMPACTS mode) ───
@@ -91,18 +77,19 @@ export default function ChampionshipMat() {
   useEffect(() => {
     handleImpactRef.current = (impact: ImpactCallbackData) => {
       const config = sync.state.config;
-      console.log(`[handleImpact] status=${sync.state.status} scoringInput=${config.scoringInput} hasThresholds=${!!config.impactThresholds}`);
       
       if (sync.state.status !== 'RUNNING') return;
-      if (config.scoringInput !== 'impacts' || !config.impactThresholds) return;
+      
+      // Guard: noise should already be filtered by ImpactDetector, but double-check
+      if (impact.peakIntensity < 15) return;
       
       const matchSide = deviceIdToMatchSide(impact.deviceId);
       const equipType = deviceIdToEquipmentType(impact.deviceId);
       if (!matchSide) return;
       
-      const thresholds = config.impactThresholds;
+      const thresholds = config.impactThresholds ?? { vestPointMin: 20, helmetPointMin: 20, vestHitMin: 15, helmetHitMin: 15, noiseFloor: {} };
       const floor = thresholds.noiseFloor[String(impact.deviceId)] ?? 0;
-      const peakAboveFloor = impact.peakIntensity - floor; // kept for diagnostics only
+      const peakAboveFloor = impact.peakIntensity - floor;
       
       const isHelmet = equipType === 'helmet';
       const pointMin = isHelmet ? thresholds.helmetPointMin : thresholds.vestPointMin;
@@ -182,23 +169,17 @@ export default function ChampionshipMat() {
     storageKey: 'sulsport:championship:diag:v1' 
   });
   
-  // Determine scoring mode from config
-  const scoringInput = sync.state.config.scoringInput ?? 'raw';
+  // Always impacts mode — no RAW path
   const impactThresholds = sync.state.config.impactThresholds;
   
   // Stabilize impactDetectorConfig to avoid re-creating on every render (timer runs every 100ms)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const noiseFloorJson = JSON.stringify(impactThresholds?.noiseFloor ?? {});
-  const impactDetectorConfigMemo = useMemo(() => {
-    if (scoringInput !== 'impacts') {
-      return { enabled: false as const, noiseFloor: {} };
-    }
-    return {
-      enabled: true as const,
-      noiseFloor: impactThresholds?.noiseFloor ?? {},
-    };
+  const impactDetectorConfigMemo = useMemo(() => ({
+    enabled: true as const,
+    noiseFloor: impactThresholds?.noiseFloor ?? {},
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoringInput, noiseFloorJson]);
+  }), [noiseFloorJson]);
 
   // Debug: log when impactDetectorConfig changes
   useEffect(() => {
@@ -255,12 +236,9 @@ export default function ChampionshipMat() {
         <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-center relative px-6">
           <img src={logoSpe} alt="SPE" className="h-8 w-auto object-contain" />
           <div className="absolute right-6 flex items-center gap-4 text-sm">
-            {/* Scoring mode indicator */}
-            {scoringInput === 'impacts' && (
-              <span className="px-2 py-1 rounded-md font-bold text-xs uppercase bg-purple-500/20 text-purple-400">
-                IMPACTOS
-              </span>
-            )}
+            <span className="px-2 py-1 rounded-md font-bold text-xs uppercase bg-purple-500/20 text-purple-400">
+              IMPACTOS
+            </span>
             <span className={cn(
               "px-2 py-1 rounded-md font-bold text-xs uppercase",
               serialPort.isConnected 
@@ -350,7 +328,7 @@ export default function ChampionshipMat() {
         serialPort={serialPort}
         diagnostics={diagnostics}
         onOpenConfig={() => setShowConfigDialog(true)}
-        scoringInput={scoringInput}
+        scoringInput="impacts"
         onExportShadowLog={handleExportShadowLog}
         onThresholdsApplied={(t: HardwareThresholds) => {
           console.log('[Championship] Applying wizard thresholds to match config:', t, '— switching scoringInput to impacts');
