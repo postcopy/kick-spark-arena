@@ -15,6 +15,13 @@ import { cn } from '@/lib/utils';
 import type { UseHardwareDiagnosticsReturn, HardwareThresholds } from '@/types/hardwareDiagnostics';
 import type { UseSerialPortReturn } from '@/types/serial';
 
+const PRESETS: Record<string, { label: string; vestHitMin: number; vestPointMin: number; helmetHitMin: number; helmetPointMin: number }> = {
+  infantil: { label: 'Infantil', vestHitMin: 14, vestPointMin: 18, helmetHitMin: 14, helmetPointMin: 18 },
+  cadete:   { label: 'Cadete',   vestHitMin: 16, vestPointMin: 22, helmetHitMin: 16, helmetPointMin: 22 },
+  juvenil:  { label: 'Juvenil',  vestHitMin: 18, vestPointMin: 25, helmetHitMin: 18, helmetPointMin: 25 },
+  adulto:   { label: 'Adulto',   vestHitMin: 20, vestPointMin: 30, helmetHitMin: 20, helmetPointMin: 30 },
+};
+
 interface DiagnosticsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -55,6 +62,7 @@ export function DiagnosticsDialog({
   const [vestHitMin, setVestHitMin] = useState(15);
   const [helmetPointMin, setHelmetPointMin] = useState(20);
   const [helmetHitMin, setHelmetHitMin] = useState(15);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   // Sync from current thresholds when dialog opens
   useEffect(() => {
@@ -74,6 +82,20 @@ export function DiagnosticsDialog({
   const classification = lastImpact
     ? classifyImpact(lastImpact.peakIntensity, lastImpact.deviceId, currentThresholds)
     : null;
+
+  const applyPreset = (key: string) => {
+    const p = PRESETS[key];
+    setVestHitMin(p.vestHitMin);
+    setVestPointMin(p.vestPointMin);
+    setHelmetHitMin(p.helmetHitMin);
+    setHelmetPointMin(p.helmetPointMin);
+    setActivePreset(key);
+  };
+
+  const handleManualChange = (setter: (v: number) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(Number(e.target.value));
+    setActivePreset(null);
+  };
 
   const handleSave = () => {
     const thresholds: HardwareThresholds = { vestHitMin, vestPointMin, helmetHitMin, helmetPointMin };
@@ -163,7 +185,25 @@ export function DiagnosticsDialog({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
               CONFIGURAÇÃO DE LIMIARES
-            </CardTitle>
+          </CardTitle>
+            <div className="flex gap-2">
+              {Object.entries(PRESETS).map(([key, p]) => (
+                <Button
+                  key={key}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => applyPreset(key)}
+                  className={cn(
+                    'flex-1 text-xs font-bold uppercase',
+                    activePreset === key
+                      ? 'bg-[hsl(var(--sulsport-blue))] border-[hsl(var(--sulsport-blue))] text-white'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  )}
+                >
+                  {p.label}
+                </Button>
+              ))}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -173,7 +213,7 @@ export function DiagnosticsDialog({
                   type="number"
                   min={0}
                   value={vestPointMin}
-                  onChange={(e) => setVestPointMin(Number(e.target.value))}
+                  onChange={handleManualChange(setVestPointMin)}
                   className="bg-zinc-800 border-zinc-700 text-white font-mono text-center"
                 />
               </div>
@@ -183,7 +223,7 @@ export function DiagnosticsDialog({
                   type="number"
                   min={0}
                   value={vestHitMin}
-                  onChange={(e) => setVestHitMin(Number(e.target.value))}
+                  onChange={handleManualChange(setVestHitMin)}
                   className="bg-zinc-800 border-zinc-700 text-white font-mono text-center"
                 />
               </div>
@@ -193,7 +233,7 @@ export function DiagnosticsDialog({
                   type="number"
                   min={0}
                   value={helmetPointMin}
-                  onChange={(e) => setHelmetPointMin(Number(e.target.value))}
+                  onChange={handleManualChange(setHelmetPointMin)}
                   className="bg-zinc-800 border-zinc-700 text-white font-mono text-center"
                 />
               </div>
@@ -203,7 +243,7 @@ export function DiagnosticsDialog({
                   type="number"
                   min={0}
                   value={helmetHitMin}
-                  onChange={(e) => setHelmetHitMin(Number(e.target.value))}
+                  onChange={handleManualChange(setHelmetHitMin)}
                   className="bg-zinc-800 border-zinc-700 text-white font-mono text-center"
                 />
               </div>
