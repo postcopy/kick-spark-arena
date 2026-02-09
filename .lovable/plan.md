@@ -1,32 +1,28 @@
 
-# Adicionar Feedback ao Botao "SALVAR CONFIGURACAO"
+# Separar Botao de Desconectar do Botao de Fechar
 
 ## Problema
 
-O botao "SALVAR CONFIGURACAO" salva os limiares internamente, mas nao da nenhum feedback visual ao usuario -- nao fecha o dialog, nao mostra mensagem de confirmacao, nada acontece.
+O botao "DESCONECTAR" e o badge "CONECTADO" estao na mesma linha do titulo, colidindo com o botao X de fechar o dialog (canto superior direito).
 
 ## Solucao
 
-No `handleSave` do arquivo `src/components/championship/DiagnosticsDialog.tsx`, adicionar:
-
-1. Um **toast de confirmacao** (usando sonner) com mensagem "Configuracao salva com sucesso"
-2. **Fechar o dialog** automaticamente apos salvar (chamando `onOpenChange(false)`)
+Mover o badge de status e o botao de conexao para uma segunda linha abaixo do titulo, separando-os do botao X.
 
 ## Detalhes Tecnicos
 
 ### Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
 
-1. Adicionar import do `toast` de `sonner`
-2. Alterar o `handleSave` (linhas 100-104) para:
+Alterar o bloco do DialogHeader (linhas 113-147) para separar em duas linhas:
 
-```typescript
-const handleSave = () => {
-  const thresholds: HardwareThresholds = { vestHitMin, vestPointMin, helmetHitMin, helmetPointMin };
-  diagnostics.setThresholds(thresholds);
-  onThresholdsApplied?.(thresholds);
-  toast.success("Configuração salva com sucesso!");
-  onOpenChange(false);
-};
+1. **Linha 1**: Apenas o titulo "CALIBRAGEM DE HARDWARE" (o botao X do dialog fica naturalmente no canto direito, sem conflito)
+2. **Linha 2**: Badge de status (CONECTADO/DESCONECTADO) + botao DESCONECTAR/CONECTAR USB lado a lado
+
+Estrutura resultante:
+
+```
+CALIBRAGEM DE HARDWARE                    [X]
+[● CONECTADO]  [DESCONECTAR]
 ```
 
-Apenas 2 linhas adicionadas. Nenhuma logica existente e modificada.
+Apenas reorganizacao de layout -- nenhuma logica alterada.
