@@ -588,7 +588,7 @@ export default function ChampionshipTV() {
         );
       })()}
       
-      {isRoundEnd && !isMatchEnd && state.roundScoreRed === state.roundScoreBlue && (
+      {isRoundEnd && !isMatchEnd && state.roundScoreRed === state.roundScoreBlue && state.hitsRed === state.hitsBlue && (
         <div className="h-20 bg-[hsl(var(--sulsport-yellow))]/10 flex items-center justify-center">
           <span className="text-2xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
             EMPATE — AGUARDANDO DECISÃO DO ÁRBITRO
