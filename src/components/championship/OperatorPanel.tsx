@@ -58,7 +58,7 @@ interface OperatorPanelProps {
   serialPort?: UseSerialPortReturn;
   diagnostics?: UseHardwareDiagnosticsReturn;
   onOpenConfig?: () => void;
-  scoringInput?: 'raw' | 'impacts';
+  scoringInput?: 'impacts';
   onExportShadowLog?: () => void;
   onThresholdsApplied?: (thresholds: import('@/types/hardwareDiagnostics').HardwareThresholds) => void;
 }
@@ -337,7 +337,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
                 </Button>
               )}
               
-              {scoringInput === 'impacts' && onExportShadowLog && (
+              {onExportShadowLog && (
                 <Button
                   onClick={onExportShadowLog}
                   className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"

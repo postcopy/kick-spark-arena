@@ -2,6 +2,7 @@
 // Used by both useHardwareDiagnostics and useSerialPort (championship scoring)
 
 // ─── Constants (shared between diagnostics and scoring) ───
+export const NOISE_INTENSITY_MIN = 15; // Hardcoded noise floor: intensity < 15 = NOISE (ignored)
 export const SILENCE_GAP_MS = 200;
 export const MIN_IMPACT_PKTS = 3;
 export const MIN_IMPACT_DURATION_MS = 40;
@@ -80,6 +81,9 @@ export class ImpactDetector {
 
   /** Feed a raw packet into the detector */
   feed(deviceId: number, intensity: number, ts: number): void {
+    // Hardcoded noise floor: discard before any threshold logic
+    if (intensity < NOISE_INTENSITY_MIN) return;
+    
     const floor = this.config.noiseFloor[String(deviceId)] ?? 0;
     const startThreshold = floor + this.config.deltaStart;
     const continueThreshold = floor + this.config.deltaContinue;

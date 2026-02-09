@@ -489,41 +489,16 @@ export function MatchConfigDialog({
               
               {/* HARDWARE */}
               <TabsContent value="hardware" className="mt-0 space-y-3">
-                {/* Scoring Mode Toggle */}
+                {/* Scoring mode info */}
                 <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
-                  <Label className="text-white text-sm font-bold mb-2 block">Entrada de Pontuação</Label>
-                  <RadioGroup
-                    value={config.scoringInput ?? 'raw'}
-                    onValueChange={(value) => setConfig(prev => ({
-                      ...prev,
-                      scoringInput: value as 'raw' | 'impacts',
-                    }))}
-                    className="flex gap-4"
-                    disabled={isLocked}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="raw" id="scoring-raw" className="border-zinc-500" disabled={isLocked} />
-                      <Label htmlFor="scoring-raw" className={cn("cursor-pointer text-sm", isLocked ? "text-zinc-500" : "text-white")}>
-                        RAW (legado)
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="impacts" id="scoring-impacts" className="border-zinc-500" disabled={isLocked} />
-                      <Label htmlFor="scoring-impacts" className={cn("cursor-pointer text-sm", isLocked ? "text-zinc-500" : "text-white")}>
-                        IMPACTOS (recomendado)
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                  <p className="text-xs text-zinc-500 mt-2">
-                    {config.scoringInput === 'impacts' 
-                      ? 'Pontuação baseada em impactos finalizados com thresholds configuráveis.' 
-                      : 'Pontuação por pacote individual (1 pacote = 1 ponto). Modo legado.'}
+                  <Label className="text-white text-sm font-bold mb-2 block">Modo de Pontuação</Label>
+                  <p className="text-xs text-zinc-500">
+                    IMPACTOS — Pontuação por intensidade: 0-14 = ruído (ignorado), 15-19 = HIT (só registro), 20+ = PONTO (soma placar).
                   </p>
                 </div>
                 
-                {/* Impact Thresholds (only when impacts mode) */}
-                {config.scoringInput === 'impacts' && (
-                  <>
+                {/* Impact Thresholds */}
+                <>
                     <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
                       <Label className="text-white text-sm font-bold mb-2 block">Thresholds de Intensidade</Label>
                       <p className="text-xs text-zinc-500 mb-3">
@@ -535,15 +510,15 @@ export function MatchConfigDialog({
                           <Input
                             type="number"
                             min={1}
-                            value={config.impactThresholds?.vestHitMin ?? 150}
+                            value={config.impactThresholds?.vestHitMin ?? 15}
                             onChange={(e) => setConfig(prev => ({
                               ...prev,
                               impactThresholds: {
                                 ...prev.impactThresholds!,
-                                vestHitMin: parseInt(e.target.value) || 150,
-                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 400,
-                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 100,
-                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 300,
+                                vestHitMin: parseInt(e.target.value) || 15,
+                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 20,
+                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 15,
+                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 20,
                                 noiseFloor: prev.impactThresholds?.noiseFloor ?? {},
                               }
                             }))}
@@ -556,15 +531,15 @@ export function MatchConfigDialog({
                           <Input
                             type="number"
                             min={1}
-                            value={config.impactThresholds?.vestPointMin ?? 400}
+                            value={config.impactThresholds?.vestPointMin ?? 20}
                             onChange={(e) => setConfig(prev => ({
                               ...prev,
                               impactThresholds: {
                                 ...prev.impactThresholds!,
-                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 150,
-                                vestPointMin: parseInt(e.target.value) || 400,
-                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 100,
-                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 300,
+                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 15,
+                                vestPointMin: parseInt(e.target.value) || 20,
+                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 15,
+                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 20,
                                 noiseFloor: prev.impactThresholds?.noiseFloor ?? {},
                               }
                             }))}
@@ -577,15 +552,15 @@ export function MatchConfigDialog({
                           <Input
                             type="number"
                             min={1}
-                            value={config.impactThresholds?.helmetHitMin ?? 100}
+                            value={config.impactThresholds?.helmetHitMin ?? 15}
                             onChange={(e) => setConfig(prev => ({
                               ...prev,
                               impactThresholds: {
                                 ...prev.impactThresholds!,
-                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 150,
-                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 400,
-                                helmetHitMin: parseInt(e.target.value) || 100,
-                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 300,
+                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 15,
+                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 20,
+                                helmetHitMin: parseInt(e.target.value) || 15,
+                                helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 20,
                                 noiseFloor: prev.impactThresholds?.noiseFloor ?? {},
                               }
                             }))}
@@ -598,15 +573,15 @@ export function MatchConfigDialog({
                           <Input
                             type="number"
                             min={1}
-                            value={config.impactThresholds?.helmetPointMin ?? 300}
+                            value={config.impactThresholds?.helmetPointMin ?? 20}
                             onChange={(e) => setConfig(prev => ({
                               ...prev,
                               impactThresholds: {
                                 ...prev.impactThresholds!,
-                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 150,
-                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 400,
-                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 100,
-                                helmetPointMin: parseInt(e.target.value) || 300,
+                                vestHitMin: prev.impactThresholds?.vestHitMin ?? 15,
+                                vestPointMin: prev.impactThresholds?.vestPointMin ?? 20,
+                                helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 15,
+                                helmetPointMin: parseInt(e.target.value) || 20,
                                 noiseFloor: prev.impactThresholds?.noiseFloor ?? {},
                               }
                             }))}
@@ -657,10 +632,10 @@ export function MatchConfigDialog({
                                 ...prev,
                                 impactThresholds: {
                                   ...prev.impactThresholds!,
-                                  vestHitMin: prev.impactThresholds?.vestHitMin ?? 150,
-                                  vestPointMin: prev.impactThresholds?.vestPointMin ?? 400,
-                                  helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 100,
-                                  helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 300,
+                                  vestHitMin: prev.impactThresholds?.vestHitMin ?? 15,
+                                  vestPointMin: prev.impactThresholds?.vestPointMin ?? 20,
+                                  helmetHitMin: prev.impactThresholds?.helmetHitMin ?? 15,
+                                  helmetPointMin: prev.impactThresholds?.helmetPointMin ?? 20,
                                   noiseFloor: {
                                     ...prev.impactThresholds?.noiseFloor,
                                     [id]: parseInt(e.target.value) || 0,
@@ -687,10 +662,10 @@ export function MatchConfigDialog({
                           setConfig(prev => ({
                             ...prev,
                             impactThresholds: {
-                              vestHitMin: th.vestHitMin ?? prev.impactThresholds?.vestHitMin ?? 150,
-                              vestPointMin: th.vestPointMin ?? prev.impactThresholds?.vestPointMin ?? 400,
-                              helmetHitMin: th.helmetHitMin ?? prev.impactThresholds?.helmetHitMin ?? 100,
-                              helmetPointMin: th.helmetPointMin ?? prev.impactThresholds?.helmetPointMin ?? 300,
+                              vestHitMin: th.vestHitMin ?? prev.impactThresholds?.vestHitMin ?? 15,
+                              vestPointMin: th.vestPointMin ?? prev.impactThresholds?.vestPointMin ?? 20,
+                              helmetHitMin: th.helmetHitMin ?? prev.impactThresholds?.helmetHitMin ?? 15,
+                              helmetPointMin: th.helmetPointMin ?? prev.impactThresholds?.helmetPointMin ?? 20,
                               noiseFloor: nf,
                             },
                           }));
@@ -705,7 +680,6 @@ export function MatchConfigDialog({
                       Usar Calibração (Diagnóstico)
                     </Button>
                   </>
-                )}
               </TabsContent>
             </div>
           </ScrollArea>

@@ -63,8 +63,8 @@ export interface MatchConfig {
   // Match number for display
   matchNumber?: string; // "001", "002", etc.
   
-  // Hardware scoring mode
-  scoringInput?: 'raw' | 'impacts'; // default 'raw'
+  // Hardware scoring mode (always impacts — RAW removed)
+  scoringInput?: 'impacts';
   
   // Impact thresholds (used when scoringInput = 'impacts')
   impactThresholds?: {
@@ -88,7 +88,14 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   pointGap: 20,
   scoring: DEFAULT_SCORE_CONFIG,
   matId: 1,
-  scoringInput: 'raw',
+  scoringInput: 'impacts',
+  impactThresholds: {
+    vestHitMin: 15,
+    vestPointMin: 20,
+    helmetHitMin: 15,
+    helmetPointMin: 20,
+    noiseFloor: {},
+  },
 };
 
 // Match event for logging
