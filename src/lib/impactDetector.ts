@@ -4,8 +4,8 @@
 // ─── Constants (shared between diagnostics and scoring) ───
 export const NOISE_INTENSITY_MIN = 15; // Hardcoded noise floor: intensity < 15 = NOISE (ignored)
 export const SILENCE_GAP_MS = 200;
-export const MIN_IMPACT_PKTS = 3;
-export const MIN_IMPACT_DURATION_MS = 40;
+export const MIN_IMPACT_PKTS = 1;
+export const MIN_IMPACT_DURATION_MS = 0;
 export const DEFAULT_DELTA_START = 4;
 export const DEFAULT_DELTA_CONTINUE = 2;
 
