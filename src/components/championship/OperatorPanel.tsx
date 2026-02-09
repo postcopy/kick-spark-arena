@@ -91,16 +91,16 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
     <>
       <aside className="w-[340px] bg-[hsl(var(--sulsport-dark))] border-l border-[hsl(var(--sulsport-gray))] flex flex-col overflow-y-auto">
         {/* CONTROLES */}
-        <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+        <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
             CONTROLES
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {/* Iniciar Round */}
             <Button
               onClick={actions.startTimer}
               disabled={!canStart || !actions.hasConfig}
-              className="w-full h-12 rounded-md bg-green-600 hover:bg-green-500 text-white font-bold uppercase disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-green-600 hover:bg-green-500 text-white font-bold uppercase disabled:opacity-50"
             >
               <Play className="w-5 h-5 mr-2" />
               {isMedical ? 'INICIAR T. MÉDICO' : 'INICIAR ROUND'}
@@ -110,7 +110,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             <Button
               onClick={actions.pauseTimer}
               disabled={!canPause}
-              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
             >
               <Pause className="w-5 h-5 mr-2" />
               PAUSAR
@@ -120,7 +120,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             <Button
               onClick={actions.resetTime}
               disabled={isRunning}
-              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
             >
               <RotateCcw className="w-5 h-5 mr-2" />
               ZERAR TEMPO
@@ -131,10 +131,10 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
               onClick={isMedical ? actions.endMedicalTime : actions.startMedicalTime}
               disabled={isMatchEnd}
               className={cn(
-                "w-full h-12 rounded-md font-bold uppercase disabled:opacity-50",
+                "w-full h-10 rounded-md font-bold uppercase disabled:opacity-50",
                 isMedical 
                   ? "bg-[hsl(var(--sulsport-yellow))] hover:bg-[hsl(var(--sulsport-yellow-dark))] text-black" 
-                  : "bg-zinc-700 hover:bg-zinc-600"
+                  : "bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600"
               )}
             >
               <Stethoscope className="w-5 h-5 mr-2" />
@@ -145,7 +145,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             {isRoundEnd && state.round < state.config.maxRounds && (
               <Button
                 onClick={actions.nextRound}
-                className="w-full h-12 rounded-md bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase"
+                className="w-full h-10 rounded-md bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase"
               >
                 <Play className="w-5 h-5 mr-2" />
                 PRÓXIMO ROUND
@@ -155,7 +155,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             {/* Logs */}
             <Button
               onClick={() => setShowEventLog(true)}
-              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase"
+              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase"
             >
               <List className="w-5 h-5 mr-2" />
               LOGS
@@ -164,7 +164,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             {/* Alterar Placar */}
             <Button
               onClick={() => setShowScoreAdjust(true)}
-              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase"
+              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase"
             >
               <Edit className="w-5 h-5 mr-2" />
               ALTERAR PLACAR
@@ -174,7 +174,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             <Button
               onClick={actions.undoLast}
               disabled={!actions.canUndo}
-              className="w-full h-12 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
             >
               <Undo2 className="w-5 h-5 mr-2" />
               DESFAZER
@@ -184,7 +184,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             <Button
               onClick={() => setShowEndMatchDialog(true)}
               disabled={isMatchEnd}
-              className="w-full h-12 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase disabled:opacity-50"
             >
               <XCircle className="w-5 h-5 mr-2" />
               ENCERRAR LUTA
@@ -193,8 +193,8 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
         </section>
         
         {/* GAM-JEOM */}
-        <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+        <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
             GAM-JEOM
           </h3>
           <div className="grid grid-cols-2 gap-4">
@@ -276,8 +276,8 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
         </section>
         
         {/* STATUS */}
-        <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+        <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
             STATUS
           </h3>
           <div className="space-y-2 text-sm">
@@ -304,8 +304,8 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
         
         {/* HARDWARE */}
         {serialPort && (
-          <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+          <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
+            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
               HARDWARE
             </h3>
             <div className="space-y-3">
@@ -315,7 +315,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
                 className={cn(
                   "w-full h-10 rounded-md font-bold text-sm uppercase",
                   serialPort.isConnected
-                    ? "bg-zinc-700 hover:bg-zinc-600"
+                    ? "bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600"
                     : "bg-yellow-600 hover:bg-yellow-500 text-black"
                 )}
               >
@@ -330,7 +330,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
               {diagnostics && (
                 <Button
                   onClick={() => setShowDiagnostics(true)}
-                  className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
+                  className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase"
                 >
                   <Activity className="w-4 h-4 mr-2" />
                   CALIBRAGEM
@@ -340,7 +340,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
               {onExportShadowLog && (
                 <Button
                   onClick={onExportShadowLog}
-                  className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
+                  className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   EXPORTAR SHADOW LOG
@@ -363,14 +363,14 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
         )}
         
         {/* CONFIGURAÇÕES */}
-        <section className="p-4 border-b border-[hsl(var(--sulsport-gray))]">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+        <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
             CONFIGURAÇÕES
           </h3>
           <div className="space-y-2">
             <Button
               onClick={onOpenConfig}
-              className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase"
+              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase"
             >
               <Settings className="w-4 h-4 mr-2" />
               GERENCIAR LUTA
@@ -378,7 +378,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             <Button
               onClick={() => setShowResetDialog(true)}
               disabled={isIdle && state.roundScoreRed === 0 && state.roundScoreBlue === 0}
-              className="w-full h-10 rounded-md bg-zinc-700 hover:bg-zinc-600 font-bold text-sm uppercase disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase disabled:opacity-50"
             >
               NOVA LUTA
             </Button>
@@ -386,8 +386,8 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
         </section>
         
         {/* TELA EXTERNA */}
-        <section className="p-4">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
+        <section className="p-3">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
             TELA EXTERNA
           </h3>
           <div className="space-y-3">
@@ -399,7 +399,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
             </div>
             <Button
               onClick={onOpenTV}
-              className="w-full h-12 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase"
+              className="w-full h-10 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase"
             >
               <Monitor className="w-5 h-5 mr-2" />
               ABRIR PLACAR TV
