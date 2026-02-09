@@ -225,7 +225,8 @@ export default function ChampionshipMat() {
   const isConfigLocked = sync.state.status === 'RUNNING';
   
   const isTie = sync.state.status === 'ROUND_END' && 
-                sync.state.roundScoreRed === sync.state.roundScoreBlue;
+                sync.state.roundScoreRed === sync.state.roundScoreBlue &&
+                sync.state.hitsRed === sync.state.hitsBlue;
   
   return (
     <div className="h-screen flex bg-[hsl(var(--sulsport-black))]">
