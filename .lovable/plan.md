@@ -1,33 +1,32 @@
 
 
-# Adicionar Presets de Categoria na Tela de Calibragem
+# Melhorar Visibilidade e Layout dos Controles do Operador
 
-## O que muda
+## Problema 1: Botoes "apagados" / pouco visiveis
 
-Uma barra de botoes de presets ("Infantil", "Cadete", "Juvenil", "Adulto") sera adicionada acima dos campos numericos na secao "Configuracao de Limiares". Ao clicar num preset, os 4 campos sao preenchidos automaticamente. Se o usuario editar qualquer campo manualmente, o preset desmarca.
+Os botoes PAUSAR, ZERAR TEMPO, LOGS, ALTERAR PLACAR, DESFAZER, CALIBRAGEM, GERENCIAR LUTA e NOVA LUTA usam `bg-zinc-700` sem borda, ficando quase invisiveis no fundo escuro. Vou adicionar uma borda clara (`border border-zinc-600`) e um texto mais visivel (`text-zinc-200`) em todos esses botoes secundarios para criar contraste sem mudar o esquema de cores principal.
 
-## Valores dos Presets
+## Problema 2: Conteudo cortado em monitores menores
 
-| Preset   | Colete Hit | Colete Ponto | Capacete Hit | Capacete Ponto |
-|----------|-----------|-------------|-------------|---------------|
-| Infantil | 14        | 18          | 14          | 18            |
-| Cadete   | 16        | 22          | 16          | 22            |
-| Juvenil  | 18        | 25          | 18          | 25            |
-| Adulto   | 20        | 30          | 20          | 30            |
+O painel tem muitas secoes empilhadas verticalmente com espacamento generoso (`p-4`, `space-y-2`, `h-12`). Vou compactar:
+- Reduzir botoes de `h-12` para `h-10` na secao CONTROLES
+- Reduzir padding das secoes de `p-4` para `p-3`
+- Reduzir `space-y-2` para `space-y-1.5` nos botoes
+- Reduzir `mb-3` dos titulos de secao para `mb-2`
 
 ## Detalhes Tecnicos
 
-### Arquivo: `src/components/championship/DiagnosticsDialog.tsx`
+### Arquivo: `src/components/championship/OperatorPanel.tsx`
 
-1. **Novo state**: `activePreset` (string | null) -- guarda qual preset esta ativo ("infantil", "cadete", "juvenil", "adulto") ou `null` se manual.
+**Botoes secundarios (zinc-700)** -- adicionar borda e garantir texto claro:
+- Linhas 113, 123, 158, 167, 177, 333, 345, 373, 381: adicionar `border border-zinc-600 text-zinc-200`
 
-2. **Constante PRESETS**: Objeto com os 4 presets e seus valores de threshold.
+**Compactacao vertical**:
+- Todas as `<section className="p-4 ...">` mudam para `p-3`
+- Todos os `mb-3` dos titulos de secao mudam para `mb-2`
+- `space-y-2` nos botoes de CONTROLES muda para `space-y-1.5`
+- Botoes CONTROLES de `h-12` para `h-10`
+- Botao ABRIR PLACAR TV de `h-12` para `h-10`
 
-3. **Handler `applyPreset(key)`**: Seta os 4 campos numericos e marca `activePreset = key`.
-
-4. **Nos onChange dos inputs**: Alem de atualizar o valor, seta `activePreset = null` (desmarca o preset ativo).
-
-5. **UI**: Uma linha de 4 botoes (estilo toggle) entre o titulo "Configuracao de Limiares" e os inputs. O botao ativo fica destacado (ex: bg-blue com texto branco), os inativos ficam em zinc. Quando nenhum preset esta ativo (edicao manual), todos ficam em zinc.
-
-Nenhum outro arquivo precisa ser alterado. As props e a interface com o OperatorPanel permanecem identicas.
+Nenhuma logica e alterada -- apenas classes CSS de estilo e espacamento.
 
