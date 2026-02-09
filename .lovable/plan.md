@@ -1,62 +1,80 @@
 
-# Fix: Verify ImpactDetector internal state during flush
+# Fix: Implement 3-Tier Intensity Logic and Remove RAW Mode
 
-## Diagnosis
+## Problem
 
-The heartbeat confirms `detector: true, onImpact: true`, and serial data flows (device 1, intensities 4-40). Yet `flush()` never returns finalized impacts. Two possibilities:
+The scoring system is too sensitive -- any touch registers as a point because:
+1. The "RAW" mode bypasses intensity thresholds entirely (any intensity > 0 triggers onKick -> score)
+2. Even in "impacts" mode, the ImpactDetector uses low hysteresis deltas (deltaStart=4) allowing very weak signals to start impacts
+3. There is no hardcoded noise floor -- the system relies entirely on calibration
 
-1. **feed() is called but impacts never start** (all intensities fail the `> startThreshold` check somehow)
-2. **Impacts start but never finalize** (continuous data prevents silence gap AND maxDuration check has a bug)
+## Solution
 
-We need visibility into the detector's internal state to distinguish these cases.
+Implement hardcoded 3-tier intensity classification and remove the RAW scoring path.
+
+```text
+Intensity Range    | Classification | Action
+-------------------|----------------|----------------------------------------
+0 - 14             | NOISE          | Completely ignored, no log, no score
+15 - 19            | HIT            | Visual flash + log for tiebreak, NO score
+20+                | POINT          | Score added (2 vest / 3 helmet) + sound
+```
 
 ## Changes
 
-### 1. `src/lib/impactDetector.ts` - Add debug method
+### 1. `src/lib/impactDetector.ts` -- Hardcoded noise floor
 
-Add a `getActiveCount()` method to expose how many active (in-progress) impacts exist. This is read-only and safe for production.
-
-```typescript
-getActiveCount(): number {
-  return this.activeImpacts.size;
-}
-```
-
-### 2. `src/hooks/useSerialPort.ts` - Enhanced diagnostics
-
-**In the flush heartbeat (every ~5s):** Also log the number of active impacts inside the detector. This tells us if impacts are starting but never finalizing.
+Add a minimum intensity constant. Any packet with intensity < 15 is discarded in `feed()` before threshold logic runs. This prevents weak signals from even starting an impact.
 
 ```typescript
-if (flushCountRef.current % 150 === 0) {
-  console.log('[useSerialPort] flush heartbeat, detector:', !!detectorRef.current, 
-    'onImpact:', !!onImpactRef.current,
-    'activeImpacts:', detectorRef.current?.getActiveCount() ?? 0);
-}
+export const NOISE_INTENSITY_MIN = 15;
+
+// In feed():
+if (intensity < NOISE_INTENSITY_MIN) return; // discard noise at source
 ```
 
-**After feed() call (one-time):** Confirm data is reaching the detector instance.
+### 2. `src/types/championship.ts` -- Remove 'raw' option
 
-```typescript
-if (detectorRef.current) {
-  detectorRef.current.feed(deviceId, intensity, Date.now());
-  if (!loggedFeedRef.current) {
-    console.log('[useSerialPort] feed() confirmed on detector, intensity:', intensity, 'deviceId:', deviceId);
-    loggedFeedRef.current = true;
-  }
-}
-```
+- Change `scoringInput` type from `'raw' | 'impacts'` to just `'impacts'`
+- Change default from `'raw'` to `'impacts'`
+- Set default `impactThresholds` with hardcoded values:
+  - `vestPointMin: 20`, `helmetPointMin: 20`
+  - `vestHitMin: 15`, `helmetHitMin: 15`
+  - `noiseFloor: {}` (empty -- the hardcoded floor in ImpactDetector handles this)
 
-Add `loggedFeedRef` as a new `useRef<boolean>(false)`.
+### 3. `src/pages/ChampionshipMat.tsx` -- Remove RAW mode path
 
-## Expected result
+- Remove the `handleHardwareKickRef` / `handleHardwareKick` legacy handler entirely (lines 69-86)
+- Always pass `onKick` as a no-op to useSerialPort (required by the interface)
+- The `impactDetectorConfigMemo` will always be `{ enabled: true, noiseFloor: ... }` since scoringInput is always 'impacts'
+- Update `handleImpactRef` to use the 3-tier logic:
+  - If `peakIntensity < 15`: should not arrive (filtered in ImpactDetector), but guard anyway
+  - If `peakIntensity >= 15 && < pointMin (20)`: log as HIT, call `sync.addHit()`, do NOT call `sync.addScore()`
+  - If `peakIntensity >= pointMin (20)`: log as POINT, call both `sync.addHit()` and `sync.addScore()`
 
-The heartbeat will now show one of:
-- `activeImpacts: 0` -- feed() isn't starting impacts (threshold issue)
-- `activeImpacts: 1+` -- impacts start but never finalize (maxDuration or gap issue)
+### 4. `src/components/championship/MatchConfigDialog.tsx` -- Remove RAW radio option
 
-This pinpoints the exact failure layer for the definitive fix.
+Remove the RadioGroup that lets users switch between 'raw' and 'impacts'. The system is now always in impacts mode.
+
+### 5. `src/components/championship/OperatorPanel.tsx` -- Clean up RAW references
+
+Remove any conditional UI that shows/hides based on `scoringInput === 'raw'`.
 
 ## Files modified
 
-- `src/lib/impactDetector.ts` - Add `getActiveCount()` debug method
-- `src/hooks/useSerialPort.ts` - Enhanced heartbeat + one-time feed confirmation log
+- `src/lib/impactDetector.ts` -- Add NOISE_INTENSITY_MIN guard in feed()
+- `src/types/championship.ts` -- Remove 'raw' option, add default thresholds
+- `src/pages/ChampionshipMat.tsx` -- Remove legacy RAW handler, simplify to impacts-only
+- `src/components/championship/MatchConfigDialog.tsx` -- Remove RAW/impacts radio toggle
+- `src/components/championship/OperatorPanel.tsx` -- Remove RAW-conditional UI
+
+## Anti-duplication
+
+The existing 300ms per-deviceId lockout remains unchanged. After an impact is accepted (HIT or POINT), the same sensor is locked for 300ms.
+
+## Expected result
+
+- Touches with intensity 0-14 are silently ignored
+- Touches with intensity 15-19 show as HIT (visual + log) but never change the score
+- Touches with intensity 20+ add 2pts (vest) or 3pts (helmet) to the score
+- No configuration needed -- thresholds are hardcoded (configurable later)
