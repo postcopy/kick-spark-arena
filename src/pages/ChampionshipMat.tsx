@@ -8,8 +8,10 @@ import { ScoreboardMain } from '@/components/championship/ScoreboardMain';
 import { ScoringButtons } from '@/components/championship/ScoringButtons';
 import { EventLog } from '@/components/championship/EventLog';
 import { MatchConfigDialog } from '@/components/championship/MatchConfigDialog';
+import { HelpDialog } from '@/components/championship/HelpDialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { HelpCircle } from 'lucide-react';
 import logoSpe from '@/assets/logo-spe-branca.png';
 import { deviceIdToMatchSide, deviceIdToEquipmentType } from '@/lib/deviceMapping';
 import type { Side, HitType } from '@/types/game';
@@ -54,6 +56,7 @@ function ChampionshipMatInner() {
   const [isTVOpen, setIsTVOpen] = useState(false);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [showHelpDialog, setShowHelpDialog] = useState(false);
   const tvWindowRef = useRef<Window | null>(null);
   
   // Shadow log for impact scoring
@@ -285,6 +288,13 @@ function ChampionshipMatInner() {
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-center relative px-6">
+          <button
+            onClick={() => setShowHelpDialog(true)}
+            className="absolute left-6 text-zinc-500 hover:text-zinc-300 transition-colors"
+            title="Guia de Ajuda"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </button>
           <img src={logoSpe} alt="SPE" className="h-8 w-auto object-contain" />
           <div className="absolute right-6 flex items-center gap-4 text-sm">
             <span className="px-2 py-1 rounded-md font-bold text-xs uppercase bg-purple-500/20 text-purple-400">
@@ -434,6 +444,9 @@ function ChampionshipMatInner() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Help Dialog */}
+      <HelpDialog open={showHelpDialog} onOpenChange={setShowHelpDialog} />
     </div>
   );
 }
