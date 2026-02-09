@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { useHardwareDiagnostics } from '@/hooks/useHardwareDiagnostics';
+import { useSound } from '@/contexts/SoundContext';
 import { OperatorPanel } from '@/components/championship/OperatorPanel';
 import { ScoreboardMain } from '@/components/championship/ScoreboardMain';
 import { ScoringButtons } from '@/components/championship/ScoringButtons';
@@ -44,10 +45,12 @@ export interface ShadowLogEntry {
 
 const MAX_SHADOW_LOG = 500;
 
-export default function ChampionshipMat() {
+function ChampionshipMatInner() {
   const matId = 1;
   
   const sync = useChampionshipSync({ role: 'master', matId });
+  const { play, isMuted, toggleMute, unlockAudio, initFullPreload } = useSound();
+  const prevStatusRef = useRef(sync.state.status);
   const [isTVOpen, setIsTVOpen] = useState(false);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
@@ -139,6 +142,7 @@ export default function ChampionshipMat() {
       if (isPoint) {
         const scoreType: ScoreType = isHelmet ? 'HEAD' : 'BODY';
         sync.addScore(matchSide, scoreType);
+        play('hit');
       } else {
         sync.addHit(matchSide);
       }
@@ -192,6 +196,53 @@ export default function ChampionshipMat() {
     debounceMs: 150,
     impactDetectorConfig: impactDetectorConfigMemo,
   });
+  
+  // ─── Unlock audio + preload on mount ───
+  useEffect(() => {
+    unlockAudio();
+    initFullPreload();
+  }, [unlockAudio, initFullPreload]);
+  
+  // ─── Sound effects on status change ───
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    const curr = sync.state.status;
+    prevStatusRef.current = curr;
+    
+    if (prev === curr) return;
+    
+    if (curr === 'RUNNING' && (prev === 'IDLE' || prev === 'PAUSED' || prev === 'ROUND_END')) {
+      play('roundStart');
+    }
+    if (curr === 'ROUND_END' || curr === 'MATCH_END') {
+      play('timeUp');
+    }
+  }, [sync.state.status, play]);
+  
+  // ─── Keyboard shortcuts ───
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return;
+      
+      if (e.code === 'Space') {
+        e.preventDefault();
+        const status = sync.state.status;
+        if (status === 'RUNNING') {
+          sync.pauseTimer();
+        } else if (status === 'IDLE' || status === 'PAUSED') {
+          sync.startTimer();
+        }
+      }
+      if (e.code === 'Escape') {
+        if (sync.state.status === 'RUNNING') {
+          sync.pauseTimer();
+        }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [sync]);
   
   const handleOpenTV = () => {
     tvWindowRef.current = window.open(
@@ -330,6 +381,8 @@ export default function ChampionshipMat() {
         onOpenConfig={() => setShowConfigDialog(true)}
         scoringInput="impacts"
         onExportShadowLog={handleExportShadowLog}
+        isMuted={isMuted}
+        onToggleMute={toggleMute}
         onThresholdsApplied={(t: HardwareThresholds) => {
           console.log('[Championship] Applying wizard thresholds to match config:', t, '— switching scoringInput to impacts');
           sync.updateConfigInPlace(config => ({
@@ -382,5 +435,16 @@ export default function ChampionshipMat() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// Wrapper with SoundProvider (useSound needs to be inside SoundProvider)
+import { SoundProvider } from '@/contexts/SoundContext';
+
+export default function ChampionshipMat() {
+  return (
+    <SoundProvider>
+      <ChampionshipMatInner />
+    </SoundProvider>
   );
 }

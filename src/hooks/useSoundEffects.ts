@@ -15,6 +15,7 @@ type SoundName =
   | 'victory'
   | 'victoryRed'
   | 'victoryBlue'
+  | 'roundStart'
   | 'fightModeBg';
 
 // Fallback to public/sounds/
@@ -33,6 +34,7 @@ const FALLBACK_PATHS: Record<SoundName, string> = {
   victory: '/sounds/victory.mp3',
   victoryRed: '/sounds/victory-red.mp3',
   victoryBlue: '/sounds/victory-blue.mp3',
+  roundStart: '/sounds/round-start.mp3',
   fightModeBg: '/sounds/fight-mode-bg.mp3',
 };
 
@@ -56,6 +58,7 @@ const POOL_SIZES: Partial<Record<SoundName, number>> = {
   victory: 1,
   victoryRed: 1,
   victoryBlue: 1,
+  roundStart: 1,
 };
 
 // Evitar 404 (victory-red/blue inexistentes)
