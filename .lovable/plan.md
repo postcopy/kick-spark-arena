@@ -1,64 +1,79 @@
 
 
-# Melhorias de UX: Atalhos de Teclado e Sons para Mesa de Luta
+# Guia de Ajuda para o Modo Campeonato
 
 ## Resumo
 
-Adicionar atalhos de teclado (Espaco/ESC) e efeitos sonoros (hit para pontos, buzina para fim de round, beep para inicio de round) ao modo campeonato, reutilizando o sistema de audio existente e adicionando o som enviado pelo usuario.
+Criar um componente `HelpDialog` com conteudo organizado em abas (Tabs), acionado por um botao com icone de interrogacao no header da tela `ChampionshipMat`.
 
 ## Mudancas
 
-### 1. Copiar som de inicio de round
-- Copiar o arquivo `ES_Truck_Reverse_Beep_-_Epidemic_Sound.mp3` para `public/sounds/round-start.mp3`
+### 1. Novo componente: `src/components/championship/HelpDialog.tsx`
 
-### 2. Registrar novo som no sistema de audio (`src/hooks/useSoundEffects.ts`)
-- Adicionar `'roundStart'` ao tipo `SoundName`
-- Adicionar path em `FALLBACK_PATHS`: `roundStart: '/sounds/round-start.mp3'`
-- Adicionar pool size em `POOL_SIZES`: `roundStart: 1`
+Dialog modal com 4 abas usando o componente `Tabs` ja existente no projeto:
 
-### 3. Criar componente interno com SoundProvider (`src/pages/ChampionshipMat.tsx`)
+**Aba 1 - Hardware**
+- Icone `Usb` -- como conectar a placa USB
+- Significado dos indicadores de status (verde = conectado, cinza = desconectado)
+- Dica: conectar antes de iniciar a luta
 
-Reestruturar para:
+**Aba 2 - Calibragem**
+- Icone `Activity` -- logica das cores:
+  - Cinza = Ruido (ignorado)
+  - Amarelo = HIT (registrado para desempate, sem ponto)
+  - Verde = PONTO (soma no placar)
+- Presets: Infantil (limiares mais baixos) / Adulto (limiares padrao)
+- Explicacao de que os valores de limiar definem a faixa de classificacao
+
+**Aba 3 - Pontuacao**
+- Icone `Target` -- sistema de 3 faixas de intensidade (Ruido / HIT / PONTO)
+- Desempate automatico por numero de HITs
+- Valores de pontuacao manual (Soco: 1, Corpo: 2, Cabeca: 3, Giro Corpo: 4, Giro Cabeca: 6)
+
+**Aba 4 - Atalhos**
+- Icone `Keyboard` -- lista dos atalhos:
+  - Espaco: Iniciar / Pausar round
+  - ESC: Pausar imediatamente (emergencia)
+
+Estilo: fundo escuro (`sulsport-dark`), textos em branco/cinza, consistente com os outros dialogs do campeonato. Cada secao usa icones Lucide para leitura rapida.
+
+### 2. Alterar: `src/pages/ChampionshipMat.tsx`
+
+- Importar `HelpDialog`
+- Adicionar estado `showHelpDialog`
+- Inserir botao `HelpCircle` no header (lado esquerdo, antes do logo, ou junto aos badges do lado direito) que abre o dialog
+- Renderizar `<HelpDialog open={showHelpDialog} onOpenChange={setShowHelpDialog} />`
+
+## Detalhes Tecnicos
+
+### Estrutura do HelpDialog:
 
 ```text
-ChampionshipMat (exportado)
-  SoundProvider
-    ChampionshipMatInner (toda a logica atual + hooks de som/teclado)
+Dialog
+  DialogContent (max-w-2xl, bg-sulsport-dark)
+    DialogHeader
+      DialogTitle: "GUIA DE AJUDA"
+    Tabs (defaultValue="hardware")
+      TabsList (4 triggers)
+        "Hardware" | "Calibragem" | "Pontuacao" | "Atalhos"
+      TabsContent "hardware" -> secao com icones e texto
+      TabsContent "calibragem" -> secao com icones e texto
+      TabsContent "pontuacao" -> secao com icones e texto
+      TabsContent "atalhos" -> secao com icones e texto
 ```
 
-Adicionar dentro de `ChampionshipMatInner`:
+### Posicao do botao no header:
 
-**a) Som ao registrar ponto (hardware)**
-- No `handleImpact`, quando `isPoint === true`, chamar `play('hit')`
+O botao sera adicionado no lado esquerdo do header (posicao absoluta `left-6`), ao lado do logo, como um icone discreto `HelpCircle` em tom cinza que clareia ao hover.
 
-**b) Som de fim de round / fim de luta**
-- `useEffect` observando `sync.state.status` -- ao mudar para `ROUND_END` ou `MATCH_END`, chamar `play('timeUp')`
+### Componentes reutilizados (ja existem no projeto):
+- `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` de `@/components/ui/dialog`
+- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` de `@/components/ui/tabs`
+- `Button` de `@/components/ui/button`
+- Icones Lucide: `HelpCircle`, `Usb`, `Activity`, `Target`, `Keyboard`
 
-**c) Som de inicio de round**
-- `useEffect` observando `sync.state.status` -- ao mudar para `RUNNING` (round iniciou), chamar `play('roundStart')`
+### Arquivos modificados:
+1. `src/components/championship/HelpDialog.tsx` (novo)
+2. `src/pages/ChampionshipMat.tsx` (botao + estado + render do dialog)
 
-**d) Atalhos de teclado**
-- `useEffect` com listener `keydown`:
-  - **Espaco**: se `IDLE` ou `PAUSED` -> `startTimer()` / se `RUNNING` -> `pauseTimer()`
-  - **ESC**: se `RUNNING` -> `pauseTimer()`
-  - Ignora se foco em `INPUT`, `TEXTAREA`, `SELECT` ou `contentEditable`
-  - `e.preventDefault()` para evitar scroll
-
-**e) Unlock audio + preload**
-- Chamar `unlockAudio()` e `initFullPreload()` no mount
-
-**f) Passar `isMuted` e `toggleMute` ao OperatorPanel**
-
-### 4. Botao Mute no OperatorPanel (`src/components/championship/OperatorPanel.tsx`)
-
-- Adicionar props `isMuted?: boolean` e `onToggleMute?: () => void`
-- Adicionar botao na secao CONFIGURACOES com icone `Volume2` (ligado) ou `VolumeX` (desligado)
-- Texto: "SOM: LIGADO" / "SOM: DESLIGADO"
-- Mesmo estilo dos botoes secundarios (zinc-700, border)
-
-## Arquivos modificados
-1. `public/sounds/round-start.mp3` (novo - copia do upload)
-2. `src/hooks/useSoundEffects.ts` (adicionar soundName roundStart)
-3. `src/pages/ChampionshipMat.tsx` (SoundProvider wrapper + atalhos + sons)
-4. `src/components/championship/OperatorPanel.tsx` (botao mute)
-
+Nenhuma logica de luta ou pontuacao e alterada.
