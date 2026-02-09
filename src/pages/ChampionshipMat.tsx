@@ -451,13 +451,5 @@ function ChampionshipMatInner() {
   );
 }
 
-// Wrapper with SoundProvider (useSound needs to be inside SoundProvider)
-import { SoundProvider } from '@/contexts/SoundContext';
-
-export default function ChampionshipMat() {
-  return (
-    <SoundProvider>
-      <ChampionshipMatInner />
-    </SoundProvider>
-  );
-}
+// Re-export directly — SoundProvider is already in App.tsx
+export default ChampionshipMatInner;
