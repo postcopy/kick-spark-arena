@@ -1,51 +1,165 @@
 
 
-# Ordem do Debounce no registerImpact
+# Modo Cognitivo (Go/No-Go) — Implementacao Completa
 
-## Objetivo
+## Resumo
 
-Garantir que o filtro de ruido (delta < 100ms) seja a PRIMEIRA verificacao dentro de `registerImpact`, antes de qualquer logica de jogo (cor do estimulo, modo cognitivo, etc.). Isso evita que vibracoes do tatame ou ruido eletrico disparem falsos "FALTA!" no modo cognitivo.
+Implementar o modo cognitivo como extensao do treino de reacao. Cada estimulo sorteia entre Verde (GO — chuta!) e Vermelho (NO-GO — segura!). O sistema rastreia inibicoes corretas, erros de impulso e erros de omissao, com feedback visual e sonoro.
 
-## Mudanca
+## Arquivos Modificados (6)
 
-**Arquivo:** `src/hooks/useReactionState.ts` — funcao `registerImpact`
+### 1. `src/types/reaction.ts`
 
-O fluxo atual ja faz o debounce antes de qualquer logica de jogo (linha 112: `if (delta < 100 || ...) return;`), pois a verificacao de cor do modo cognitivo sera adicionada DEPOIS desse guard.
+**ReactionConfig** — adicionar:
+- `cognitiveMode: boolean` (default false)
+- `goProbability: number` (0-100, default 75)
 
-Na implementacao do modo cognitivo, o codigo deve seguir estritamente esta ordem:
+**ReactionState** — adicionar:
+- `stimulusColor: 'green' | 'red' | null`
+
+**ReactionResult** — adicionar:
+- `cognitiveMode: boolean`
+- `correctInhibitions: number`
+- `commissionErrors: number`
+- `omissionErrors: number`
+- `totalGoStimuli: number`
+- `totalNoGoStimuli: number`
+
+**REACTION_PRESETS** — adicionar `cognitiveMode: false, goProbability: 75` em cada preset.
+
+---
+
+### 2. `src/hooks/useReactionState.ts`
+
+**Novos props:**
+- `onNoGoSuccess?: () => void` — som de "ding" (scoreBeep)
+- `onCommissionError?: () => void` — som de "buzz" (ko)
+
+**Novos estados:**
+- `stimulusColor`, `correctInhibitions`, `commissionErrors`, `omissionErrors`, `totalGoStimuli`, `totalNoGoStimuli`
+
+**scheduleNextStimulus:**
+- Sortear cor: `Math.random() * 100 < goProbability ? 'green' : 'red'`
+- Incrementar `totalGoStimuli` ou `totalNoGoStimuli`
+- Setar `stimulusColor`
+
+**Timeout do flash (auto-off):**
+- Se verde sem chute: `omissionErrors++`
+- Se vermelho sem chute: `correctInhibitions++` + `onNoGoSuccess()`
+
+**registerImpact (ordem critica):**
+1. Calcular delta
+2. FILTRO DE RUIDO: `if (delta < 100 || ...) return;` — ANTES de qualquer logica
+3. `hitRegisteredRef.current = true`
+4. Se cognitivo E vermelho: `commissionErrors++`, `onCommissionError()`, kill light, return (NAO registra tempo)
+5. Se verde/normal: comportamento existente
+
+**Reset/replay:** Zerar todos contadores cognitivos.
+
+**lastResult:** Incluir campos cognitivos.
+
+**Retornar:** `stimulusColor` no objeto de retorno.
+
+---
+
+### 3. `src/components/game/ReactionSetupScreen.tsx`
+
+Nova secao entre "Parametros do Treino" e "Hardware status":
+
+- Switch toggle (Radix Switch) "Modo Cognitivo (Go/No-Go)"
+- Se ativado: Slider de probabilidade verde (50%-95%, step 5, default 75%)
+- Texto explicativo: "Verde = Chuta! Vermelho = Nao chuta! Treina inibicao de impulso."
+- Atualizar `onConfigChange` com `cognitiveMode` e `goProbability`
+
+---
+
+### 4. `src/components/game/ReactionScreen.tsx`
+
+**Circulo de estimulo bicolor:**
+- Verde ativo: fundo `#39FF14` + icone Check (lucide, w-16 h-16 branco)
+- Vermelho ativo: fundo `#FF3333` + icone X (lucide, w-16 h-16 branco) + box-shadow vermelho
+- Inativo: fundo escuro `#1e293b`
+
+**Feedback de commission error:**
+- Estado `showFault` (boolean, dura 1.5s)
+- Quando ativo: texto "FALTA!" grande vermelho centralizado com fade
+
+**Footer (modo cognitivo):**
+- Trocar 3a coluna "Melhor" por "FALTAS" (commissionErrors) em vermelho
+
+Precisa receber `stimulusColor` e `commissionErrors` do reactionState (ja estao no ReturnType).
+
+---
+
+### 5. `src/components/game/ReactionFinishedScreen.tsx`
+
+Se `result.cognitiveMode === true`, trocar o grid de 4 cards:
+
+| Icone | Label | Valor |
+|-------|-------|-------|
+| ShieldCheck | Inibicoes Corretas | X/Y (Z%) |
+| AlertTriangle | Faltas (Impulso) | N |
+| Clock | Omissoes | N |
+| TrendingDown | Media GO | Xms |
+
+O grafico AreaChart continua mostrando apenas tempos dos acertos no verde (reactionTimes — que so contem hits verdes).
+
+---
+
+### 6. `src/pages/Index.tsx`
+
+Passar novos callbacks para `useReactionState`:
+- `onNoGoSuccess: () => play('scoreBeep')`
+- `onCommissionError: () => playKORef.current()`
+
+Adicionar refs para esses callbacks seguindo o padrao existente (Latest Ref Pattern).
+
+## Secao Tecnica
+
+### Sorteio de cor
 
 ```text
-const registerImpact = () => {
-  const now = Date.now();
-  const delta = now - stimulusOnTimeRef.current;
-
-  // 1. FILTRO DE RUIDO — sempre primeiro, antes de qualquer logica
-  if (delta < 100 || delta > configRef.current.flashMs + 50) return;
-
-  // 2. Marca hit registrado
-  hitRegisteredRef.current = true;
-
-  // 3. Agora sim, logica do jogo (cognitivo ou normal)
-  if (configRef.current.cognitiveMode && stimulusColorRef.current === 'red') {
-    // Commission Error — chutou no vermelho
-    setCommissionErrors(prev => prev + 1);
-    onCommissionErrorRef.current?.();
-    setStimulusActive(false);
-    setStimulusColor(null);
-    // Cancel flash, schedule next...
-    return;
-  }
-
-  // 4. Acerto normal (verde ou modo padrao)
-  setLastReactionTime(delta);
-  setReactionTimes(prev => [...prev, delta]);
-  setStimulusActive(false);
-  // ...
-};
+const isGo = !cfg.cognitiveMode || Math.random() * 100 < cfg.goProbability;
+const color = isGo ? 'green' : 'red';
+setStimulusColor(color);
+if (isGo) setTotalGoStimuli(p => p + 1);
+else setTotalNoGoStimuli(p => p + 1);
 ```
 
-Esta e apenas uma diretriz de ordenacao para quando o modo cognitivo for implementado. O guard de debounce ja existe na linha correta hoje (linha 112). A regra e: nunca inserir logica de cor/cognitivo acima dessa linha.
+### Ordem no registerImpact
 
-## Arquivos modificados
-1. `src/hooks/useReactionState.ts` (diretriz aplicada na implementacao do modo cognitivo)
+```text
+// 1. Delta
+const delta = now - stimulusOnTimeRef.current;
+// 2. FILTRO DE RUIDO (primeira coisa!)
+if (delta < 100 || delta > cfg.flashMs + 50) return;
+// 3. Mark hit
+hitRegisteredRef.current = true;
+// 4. Cognitivo + Vermelho = FALTA
+if (cfg.cognitiveMode && stimulusColorRef.current === 'red') {
+  setCommissionErrors(p => p + 1);
+  onCommissionErrorRef.current?.();
+  setStimulusActive(false); setStimulusColor(null);
+  // cancel flash, schedule next
+  return;
+}
+// 5. Acerto normal
+```
+
+### Timeout do flash
+
+```text
+if (cfg.cognitiveMode && !hitRegisteredRef.current) {
+  const c = stimulusColorRef.current;
+  if (c === 'green') setOmissionErrors(p => p + 1);
+  if (c === 'red') {
+    setCorrectInhibitions(p => p + 1);
+    onNoGoSuccessRef.current?.();
+  }
+}
+```
+
+### Sons reutilizados (sem novos arquivos)
+- `scoreBeep` → inibicao correta (ding positivo)
+- `ko` → erro de impulso (buzz forte)
 
