@@ -1,4 +1,4 @@
-import { Trophy, TrendingDown, Zap, Target, UserRoundCog, Settings, RotateCcw } from 'lucide-react';
+import { Trophy, TrendingDown, Zap, Target, UserRoundCog, Settings, RotateCcw, ShieldCheck, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AreaChart,
@@ -26,6 +26,7 @@ export function ReactionFinishedScreen({
   onSwitchAthlete,
 }: ReactionFinishedScreenProps) {
   const hasReactionData = result.reactionTimes.length > 0;
+  const isCognitive = result.cognitiveMode;
 
   const avgTime = hasReactionData
     ? Math.round(result.reactionTimes.reduce((a, b) => a + b, 0) / result.reactionTimes.length)
@@ -45,6 +46,11 @@ export function ReactionFinishedScreen({
   // Chart data
   const chartData = result.reactionTimes.map((t, i) => ({ index: i + 1, time: t }));
 
+  // Cognitive stats
+  const inhibitionRate = result.totalNoGoStimuli > 0
+    ? Math.round((result.correctInhibitions / result.totalNoGoStimuli) * 100)
+    : 0;
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-gradient-to-b from-green-900/50 to-background">
       {/* Header */}
@@ -56,6 +62,7 @@ export function ReactionFinishedScreen({
         </div>
         <p className="text-muted-foreground text-sm">
           Nível: <span className="text-green-500 font-bold">{LEVEL_LABELS[result.level]}</span>
+          {isCognitive && <span className="text-orange-400 ml-2 font-bold">• Cognitivo</span>}
         </p>
       </header>
 
@@ -123,61 +130,28 @@ export function ReactionFinishedScreen({
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
-          {hasReactionData ? (
-            <>
-              {/* Best */}
-              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Trophy className="w-4 h-4 text-game-yellow" />
-                  <span className="text-xs text-muted-foreground">Melhor (PB)</span>
-                </div>
-                <p className="text-2xl md:text-3xl font-black text-foreground">{bestTime}ms</p>
-              </div>
-
-              {/* Average */}
-              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <TrendingDown className="w-4 h-4 text-green-500" />
-                  <span className="text-xs text-muted-foreground">Média</span>
-                </div>
-                <p className="text-2xl md:text-3xl font-black text-foreground">{avgTime}ms</p>
-              </div>
-
-              {/* Total Hits */}
-              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Zap className="w-4 h-4 text-game-yellow" />
-                  <span className="text-xs text-muted-foreground">Total Hits</span>
-                </div>
-                <p className="text-2xl md:text-3xl font-black text-foreground">
-                  {result.reactionTimes.length}
-                  <span className="text-base font-normal text-muted-foreground">
-                    /{result.totalStimuli}
-                  </span>
-                </p>
-              </div>
-
-              {/* Stability */}
-              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Target className="w-4 h-4 text-green-400" />
-                  <span className="text-xs text-muted-foreground">Estabilidade</span>
-                </div>
-                <p className="text-2xl md:text-3xl font-black text-foreground">±{stdDev}ms</p>
-              </div>
-            </>
+          {isCognitive ? (
+            <CognitiveStatsGrid
+              correctInhibitions={result.correctInhibitions}
+              totalNoGoStimuli={result.totalNoGoStimuli}
+              inhibitionRate={inhibitionRate}
+              commissionErrors={result.commissionErrors}
+              omissionErrors={result.omissionErrors}
+              avgTime={avgTime}
+            />
+          ) : hasReactionData ? (
+            <StandardStatsGrid
+              bestTime={bestTime}
+              avgTime={avgTime}
+              hits={result.reactionTimes.length}
+              totalStimuli={result.totalStimuli}
+              stdDev={stdDev}
+            />
           ) : (
-            <>
-              {/* No hardware – show rounds and stimuli only */}
-              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-                <span className="text-xs text-muted-foreground">Rounds</span>
-                <p className="text-3xl font-black text-foreground">{result.roundsCompleted}</p>
-              </div>
-              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-                <span className="text-xs text-muted-foreground">Estímulos</span>
-                <p className="text-3xl font-black text-foreground">{result.totalStimuli}</p>
-              </div>
-            </>
+            <NoHardwareStatsGrid
+              roundsCompleted={result.roundsCompleted}
+              totalStimuli={result.totalStimuli}
+            />
           )}
         </div>
       </main>
@@ -204,5 +178,140 @@ export function ReactionFinishedScreen({
         </div>
       </footer>
     </div>
+  );
+}
+
+/* ---- Sub-components for stats grids ---- */
+
+function CognitiveStatsGrid({
+  correctInhibitions,
+  totalNoGoStimuli,
+  inhibitionRate,
+  commissionErrors,
+  omissionErrors,
+  avgTime,
+}: {
+  correctInhibitions: number;
+  totalNoGoStimuli: number;
+  inhibitionRate: number;
+  commissionErrors: number;
+  omissionErrors: number;
+  avgTime: number | null;
+}) {
+  return (
+    <>
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <ShieldCheck className="w-4 h-4 text-green-400" />
+          <span className="text-xs text-muted-foreground">Inibições Corretas</span>
+        </div>
+        <p className="text-2xl md:text-3xl font-black text-foreground">
+          {correctInhibitions}/{totalNoGoStimuli}
+        </p>
+        <p className="text-xs text-green-400 font-bold">{inhibitionRate}%</p>
+      </div>
+
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <AlertTriangle className="w-4 h-4 text-red-400" />
+          <span className="text-xs text-muted-foreground">Faltas (Impulso)</span>
+        </div>
+        <p className="text-2xl md:text-3xl font-black text-red-400">{commissionErrors}</p>
+      </div>
+
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Clock className="w-4 h-4 text-yellow-400" />
+          <span className="text-xs text-muted-foreground">Omissões</span>
+        </div>
+        <p className="text-2xl md:text-3xl font-black text-foreground">{omissionErrors}</p>
+      </div>
+
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <TrendingDown className="w-4 h-4 text-green-500" />
+          <span className="text-xs text-muted-foreground">Média GO</span>
+        </div>
+        <p className="text-2xl md:text-3xl font-black text-foreground">
+          {avgTime !== null ? `${avgTime}ms` : '--'}
+        </p>
+      </div>
+    </>
+  );
+}
+
+function StandardStatsGrid({
+  bestTime,
+  avgTime,
+  hits,
+  totalStimuli,
+  stdDev,
+}: {
+  bestTime: number | null;
+  avgTime: number | null;
+  hits: number;
+  totalStimuli: number;
+  stdDev: number | null;
+}) {
+  return (
+    <>
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Trophy className="w-4 h-4 text-game-yellow" />
+          <span className="text-xs text-muted-foreground">Melhor (PB)</span>
+        </div>
+        <p className="text-2xl md:text-3xl font-black text-foreground">{bestTime}ms</p>
+      </div>
+
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <TrendingDown className="w-4 h-4 text-green-500" />
+          <span className="text-xs text-muted-foreground">Média</span>
+        </div>
+        <p className="text-2xl md:text-3xl font-black text-foreground">{avgTime}ms</p>
+      </div>
+
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Zap className="w-4 h-4 text-game-yellow" />
+          <span className="text-xs text-muted-foreground">Total Hits</span>
+        </div>
+        <p className="text-2xl md:text-3xl font-black text-foreground">
+          {hits}
+          <span className="text-base font-normal text-muted-foreground">
+            /{totalStimuli}
+          </span>
+        </p>
+      </div>
+
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Target className="w-4 h-4 text-green-400" />
+          <span className="text-xs text-muted-foreground">Estabilidade</span>
+        </div>
+        <p className="text-2xl md:text-3xl font-black text-foreground">±{stdDev}ms</p>
+      </div>
+    </>
+  );
+}
+
+function NoHardwareStatsGrid({
+  roundsCompleted,
+  totalStimuli,
+}: {
+  roundsCompleted: number;
+  totalStimuli: number;
+}) {
+  return (
+    <>
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <span className="text-xs text-muted-foreground">Rounds</span>
+        <p className="text-3xl font-black text-foreground">{roundsCompleted}</p>
+      </div>
+      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+        <span className="text-xs text-muted-foreground">Estímulos</span>
+        <p className="text-3xl font-black text-foreground">{totalStimuli}</p>
+      </div>
+    </>
   );
 }

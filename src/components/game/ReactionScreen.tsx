@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check, X } from 'lucide-react';
 import type { useReactionState } from '@/hooks/useReactionState';
 import { useEffect, useState } from 'react';
 
@@ -15,13 +15,29 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
     isResting,
     restTimeLeft,
     stimulusActive,
+    stimulusColor,
     lastReactionTime,
     reactionTimes,
+    commissionErrors,
+    config,
   } = reactionState;
 
   // Fade out reaction time display after 2s
   const [showReactionTime, setShowReactionTime] = useState(false);
   const [displayedTime, setDisplayedTime] = useState<number | null>(null);
+
+  // Commission error "FALTA!" flash
+  const [showFault, setShowFault] = useState(false);
+  const [trackedErrors, setTrackedErrors] = useState(0);
+
+  useEffect(() => {
+    if (commissionErrors > trackedErrors) {
+      setTrackedErrors(commissionErrors);
+      setShowFault(true);
+      const timer = window.setTimeout(() => setShowFault(false), 1500);
+      return () => window.clearTimeout(timer);
+    }
+  }, [commissionErrors, trackedErrors]);
 
   useEffect(() => {
     if (lastReactionTime !== null) {
@@ -38,10 +54,32 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
   const avgTime = hits > 0 ? Math.round(sum / hits) : null;
   const bestTime = hits > 0 ? Math.min(...reactionTimes) : null;
 
+  const isCognitive = config.cognitiveMode;
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Determine stimulus circle style
+  const getStimulusStyle = () => {
+    if (!stimulusActive || !stimulusColor) {
+      return {
+        backgroundColor: '#1e293b',
+        boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
+      };
+    }
+    if (stimulusColor === 'red') {
+      return {
+        backgroundColor: '#FF3333',
+        boxShadow: '0 0 60px 20px rgba(255,51,51,0.4), 0 0 120px 40px rgba(255,51,51,0.15)',
+      };
+    }
+    return {
+      backgroundColor: '#39FF14',
+      boxShadow: '0 0 60px 20px rgba(57,255,20,0.4), 0 0 120px 40px rgba(57,255,20,0.15)',
+    };
   };
 
   if (isResting) {
@@ -70,7 +108,7 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
   }
 
   return (
-    <div className="h-full w-full flex flex-col bg-slate-950 pb-24">
+    <div className="h-full w-full flex flex-col bg-slate-950 pb-24 relative">
       {/* Back */}
       <button
         onClick={onBack}
@@ -106,16 +144,33 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
       {/* Stimulus circle */}
       <div className="flex-1 flex flex-col items-center justify-center gap-4">
         <div
-          className="rounded-full transition-none"
+          className="rounded-full transition-none flex items-center justify-center"
           style={{
             width: 'clamp(180px, 40vw, 350px)',
             height: 'clamp(180px, 40vw, 350px)',
-            backgroundColor: stimulusActive ? '#39FF14' : '#1e293b',
-            boxShadow: stimulusActive
-              ? '0 0 60px 20px rgba(57,255,20,0.4), 0 0 120px 40px rgba(57,255,20,0.15)'
-              : 'inset 0 0 40px rgba(0,0,0,0.5)',
+            ...getStimulusStyle(),
           }}
-        />
+        >
+          {/* Icon inside stimulus for cognitive mode */}
+          {isCognitive && stimulusActive && stimulusColor === 'green' && (
+            <Check className="w-16 h-16 text-white" strokeWidth={3} />
+          )}
+          {isCognitive && stimulusActive && stimulusColor === 'red' && (
+            <X className="w-16 h-16 text-white" strokeWidth={3} />
+          )}
+        </div>
+
+        {/* Commission error feedback */}
+        {showFault && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+            <span
+              className="text-5xl md:text-7xl font-black text-red-500 animate-pulse"
+              style={{ textShadow: '0 0 30px rgba(255,0,0,0.6)' }}
+            >
+              FALTA!
+            </span>
+          </div>
+        )}
 
         {/* Reaction time feedback */}
         <div className="h-12 flex items-center justify-center">
@@ -160,13 +215,16 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
               {avgTime !== null ? `${avgTime}ms` : '--'}
             </div>
           </div>
-          {/* Melhor */}
+          {/* 3rd column: Melhor or FALTAS */}
           <div>
             <div className="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-widest mb-1">
-              Melhor
+              {isCognitive ? 'Faltas' : 'Melhor'}
             </div>
-            <div className="text-xl md:text-2xl font-black text-yellow-400">
-              {bestTime !== null ? `${bestTime}ms` : '--'}
+            <div className={`text-xl md:text-2xl font-black ${isCognitive ? 'text-red-400' : 'text-yellow-400'}`}>
+              {isCognitive
+                ? commissionErrors
+                : bestTime !== null ? `${bestTime}ms` : '--'
+              }
             </div>
           </div>
         </div>
