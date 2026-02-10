@@ -1,300 +1,282 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { GameState } from '@/types/game';
-import type { 
-  ReactionLevel, 
-  SignalColor, 
-  ReactionConfig, 
+import type {
+  ReactionLevel,
+  ReactionConfig,
   ReactionResult,
-  ReactionBurstConfig 
 } from '@/types/reaction';
 import { REACTION_PRESETS } from '@/types/reaction';
 
 interface UseReactionStateProps {
-  level: ReactionLevel;
-  onBlockEnd?: () => void;
+  config: ReactionConfig;
+  onRoundEnd?: () => void;
   onSessionEnd?: () => void;
+  onStimulus?: () => void;   // bip sound
+  onHit?: () => void;        // hit sound (kill the light)
 }
 
-// Utility to get random number between min and max
 function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export function useReactionState({ level, onBlockEnd, onSessionEnd }: UseReactionStateProps) {
-  const config = REACTION_PRESETS[level];
-  
-  // Game state
+export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus, onHit }: UseReactionStateProps) {
+  // Game flow
   const [gameState, setGameState] = useState<GameState>('idle');
   const [countdown, setCountdown] = useState(3);
-  
-  // Block state
-  const [currentBlock, setCurrentBlock] = useState(1);
-  const [blockTimeLeft, setBlockTimeLeft] = useState(config.blocks.workSec);
-  
-  // Rest state
+
+  // Round state
+  const [currentRound, setCurrentRound] = useState(1);
+  const [workTimeLeft, setWorkTimeLeft] = useState(config.workSec);
   const [isResting, setIsResting] = useState(false);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
-  
-  // Signal state
-  const [currentSignal, setCurrentSignal] = useState<SignalColor>('neutral');
-  
-  // Stats
-  const [stats, setStats] = useState({ total: 0, go: 0, stop: 0 });
-  
+
+  // Stimulus state
+  const [stimulusActive, setStimulusActive] = useState(false);
+  const [lastReactionTime, setLastReactionTime] = useState<number | null>(null);
+  const [reactionTimes, setReactionTimes] = useState<number[]>([]);
+  const [totalStimuli, setTotalStimuli] = useState(0);
+
   // Result
   const [lastResult, setLastResult] = useState<ReactionResult | null>(null);
-  
-  // Refs for timers
-  const blockTimerRef = useRef<number | null>(null);
-  const signalTimerRef = useRef<number | null>(null);
+
+  // Refs for timers and internal state
+  const workTimerRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const gapTimerRef = useRef<number | null>(null);
   const restTimerRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
-  
-  // Burst mode tracking
-  const signalCountRef = useRef(0);
-  const burstActiveRef = useRef(false);
-  const burstCountRef = useRef(0);
-  const nextBurstAtRef = useRef(0);
+  const stimulusOnTimeRef = useRef<number>(0);
+  const hitRegisteredRef = useRef(false);
+  const activeRef = useRef(false); // is the work phase running?
+  const configRef = useRef(config);
 
-  // Clear all timers
+  // Keep config ref fresh
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
+  // Keep callback refs fresh
+  const onStimulusRef = useRef(onStimulus);
+  const onHitRef = useRef(onHit);
+  const onRoundEndRef = useRef(onRoundEnd);
+  const onSessionEndRef = useRef(onSessionEnd);
+  useEffect(() => {
+    onStimulusRef.current = onStimulus;
+    onHitRef.current = onHit;
+    onRoundEndRef.current = onRoundEnd;
+    onSessionEndRef.current = onSessionEnd;
+  }, [onStimulus, onHit, onRoundEnd, onSessionEnd]);
+
   const clearAllTimers = useCallback(() => {
-    if (blockTimerRef.current) {
-      window.clearInterval(blockTimerRef.current);
-      blockTimerRef.current = null;
-    }
-    if (signalTimerRef.current) {
-      window.clearTimeout(signalTimerRef.current);
-      signalTimerRef.current = null;
-    }
-    if (restTimerRef.current) {
-      window.clearInterval(restTimerRef.current);
-      restTimerRef.current = null;
-    }
-    if (countdownTimerRef.current) {
-      window.clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-    }
-  }, []);
-
-  // Initialize burst tracking for a block
-  const initBurst = useCallback((burstConfig: ReactionBurstConfig) => {
-    signalCountRef.current = 0;
-    burstActiveRef.current = false;
-    burstCountRef.current = 0;
-    if (burstConfig.enabled && burstConfig.everyMin && burstConfig.everyMax) {
-      nextBurstAtRef.current = randomBetween(burstConfig.everyMin, burstConfig.everyMax);
-    }
-  }, []);
-
-  // Generate next signal
-  const generateNextSignal = useCallback((cfg: ReactionConfig) => {
-    // Check if we should trigger burst mode
-    if (cfg.burst.enabled && !burstActiveRef.current) {
-      signalCountRef.current++;
-      if (signalCountRef.current >= nextBurstAtRef.current) {
-        burstActiveRef.current = true;
-        burstCountRef.current = randomBetween(cfg.burst.countMin!, cfg.burst.countMax!);
+    [workTimerRef, flashTimerRef, gapTimerRef, restTimerRef, countdownTimerRef].forEach(ref => {
+      if (ref.current) {
+        window.clearTimeout(ref.current);
+        window.clearInterval(ref.current);
+        ref.current = null;
       }
-    }
-
-    // Determine if this is a STOP signal
-    const isStop = Math.random() * 100 < cfg.stopRate;
-    
-    // Get timing based on burst mode
-    let flashDuration: number;
-    let gapDuration: number;
-    
-    if (burstActiveRef.current && cfg.burst.enabled) {
-      // Burst mode: faster timing
-      flashDuration = randomBetween(cfg.flashMs.min, cfg.flashMs.max);
-      gapDuration = randomBetween(cfg.burst.gapMin!, cfg.burst.gapMax!);
-      burstCountRef.current--;
-      if (burstCountRef.current <= 0) {
-        burstActiveRef.current = false;
-        signalCountRef.current = 0;
-        nextBurstAtRef.current = randomBetween(cfg.burst.everyMin!, cfg.burst.everyMax!);
-      }
-    } else {
-      // Normal mode
-      flashDuration = randomBetween(cfg.flashMs.min, cfg.flashMs.max);
-      gapDuration = randomBetween(cfg.gapMs.min, cfg.gapMs.max);
-    }
-
-    // Show signal
-    setCurrentSignal(isStop ? 'stop' : 'go');
-    setStats(prev => ({
-      total: prev.total + 1,
-      go: prev.go + (isStop ? 0 : 1),
-      stop: prev.stop + (isStop ? 1 : 0),
-    }));
-
-    // Schedule neutral (gap)
-    signalTimerRef.current = window.setTimeout(() => {
-      setCurrentSignal('neutral');
-      
-      // Schedule next signal
-      signalTimerRef.current = window.setTimeout(() => {
-        generateNextSignal(cfg);
-      }, gapDuration);
-    }, flashDuration);
+    });
+    activeRef.current = false;
   }, []);
 
-  // Start a block
-  const startBlock = useCallback(() => {
-    const cfg = REACTION_PRESETS[level];
-    setBlockTimeLeft(cfg.blocks.workSec);
-    setCurrentSignal('neutral');
-    initBurst(cfg.burst);
-    
-    // Start block timer
-    blockTimerRef.current = window.setInterval(() => {
-      setBlockTimeLeft(prev => {
-        if (prev <= 1) {
-          // Block ended
-          window.clearInterval(blockTimerRef.current!);
-          blockTimerRef.current = null;
-          
-          // Stop signal generation
-          if (signalTimerRef.current) {
-            window.clearTimeout(signalTimerRef.current);
-            signalTimerRef.current = null;
+  // --- Stimulus cycle ---
+  const scheduleNextStimulus = useCallback(() => {
+    if (!activeRef.current) return;
+    const cfg = configRef.current;
+    const gap = randomBetween(cfg.gapMs.min, cfg.gapMs.max);
+    gapTimerRef.current = window.setTimeout(() => {
+      if (!activeRef.current) return;
+      // Turn ON
+      setStimulusActive(true);
+      stimulusOnTimeRef.current = Date.now();
+      hitRegisteredRef.current = false;
+      setTotalStimuli(prev => prev + 1);
+      onStimulusRef.current?.(); // bip
+
+      // Schedule auto-off after flashMs
+      flashTimerRef.current = window.setTimeout(() => {
+        if (!activeRef.current) return;
+        setStimulusActive(false);
+        scheduleNextStimulus();
+      }, cfg.flashMs);
+    }, gap);
+  }, []);
+
+  // --- Register impact (called by hardware) ---
+  const registerImpact = useCallback(() => {
+    if (!activeRef.current || hitRegisteredRef.current) return;
+    // Only register if stimulus is currently on
+    if (stimulusOnTimeRef.current === 0) return;
+    const now = Date.now();
+    const delta = now - stimulusOnTimeRef.current;
+    // Guard: only accept if within a reasonable window (stimulus is on)
+    if (delta < 0 || delta > configRef.current.flashMs + 50) return;
+
+    hitRegisteredRef.current = true;
+    // Cancel flash timer
+    if (flashTimerRef.current) {
+      window.clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = null;
+    }
+    // Kill the light immediately
+    setStimulusActive(false);
+    setLastReactionTime(delta);
+    setReactionTimes(prev => [...prev, delta]);
+    onHitRef.current?.(); // hit sound
+
+    // Schedule next stimulus
+    scheduleNextStimulus();
+  }, [scheduleNextStimulus]);
+
+  // --- Start a work round ---
+  const startRound = useCallback(() => {
+    const cfg = configRef.current;
+    activeRef.current = true;
+    setStimulusActive(false);
+    setWorkTimeLeft(cfg.workSec);
+    setIsResting(false);
+    setLastReactionTime(null);
+
+    // Work countdown
+    let remaining = cfg.workSec;
+    workTimerRef.current = window.setInterval(() => {
+      remaining--;
+      setWorkTimeLeft(remaining);
+      if (remaining <= 0) {
+        // End work phase
+        window.clearInterval(workTimerRef.current!);
+        workTimerRef.current = null;
+        activeRef.current = false;
+        // Cancel any pending stimulus timers
+        if (flashTimerRef.current) { window.clearTimeout(flashTimerRef.current); flashTimerRef.current = null; }
+        if (gapTimerRef.current) { window.clearTimeout(gapTimerRef.current); gapTimerRef.current = null; }
+        setStimulusActive(false);
+        onRoundEndRef.current?.();
+
+        // Check if session complete
+        setCurrentRound(prevRound => {
+          if (prevRound >= cfg.rounds) {
+            // Session finished
+            setGameState('finished');
+            setLastResult({
+              mode: 'reaction',
+              level: cfg.level,
+              roundsCompleted: prevRound,
+              totalStimuli: 0, // will be set via ref below
+              reactionTimes: [],
+              timestamp: Date.now(),
+            });
+            onSessionEndRef.current?.();
+            return prevRound;
+          } else {
+            // Start rest
+            setIsResting(true);
+            setRestTimeLeft(cfg.restSec);
+            let restRemaining = cfg.restSec;
+            restTimerRef.current = window.setInterval(() => {
+              restRemaining--;
+              setRestTimeLeft(restRemaining);
+              if (restRemaining <= 0) {
+                window.clearInterval(restTimerRef.current!);
+                restTimerRef.current = null;
+                setIsResting(false);
+                setTimeout(() => startRound(), 100);
+              }
+            }, 1000);
+            return prevRound + 1;
           }
-          
-          setCurrentSignal('neutral');
-          onBlockEnd?.();
-          
-          // Check if session is complete
-          setCurrentBlock(prevBlock => {
-            if (prevBlock >= cfg.blocks.count) {
-              // Session complete
-              setGameState('finished');
-              setLastResult({
-                mode: 'reaction',
-                level,
-                blocksCompleted: prevBlock,
-                totalSignals: stats.total,
-                goSignals: stats.go,
-                stopSignals: stats.stop,
-                timestamp: Date.now(),
-              });
-              onSessionEnd?.();
-              return prevBlock;
-            } else {
-              // Start rest period
-              setIsResting(true);
-              setRestTimeLeft(cfg.blocks.restSec);
-              
-              restTimerRef.current = window.setInterval(() => {
-                setRestTimeLeft(prevRest => {
-                  if (prevRest <= 1) {
-                    window.clearInterval(restTimerRef.current!);
-                    restTimerRef.current = null;
-                    setIsResting(false);
-                    // Start next block after rest ends
-                    setTimeout(() => startBlock(), 100);
-                    return 0;
-                  }
-                  return prevRest - 1;
-                });
-              }, 1000);
-              
-              return prevBlock + 1;
-            }
-          });
-          
-          return 0;
-        }
-        return prev - 1;
-      });
+        });
+      }
     }, 1000);
-    
-    // Start signal generation after a brief delay
-    signalTimerRef.current = window.setTimeout(() => {
-      generateNextSignal(cfg);
-    }, 500);
-  }, [level, initBurst, generateNextSignal, onBlockEnd, onSessionEnd, stats]);
 
-  // Start countdown
+    // Start stimulus cycle
+    scheduleNextStimulus();
+  }, [scheduleNextStimulus]);
+
+  // Fix: set correct final result with accumulated data
+  useEffect(() => {
+    if (gameState === 'finished' && lastResult) {
+      setLastResult(prev => prev ? {
+        ...prev,
+        totalStimuli,
+        reactionTimes,
+      } : prev);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState]);
+
+  // --- Countdown ---
   const startCountdown = useCallback(() => {
     setGameState('countdown');
     setCountdown(3);
-    
+    let c = 3;
     countdownTimerRef.current = window.setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          window.clearInterval(countdownTimerRef.current!);
-          countdownTimerRef.current = null;
-          setGameState('running');
-          startBlock();
-          return 0;
-        }
-        return prev - 1;
-      });
+      c--;
+      setCountdown(c);
+      if (c <= 0) {
+        window.clearInterval(countdownTimerRef.current!);
+        countdownTimerRef.current = null;
+        setGameState('running');
+        startRound();
+      }
     }, 1000);
-  }, [startBlock]);
+  }, [startRound]);
 
-  // Go to setup
   const goToSetup = useCallback(() => {
     clearAllTimers();
     setGameState('setup');
-    setCurrentBlock(1);
-    setBlockTimeLeft(config.blocks.workSec);
-    setCurrentSignal('neutral');
+    setCurrentRound(1);
+    setWorkTimeLeft(config.workSec);
+    setStimulusActive(false);
     setIsResting(false);
     setRestTimeLeft(0);
-    setStats({ total: 0, go: 0, stop: 0 });
+    setLastReactionTime(null);
+    setReactionTimes([]);
+    setTotalStimuli(0);
     setLastResult(null);
-  }, [clearAllTimers, config.blocks.workSec]);
+  }, [clearAllTimers, config.workSec]);
 
-  // Go to loading state (before countdown)
   const goToLoading = useCallback(() => {
     setGameState('loading');
   }, []);
 
-  // Reset game
   const resetGame = useCallback(() => {
     clearAllTimers();
     setGameState('idle');
     setCountdown(3);
-    setCurrentBlock(1);
-    setBlockTimeLeft(config.blocks.workSec);
-    setCurrentSignal('neutral');
+    setCurrentRound(1);
+    setWorkTimeLeft(config.workSec);
+    setStimulusActive(false);
     setIsResting(false);
     setRestTimeLeft(0);
-    setStats({ total: 0, go: 0, stop: 0 });
+    setLastReactionTime(null);
+    setReactionTimes([]);
+    setTotalStimuli(0);
     setLastResult(null);
-  }, [clearAllTimers, config.blocks.workSec]);
+  }, [clearAllTimers, config.workSec]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => clearAllTimers();
   }, [clearAllTimers]);
 
-  // Update config when level changes
-  useEffect(() => {
-    if (gameState === 'idle' || gameState === 'setup') {
-      setBlockTimeLeft(REACTION_PRESETS[level].blocks.workSec);
-    }
-  }, [level, gameState]);
-
   return {
-    // State
     gameState,
     countdown,
-    currentBlock,
-    totalBlocks: config.blocks.count,
-    blockTimeLeft,
-    currentSignal,
+    currentRound,
+    totalRounds: config.rounds,
+    workTimeLeft,
     isResting,
     restTimeLeft,
-    stats,
+    stimulusActive,
+    lastReactionTime,
+    reactionTimes,
+    totalStimuli,
     lastResult,
     config,
-    
-    // Actions
+
     startCountdown,
     goToSetup,
     goToLoading,
     resetGame,
+    registerImpact,
   };
 }
