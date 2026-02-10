@@ -117,11 +117,13 @@ export function ReactionFinishedScreen({
                   }}
                 />
                 <Area
-                  type="monotone"
+                  type="linear"
                   dataKey="time"
                   stroke="#39FF14"
                   strokeWidth={2}
                   fill="url(#reactionGradient)"
+                  dot={{ r: 4, fill: '#39FF14' }}
+                  activeDot={{ r: 6 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
