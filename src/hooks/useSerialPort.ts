@@ -181,7 +181,7 @@ export function useSerialPort({
     // Only cleanup flush interval on unmount, NOT on every re-run
     // This prevents the 30ms flush loop from being destroyed/recreated
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [impactDetectorConfig?.enabled, noiseFloorJson]);
+  }, [impactDetectorConfig?.enabled, noiseFloorJson, impactDetectorConfig?.noiseIntensityMin]);
 
   // Separate unmount-only cleanup for flush interval
   useEffect(() => {
