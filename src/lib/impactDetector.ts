@@ -50,6 +50,7 @@ export class ImpactDetector {
   constructor(config?: Partial<ImpactDetectorConfig>) {
     this.config = {
       noiseFloor: {},
+      noiseIntensityMin: NOISE_INTENSITY_MIN,
       deltaStart: DEFAULT_DELTA_START,
       deltaContinue: DEFAULT_DELTA_CONTINUE,
       silenceGapMs: SILENCE_GAP_MS,
