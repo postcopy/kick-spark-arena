@@ -156,10 +156,10 @@ export function GameScreen({
                 'drop-shadow-[0_0_60px_rgba(255,215,0,0.4)]',
                 'transition-transform duration-100',
                 flashSide ? 'scale-110' : 'scale-100'
-              )}>
+              )} style={{ fontSize: 'clamp(4rem, 20vh, 12rem)' }}>
                 {totalKicks}
               </div>
-              <div className="text-3xl md:text-4xl text-[#FFD700]/60 uppercase tracking-[0.5em] mt-4">
+              <div className="text-[#FFD700]/60 uppercase tracking-[0.5em]" style={{ fontSize: 'clamp(1.2rem, 3vh, 2.5rem)' }}>
                 chutes
               </div>
             </div>
