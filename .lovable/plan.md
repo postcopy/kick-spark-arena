@@ -1,140 +1,111 @@
 
 
-# Recriar Modo de Reacao (Reaction Training)
+# Tela de Resultados Finais — ReactionFinishedScreen
 
 ## Resumo
 
-Reescrever completamente o Modo Reacao com logica baseada em fisiologia (Work/Rest Ratio), estimulo visual por circulo central, som de bip, edicao manual dos parametros, e integracao opcional com hardware para medir tempo de reacao com feedback instantaneo ("matar a luz").
-
-## Ajuste Crucial de UX: "Matar a Luz"
-
-O `flashDuration` configurado (ex: 1000ms) e o tempo MAXIMO que o circulo fica aceso. Se o hardware detectar impacto valido durante a janela:
-
-1. Registra o tempo de reacao (delta)
-2. Apaga o circulo IMEDIATAMENTE (cancela o timer de flash)
-3. Toca som de acerto (hit sound)
-4. Exibe o tempo de reacao na tela
-
-Se ninguem chutar, o circulo apaga sozinho apos o flashDuration e segue para o proximo gap.
+Reescrever o `ReactionFinishedScreen` com grafico de performance (recharts AreaChart), grid de estatisticas com 4 cards, e barra de 3 acoes no rodape. Tambem ajustar as props e o Index.tsx para suportar os novos callbacks.
 
 ## Mudancas por Arquivo
 
-### 1. `src/types/reaction.ts` — Novos tipos e presets
+### 1. `src/components/game/ReactionFinishedScreen.tsx` — Reescrita completa
 
-Reescrever com presets baseados em Work/Rest Ratio:
+**Grafico de Performance (AreaChart):**
+- Eixo X: Numero do estimulo (1, 2, 3...)
+- Eixo Y: Tempo de reacao (ms)
+- Linha de referencia horizontal pontilhada mostrando a media
+- Gradiente verde para tempos abaixo da media, vermelho para acima
+- Tooltip com tempo exato ao passar mouse/dedo
+- Usar recharts (ja instalado): AreaChart, XAxis, YAxis, Tooltip, ReferenceLine, Area
 
-| Preset | Trabalho | Descanso | Ratio | Gap entre estimulos | Flash max |
-|--------|----------|----------|-------|---------------------|-----------|
-| Iniciante | 20s | 40s | 1:2 | 1.5s - 2.5s | 1000ms |
-| Intermediario | 30s | 45s | 1:1.5 | 0.8s - 1.5s | 800ms |
-| Elite | 30s | 30s | 1:1 | 0.3s - 0.6s | 600ms |
+**Grid de Estatisticas (4 cards):**
 
-- Remover `stopRate`, `burst` (nao usados)
-- Renomear nivel `advanced` para `elite`
-- `flashMs` agora e o tempo MAXIMO do estimulo
-- Adicionar `rounds` no lugar de `blocks`
-- `ReactionResult` com campo `reactionTimes: number[]`
+| Card | Icone | Label | Valor |
+|------|-------|-------|-------|
+| Melhor Marca | Trophy | Melhor (PB) | ex: 310ms |
+| Media | TrendingDown | Media | ex: 405ms |
+| Total Hits | Zap | Total Hits | ex: 24/25 |
+| Estabilidade | Target | Estabilidade | ex: ±15ms (desvio padrao) |
 
-### 2. `src/hooks/useReactionState.ts` — Nova logica com "matar a luz"
+**Barra de Acoes (3 botoes):**
+- **Trocar Atleta** (outline/cinza): chama `onSwitchAthlete` — limpa sessao atual, volta para selecao de perfil
+- **Ajustar** (ghost/cinza): chama `onAdjustSetup` — volta para ReactionSetupScreen mantendo usuario
+- **REPETIR TREINO** (verde/destaque): chama `onPlayAgain` — reinicia imediatamente com mesmas configs
 
-Reescrever completamente:
+**Quando nao ha dados de reacao** (hardware nao conectado): ocultar grafico e cards de tempo, mostrar apenas rounds e total de estimulos com os 3 botoes.
 
-- **Rounds** com timer de trabalho + descanso
-- **Gerador de estimulos**: gap aleatorio -> acende + bip -> aguarda flashMs OU impacto -> apaga -> repete
-- **`registerImpact()`**: chamado pelo hardware. Se estimulo esta aceso e ainda nao foi "matado":
-  - Calcula `delta = Date.now() - stimulusOnTimestamp`
-  - Cancela o timer de flash (`clearTimeout`)
-  - Forca `currentSignal = 'off'`
-  - Salva delta em `reactionTimes[]` e `lastReactionTime`
-  - Seta flag `hitRegistered = true` para ignorar impactos duplicados
-  - Agenda proximo estimulo (gap)
-- Aceitar config customizada para edicao manual
-- Expor `lastReactionTime`, `reactionTimes`, `stimulusActive` (bool)
+### 2. `src/pages/Index.tsx` — Novos callbacks
 
-### 3. `src/components/game/ReactionSetupScreen.tsx` — Tela de configuracao
+- Adicionar `onAdjustSetup` que chama `reactionState.goToSetup()` (ja existe, so renomear a prop)
+- Adicionar `onSwitchAthlete` que limpa `selectedAthlete`, chama `handleBackToMenu()` (volta ao menu principal/selecao)
+- Passar as 3 callbacks para `ReactionFinishedScreen`:
+  - `onPlayAgain` -> reinicia com `startCountdown()` diretamente (instant replay, sem passar pelo setup)
+  - `onAdjustSetup` -> `goToSetup()`
+  - `onSwitchAthlete` -> limpa atleta + volta ao menu
 
-Reescrever com:
-- 3 presets (Iniciante, Intermediario, Elite) como botoes
-- Campos editaveis: tempo trabalho, descanso, rounds, intervalo min/max, flash max
-- Selecionar preset preenche campos; editar muda para "Personalizado"
-- Status de hardware (readonly)
-- Botao INICIAR TREINO
+### 3. `src/hooks/useReactionState.ts` — Adicionar replay direto
 
-### 4. `src/components/game/ReactionScreen.tsx` — Tela de execucao
-
-Reescrever:
-- Fundo escuro (bg-slate-950)
-- Circulo central grande (~40vw):
-  - Apagado: cinza escuro
-  - Aceso: verde neon (#39FF14)
-  - Transicao instantanea
-- Header: Round atual / total + timer de trabalho
-- Feedback de reacao: tempo em ms abaixo do circulo com fade-out
-- Descanso: bg azul escuro, timer regressivo, texto "DESCANSE"
-- Sons: bip ao acender, som de acerto ao "matar a luz", apito inicio/fim round
-
-### 5. `src/components/game/ReactionFinishedScreen.tsx` — Resultados
-
-Atualizar para mostrar:
-- Rounds completados, total de estimulos
-- Com hardware: tempo medio, melhor, pior
-- Sem hardware: apenas contagens
-
-### 6. `src/pages/Index.tsx` — Integracao hardware
-
-- No `handleSerialKick` para `gameMode === 'reaction'`: chamar `reactionState.registerImpact()`
-- Passar `isConnected` para ReactionSetupScreen
-
-### 7. Sons
-
-Reutilizar existentes:
-- Estimulo: `score-beep.mp3`
-- Acerto (matar luz): `hit.mp3`
-- Inicio round: `round-start.mp3`
-- Fim round: `time-up.mp3`
-- Fim sessao: `victory.mp3`
+- Adicionar funcao `replay()` que reseta contadores (rounds, tempos, stimuli) mas mantem a config atual e inicia o countdown imediatamente
+- Isso permite o "REPETIR TREINO" sem passar pela tela de setup
 
 ## Secao Tecnica
 
-### Fluxo do Estimulo com "Matar a Luz"
+### Calculo do Desvio Padrao (Estabilidade)
 
 ```text
-[GAP aleatorio] --> [Acende + bip] --> aguarda...
-                                         |
-                        +---------+------+--------+
-                        |                          |
-                  Impacto detectado          Timer expira (flashMs)
-                        |                          |
-                  Apaga IMEDIATO             Apaga normal
-                  + som de acerto            (sem registro)
-                  + mostra "450ms"
-                  + cancela timer
-                        |                          |
-                        +----------+---------------+
-                                   |
-                             [Proximo GAP]
+mean = sum(times) / n
+variance = sum((t - mean)^2) / n
+stdDev = sqrt(variance)
+exibir como "±{stdDev}ms"
 ```
 
-### registerImpact() — Pseudocodigo
+### Estrutura do Grafico (recharts)
 
 ```text
-function registerImpact():
-  if stimulusActive AND NOT hitRegistered:
-    delta = now() - stimulusOnTimestamp
-    reactionTimes.push(delta)
-    lastReactionTime = delta
-    hitRegistered = true
-    clearTimeout(flashTimer)
-    currentSignal = 'off'
-    playHitSound()
-    scheduleNextStimulus(gap)
+const data = reactionTimes.map((t, i) => ({ index: i + 1, time: t }));
+
+<AreaChart data={data}>
+  <XAxis dataKey="index" />
+  <YAxis domain={['auto', 'auto']} />
+  <Tooltip />
+  <ReferenceLine y={avgTime} stroke="#888" strokeDasharray="3 3" label="Media" />
+  <Area dataKey="time" stroke="#39FF14" fill="url(#gradient)" />
+  <defs>
+    <!-- gradiente verde/vermelho baseado na media -->
+  </defs>
+</AreaChart>
+```
+
+### Layout da Tela
+
+```text
++----------------------------------+
+|     TREINO COMPLETO!             |
+|     Nivel: Intermediario         |
++----------------------------------+
+|                                  |
+|   [===== AreaChart =====]        |
+|   |  .    .              |       |
+|   | . \  / \    .        |       |
+|   |    \/    \  / \      |       |
+|   |--- media --------    |       |
+|   +------------------+   |       |
+|                                  |
+|   +------+  +------+            |
+|   | PB   |  | Media|            |
+|   | 310ms|  | 405ms|            |
+|   +------+  +------+            |
+|   +------+  +------+            |
+|   | Hits |  | ±15ms|            |
+|   | 24/25|  | Estab|            |
+|   +------+  +------+            |
++----------------------------------+
+| [Trocar] [Ajustar] [REPETIR]    |
++----------------------------------+
 ```
 
 ### Arquivos modificados
-1. `src/types/reaction.ts`
-2. `src/hooks/useReactionState.ts`
-3. `src/components/game/ReactionSetupScreen.tsx`
-4. `src/components/game/ReactionScreen.tsx`
-5. `src/components/game/ReactionFinishedScreen.tsx`
-6. `src/pages/Index.tsx`
+1. `src/components/game/ReactionFinishedScreen.tsx`
+2. `src/pages/Index.tsx`
+3. `src/hooks/useReactionState.ts`
 
