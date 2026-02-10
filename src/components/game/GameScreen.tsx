@@ -149,7 +149,7 @@ export function GameScreen({
               <div className="absolute inset-0 bg-[#FFD700]/20 pointer-events-none animate-pulse" />
             )}
             
-            <div className="text-center">
+            <div className="text-center flex flex-col items-center justify-center gap-[2vh]">
               {/* Giant golden score */}
               <div className={cn(
                 'text-[10rem] md:text-[14rem] font-bold text-[#FFD700] leading-none',
