@@ -104,9 +104,9 @@ export function GameScreen({
           {/* Time Number */}
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
-              'text-5xl md:text-6xl font-bold tabular-nums',
+              'font-bold font-mono tabular-nums',
               timeColor
-            )}>
+            )} style={{ fontSize: 'clamp(3rem, 15vh, 8rem)' }}>
               {formatTime(timeLeft)}
             </span>
           </div>
