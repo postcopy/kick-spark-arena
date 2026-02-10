@@ -12,6 +12,7 @@ export const DEFAULT_DELTA_CONTINUE = 2;
 // ─── Interfaces ───
 export interface ImpactDetectorConfig {
   noiseFloor: Record<string, number>;
+  noiseIntensityMin: number;
   deltaStart: number;
   deltaContinue: number;
   silenceGapMs: number;
