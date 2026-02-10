@@ -1,111 +1,89 @@
 
 
-# Tela de Resultados Finais — ReactionFinishedScreen
+# HUD Tatico + Debounce de Hardware — ReactionScreen
 
 ## Resumo
 
-Reescrever o `ReactionFinishedScreen` com grafico de performance (recharts AreaChart), grid de estatisticas com 4 cards, e barra de 3 acoes no rodape. Tambem ajustar as props e o Index.tsx para suportar os novos callbacks.
+Duas mudancas: (1) reformular o layout da tela de treino para maxima visibilidade a distancia com cronometro gigante, contador de hits e barra de live stats no rodape; (2) adicionar filtro de debounce no `registerImpact` para ignorar leituras falsas de hardware abaixo de 100ms.
 
 ## Mudancas por Arquivo
 
-### 1. `src/components/game/ReactionFinishedScreen.tsx` — Reescrita completa
+### 1. `src/components/game/ReactionScreen.tsx` — Reescrita do layout de treino
 
-**Grafico de Performance (AreaChart):**
-- Eixo X: Numero do estimulo (1, 2, 3...)
-- Eixo Y: Tempo de reacao (ms)
-- Linha de referencia horizontal pontilhada mostrando a media
-- Gradiente verde para tempos abaixo da media, vermelho para acima
-- Tooltip com tempo exato ao passar mouse/dedo
-- Usar recharts (ja instalado): AreaChart, XAxis, YAxis, Tooltip, ReferenceLine, Area
+**A. Cronometro Gigante (Topo Centro)**
+- Posicionado abaixo do header de round, centralizado
+- Fonte: `font-mono text-[clamp(4rem,12vw,8rem)] font-black text-white`
+- Formato `M:SS` (ex: `0:18`)
+- Quando `workTimeLeft <= 5`: aplica `text-red-500 animate-pulse`
 
-**Grid de Estatisticas (4 cards):**
+**B. Contador de Hits**
+- Logo abaixo do cronometro: `HITS: XX`
+- Fonte: `text-3xl md:text-4xl font-bold text-yellow-400`
+- Valor: `reactionTimes.length`
 
-| Card | Icone | Label | Valor |
-|------|-------|-------|-------|
-| Melhor Marca | Trophy | Melhor (PB) | ex: 310ms |
-| Media | TrendingDown | Media | ex: 405ms |
-| Total Hits | Zap | Total Hits | ex: 24/25 |
-| Estabilidade | Target | Estabilidade | ex: ±15ms (desvio padrao) |
+**C. Circulo de Estimulo**
+- Mantem no centro vertical, entre o cronometro e o rodape
+- Mantem o feedback de tempo de reacao (fade 2s) abaixo do circulo
 
-**Barra de Acoes (3 botoes):**
-- **Trocar Atleta** (outline/cinza): chama `onSwitchAthlete` — limpa sessao atual, volta para selecao de perfil
-- **Ajustar** (ghost/cinza): chama `onAdjustSetup` — volta para ReactionSetupScreen mantendo usuario
-- **REPETIR TREINO** (verde/destaque): chama `onPlayAgain` — reinicia imediatamente com mesmas configs
+**D. Barra de Live Stats (Rodape Fixo)**
+- Substitui o texto "Prepare-se" atual
+- Estilo: `fixed bottom-0 left-0 w-full bg-black/60 backdrop-blur-md border-t border-white/10 py-4`
+- Grid de 3 colunas (`grid grid-cols-3 text-center`):
 
-**Quando nao ha dados de reacao** (hardware nao conectado): ocultar grafico e cards de tempo, mostrar apenas rounds e total de estimulos com os 3 botoes.
+| Coluna | Label | Cor | Logica |
+|--------|-------|-----|--------|
+| ULTIMO | Ultimo tempo | Verde neon (`text-green-400`) se < 500ms, senao `text-white` | `lastReactionTime` ou `--` |
+| MEDIA | Media da sessao | `text-white` | `Math.round(sum / hits)` ou `--` |
+| MELHOR | Menor tempo | `text-yellow-400` | `Math.min(...reactionTimes)` ou `--` |
 
-### 2. `src/pages/Index.tsx` — Novos callbacks
-
-- Adicionar `onAdjustSetup` que chama `reactionState.goToSetup()` (ja existe, so renomear a prop)
-- Adicionar `onSwitchAthlete` que limpa `selectedAthlete`, chama `handleBackToMenu()` (volta ao menu principal/selecao)
-- Passar as 3 callbacks para `ReactionFinishedScreen`:
-  - `onPlayAgain` -> reinicia com `startCountdown()` diretamente (instant replay, sem passar pelo setup)
-  - `onAdjustSetup` -> `goToSetup()`
-  - `onSwitchAthlete` -> limpa atleta + volta ao menu
-
-### 3. `src/hooks/useReactionState.ts` — Adicionar replay direto
-
-- Adicionar funcao `replay()` que reseta contadores (rounds, tempos, stimuli) mas mantem a config atual e inicia o countdown imediatamente
-- Isso permite o "REPETIR TREINO" sem passar pela tela de setup
-
-## Secao Tecnica
-
-### Calculo do Desvio Padrao (Estabilidade)
+**E. Dados computados inline (sem mudanca no hook)**
 
 ```text
-mean = sum(times) / n
-variance = sum((t - mean)^2) / n
-stdDev = sqrt(variance)
-exibir como "±{stdDev}ms"
+const hits = reactionTimes.length;
+const sum = reactionTimes.reduce((a, b) => a + b, 0);
+const avgTime = hits > 0 ? Math.round(sum / hits) : null;
+const bestTime = hits > 0 ? Math.min(...reactionTimes) : null;
 ```
 
-### Estrutura do Grafico (recharts)
+**F. Padding inferior**
+- Adicionar `pb-24` ao container principal para evitar que o circulo fique oculto atras da barra fixa do rodape
+
+**Tela de descanso**: Permanece inalterada (fundo azul com countdown gigante).
+
+### 2. `src/hooks/useReactionState.ts` — Debounce de 100ms
+
+Na funcao `registerImpact`, adicionar uma verificacao: se `delta < 100`, ignorar o impacto (considerar leitura falsa de hardware). Isso impede que ruido eletrico ou vibracao residual registre um tempo de reacao humanamente impossivel.
+
+Mudanca pontual na linha 112 — trocar o guard de `delta < 0` para `delta < 100`:
 
 ```text
-const data = reactionTimes.map((t, i) => ({ index: i + 1, time: t }));
+// Antes:
+if (delta < 0 || delta > configRef.current.flashMs + 50) return;
 
-<AreaChart data={data}>
-  <XAxis dataKey="index" />
-  <YAxis domain={['auto', 'auto']} />
-  <Tooltip />
-  <ReferenceLine y={avgTime} stroke="#888" strokeDasharray="3 3" label="Media" />
-  <Area dataKey="time" stroke="#39FF14" fill="url(#gradient)" />
-  <defs>
-    <!-- gradiente verde/vermelho baseado na media -->
-  </defs>
-</AreaChart>
+// Depois:
+if (delta < 100 || delta > configRef.current.flashMs + 50) return;
 ```
 
-### Layout da Tela
+Isso significa que qualquer impacto registrado em menos de 100ms apos o estimulo acender sera descartado silenciosamente.
+
+## Layout Final da Tela de Treino
 
 ```text
 +----------------------------------+
-|     TREINO COMPLETO!             |
-|     Nivel: Intermediario         |
-+----------------------------------+
+| [<]  Round 2/6                   |
 |                                  |
-|   [===== AreaChart =====]        |
-|   |  .    .              |       |
-|   | . \  / \    .        |       |
-|   |    \/    \  / \      |       |
-|   |--- media --------    |       |
-|   +------------------+   |       |
+|           0:18                   |  <-- cronometro gigante mono
+|          HITS: 05                |  <-- contador amarelo
 |                                  |
-|   +------+  +------+            |
-|   | PB   |  | Media|            |
-|   | 310ms|  | 405ms|            |
-|   +------+  +------+            |
-|   +------+  +------+            |
-|   | Hits |  | ±15ms|            |
-|   | 24/25|  | Estab|            |
-|   +------+  +------+            |
-+----------------------------------+
-| [Trocar] [Ajustar] [REPETIR]    |
+|           ( O )                  |  <-- circulo estimulo
+|           380ms                  |  <-- feedback (fade 2s)
+|                                  |
++==================================+
+| ULTIMO    |  MEDIA   |  MELHOR   |  <-- barra fixa rodape
+| 198ms     |  205ms   |  150ms   |
 +----------------------------------+
 ```
 
-### Arquivos modificados
-1. `src/components/game/ReactionFinishedScreen.tsx`
-2. `src/pages/Index.tsx`
-3. `src/hooks/useReactionState.ts`
-
+## Arquivos modificados
+1. `src/components/game/ReactionScreen.tsx`
+2. `src/hooks/useReactionState.ts`
