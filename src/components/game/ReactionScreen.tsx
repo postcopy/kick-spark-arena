@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, X } from 'lucide-react';
 import type { useReactionState } from '@/hooks/useReactionState';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ReactionScreenProps {
   reactionState: ReturnType<typeof useReactionState>;
@@ -28,16 +28,16 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
 
   // Commission error "FALTA!" flash
   const [showFault, setShowFault] = useState(false);
-  const [trackedErrors, setTrackedErrors] = useState(0);
+  const trackedErrorsRef = useRef(0);
 
   useEffect(() => {
-    if (commissionErrors > trackedErrors) {
-      setTrackedErrors(commissionErrors);
+    if (commissionErrors > trackedErrorsRef.current) {
+      trackedErrorsRef.current = commissionErrors;
       setShowFault(true);
       const timer = window.setTimeout(() => setShowFault(false), 1500);
       return () => window.clearTimeout(timer);
     }
-  }, [commissionErrors, trackedErrors]);
+  }, [commissionErrors]);
 
   useEffect(() => {
     if (lastReactionTime !== null) {
