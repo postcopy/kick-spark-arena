@@ -77,7 +77,7 @@ export function GameScreen({
           timerPulse && 'animate-pulse'
         )}>
           {/* Circular Progress Background */}
-          <svg className="w-28 h-28 md:w-36 md:h-36 -rotate-90" viewBox="0 0 100 100">
+          <svg className="-rotate-90" style={{ width: 'clamp(7rem, 25vh, 18rem)', height: 'clamp(7rem, 25vh, 18rem)' }} viewBox="0 0 100 100">
             {/* Background circle */}
             <circle
               cx="50"
@@ -104,9 +104,9 @@ export function GameScreen({
           {/* Time Number */}
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
-              'text-5xl md:text-6xl font-bold tabular-nums',
+              'font-bold font-mono tabular-nums',
               timeColor
-            )}>
+            )} style={{ fontSize: 'clamp(3rem, 15vh, 8rem)' }}>
               {formatTime(timeLeft)}
             </span>
           </div>
@@ -129,7 +129,7 @@ export function GameScreen({
           onClick={handleTapPause}
         >
           <div className="text-center">
-            <h2 className="text-6xl md:text-8xl font-bold text-game-yellow mb-4 animate-pulse">
+            <h2 className="font-bold text-game-yellow mb-4 animate-pulse" style={{ fontSize: 'clamp(3rem, 12vh, 6rem)' }}>
               PAUSADO
             </h2>
             <p className="text-xl text-muted-foreground">
@@ -140,7 +140,7 @@ export function GameScreen({
       )}
 
       {/* Main Game Area */}
-      <div className="flex flex-1 relative pt-28 md:pt-32">
+      <div className="flex flex-1 relative pt-[3vh]">
         {isIndividual ? (
           /* Individual Mode - Single Centered Panel */
           <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1a] relative">
@@ -149,17 +149,17 @@ export function GameScreen({
               <div className="absolute inset-0 bg-[#FFD700]/20 pointer-events-none animate-pulse" />
             )}
             
-            <div className="text-center">
+            <div className="text-center flex flex-col items-center justify-center gap-[2vh]">
               {/* Giant golden score */}
               <div className={cn(
-                'text-[10rem] md:text-[14rem] font-bold text-[#FFD700] leading-none',
+                'font-bold text-[#FFD700] leading-none',
                 'drop-shadow-[0_0_60px_rgba(255,215,0,0.4)]',
                 'transition-transform duration-100',
                 flashSide ? 'scale-110' : 'scale-100'
-              )}>
+              )} style={{ fontSize: 'clamp(4rem, 20vh, 12rem)' }}>
                 {totalKicks}
               </div>
-              <div className="text-3xl md:text-4xl text-[#FFD700]/60 uppercase tracking-[0.5em] mt-4">
+              <div className="text-[#FFD700]/60 uppercase tracking-[0.5em]" style={{ fontSize: 'clamp(1.2rem, 3vh, 2.5rem)' }}>
                 chutes
               </div>
             </div>
@@ -219,20 +219,20 @@ export function GameScreen({
       <div className="h-20 md:h-24 bg-black flex items-center border-t border-white/10">
         {isIndividual && athlete ? (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-3xl md:text-5xl font-bold text-[#FFD700] uppercase tracking-[0.3em]">
+            <span className="font-bold text-[#FFD700] uppercase tracking-[0.3em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
               {athlete.name}
             </span>
           </div>
         ) : (
           <>
             <div className="flex-1 flex items-center justify-center">
-              <span className="text-3xl md:text-5xl font-bold text-[#E10000] uppercase tracking-[0.2em]">
+              <span className="font-bold text-[#E10000] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
                 Vermelho
               </span>
             </div>
             <div className="w-px h-12 bg-white/20" />
             <div className="flex-1 flex items-center justify-center">
-              <span className="text-3xl md:text-5xl font-bold text-[#0066FF] uppercase tracking-[0.2em]">
+              <span className="font-bold text-[#0066FF] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
                 Azul
               </span>
             </div>
