@@ -22,7 +22,8 @@ import { EquipmentSetupScreen } from '@/components/game/EquipmentSetupScreen';
 import { Paywall } from '@/components/Paywall';
 import { Loader2 } from 'lucide-react';
 import type { Side, GameMode, Athlete, HitType } from '@/types/game';
-import type { ReactionLevel } from '@/types/reaction';
+import type { ReactionLevel, ReactionConfig } from '@/types/reaction';
+import { REACTION_PRESETS } from '@/types/reaction';
 
 type TimeAttackVariant = 'duo' | 'individual';
 
@@ -50,6 +51,7 @@ const Index = () => {
   
   // Reaction mode state
   const [reactionLevel, setReactionLevel] = useState<ReactionLevel>('beginner');
+  const [reactionConfig, setReactionConfig] = useState<ReactionConfig>(REACTION_PRESETS.beginner);
   
   // Time Attack variant state
   const [timeAttackVariant, setTimeAttackVariant] = useState<TimeAttackVariant>('duo');
@@ -131,21 +133,23 @@ const Index = () => {
 
   // Reaction mode state
   const reactionState = useReactionState({
-    level: reactionLevel,
-    onBlockEnd: () => playTimeUpRef.current(),
+    config: reactionConfig,
+    onRoundEnd: () => playTimeUpRef.current(),
     onSessionEnd: () => play('victory'),
+    onStimulus: () => play('scoreBeep'),
+    onHit: () => playHitRef.current(),
   });
 
   // Serial port kick handler with hit type
   const handleSerialKick = useCallback((side: Side, hitType: HitType = 'vest') => {
     if (gameMode === 'time_attack') {
-      // In individual mode, both sides count as one kick
-      // Time attack doesn't differentiate hit types
       timeAttackState.registerKick(side);
     } else if (gameMode === 'arcade') {
       arcadeState.registerKick(side, hitType);
+    } else if (gameMode === 'reaction') {
+      reactionState.registerImpact();
     }
-  }, [gameMode, timeAttackState, arcadeState]);
+  }, [gameMode, timeAttackState, arcadeState, reactionState]);
 
   const serialPort = useSerialPort({ 
     onKick: handleSerialKick,
@@ -419,10 +423,11 @@ const Index = () => {
       case 'setup':
         content = (
           <ReactionSetupScreen
-            level={reactionLevel}
-            onLevelChange={setReactionLevel}
+            config={reactionConfig}
+            onConfigChange={setReactionConfig}
             onStart={goToLoading}
             onBack={handleBackToMenu}
+            isHardwareConnected={serialPort.isConnected}
           />
         );
         break;
