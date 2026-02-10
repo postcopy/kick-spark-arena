@@ -144,34 +144,51 @@ export function GameScreen({
       <div className="flex flex-1 relative pt-[3vh]">
         {isIndividual ? (
           /* Individual Mode - Single Centered Panel */
-          <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1a] relative">
-            {/* Flash effect when kick registers */}
+          /* Individual Mode - Elite HUD */
+          <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1a] relative gap-[2vh]">
+            {/* Flash effect */}
             {flashSide && (
               <div className="absolute inset-0 bg-[#FFD700]/20 pointer-events-none animate-pulse" />
             )}
-            
-            <div className="text-center flex flex-col items-center justify-center gap-[2vh]">
-              {/* Giant golden score */}
-              <div className={cn(
-                'font-bold text-[#FFD700] leading-none',
-                'drop-shadow-[0_0_60px_rgba(255,215,0,0.4)]',
-                'transition-transform duration-100',
-                flashSide ? 'scale-110' : 'scale-100'
-              )} style={{ fontSize: 'clamp(4rem, 20vh, 12rem)' }}>
-                {totalKicks}
-              </div>
-              <div className="text-[#FFD700]/60 uppercase tracking-[0.5em]" style={{ fontSize: 'clamp(1.2rem, 3vh, 2.5rem)' }}>
-                chutes
+
+            {/* 1. Timer Circular Central Gigante */}
+            <div className="relative flex items-center justify-center">
+              <svg className="-rotate-90" style={{ width: 'clamp(7rem, 25vh, 18rem)', height: 'clamp(7rem, 25vh, 18rem)' }} viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+                <circle cx="50" cy="50" r="45" fill="none"
+                  stroke={timeLeft <= 10 ? '#EF4444' : '#FFD700'}
+                  strokeWidth="8" strokeLinecap="round"
+                  strokeDasharray="283"
+                  strokeDashoffset={283 - (283 * (timeLeft / totalDuration))}
+                  className={cn('transition-all duration-1000', timeLeft <= 10 && 'animate-pulse')}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="font-bold font-mono tabular-nums text-white" style={{ fontSize: 'clamp(3rem, 15vh, 8rem)' }}>
+                  {formatTime(timeLeft)}
+                </span>
               </div>
             </div>
 
-            {/* Mascote centralizado no modo individual */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-              <FighterMascot 
-                side="red"
-                state={flashSide ? 'attacking' : 'idle'} 
-                size="lg"
-              />
+            {/* 2. Contador de Chutes & CPM */}
+            <div className="text-center flex flex-col items-center">
+              <span className={cn(
+                'font-bold text-[#FFD700] leading-none drop-shadow-[0_0_15px_rgba(255,215,0,0.5)] transition-transform duration-100',
+                flashSide ? 'scale-110' : 'scale-100'
+              )} style={{ fontSize: 'clamp(4rem, 20vh, 12rem)' }}>
+                {totalKicks}
+              </span>
+              <span className="font-bold text-[#FFD700]/60 uppercase tracking-[0.5em]" style={{ fontSize: 'clamp(1.2rem, 3vh, 2.5rem)' }}>
+                HITS
+              </span>
+
+              {/* Badge CPM */}
+              {totalKicks > 0 && (
+                <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1 mt-2 animate-in fade-in slide-in-from-bottom-2">
+                  <Zap className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                  <span className="text-white font-bold text-sm tracking-wider">{cpm} CPM</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
