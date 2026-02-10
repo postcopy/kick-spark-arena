@@ -12,6 +12,7 @@ export const DEFAULT_DELTA_CONTINUE = 2;
 // ─── Interfaces ───
 export interface ImpactDetectorConfig {
   noiseFloor: Record<string, number>;
+  noiseIntensityMin: number;
   deltaStart: number;
   deltaContinue: number;
   silenceGapMs: number;
@@ -49,6 +50,7 @@ export class ImpactDetector {
   constructor(config?: Partial<ImpactDetectorConfig>) {
     this.config = {
       noiseFloor: {},
+      noiseIntensityMin: NOISE_INTENSITY_MIN,
       deltaStart: DEFAULT_DELTA_START,
       deltaContinue: DEFAULT_DELTA_CONTINUE,
       silenceGapMs: SILENCE_GAP_MS,
@@ -81,8 +83,8 @@ export class ImpactDetector {
 
   /** Feed a raw packet into the detector */
   feed(deviceId: number, intensity: number, ts: number): void {
-    // Hardcoded noise floor: discard before any threshold logic
-    if (intensity < NOISE_INTENSITY_MIN) return;
+    // Configurable noise floor: discard before any threshold logic
+    if (intensity < this.config.noiseIntensityMin) return;
     
     const floor = this.config.noiseFloor[String(deviceId)] ?? 0;
     const startThreshold = floor + this.config.deltaStart;

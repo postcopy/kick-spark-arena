@@ -34,6 +34,7 @@ export interface UseSerialPortOptions {
   impactDetectorConfig?: {
     enabled: boolean;
     noiseFloor: Record<string, number>;
+    noiseIntensityMin?: number;
   };
   debounceMs?: number;
 }

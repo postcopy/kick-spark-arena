@@ -118,16 +118,19 @@ export function useSerialPort({
     console.log('[useSerialPort] detector useEffect RUNNING, enabled=', impactDetectorConfig?.enabled, 'noiseFloor=', noiseFloorJson);
     if (impactDetectorConfig?.enabled) {
       const parsedNoiseFloor = JSON.parse(noiseFloorJson);
+      const noiseIntensityMin = impactDetectorConfig?.noiseIntensityMin;
       if (!detectorRef.current) {
         detectorRef.current = new ImpactDetector({
           noiseFloor: parsedNoiseFloor,
+          ...(noiseIntensityMin != null && { noiseIntensityMin }),
         });
-        console.log('[useSerialPort] ImpactDetector ENABLED, noiseFloor:', parsedNoiseFloor);
+        console.log('[useSerialPort] ImpactDetector ENABLED, noiseFloor:', parsedNoiseFloor, 'noiseIntensityMin:', noiseIntensityMin ?? 'default(15)');
       } else {
         detectorRef.current.updateConfig({
           noiseFloor: parsedNoiseFloor,
+          ...(noiseIntensityMin != null && { noiseIntensityMin }),
         });
-        console.log('[useSerialPort] ImpactDetector CONFIG UPDATED, noiseFloor:', parsedNoiseFloor);
+        console.log('[useSerialPort] ImpactDetector CONFIG UPDATED, noiseFloor:', parsedNoiseFloor, 'noiseIntensityMin:', noiseIntensityMin ?? 'default(15)');
       }
       
       // Start flush interval (30ms) - ensures last impact finalizes during silence
@@ -178,7 +181,7 @@ export function useSerialPort({
     // Only cleanup flush interval on unmount, NOT on every re-run
     // This prevents the 30ms flush loop from being destroyed/recreated
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [impactDetectorConfig?.enabled, noiseFloorJson]);
+  }, [impactDetectorConfig?.enabled, noiseFloorJson, impactDetectorConfig?.noiseIntensityMin]);
 
   // Separate unmount-only cleanup for flush interval
   useEffect(() => {
