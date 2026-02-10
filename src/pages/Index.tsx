@@ -56,6 +56,7 @@ const Index = () => {
   // Time Attack variant state
   const [timeAttackVariant, setTimeAttackVariant] = useState<TimeAttackVariant>('duo');
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   
   // Equipment setup flow state
   const [showEquipmentSetup, setShowEquipmentSetup] = useState(false);
@@ -248,6 +249,7 @@ const Index = () => {
     setGameMode(null);
     setTimeAttackVariant('duo');
     setSelectedAthlete(null);
+    setIsGuest(false);
   }, [stopAllGameProcesses]);
 
   // Global ESC handler to exit game modes
@@ -301,7 +303,16 @@ const Index = () => {
     // Home screen - seletor de modos (só para logados)
     content = (
       <>
-        <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />
+        <HomeScreen
+          onSelectMode={handleSelectMode}
+          serialPort={serialPort}
+          selectedAthlete={selectedAthlete}
+          isGuest={isGuest}
+          onAthleteChange={(athlete, guest) => {
+            setSelectedAthlete(athlete);
+            setIsGuest(guest);
+          }}
+        />
         {!canPlay && <Paywall />}
       </>
     );
@@ -451,10 +462,13 @@ const Index = () => {
         content = lastResult ? (
           <ReactionFinishedScreen
             result={lastResult}
+            selectedAthlete={selectedAthlete}
+            isGuest={isGuest}
             onPlayAgain={() => reactionState.replay()}
             onAdjustSetup={() => reactionState.goToSetup()}
             onSwitchAthlete={() => {
               setSelectedAthlete(null);
+              setIsGuest(false);
               handleBackToMenu();
             }}
           />

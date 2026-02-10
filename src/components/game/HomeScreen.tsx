@@ -1,22 +1,29 @@
-import { Timer, Swords, Zap, Eye, Trophy } from 'lucide-react';
+import { useState } from 'react';
+import { Timer, Swords, Zap, Eye, Trophy, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logoSfighter from '@/assets/logo-sfighter.png';
 import { UseSerialPortReturn } from '@/types/serial';
 import { MenuDrawer } from './MenuDrawer';
 import { EquipmentStatus } from './EquipmentStatus';
+import { AthletePickerDialog } from './AthletePickerDialog';
+import { StudentAvatar } from './StudentAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
-import type { GameMode } from '@/types/game';
+import type { GameMode, Athlete } from '@/types/game';
 
 interface HomeScreenProps {
   onSelectMode: (mode: GameMode) => void;
   serialPort?: UseSerialPortReturn;
+  selectedAthlete?: Athlete | null;
+  isGuest?: boolean;
+  onAthleteChange?: (athlete: Athlete | null, isGuest: boolean) => void;
 }
 
-export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
+export function HomeScreen({ onSelectMode, serialPort, selectedAthlete, isGuest, onAthleteChange }: HomeScreenProps) {
   const { user } = useAuth();
   const { unlockAudio, initFullPreload } = useSound();
   const navigate = useNavigate();
+  const [showPicker, setShowPicker] = useState(false);
 
   const handleSelectMode = (mode: GameMode) => {
     unlockAudio();
@@ -29,6 +36,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   };
 
   return (
+    <>
     <div className="flex flex-col h-full w-full overflow-hidden bg-background">
       {/* Header - Fixo no topo */}
       <header className="flex-shrink-0 w-full flex items-center justify-between p-4 md:px-6 border-b border-border">
@@ -50,6 +58,46 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           />
         </div>
       </header>
+
+      {/* Athlete selector bar */}
+      {onAthleteChange && (
+        <div className="flex-shrink-0 px-4 py-2 border-b border-border">
+          <button
+            onClick={() => setShowPicker(true)}
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:border-primary/50 transition-colors"
+          >
+            {selectedAthlete ? (
+              <>
+                <StudentAvatar name={selectedAthlete.name} avatarUrl={selectedAthlete.avatarUrl} belt={selectedAthlete.belt} size="sm" />
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold text-foreground">{selectedAthlete.name}</p>
+                  <p className="text-xs text-muted-foreground">Resultados serão salvos</p>
+                </div>
+              </>
+            ) : isGuest ? (
+              <>
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold text-foreground">Visitante</p>
+                  <p className="text-xs text-muted-foreground">Sem salvar resultados</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold text-foreground">Selecionar Atleta</p>
+                  <p className="text-xs text-muted-foreground">Toque para escolher</p>
+                </div>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Main - Área principal com scroll se precisar */}
       <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-3 md:p-6">
@@ -202,5 +250,14 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         </footer>
       )}
     </div>
+
+      {onAthleteChange && (
+        <AthletePickerDialog
+          open={showPicker}
+          onOpenChange={setShowPicker}
+          onSelect={(athlete, guest) => onAthleteChange(athlete, guest)}
+        />
+      )}
+    </>
   );
 }

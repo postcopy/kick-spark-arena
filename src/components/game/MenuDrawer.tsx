@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Menu, X, User, LogIn, LogOut, Crown, Settings, 
-  Trophy, Usb, Volume2, VolumeX, HelpCircle 
+  Trophy, Usb, Volume2, VolumeX, HelpCircle, Users 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -131,6 +131,18 @@ export function MenuDrawer({
             >
               <Trophy className="w-6 h-6 text-game-gold" />
               <span className="text-lg text-foreground">Ranking</span>
+            </Link>
+          )}
+
+          {/* Meus Alunos */}
+          {user && (
+            <Link 
+              to="/students" 
+              onClick={() => setIsOpen(false)}
+              className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-white/5 transition-colors"
+            >
+              <Users className="w-6 h-6 text-green-500" />
+              <span className="text-lg text-foreground">Meus Alunos</span>
             </Link>
           )}
 

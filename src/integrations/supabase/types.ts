@@ -19,6 +19,7 @@ export type Database = {
           academy_id: string
           avatar_url: string | null
           belt: string | null
+          birth_date: string | null
           category: string | null
           created_at: string | null
           id: string
@@ -26,11 +27,13 @@ export type Database = {
           name: string
           nickname: string | null
           updated_at: string | null
+          weight_kg: number | null
         }
         Insert: {
           academy_id: string
           avatar_url?: string | null
           belt?: string | null
+          birth_date?: string | null
           category?: string | null
           created_at?: string | null
           id?: string
@@ -38,11 +41,13 @@ export type Database = {
           name: string
           nickname?: string | null
           updated_at?: string | null
+          weight_kg?: number | null
         }
         Update: {
           academy_id?: string
           avatar_url?: string | null
           belt?: string | null
+          birth_date?: string | null
           category?: string | null
           created_at?: string | null
           id?: string
@@ -50,6 +55,7 @@ export type Database = {
           name?: string
           nickname?: string | null
           updated_at?: string | null
+          weight_kg?: number | null
         }
         Relationships: [
           {
@@ -123,6 +129,47 @@ export type Database = {
           },
           {
             foreignKeyName: "solo_results_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_sessions: {
+        Row: {
+          academy_id: string
+          athlete_id: string
+          avg_score: number | null
+          best_score: number | null
+          created_at: string
+          details: Json | null
+          id: string
+          mode: string
+        }
+        Insert: {
+          academy_id: string
+          athlete_id: string
+          avg_score?: number | null
+          best_score?: number | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          mode: string
+        }
+        Update: {
+          academy_id?: string
+          athlete_id?: string
+          avg_score?: number | null
+          best_score?: number | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          mode?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_sessions_athlete_id_fkey"
             columns: ["athlete_id"]
             isOneToOne: false
             referencedRelation: "athletes"

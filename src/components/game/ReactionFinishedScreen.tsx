@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Trophy, TrendingDown, Zap, Target, UserRoundCog, Settings, RotateCcw, ShieldCheck, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,9 +12,14 @@ import {
 } from 'recharts';
 import type { ReactionResult } from '@/types/reaction';
 import { LEVEL_LABELS } from '@/types/reaction';
+import { useTrainingSessions } from '@/hooks/useTrainingSessions';
+import { useToast } from '@/hooks/use-toast';
+import type { Athlete } from '@/types/game';
 
 interface ReactionFinishedScreenProps {
   result: ReactionResult;
+  selectedAthlete?: Athlete | null;
+  isGuest?: boolean;
   onPlayAgain: () => void;
   onAdjustSetup: () => void;
   onSwitchAthlete: () => void;
@@ -21,10 +27,16 @@ interface ReactionFinishedScreenProps {
 
 export function ReactionFinishedScreen({
   result,
+  selectedAthlete,
+  isGuest,
   onPlayAgain,
   onAdjustSetup,
   onSwitchAthlete,
 }: ReactionFinishedScreenProps) {
+  const { saveSession } = useTrainingSessions();
+  const { toast } = useToast();
+  const savedRef = useRef(false);
+
   const hasReactionData = result.reactionTimes.length > 0;
   const isCognitive = result.cognitiveMode;
 
@@ -42,6 +54,34 @@ export function ReactionFinishedScreen({
         ),
       )
     : null;
+
+  // Auto-save session for selected athlete
+  useEffect(() => {
+    if (savedRef.current) return;
+    if (!selectedAthlete || isGuest) return;
+
+    savedRef.current = true;
+    saveSession({
+      athleteId: selectedAthlete.id,
+      mode: 'reaction',
+      avgScore: avgTime,
+      bestScore: bestTime,
+      details: {
+        level: result.level,
+        reactionTimes: result.reactionTimes,
+        totalStimuli: result.totalStimuli,
+        roundsCompleted: result.roundsCompleted,
+        cognitiveMode: result.cognitiveMode,
+        correctInhibitions: result.correctInhibitions,
+        commissionErrors: result.commissionErrors,
+        omissionErrors: result.omissionErrors,
+      },
+    }).then((saved) => {
+      if (saved) {
+        toast({ title: 'Sessão salva!', description: `Resultado registrado para ${selectedAthlete.name}` });
+      }
+    });
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Chart data
   const chartData = result.reactionTimes.map((t, i) => ({ index: i + 1, time: t }));
