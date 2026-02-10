@@ -1,4 +1,4 @@
-import { ArrowLeft, Zap, Clock, Repeat, Timer, Wifi, WifiOff, Brain } from 'lucide-react';
+import { ArrowLeft, Zap, Clock, Repeat, Timer, Wifi, WifiOff, Brain, UserCheck, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -7,6 +7,9 @@ import { useSound } from '@/contexts/SoundContext';
 import type { ReactionLevel, ReactionConfig } from '@/types/reaction';
 import { REACTION_PRESETS, LEVEL_LABELS } from '@/types/reaction';
 import { useState, useEffect } from 'react';
+import { AthletePickerDialog } from './AthletePickerDialog';
+import { StudentAvatar } from './StudentAvatar';
+import type { Athlete } from '@/types/game';
 
 interface ReactionSetupScreenProps {
   config: ReactionConfig;
@@ -14,6 +17,9 @@ interface ReactionSetupScreenProps {
   onStart: () => void;
   onBack: () => void;
   isHardwareConnected: boolean;
+  selectedAthlete: Athlete | null;
+  isGuest: boolean;
+  onAthleteChange: (athlete: Athlete | null, isGuest: boolean) => void;
 }
 
 const LEVELS: ReactionLevel[] = ['beginner', 'intermediate', 'elite'];
@@ -24,9 +30,15 @@ export function ReactionSetupScreen({
   onStart,
   onBack,
   isHardwareConnected,
+  selectedAthlete,
+  isGuest,
+  onAthleteChange,
 }: ReactionSetupScreenProps) {
   const { unlockAudio, initFullPreload } = useSound();
   const [activePreset, setActivePreset] = useState<ReactionLevel | 'custom'>(config.level);
+  const [showPicker, setShowPicker] = useState(false);
+
+  const canStart = selectedAthlete !== null || isGuest === true;
 
   const handlePresetSelect = (level: ReactionLevel) => {
     setActivePreset(level);
@@ -45,6 +57,7 @@ export function ReactionSetupScreen({
   };
 
   const handleStart = () => {
+    if (!canStart) return;
     unlockAudio();
     initFullPreload();
     onStart();
@@ -67,6 +80,42 @@ export function ReactionSetupScreen({
       {/* Main */}
       <main className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
         <div className="max-w-lg mx-auto space-y-4">
+          {/* Athlete selector card */}
+          <button
+            onClick={() => setShowPicker(true)}
+            className="w-full flex items-center gap-3 p-4 rounded-xl bg-card border-2 border-border hover:border-primary/50 transition-colors"
+          >
+            {selectedAthlete ? (
+              <>
+                <StudentAvatar name={selectedAthlete.name} avatarUrl={selectedAthlete.avatarUrl} belt={selectedAthlete.belt} size="sm" />
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold text-foreground">{selectedAthlete.name}</p>
+                  <p className="text-xs text-muted-foreground">Resultados serão salvos</p>
+                </div>
+              </>
+            ) : isGuest ? (
+              <>
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <UserX className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold text-foreground">Visitante</p>
+                  <p className="text-xs text-muted-foreground">Sem salvar resultados</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold text-foreground">Selecionar Atleta</p>
+                  <p className="text-xs text-muted-foreground">Toque para escolher quem vai treinar</p>
+                </div>
+              </>
+            )}
+          </button>
+
           {/* Preset selector */}
           <div className="bg-muted/50 p-4 rounded-xl border border-border">
             <h2 className="text-lg font-bold text-foreground mb-3 text-center">Dificuldade</h2>
@@ -270,11 +319,22 @@ export function ReactionSetupScreen({
         <Button
           onClick={handleStart}
           size="lg"
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-6"
+          disabled={!canStart}
+          className={`w-full font-bold text-lg py-6 ${
+            canStart
+              ? 'bg-green-500 hover:bg-green-600 text-white'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
+          }`}
         >
-          INICIAR TREINO
+          {canStart ? 'INICIAR TREINO' : 'SELECIONE UM ATLETA'}
         </Button>
       </footer>
+
+      <AthletePickerDialog
+        open={showPicker}
+        onOpenChange={setShowPicker}
+        onSelect={(athlete, guest) => onAthleteChange(athlete, guest)}
+      />
     </div>
   );
 }
