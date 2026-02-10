@@ -232,7 +232,7 @@ export function GameScreen({
             </div>
             <div className="w-px h-12 bg-white/20" />
             <div className="flex-1 flex items-center justify-center">
-              <span className="text-3xl md:text-5xl font-bold text-[#0066FF] uppercase tracking-[0.2em]">
+              <span className="font-bold text-[#0066FF] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
                 Azul
               </span>
             </div>
