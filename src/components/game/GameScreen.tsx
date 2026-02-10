@@ -58,7 +58,7 @@ export function GameScreen({
   }, []);
 
   // Progress for circular timer
-  
+  const progress = totalDuration > 0 ? (timeLeft / totalDuration) * 100 : 100;
   // Time color based on remaining time
   const timeColor = timeLeft <= 5 ? 'text-game-red' : timeLeft <= 10 ? 'text-game-yellow' : 'text-foreground';
   const timerPulse = timeLeft <= 5 && !isPaused;
