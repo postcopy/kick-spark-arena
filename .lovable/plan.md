@@ -1,70 +1,73 @@
 
 
-# Redesign Completo: HUD "Elite" para Modo Individual
+# Correção: HIT não registra mesmo com threshold baixo
 
-## Arquivo
-`src/components/game/GameScreen.tsx` (unico arquivo)
+## Problema Identificado
 
-## Alteracoes
+O sistema tem um **filtro de ruído fixo (hardcoded) de intensidade 15** dentro do `ImpactDetector`. Isso significa que qualquer toque com intensidade abaixo de 15 é **silenciosamente descartado** antes mesmo de chegar à lógica de pontuação. Mesmo que você configure `vestHitMin = 1` na interface, o filtro interno já jogou fora o sinal.
 
-### 1. Import (linha 7)
-Adicionar `Zap` de `lucide-react`.
+Além disso, os valores de `hitMin` configurados na interface **nunca são usados** na classificação -- o código apenas verifica se o impacto é forte o suficiente para ser PONTO. Qualquer coisa abaixo do limiar de ponto é automaticamente classificada como HIT, mas só se passar pelo filtro de ruído fixo de 15.
 
-### 2. Novos calculos e estado (apos linha 38)
-- **CPM em tempo real**: `elapsedSeconds = totalDuration - timeLeft`, `cpm = Math.round((totalKicks / elapsedSeconds) * 60)` quando elapsed > 0, senao 0.
-- **dayPB**: `useState<number | null>(null)` + `useEffect` que le `kickcounter_dayRecord` do localStorage e extrai `bestTotal` se a data for de hoje.
+## Solução
 
-### 3. Timer condicional (linhas 73-114)
-Envolver o bloco do timer no topo em `{!isIndividual && (...)}` para aparecer apenas no modo Duo.
+Tornar o filtro de ruído do ImpactDetector configurável usando os valores de `hitMin` da configuração, em vez do valor fixo 15.
 
-### 4. Bloco Individual reescrito (linhas 144-175)
-Substituir todo o conteudo por um HUD centralizado vertical:
+### Arquivo 1: `src/lib/impactDetector.ts`
 
-- **Timer circular grosso**: SVG com `strokeWidth="8"` (vs 4 atual), `viewBox="0 0 100 100"`, raio 45, tamanho via `clamp(7rem,25vh,18rem)`. Cor `#FFD700` quando > 10s, `#EF4444` + `animate-pulse` quando <= 10s. Progresso via `strokeDasharray="283"` e `strokeDashoffset` calculado como `283 - (283 * (timeLeft / totalDuration))`.
-- **Contador de chutes**: `totalKicks` em fonte dourada gigante `clamp(4rem, 20vh, 12rem)` com glow `drop-shadow` e escala no flash.
-- **Label "HITS"**: Abaixo do contador em `clamp(1.2rem, 3vh, 2.5rem)`.
-- **Badge CPM**: Visivel quando `totalKicks > 0`. Icone `Zap` amarelo preenchido + valor CPM em badge `bg-white/10 border-white/20 rounded-full`.
-- **Mascote removido** do modo individual.
+- Adicionar uma nova propriedade `noiseIntensityMin` ao `ImpactDetectorConfig` com valor padrão de 15 (comportamento atual mantido por padrão)
+- Substituir o check hardcoded `if (intensity < NOISE_INTENSITY_MIN) return` por `if (intensity < this.config.noiseIntensityMin) return`
+- Manter a constante `NOISE_INTENSITY_MIN = 15` como fallback padrão
 
-### 5. Footer reescrito (linhas 218-241)
-Substituir por logica condicional:
+### Arquivo 2: `src/pages/ChampionshipMat.tsx`
 
-**Individual** -- barra de stats com 3 colunas em grid:
+- No `impactDetectorConfigMemo`, calcular o menor `hitMin` entre colete e capacete e passar como `noiseIntensityMin` para o detector
+- Assim, se o usuario configurar `vestHitMin = 5` e `helmetHitMin = 3`, o detector usara `noiseIntensityMin = 3`, permitindo que toques leves cheguem à lógica de pontuação
 
-| MELHOR (DIA) | RITMO ATUAL | ATLETA |
-|---|---|---|
-| `dayPB` em verde `#39FF14` ou "--" | `cpm` CPM | Nome do atleta ou "Visitante" |
+- Na classificação de impactos (handler `handleImpactRef`), adicionar verificação real do `hitMin`: se `peakIntensity < hitMin` para aquele tipo de equipamento, classificar como IGNORED em vez de HIT
 
-Estilo: `bg-black/80 backdrop-blur-md border-t border-white/10 py-4`. Labels em `text-[10px] uppercase tracking-widest text-white/50`. Valores em `text-xl font-bold`.
+### Arquivo 3: `src/types/championship.ts`
 
-**Duo** -- footer existente mantido inalterado (nomes Vermelho/Azul).
+- Verificar se o tipo `ShadowLogEntry` já suporta `decision: 'IGNORED'` -- se não, adicionar
 
-### 6. Modo Duo
-Permanece 100% inalterado: timer no topo, paineis vermelho/azul com mascotes, footer com nomes.
+## Fluxo Corrigido
 
-## Secao Tecnica
-
-### Calculo do progresso do anel (individual)
 ```text
-circunferencia = 2 * PI * 45 = ~283
-strokeDasharray = "283"
-strokeDashoffset = 283 - (283 * (timeLeft / totalDuration))
-```
-Anel comeca cheio e vai diminuindo.
+Toque leve (intensidade 5):
+  ANTES: ImpactDetector descarta (< 15) -> nunca chega ao scoring
+  DEPOIS: ImpactDetector aceita (>= hitMin configurado) -> scoring classifica como HIT
 
-### Resultado visual (modo individual)
-```text
-+------------------------------------------+
-|                                          |
-|         [Anel Grosso Dourado]            |
-|              1:23                        |
-|                                          |
-|               42                         |
-|              HITS                        |
-|           [Zap 120 CPM]                  |
-|                                          |
-+------------------------------------------+
-| MELHOR (DIA) | RITMO ATUAL |   ATLETA   |
-|     12       |   120 CPM   |   Joao     |
-+------------------------------------------+
+Toque forte (intensidade 25):
+  ANTES: ImpactDetector aceita -> scoring classifica como POINT
+  DEPOIS: Mesmo comportamento (sem mudança)
+
+Ruído (intensidade 2, hitMin = 5):
+  ANTES: ImpactDetector descarta (< 15)
+  DEPOIS: ImpactDetector descarta (< 5 = hitMin configurado)
 ```
+
+## Detalhes Técnicos
+
+### impactDetector.ts
+- Nova propriedade no config: `noiseIntensityMin: number` (default: `NOISE_INTENSITY_MIN` = 15)
+- Linha 85: `if (intensity < this.config.noiseIntensityMin) return;`
+
+### ChampionshipMat.tsx
+- No `useMemo` do `impactDetectorConfigMemo` (linha 184): calcular `Math.min(thresholds.vestHitMin, thresholds.helmetHitMin)` e passar como `noiseIntensityMin`
+- No handler de impactos (linha 124): adicionar gate real do hitMin
+```text
+const hitMin = isHelmet ? thresholds.helmetHitMin : thresholds.vestHitMin;
+if (impact.peakIntensity < hitMin) -> IGNORED (log no shadow, nao pontua, nao conta hit)
+if (impact.peakIntensity >= pointMin) -> POINT
+else -> HIT
+```
+
+### useSerialPort.ts
+- No `useEffect` que cria o detector (linha 119): passar `noiseIntensityMin` do config se disponível
+
+### Tipos (serial.ts)
+- Adicionar `noiseIntensityMin?: number` ao tipo `impactDetectorConfig`
+
+## Impacto
+- Modo Campeonato: hits leves passam a ser registrados conforme configuração
+- Outros modos (Arcade, Time Attack): sem mudança (usam debounce, não ImpactDetector)
+- Comportamento padrão mantido (15) quando nenhum threshold customizado é configurado
