@@ -109,7 +109,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     const now = Date.now();
     const delta = now - stimulusOnTimeRef.current;
     // Guard: only accept if within a reasonable window (stimulus is on)
-    if (delta < 0 || delta > configRef.current.flashMs + 50) return;
+    if (delta < 100 || delta > configRef.current.flashMs + 50) return;
 
     hitRegisteredRef.current = true;
     // Cancel flash timer

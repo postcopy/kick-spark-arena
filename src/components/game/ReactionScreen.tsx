@@ -16,6 +16,7 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
     restTimeLeft,
     stimulusActive,
     lastReactionTime,
+    reactionTimes,
   } = reactionState;
 
   // Fade out reaction time display after 2s
@@ -30,6 +31,12 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
       return () => window.clearTimeout(timer);
     }
   }, [lastReactionTime]);
+
+  // Computed stats
+  const hits = reactionTimes.length;
+  const sum = reactionTimes.reduce((a, b) => a + b, 0);
+  const avgTime = hits > 0 ? Math.round(sum / hits) : null;
+  const bestTime = hits > 0 ? Math.min(...reactionTimes) : null;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -63,7 +70,7 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
   }
 
   return (
-    <div className="h-full w-full flex flex-col bg-slate-950">
+    <div className="h-full w-full flex flex-col bg-slate-950 pb-24">
       {/* Back */}
       <button
         onClick={onBack}
@@ -73,17 +80,31 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
       </button>
 
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-black/30">
-        <div className="text-white font-bold">
+      <div className="flex-shrink-0 flex items-center justify-center px-4 py-3 bg-black/30">
+        <div className="text-white/80 font-bold text-lg tracking-wider uppercase">
           Round {currentRound}/{totalRounds}
         </div>
-        <div className="text-white/80 font-mono text-lg">
-          ⏱ {formatTime(workTimeLeft)}
+      </div>
+
+      {/* Giant Timer */}
+      <div className="flex-shrink-0 flex flex-col items-center pt-2">
+        <div
+          className={`font-mono font-black leading-none ${
+            workTimeLeft <= 5
+              ? 'text-red-500 animate-pulse'
+              : 'text-white'
+          }`}
+          style={{ fontSize: 'clamp(4rem, 12vw, 8rem)' }}
+        >
+          {formatTime(workTimeLeft)}
+        </div>
+        <div className="text-3xl md:text-4xl font-bold text-yellow-400 mt-1 tracking-wider">
+          HITS: {String(hits).padStart(2, '0')}
         </div>
       </div>
 
       {/* Stimulus circle */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-6">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4">
         <div
           className="rounded-full transition-none"
           style={{
@@ -112,14 +133,44 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
         </div>
       </div>
 
-      {/* Prepare indicator when no stimulus */}
-      {!stimulusActive && (
-        <div className="flex-shrink-0 py-4 text-center">
-          <p className="text-white/20 text-sm uppercase tracking-wider">
-            Prepare-se
-          </p>
+      {/* Live Stats Footer */}
+      <div className="fixed bottom-0 left-0 w-full bg-black/60 backdrop-blur-md border-t border-white/10 py-4 z-20">
+        <div className="grid grid-cols-3 text-center">
+          {/* Último */}
+          <div>
+            <div className="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-widest mb-1">
+              Último
+            </div>
+            <div
+              className={`text-xl md:text-2xl font-black ${
+                lastReactionTime !== null && lastReactionTime < 500
+                  ? 'text-green-400'
+                  : 'text-white'
+              }`}
+            >
+              {lastReactionTime !== null ? `${lastReactionTime}ms` : '--'}
+            </div>
+          </div>
+          {/* Média */}
+          <div>
+            <div className="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-widest mb-1">
+              Média
+            </div>
+            <div className="text-xl md:text-2xl font-black text-white">
+              {avgTime !== null ? `${avgTime}ms` : '--'}
+            </div>
+          </div>
+          {/* Melhor */}
+          <div>
+            <div className="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-widest mb-1">
+              Melhor
+            </div>
+            <div className="text-xl md:text-2xl font-black text-yellow-400">
+              {bestTime !== null ? `${bestTime}ms` : '--'}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
