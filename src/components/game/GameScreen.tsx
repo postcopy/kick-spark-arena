@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Zap } from 'lucide-react';
 import { KickPanel } from './KickPanel';
 import { FighterMascot, type MascotState } from './FighterMascot';
 import { LowBatteryAlert } from './EquipmentStatus';
