@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from 'react';
 interface ReactionScreenProps {
   reactionState: ReturnType<typeof useReactionState>;
   onBack: () => void;
+  athleteName?: string;
 }
 
-export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
+export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionScreenProps) {
   const {
     currentRound,
     totalRounds,
@@ -118,10 +119,13 @@ export function ReactionScreen({ reactionState, onBack }: ReactionScreenProps) {
       </button>
 
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-center px-4 py-3 bg-black/30">
+      <div className="flex-shrink-0 flex items-center justify-center px-4 py-3 bg-black/30 gap-2">
         <div className="text-white/80 font-bold text-lg tracking-wider uppercase">
           Round {currentRound}/{totalRounds}
         </div>
+        {athleteName && (
+          <span className="text-white/40 text-sm font-medium">· {athleteName}</span>
+        )}
       </div>
 
       {/* Giant Timer */}

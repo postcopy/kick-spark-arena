@@ -306,12 +306,6 @@ const Index = () => {
         <HomeScreen
           onSelectMode={handleSelectMode}
           serialPort={serialPort}
-          selectedAthlete={selectedAthlete}
-          isGuest={isGuest}
-          onAthleteChange={(athlete, guest) => {
-            setSelectedAthlete(athlete);
-            setIsGuest(guest);
-          }}
         />
         {!canPlay && <Paywall />}
       </>
@@ -441,6 +435,12 @@ const Index = () => {
             onStart={goToLoading}
             onBack={handleBackToMenu}
             isHardwareConnected={serialPort.isConnected}
+            selectedAthlete={selectedAthlete}
+            isGuest={isGuest}
+            onAthleteChange={(athlete, guest) => {
+              setSelectedAthlete(athlete);
+              setIsGuest(guest);
+            }}
           />
         );
         break;
@@ -456,7 +456,7 @@ const Index = () => {
         content = <CountdownScreen countdown={countdown} onBack={handleBackToMenu} />;
         break;
       case 'running':
-        content = <ReactionScreen reactionState={reactionState} onBack={handleBackToMenu} />;
+        content = <ReactionScreen reactionState={reactionState} onBack={handleBackToMenu} athleteName={selectedAthlete?.name || (isGuest ? 'Visitante' : undefined)} />;
         break;
       case 'finished':
         content = lastResult ? (
