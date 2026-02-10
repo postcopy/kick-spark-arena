@@ -89,48 +89,30 @@ export function GameScreen({
       {/* Low Battery Alert - Top Right */}
       {equipment && <LowBatteryAlert equipment={equipment} />}
       
-      {/* Minimalist Timer - Top Center */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20">
-        <div className={cn(
-          'relative flex items-center justify-center',
-          timerPulse && 'animate-pulse'
-        )}>
-          {/* Circular Progress Background */}
-          <svg className="-rotate-90" style={{ width: 'clamp(7rem, 25vh, 18rem)', height: 'clamp(7rem, 25vh, 18rem)' }} viewBox="0 0 100 100">
-            {/* Background circle */}
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="hsl(var(--muted))"
-              strokeWidth="4"
-            />
-            {/* Progress circle */}
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke={timeLeft <= 5 ? 'hsl(var(--game-red))' : timeLeft <= 10 ? 'hsl(var(--game-yellow))' : 'hsl(var(--game-yellow))'}
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeDasharray={`${progress * 2.83} 283`}
-              className="transition-all duration-300"
-            />
-          </svg>
-          
-          {/* Time Number */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className={cn(
-              'font-bold font-mono tabular-nums',
-              timeColor
-            )} style={{ fontSize: 'clamp(3rem, 15vh, 8rem)' }}>
-              {formatTime(timeLeft)}
-            </span>
+      {/* Minimalist Timer - Top Center (DUO ONLY) */}
+      {!isIndividual && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20">
+          <div className={cn(
+            'relative flex items-center justify-center',
+            timerPulse && 'animate-pulse'
+          )}>
+            <svg className="-rotate-90" style={{ width: 'clamp(7rem, 25vh, 18rem)', height: 'clamp(7rem, 25vh, 18rem)' }} viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
+              <circle cx="50" cy="50" r="45" fill="none"
+                stroke={timeLeft <= 5 ? 'hsl(var(--game-red))' : timeLeft <= 10 ? 'hsl(var(--game-yellow))' : 'hsl(var(--game-yellow))'}
+                strokeWidth="4" strokeLinecap="round"
+                strokeDasharray={`${progress * 2.83} 283`}
+                className="transition-all duration-300"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className={cn('font-bold font-mono tabular-nums', timeColor)} style={{ fontSize: 'clamp(3rem, 15vh, 8rem)' }}>
+                {formatTime(timeLeft)}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Pause Hint - Fades out */}
       {showPauseHint && !isPaused && (
