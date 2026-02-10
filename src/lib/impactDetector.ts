@@ -83,8 +83,8 @@ export class ImpactDetector {
 
   /** Feed a raw packet into the detector */
   feed(deviceId: number, intensity: number, ts: number): void {
-    // Hardcoded noise floor: discard before any threshold logic
-    if (intensity < NOISE_INTENSITY_MIN) return;
+    // Configurable noise floor: discard before any threshold logic
+    if (intensity < this.config.noiseIntensityMin) return;
     
     const floor = this.config.noiseFloor[String(deviceId)] ?? 0;
     const startThreshold = floor + this.config.deltaStart;

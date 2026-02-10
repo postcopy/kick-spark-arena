@@ -195,11 +195,16 @@ function ChampionshipMatInner() {
   // Stabilize impactDetectorConfig to avoid re-creating on every render (timer runs every 100ms)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const noiseFloorJson = JSON.stringify(impactThresholds?.noiseFloor ?? {});
-  const impactDetectorConfigMemo = useMemo(() => ({
-    enabled: true as const,
-    noiseFloor: impactThresholds?.noiseFloor ?? {},
+  const impactDetectorConfigMemo = useMemo(() => {
+    const vestHit = impactThresholds?.vestHitMin ?? 15;
+    const helmetHit = impactThresholds?.helmetHitMin ?? 5;
+    return {
+      enabled: true as const,
+      noiseFloor: impactThresholds?.noiseFloor ?? {},
+      noiseIntensityMin: Math.min(vestHit, helmetHit),
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [noiseFloorJson]);
+  }, [noiseFloorJson, impactThresholds?.vestHitMin, impactThresholds?.helmetHitMin]);
 
   // Debug: log when impactDetectorConfig changes
   useEffect(() => {
