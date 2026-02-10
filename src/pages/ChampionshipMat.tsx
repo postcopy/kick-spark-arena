@@ -86,9 +86,6 @@ function ChampionshipMatInner() {
       
       if (sync.state.status !== 'RUNNING') return;
       
-      // Guard: noise should already be filtered by ImpactDetector, but double-check
-      if (impact.peakIntensity < 15) return;
-      
       const matchSide = deviceIdToMatchSide(impact.deviceId);
       const equipType = deviceIdToEquipmentType(impact.deviceId);
       if (!matchSide) return;
@@ -98,7 +95,24 @@ function ChampionshipMatInner() {
       const peakAboveFloor = impact.peakIntensity - floor;
       
       const isHelmet = equipType === 'helmet';
+      const hitMin = isHelmet ? thresholds.helmetHitMin : thresholds.vestHitMin;
       const pointMin = isHelmet ? thresholds.helmetPointMin : thresholds.vestPointMin;
+      
+      // ─── IGNORED: below hitMin for this equipment type ───
+      if (impact.peakIntensity < hitMin) {
+        const entry: ShadowLogEntry = {
+          ts: impact.ts, deviceId: impact.deviceId, peakIntensity: impact.peakIntensity,
+          peakAboveFloor, avgIntensity: impact.avgIntensity, durationMs: impact.durationMs,
+          packetCount: impact.packetCount, side: matchSide, hitType: equipType,
+          threshold: pointMin, decision: 'IGNORED', scored: false,
+        };
+        shadowLogRef.current.push(entry);
+        if (shadowLogRef.current.length > MAX_SHADOW_LOG) {
+          shadowLogRef.current = shadowLogRef.current.slice(-MAX_SHADOW_LOG);
+        }
+        console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} hitMin=${hitMin} pointMin=${pointMin} -> IGNORED (${equipType}/${matchSide})`);
+        return;
+      }
       
       const antiDupMs = config.antiDuplicateWindowMs ?? 300;
       const now = impact.ts;
