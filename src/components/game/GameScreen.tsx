@@ -140,7 +140,7 @@ export function GameScreen({
       )}
 
       {/* Main Game Area */}
-      <div className="flex flex-1 relative pt-28 md:pt-32">
+      <div className="flex flex-1 relative pt-[3vh]">
         {isIndividual ? (
           /* Individual Mode - Single Centered Panel */
           <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1a] relative">
