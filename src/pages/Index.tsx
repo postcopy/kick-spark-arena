@@ -447,7 +447,15 @@ const Index = () => {
         break;
       case 'finished':
         content = lastResult ? (
-          <ReactionFinishedScreen result={lastResult} onPlayAgain={goToSetup} onBackToMenu={handleBackToMenu} />
+          <ReactionFinishedScreen
+            result={lastResult}
+            onPlayAgain={() => reactionState.replay()}
+            onAdjustSetup={() => reactionState.goToSetup()}
+            onSwitchAthlete={() => {
+              setSelectedAthlete(null);
+              handleBackToMenu();
+            }}
+          />
         ) : null;
         break;
       default:
