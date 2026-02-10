@@ -40,7 +40,7 @@ export interface ShadowLogEntry {
   packetCount: number;
   side: MatchSide;
   hitType: 'vest' | 'helmet';
-  decision: 'HIT' | 'POINT' | 'DUPLICATE';
+  decision: 'HIT' | 'POINT' | 'DUPLICATE' | 'IGNORED';
   threshold: number;
   scored: boolean;
 }
