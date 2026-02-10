@@ -77,7 +77,7 @@ export function GameScreen({
           timerPulse && 'animate-pulse'
         )}>
           {/* Circular Progress Background */}
-          <svg className="w-28 h-28 md:w-36 md:h-36 -rotate-90" viewBox="0 0 100 100">
+          <svg className="-rotate-90" style={{ width: 'clamp(7rem, 25vh, 18rem)', height: 'clamp(7rem, 25vh, 18rem)' }} viewBox="0 0 100 100">
             {/* Background circle */}
             <circle
               cx="50"
