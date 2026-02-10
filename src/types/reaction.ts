@@ -7,6 +7,8 @@ export interface ReactionConfig {
   rounds: number;
   gapMs: { min: number; max: number };
   flashMs: number; // Max duration stimulus stays on (killed early by impact)
+  cognitiveMode: boolean;
+  goProbability: number; // 0-100, percentage of GO (green) stimuli
 }
 
 export interface ReactionState {
@@ -16,6 +18,7 @@ export interface ReactionState {
   restTimeLeft: number;
   isResting: boolean;
   stimulusActive: boolean;
+  stimulusColor: 'green' | 'red' | null;
   lastReactionTime: number | null;
   reactionTimes: number[];
   totalStimuli: number;
@@ -28,6 +31,12 @@ export interface ReactionResult {
   totalStimuli: number;
   reactionTimes: number[];
   timestamp: number;
+  cognitiveMode: boolean;
+  correctInhibitions: number;
+  commissionErrors: number;
+  omissionErrors: number;
+  totalGoStimuli: number;
+  totalNoGoStimuli: number;
 }
 
 export const REACTION_PRESETS: Record<ReactionLevel, ReactionConfig> = {
@@ -38,6 +47,8 @@ export const REACTION_PRESETS: Record<ReactionLevel, ReactionConfig> = {
     rounds: 6,
     gapMs: { min: 1500, max: 2500 },
     flashMs: 1000,
+    cognitiveMode: false,
+    goProbability: 75,
   },
   intermediate: {
     level: 'intermediate',
@@ -46,6 +57,8 @@ export const REACTION_PRESETS: Record<ReactionLevel, ReactionConfig> = {
     rounds: 6,
     gapMs: { min: 800, max: 1500 },
     flashMs: 800,
+    cognitiveMode: false,
+    goProbability: 75,
   },
   elite: {
     level: 'elite',
@@ -54,6 +67,8 @@ export const REACTION_PRESETS: Record<ReactionLevel, ReactionConfig> = {
     rounds: 8,
     gapMs: { min: 300, max: 600 },
     flashMs: 600,
+    cognitiveMode: false,
+    goProbability: 75,
   },
 };
 

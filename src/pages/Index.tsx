@@ -138,6 +138,8 @@ const Index = () => {
     onSessionEnd: () => play('victory'),
     onStimulus: () => play('scoreBeep'),
     onHit: () => playHitRef.current(),
+    onNoGoSuccess: () => play('scoreBeep'),
+    onCommissionError: () => playKORef.current(),
   });
 
   // Serial port kick handler with hit type

@@ -1,6 +1,8 @@
-import { ArrowLeft, Zap, Clock, Repeat, Timer, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, Zap, Clock, Repeat, Timer, Wifi, WifiOff, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import { useSound } from '@/contexts/SoundContext';
 import type { ReactionLevel, ReactionConfig } from '@/types/reaction';
 import { REACTION_PRESETS, LEVEL_LABELS } from '@/types/reaction';
@@ -28,7 +30,7 @@ export function ReactionSetupScreen({
 
   const handlePresetSelect = (level: ReactionLevel) => {
     setActivePreset(level);
-    onConfigChange({ ...REACTION_PRESETS[level] });
+    onConfigChange({ ...REACTION_PRESETS[level], cognitiveMode: config.cognitiveMode, goProbability: config.goProbability });
   };
 
   const updateField = (field: string, value: number) => {
@@ -173,6 +175,47 @@ export function ReactionSetupScreen({
             </div>
           </div>
 
+          {/* Cognitive Mode */}
+          <div className="bg-muted/50 p-4 rounded-xl border border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-orange-400" />
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Modo Cognitivo (Go/No-Go)</h3>
+                  <p className="text-xs text-muted-foreground">Treina inibição de impulso</p>
+                </div>
+              </div>
+              <Switch
+                checked={config.cognitiveMode}
+                onCheckedChange={(checked) =>
+                  onConfigChange({ ...config, cognitiveMode: checked })
+                }
+              />
+            </div>
+
+            {config.cognitiveMode && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Probabilidade Verde (GO)</span>
+                  <span className="text-sm font-bold text-green-400">{config.goProbability}%</span>
+                </div>
+                <Slider
+                  value={[config.goProbability]}
+                  onValueChange={([val]) =>
+                    onConfigChange({ ...config, goProbability: val })
+                  }
+                  min={50}
+                  max={95}
+                  step={5}
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground text-center">
+                  🟢 Verde = Chuta! &nbsp; 🔴 Vermelho = Não chuta!
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Hardware status */}
           <div className={`flex items-center gap-3 p-3 rounded-xl border ${
             isHardwareConnected
@@ -202,8 +245,18 @@ export function ReactionSetupScreen({
               Como Funciona
             </h3>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>• O círculo acende com uma cor — <span className="text-green-400 font-bold">reaja o mais rápido possível!</span></p>
-              <p>• A luz apaga sozinha após o tempo máximo ou quando você chuta o colete.</p>
+              {config.cognitiveMode ? (
+                <>
+                  <p>• Círculo <span className="text-green-400 font-bold">VERDE</span> acende — <span className="text-green-400 font-bold">chute o mais rápido possível!</span></p>
+                  <p>• Círculo <span className="text-red-400 font-bold">VERMELHO</span> acende — <span className="text-red-400 font-bold">NÃO chute! Segure o impulso.</span></p>
+                  <p>• Treina controle inibitório e tomada de decisão sob pressão.</p>
+                </>
+              ) : (
+                <>
+                  <p>• O círculo acende com uma cor — <span className="text-green-400 font-bold">reaja o mais rápido possível!</span></p>
+                  <p>• A luz apaga sozinha após o tempo máximo ou quando você chuta o colete.</p>
+                </>
+              )}
               {isHardwareConnected && (
                 <p>• Seu tempo de reação será exibido na tela após cada golpe.</p>
               )}

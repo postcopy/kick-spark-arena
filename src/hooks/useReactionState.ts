@@ -13,13 +13,15 @@ interface UseReactionStateProps {
   onSessionEnd?: () => void;
   onStimulus?: () => void;   // bip sound
   onHit?: () => void;        // hit sound (kill the light)
+  onNoGoSuccess?: () => void;  // ding when correctly inhibiting
+  onCommissionError?: () => void; // buzz when hitting red
 }
 
 function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus, onHit }: UseReactionStateProps) {
+export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus, onHit, onNoGoSuccess, onCommissionError }: UseReactionStateProps) {
   // Game flow
   const [gameState, setGameState] = useState<GameState>('idle');
   const [countdown, setCountdown] = useState(3);
@@ -32,9 +34,17 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
 
   // Stimulus state
   const [stimulusActive, setStimulusActive] = useState(false);
+  const [stimulusColor, setStimulusColor] = useState<'green' | 'red' | null>(null);
   const [lastReactionTime, setLastReactionTime] = useState<number | null>(null);
   const [reactionTimes, setReactionTimes] = useState<number[]>([]);
   const [totalStimuli, setTotalStimuli] = useState(0);
+
+  // Cognitive mode counters
+  const [correctInhibitions, setCorrectInhibitions] = useState(0);
+  const [commissionErrors, setCommissionErrors] = useState(0);
+  const [omissionErrors, setOmissionErrors] = useState(0);
+  const [totalGoStimuli, setTotalGoStimuli] = useState(0);
+  const [totalNoGoStimuli, setTotalNoGoStimuli] = useState(0);
 
   // Result
   const [lastResult, setLastResult] = useState<ReactionResult | null>(null);
@@ -49,6 +59,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
   const hitRegisteredRef = useRef(false);
   const activeRef = useRef(false); // is the work phase running?
   const configRef = useRef(config);
+  const stimulusColorRef = useRef<'green' | 'red' | null>(null);
 
   // Keep config ref fresh
   useEffect(() => {
@@ -60,12 +71,16 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
   const onHitRef = useRef(onHit);
   const onRoundEndRef = useRef(onRoundEnd);
   const onSessionEndRef = useRef(onSessionEnd);
+  const onNoGoSuccessRef = useRef(onNoGoSuccess);
+  const onCommissionErrorRef = useRef(onCommissionError);
   useEffect(() => {
     onStimulusRef.current = onStimulus;
     onHitRef.current = onHit;
     onRoundEndRef.current = onRoundEnd;
     onSessionEndRef.current = onSessionEnd;
-  }, [onStimulus, onHit, onRoundEnd, onSessionEnd]);
+    onNoGoSuccessRef.current = onNoGoSuccess;
+    onCommissionErrorRef.current = onCommissionError;
+  }, [onStimulus, onHit, onRoundEnd, onSessionEnd, onNoGoSuccess, onCommissionError]);
 
   const clearAllTimers = useCallback(() => {
     [workTimerRef, flashTimerRef, gapTimerRef, restTimerRef, countdownTimerRef].forEach(ref => {
@@ -85,6 +100,18 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     const gap = randomBetween(cfg.gapMs.min, cfg.gapMs.max);
     gapTimerRef.current = window.setTimeout(() => {
       if (!activeRef.current) return;
+
+      // Determine stimulus color
+      const isGo = !cfg.cognitiveMode || Math.random() * 100 < cfg.goProbability;
+      const color: 'green' | 'red' = isGo ? 'green' : 'red';
+      stimulusColorRef.current = color;
+      setStimulusColor(color);
+      if (isGo) {
+        setTotalGoStimuli(prev => prev + 1);
+      } else {
+        setTotalNoGoStimuli(prev => prev + 1);
+      }
+
       // Turn ON
       setStimulusActive(true);
       stimulusOnTimeRef.current = Date.now();
@@ -95,7 +122,23 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
       // Schedule auto-off after flashMs
       flashTimerRef.current = window.setTimeout(() => {
         if (!activeRef.current) return;
+
+        // Cognitive timeout logic
+        if (cfg.cognitiveMode && !hitRegisteredRef.current) {
+          const c = stimulusColorRef.current;
+          if (c === 'green') {
+            // Missed a GO stimulus = omission error
+            setOmissionErrors(prev => prev + 1);
+          } else if (c === 'red') {
+            // Correctly inhibited a NO-GO = correct inhibition
+            setCorrectInhibitions(prev => prev + 1);
+            onNoGoSuccessRef.current?.();
+          }
+        }
+
         setStimulusActive(false);
+        setStimulusColor(null);
+        stimulusColorRef.current = null;
         scheduleNextStimulus();
       }, cfg.flashMs);
     }, gap);
@@ -108,17 +151,36 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     if (stimulusOnTimeRef.current === 0) return;
     const now = Date.now();
     const delta = now - stimulusOnTimeRef.current;
-    // Guard: only accept if within a reasonable window (stimulus is on)
+
+    // 1. FILTRO DE RUÍDO — sempre primeiro, antes de qualquer lógica
     if (delta < 100 || delta > configRef.current.flashMs + 50) return;
 
+    // 2. Mark hit registered
     hitRegisteredRef.current = true;
+
     // Cancel flash timer
     if (flashTimerRef.current) {
       window.clearTimeout(flashTimerRef.current);
       flashTimerRef.current = null;
     }
-    // Kill the light immediately
+
+    // 3. Cognitive mode + Red = FALTA (commission error)
+    if (configRef.current.cognitiveMode && stimulusColorRef.current === 'red') {
+      setCommissionErrors(prev => prev + 1);
+      onCommissionErrorRef.current?.();
+      // Kill the light
+      setStimulusActive(false);
+      setStimulusColor(null);
+      stimulusColorRef.current = null;
+      // Schedule next stimulus (do NOT record reaction time)
+      scheduleNextStimulus();
+      return;
+    }
+
+    // 4. Normal hit (green or non-cognitive)
     setStimulusActive(false);
+    setStimulusColor(null);
+    stimulusColorRef.current = null;
     setLastReactionTime(delta);
     setReactionTimes(prev => [...prev, delta]);
     onHitRef.current?.(); // hit sound
@@ -132,6 +194,8 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     const cfg = configRef.current;
     activeRef.current = true;
     setStimulusActive(false);
+    setStimulusColor(null);
+    stimulusColorRef.current = null;
     setWorkTimeLeft(cfg.workSec);
     setIsResting(false);
     setLastReactionTime(null);
@@ -150,6 +214,8 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
         if (flashTimerRef.current) { window.clearTimeout(flashTimerRef.current); flashTimerRef.current = null; }
         if (gapTimerRef.current) { window.clearTimeout(gapTimerRef.current); gapTimerRef.current = null; }
         setStimulusActive(false);
+        setStimulusColor(null);
+        stimulusColorRef.current = null;
         onRoundEndRef.current?.();
 
         // Check if session complete
@@ -161,9 +227,15 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
               mode: 'reaction',
               level: cfg.level,
               roundsCompleted: prevRound,
-              totalStimuli: 0, // will be set via ref below
+              totalStimuli: 0, // will be set via effect below
               reactionTimes: [],
               timestamp: Date.now(),
+              cognitiveMode: cfg.cognitiveMode,
+              correctInhibitions: 0,
+              commissionErrors: 0,
+              omissionErrors: 0,
+              totalGoStimuli: 0,
+              totalNoGoStimuli: 0,
             });
             onSessionEndRef.current?.();
             return prevRound;
@@ -199,6 +271,11 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
         ...prev,
         totalStimuli,
         reactionTimes,
+        correctInhibitions,
+        commissionErrors,
+        omissionErrors,
+        totalGoStimuli,
+        totalNoGoStimuli,
       } : prev);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -221,6 +298,16 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     }, 1000);
   }, [startRound]);
 
+  const resetCognitiveCounters = useCallback(() => {
+    setCorrectInhibitions(0);
+    setCommissionErrors(0);
+    setOmissionErrors(0);
+    setTotalGoStimuli(0);
+    setTotalNoGoStimuli(0);
+    setStimulusColor(null);
+    stimulusColorRef.current = null;
+  }, []);
+
   const goToSetup = useCallback(() => {
     clearAllTimers();
     setGameState('setup');
@@ -233,7 +320,8 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     setReactionTimes([]);
     setTotalStimuli(0);
     setLastResult(null);
-  }, [clearAllTimers, config.workSec]);
+    resetCognitiveCounters();
+  }, [clearAllTimers, config.workSec, resetCognitiveCounters]);
 
   const goToLoading = useCallback(() => {
     setGameState('loading');
@@ -252,7 +340,8 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     setReactionTimes([]);
     setTotalStimuli(0);
     setLastResult(null);
-  }, [clearAllTimers, config.workSec]);
+    resetCognitiveCounters();
+  }, [clearAllTimers, config.workSec, resetCognitiveCounters]);
 
   // Replay: reset counters but keep config, start countdown immediately
   const replay = useCallback(() => {
@@ -266,6 +355,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     setReactionTimes([]);
     setTotalStimuli(0);
     setLastResult(null);
+    resetCognitiveCounters();
     // Start countdown immediately
     setGameState('countdown');
     setCountdown(3);
@@ -280,7 +370,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
         startRound();
       }
     }, 1000);
-  }, [clearAllTimers, config.workSec, startRound]);
+  }, [clearAllTimers, config.workSec, startRound, resetCognitiveCounters]);
 
   useEffect(() => {
     return () => clearAllTimers();
@@ -295,11 +385,13 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     isResting,
     restTimeLeft,
     stimulusActive,
+    stimulusColor,
     lastReactionTime,
     reactionTimes,
     totalStimuli,
     lastResult,
     config,
+    commissionErrors,
 
     startCountdown,
     goToSetup,
