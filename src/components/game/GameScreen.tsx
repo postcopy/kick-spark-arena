@@ -152,7 +152,7 @@ export function GameScreen({
             <div className="text-center flex flex-col items-center justify-center gap-[2vh]">
               {/* Giant golden score */}
               <div className={cn(
-                'text-[10rem] md:text-[14rem] font-bold text-[#FFD700] leading-none',
+                'font-bold text-[#FFD700] leading-none',
                 'drop-shadow-[0_0_60px_rgba(255,215,0,0.4)]',
                 'transition-transform duration-100',
                 flashSide ? 'scale-110' : 'scale-100'
