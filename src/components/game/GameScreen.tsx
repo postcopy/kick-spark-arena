@@ -233,30 +233,45 @@ export function GameScreen({
         )}
       </div>
 
-      {/* Footer - Team Names */}
-      <div className="h-20 md:h-24 bg-black flex items-center border-t border-white/10">
-        {isIndividual && athlete ? (
+      {/* Footer */}
+      {isIndividual ? (
+        <div className="bg-black/80 backdrop-blur-md border-t border-white/10 py-4 z-50">
+          <div className="grid grid-cols-3 gap-4 text-center max-w-md mx-auto px-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-white/50 uppercase tracking-widest">Melhor (Dia)</span>
+              <span className={cn('text-xl font-bold', dayPB ? 'text-[#39FF14]' : 'text-white')}>
+                {dayPB ? dayPB : '--'}
+              </span>
+            </div>
+            <div className="flex flex-col border-x border-white/10">
+              <span className="text-[10px] text-white/50 uppercase tracking-widest">Ritmo Atual</span>
+              <span className="text-xl font-bold text-white flex justify-center items-center gap-1">
+                {cpm} <span className="text-xs text-white/50 font-normal">CPM</span>
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-white/50 uppercase tracking-widest">Atleta</span>
+              <span className="text-xl font-bold text-white truncate px-2">
+                {athlete?.name || 'Visitante'}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="h-20 md:h-24 bg-black flex items-center border-t border-white/10">
           <div className="flex-1 flex items-center justify-center">
-            <span className="font-bold text-[#FFD700] uppercase tracking-[0.3em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
-              {athlete.name}
+            <span className="font-bold text-[#E10000] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
+              Vermelho
             </span>
           </div>
-        ) : (
-          <>
-            <div className="flex-1 flex items-center justify-center">
-              <span className="font-bold text-[#E10000] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
-                Vermelho
-              </span>
-            </div>
-            <div className="w-px h-12 bg-white/20" />
-            <div className="flex-1 flex items-center justify-center">
-              <span className="font-bold text-[#0066FF] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
-                Azul
-              </span>
-            </div>
-          </>
-        )}
-      </div>
+          <div className="w-px h-12 bg-white/20" />
+          <div className="flex-1 flex items-center justify-center">
+            <span className="font-bold text-[#0066FF] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
+              Azul
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
