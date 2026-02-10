@@ -72,7 +72,7 @@ export function ReactionFinishedScreen({
         {hasReactionData && chartData.length > 1 && (
           <div className="w-full max-w-lg h-48 md:h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 40, bottom: 0 }}>
                 <defs>
                   <linearGradient id="reactionGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="hsl(0, 80%, 55%)" stopOpacity={0.6} />
