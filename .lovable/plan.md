@@ -1,87 +1,43 @@
 
-# Modulo de Gestao de Alunos e Analise de Performance
+# Fluxo Rapido de Rotacao de Alunos
 
-## Visao Geral
+## Problema Atual
+O botao "Trocar Atleta" no `ReactionFinishedScreen` chama `handleBackToMenu()`, que reseta o `gameMode` para `null` e volta para a Home. Isso quebra o fluxo de rotacao em aula -- o treinador precisa re-selecionar o modo Reacao e re-configurar dificuldade toda vez.
 
-Criar um modulo completo para o treinador gerenciar seus alunos e visualizar a evolucao de performance ao longo do tempo. Inclui lista de alunos, perfil individual com graficos de evolucao, e integracao automatica com o modo de treino de reacao.
+## Solucao
 
-## O que ja existe
+### 1. Index.tsx -- Novo callback `handleSwitchAthlete`
+Alterar o `onSwitchAthlete` no bloco `reaction > finished` (linhas 469-473) para:
+- Limpar `selectedAthlete` (null) e `isGuest` (false)
+- Chamar `reactionState.goToSetup()` para voltar ao `ReactionSetupScreen`
+- **Nao** chamar `handleBackToMenu()` (manter `gameMode = 'reaction'`)
 
-- Tabela `athletes` no banco (id, academy_id, name, nickname, belt, category, avatar_url, is_active)
-- Tabela `solo_results` para modo time_attack (kicks, duration)
-- Tipo `Athlete` em `src/types/game.ts`
-- Dialog de adicionar atleta (`AddAthleteDialog`)
-- Estado `selectedAthlete` no `Index.tsx`
-
-## Plano de Implementacao
-
-### 1. Migracao SQL
-
-- Adicionar `birth_date` (date) e `weight_kg` (numeric) na tabela `athletes`
-- Criar tabela `training_sessions` (id, athlete_id, academy_id, mode, avg_score, best_score, details jsonb, created_at)
-- RLS: academy vê apenas seus dados
-- Indice em (athlete_id, created_at DESC)
-
-### 2. Pagina de Lista de Alunos (`src/pages/Students.tsx`)
-
-- Grid de cards com avatar, nome e tag colorida da faixa
-- Botao flutuante (+) para adicionar novo aluno
-- Clicar no card navega para `/students/:id`
-
-### 3. Pagina de Perfil e Analytics (`src/pages/StudentProfile.tsx`)
-
-- Cabecalho: avatar grande, nome, faixa (com cor), idade calculada
-- Filtros de tempo: Semana / Mes / Ano / Tudo
-- AreaChart linear de evolucao (X: datas, Y: tempo medio ms)
-- Historico recente: lista das ultimas sessoes
-
-### 4. Seletor de Atleta Ativo (`src/components/game/AthletePickerDialog.tsx`)
-
-- Dialog com lista de atletas para selecionar o ativo
-- **Modo Visitante (Guest):** Opcao no topo "Visitante (Sem Salvar)" para demonstracoes sem cadastro. Permite treinar normalmente mas nao salva resultados no banco.
-- Botao na HomeScreen para abrir o dialog
-
-### 5. Avatar Placeholder com Iniciais
-
-- Se o aluno nao tiver foto (`avatar_url` null), renderizar um circulo com as iniciais do nome (ex: "Joao Silva" -> "JS")
-- Cor de fundo baseada na faixa do aluno (mapeamento de cores das faixas)
-- Componente reutilizavel `StudentAvatar` usado tanto na lista quanto no perfil
-
-### 6. Integracao com ReactionFinishedScreen
-
-- Se ha atleta selecionado (e nao e visitante): salvar training_session automaticamente
-- Se e visitante: treina normalmente, nao salva
-- Toast de confirmacao ao salvar
-
-### 7. Rotas e Navegacao
-
-- `/students` e `/students/:id` no App.tsx
-- Link "Meus Alunos" no MenuDrawer
-
-## Cores das faixas (mapeamento)
-
-```text
-white    -> #FFFFFF (borda cinza)
-yellow   -> #FACC15
-orange   -> #F97316
-green    -> #22C55E
-purple   -> #A855F7
-brown    -> #92400E
-black    -> #1C1917
-red      -> #EF4444
+Codigo resultante:
+```
+onSwitchAthlete={() => {
+  setSelectedAthlete(null);
+  setIsGuest(false);
+  reactionState.goToSetup();
+}}
 ```
 
-## Arquivos novos
-1. `src/pages/Students.tsx`
-2. `src/pages/StudentProfile.tsx`
-3. `src/components/game/AthletePickerDialog.tsx`
-4. `src/components/game/StudentAvatar.tsx`
-5. `src/hooks/useTrainingSessions.ts`
+### 2. ReactionFinishedScreen.tsx -- Destaque visual no botao "Trocar"
+Atualmente o botao "Trocar" usa `variant="outline"`. Vamos torna-lo mais visivel:
+- Mudar para uma borda branca/clara com fundo sutil para se destacar como acao principal de rotacao
+- Usar classes como `border-white/60 bg-white/10 hover:bg-white/20 text-white` para destaque sem competir com o botao verde "REPETIR"
+- Manter o icone `UserRoundCog` e o texto "Trocar"
 
-## Arquivos modificados
-1. `src/App.tsx` — rotas
-2. `src/components/game/HomeScreen.tsx` — botao selecionar atleta
-3. `src/components/game/MenuDrawer.tsx` — link /students
-4. `src/components/game/ReactionFinishedScreen.tsx` — salvar sessao
-5. `src/components/game/AddAthleteDialog.tsx` — campos birth_date e weight_kg
-6. `src/pages/Index.tsx` — passar selectedAthlete e flag isGuest
+## Secao Tecnica
+
+### Arquivos modificados
+1. **`src/pages/Index.tsx`** (linhas 469-473) -- substituir `handleBackToMenu()` por `reactionState.goToSetup()`
+2. **`src/components/game/ReactionFinishedScreen.tsx`** (linha 204) -- atualizar classes do botao "Trocar" para destaque visual
+
+### Fluxo atualizado
+```text
+ReactionFinishedScreen
+  [Trocar Atleta] --> ReactionSetupScreen (athlete=null, isGuest=false, config mantida)
+                      Botao INICIAR bloqueado ate selecionar proximo aluno
+  [Ajustar]       --> ReactionSetupScreen (athlete mantido, config editavel)
+  [REPETIR]       --> Replay imediato (mesmo atleta, mesma config)
+```
