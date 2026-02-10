@@ -201,7 +201,7 @@ export function ReactionFinishedScreen({
       {/* Footer – 3 action buttons */}
       <footer className="flex-shrink-0 p-4 border-t border-border">
         <div className="flex gap-2 max-w-lg mx-auto">
-          <Button onClick={onSwitchAthlete} variant="outline" size="lg" className="flex-1 py-5">
+          <Button onClick={onSwitchAthlete} variant="outline" size="lg" className="flex-1 py-5 border-white/60 bg-white/10 hover:bg-white/20 text-white">
             <UserRoundCog className="w-4 h-4 mr-1.5" />
             Trocar
           </Button>

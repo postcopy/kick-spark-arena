@@ -469,7 +469,7 @@ const Index = () => {
             onSwitchAthlete={() => {
               setSelectedAthlete(null);
               setIsGuest(false);
-              handleBackToMenu();
+              reactionState.goToSetup();
             }}
           />
         ) : null;
