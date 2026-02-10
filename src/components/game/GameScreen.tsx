@@ -219,7 +219,7 @@ export function GameScreen({
       <div className="h-20 md:h-24 bg-black flex items-center border-t border-white/10">
         {isIndividual && athlete ? (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-3xl md:text-5xl font-bold text-[#FFD700] uppercase tracking-[0.3em]">
+            <span className="font-bold text-[#FFD700] uppercase tracking-[0.3em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
               {athlete.name}
             </span>
           </div>
