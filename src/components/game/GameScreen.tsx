@@ -129,7 +129,7 @@ export function GameScreen({
           onClick={handleTapPause}
         >
           <div className="text-center">
-            <h2 className="text-6xl md:text-8xl font-bold text-game-yellow mb-4 animate-pulse">
+            <h2 className="font-bold text-game-yellow mb-4 animate-pulse" style={{ fontSize: 'clamp(3rem, 12vh, 6rem)' }}>
               PAUSADO
             </h2>
             <p className="text-xl text-muted-foreground">
