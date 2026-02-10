@@ -1,70 +1,70 @@
 
-# Ajuste de Responsividade com clamp() no GameScreen
 
-## Problema
-O modo individual do `GameScreen` usa tamanhos fixos (`text-[10rem]`, `text-[14rem]`, `text-5xl`, `text-6xl`) que podem estourar o layout em telas com altura reduzida (notebooks 13", tablets landscape).
+# Redesign Completo: HUD "Elite" para Modo Individual
 
-## Solucao
+## Arquivo
+`src/components/game/GameScreen.tsx` (unico arquivo)
 
-### Arquivo: `src/components/game/GameScreen.tsx` (unico arquivo)
+## Alteracoes
 
-### 1. Timer Central -- clamp baseado em vh
-**Linhas 106-108**: Substituir `text-5xl md:text-6xl` por estilo inline com clamp:
-```typescript
-style={{ fontSize: 'clamp(3rem, 15vh, 8rem)' }}
+### 1. Import (linha 7)
+Adicionar `Zap` de `lucide-react`.
+
+### 2. Novos calculos e estado (apos linha 38)
+- **CPM em tempo real**: `elapsedSeconds = totalDuration - timeLeft`, `cpm = Math.round((totalKicks / elapsedSeconds) * 60)` quando elapsed > 0, senao 0.
+- **dayPB**: `useState<number | null>(null)` + `useEffect` que le `kickcounter_dayRecord` do localStorage e extrai `bestTotal` se a data for de hoje.
+
+### 3. Timer condicional (linhas 73-114)
+Envolver o bloco do timer no topo em `{!isIndividual && (...)}` para aparecer apenas no modo Duo.
+
+### 4. Bloco Individual reescrito (linhas 144-175)
+Substituir todo o conteudo por um HUD centralizado vertical:
+
+- **Timer circular grosso**: SVG com `strokeWidth="8"` (vs 4 atual), `viewBox="0 0 100 100"`, raio 45, tamanho via `clamp(7rem,25vh,18rem)`. Cor `#FFD700` quando > 10s, `#EF4444` + `animate-pulse` quando <= 10s. Progresso via `strokeDasharray="283"` e `strokeDashoffset` calculado como `283 - (283 * (timeLeft / totalDuration))`.
+- **Contador de chutes**: `totalKicks` em fonte dourada gigante `clamp(4rem, 20vh, 12rem)` com glow `drop-shadow` e escala no flash.
+- **Label "HITS"**: Abaixo do contador em `clamp(1.2rem, 3vh, 2.5rem)`.
+- **Badge CPM**: Visivel quando `totalKicks > 0`. Icone `Zap` amarelo preenchido + valor CPM em badge `bg-white/10 border-white/20 rounded-full`.
+- **Mascote removido** do modo individual.
+
+### 5. Footer reescrito (linhas 218-241)
+Substituir por logica condicional:
+
+**Individual** -- barra de stats com 3 colunas em grid:
+
+| MELHOR (DIA) | RITMO ATUAL | ATLETA |
+|---|---|---|
+| `dayPB` em verde `#39FF14` ou "--" | `cpm` CPM | Nome do atleta ou "Visitante" |
+
+Estilo: `bg-black/80 backdrop-blur-md border-t border-white/10 py-4`. Labels em `text-[10px] uppercase tracking-widest text-white/50`. Valores em `text-xl font-bold`.
+
+**Duo** -- footer existente mantido inalterado (nomes Vermelho/Azul).
+
+### 6. Modo Duo
+Permanece 100% inalterado: timer no topo, paineis vermelho/azul com mascotes, footer com nomes.
+
+## Secao Tecnica
+
+### Calculo do progresso do anel (individual)
+```text
+circunferencia = 2 * PI * 45 = ~283
+strokeDasharray = "283"
+strokeDashoffset = 283 - (283 * (timeLeft / totalDuration))
 ```
-Remover as classes de tamanho fixo, manter `font-bold font-mono tabular-nums`.
+Anel comeca cheio e vai diminuindo.
 
-**Linhas 80**: Ajustar o SVG do anel de progresso para escalar com a viewport:
+### Resultado visual (modo individual)
+```text
++------------------------------------------+
+|                                          |
+|         [Anel Grosso Dourado]            |
+|              1:23                        |
+|                                          |
+|               42                         |
+|              HITS                        |
+|           [Zap 120 CPM]                  |
+|                                          |
++------------------------------------------+
+| MELHOR (DIA) | RITMO ATUAL |   ATLETA   |
+|     12       |   120 CPM   |   Joao     |
++------------------------------------------+
 ```
-className="w-[clamp(7rem,25vh,18rem)] h-[clamp(7rem,25vh,18rem)] -rotate-90"
-```
-
-### 2. Contador de Chutes -- clamp baseado em vh
-**Linhas 154-161**: Substituir `text-[10rem] md:text-[14rem]` por estilo inline:
-```typescript
-style={{ fontSize: 'clamp(4rem, 20vh, 12rem)' }}
-```
-
-**Linhas 162-164**: Label "chutes" -- substituir `text-3xl md:text-4xl` por:
-```typescript
-style={{ fontSize: 'clamp(1.2rem, 3vh, 2.5rem)' }}
-```
-
-### 3. Container Principal -- espacamento responsivo
-**Linha 143**: Substituir `pt-28 md:pt-32` por `pt-[3vh]` para que o padding superior tambem escale.
-
-**Linha 152**: No container de texto central, adicionar `gap-[2vh]` e usar flex column:
-```
-className="text-center flex flex-col items-center justify-center gap-[2vh]"
-```
-
-### 4. Footer -- tamanhos responsivos
-**Linhas 222, 229, 235**: Substituir `text-3xl md:text-5xl` por estilo inline:
-```typescript
-style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}
-```
-
-### 5. Overlay de Pausa -- clamp
-**Linha 132**: Substituir `text-6xl md:text-8xl` por:
-```typescript
-style={{ fontSize: 'clamp(3rem, 12vh, 6rem)' }}
-```
-
-## Resumo das substituicoes
-
-| Elemento | Antes | Depois |
-|----------|-------|--------|
-| Timer | `text-5xl md:text-6xl` | `clamp(3rem, 15vh, 8rem)` + `font-mono` |
-| Anel SVG | `w-28 h-28 md:w-36 md:h-36` | `clamp(7rem, 25vh, 18rem)` |
-| Score individual | `text-[10rem] md:text-[14rem]` | `clamp(4rem, 20vh, 12rem)` |
-| Label "chutes" | `text-3xl md:text-4xl` | `clamp(1.2rem, 3vh, 2.5rem)` |
-| Footer nomes | `text-3xl md:text-5xl` | `clamp(1.5rem, 4vh, 3rem)` |
-| Pausa overlay | `text-6xl md:text-8xl` | `clamp(3rem, 12vh, 6rem)` |
-| Padding topo | `pt-28 md:pt-32` | `pt-[3vh]` |
-
-## Por que funciona
-- **Monitor gamer (1080p+)**: 15vh = ~162px, limitado pelo clamp max em 8rem
-- **Notebook 13" (768px altura)**: 15vh = ~115px, cabe sem scroll
-- **Celular landscape (~400px altura)**: 15vh = ~60px, limitado pelo clamp min em 3rem
-- O modo **Duo permanece inalterado** (KickPanel tem sua propria logica de sizing)
