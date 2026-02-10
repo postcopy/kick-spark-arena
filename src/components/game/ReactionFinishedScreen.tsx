@@ -1,122 +1,205 @@
-import { Trophy, Zap, Target, Timer, Home, RotateCcw } from 'lucide-react';
+import { Trophy, TrendingDown, Zap, Target, UserRoundCog, Settings, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ReferenceLine,
+  ResponsiveContainer,
+} from 'recharts';
 import type { ReactionResult } from '@/types/reaction';
 import { LEVEL_LABELS } from '@/types/reaction';
 
 interface ReactionFinishedScreenProps {
   result: ReactionResult;
   onPlayAgain: () => void;
-  onBackToMenu: () => void;
+  onAdjustSetup: () => void;
+  onSwitchAthlete: () => void;
 }
 
 export function ReactionFinishedScreen({
   result,
   onPlayAgain,
-  onBackToMenu,
+  onAdjustSetup,
+  onSwitchAthlete,
 }: ReactionFinishedScreenProps) {
   const hasReactionData = result.reactionTimes.length > 0;
+
   const avgTime = hasReactionData
     ? Math.round(result.reactionTimes.reduce((a, b) => a + b, 0) / result.reactionTimes.length)
     : null;
   const bestTime = hasReactionData ? Math.min(...result.reactionTimes) : null;
-  const worstTime = hasReactionData ? Math.max(...result.reactionTimes) : null;
+
+  // Standard deviation (stability)
+  const stdDev = hasReactionData
+    ? Math.round(
+        Math.sqrt(
+          result.reactionTimes.reduce((sq, t) => sq + Math.pow(t - avgTime!, 2), 0) /
+            result.reactionTimes.length,
+        ),
+      )
+    : null;
+
+  // Chart data
+  const chartData = result.reactionTimes.map((t, i) => ({ index: i + 1, time: t }));
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-gradient-to-b from-green-900/50 to-background">
       {/* Header */}
-      <header className="flex-shrink-0 pt-6 md:pt-8 text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <Trophy className="w-8 h-8 md:w-10 md:h-10 text-game-yellow" />
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-foreground">
-            TREINO COMPLETO!
-          </h1>
-          <Trophy className="w-8 h-8 md:w-10 md:h-10 text-game-yellow" />
+      <header className="flex-shrink-0 pt-5 text-center">
+        <div className="flex items-center justify-center gap-3 mb-1">
+          <Trophy className="w-7 h-7 text-game-yellow" />
+          <h1 className="text-2xl md:text-3xl font-black text-foreground">TREINO COMPLETO!</h1>
+          <Trophy className="w-7 h-7 text-game-yellow" />
         </div>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-sm">
           Nível: <span className="text-green-500 font-bold">{LEVEL_LABELS[result.level]}</span>
         </p>
       </header>
 
-      {/* Stats */}
-      <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-4 md:p-6">
-        <div className="grid grid-cols-2 gap-3 md:gap-4 max-w-md w-full">
-          {/* Rounds */}
-          <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Target className="w-5 h-5 text-green-500" />
-              <span className="text-sm text-muted-foreground">Rounds</span>
-            </div>
-            <p className="text-3xl md:text-4xl font-black text-foreground">
-              {result.roundsCompleted}
-            </p>
+      {/* Main scrollable area */}
+      <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center p-4 gap-4">
+        {/* Performance Chart */}
+        {hasReactionData && chartData.length > 1 && (
+          <div className="w-full max-w-lg h-48 md:h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="reactionGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(0, 80%, 55%)" stopOpacity={0.6} />
+                    <stop offset="50%" stopColor="hsl(60, 80%, 50%)" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="hsl(142, 76%, 45%)" stopOpacity={0.6} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="index"
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={['auto', 'auto']}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  unit="ms"
+                  width={50}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))',
+                    fontSize: 13,
+                  }}
+                  formatter={(value: number) => [`${value}ms`, 'Tempo']}
+                  labelFormatter={(label) => `Estímulo #${label}`}
+                />
+                <ReferenceLine
+                  y={avgTime!}
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: `Média ${avgTime}ms`,
+                    position: 'insideTopRight',
+                    fill: 'hsl(var(--muted-foreground))',
+                    fontSize: 11,
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="time"
+                  stroke="#39FF14"
+                  strokeWidth={2}
+                  fill="url(#reactionGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
+        )}
 
-          {/* Total stimuli */}
-          <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Zap className="w-5 h-5 text-game-yellow" />
-              <span className="text-sm text-muted-foreground">Estímulos</span>
-            </div>
-            <p className="text-3xl md:text-4xl font-black text-foreground">
-              {result.totalStimuli}
-            </p>
-          </div>
-
-          {hasReactionData && (
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
+          {hasReactionData ? (
             <>
-              {/* Average */}
-              <div className="bg-green-500/20 p-4 rounded-xl border border-green-500/30 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Timer className="w-5 h-5 text-green-500" />
-                  <span className="text-sm text-green-400">Tempo Médio</span>
-                </div>
-                <p className="text-3xl md:text-4xl font-black text-green-500">
-                  {avgTime}ms
-                </p>
-              </div>
-
               {/* Best */}
-              <div className="bg-green-500/20 p-4 rounded-xl border border-green-500/30 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Zap className="w-5 h-5 text-green-400" />
-                  <span className="text-sm text-green-400">Melhor</span>
+              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Trophy className="w-4 h-4 text-game-yellow" />
+                  <span className="text-xs text-muted-foreground">Melhor (PB)</span>
                 </div>
-                <p className="text-3xl md:text-4xl font-black text-green-400">
-                  {bestTime}ms
+                <p className="text-2xl md:text-3xl font-black text-foreground">{bestTime}ms</p>
+              </div>
+
+              {/* Average */}
+              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <TrendingDown className="w-4 h-4 text-green-500" />
+                  <span className="text-xs text-muted-foreground">Média</span>
+                </div>
+                <p className="text-2xl md:text-3xl font-black text-foreground">{avgTime}ms</p>
+              </div>
+
+              {/* Total Hits */}
+              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Zap className="w-4 h-4 text-game-yellow" />
+                  <span className="text-xs text-muted-foreground">Total Hits</span>
+                </div>
+                <p className="text-2xl md:text-3xl font-black text-foreground">
+                  {result.reactionTimes.length}
+                  <span className="text-base font-normal text-muted-foreground">
+                    /{result.totalStimuli}
+                  </span>
                 </p>
               </div>
 
-              {/* Worst - spans full width */}
-              <div className="col-span-2 bg-muted/50 p-4 rounded-xl border border-border text-center">
-                <span className="text-sm text-muted-foreground">Pior Tempo: </span>
-                <span className="text-xl font-black text-foreground">{worstTime}ms</span>
+              {/* Stability */}
+              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Target className="w-4 h-4 text-green-400" />
+                  <span className="text-xs text-muted-foreground">Estabilidade</span>
+                </div>
+                <p className="text-2xl md:text-3xl font-black text-foreground">±{stdDev}ms</p>
               </div>
-
-              {/* Hits registered */}
-              <div className="col-span-2 bg-muted/50 p-3 rounded-xl border border-border text-center">
-                <span className="text-sm text-muted-foreground">Golpes Registrados: </span>
-                <span className="text-lg font-bold text-foreground">{result.reactionTimes.length}</span>
-                <span className="text-sm text-muted-foreground"> / {result.totalStimuli} estímulos</span>
+            </>
+          ) : (
+            <>
+              {/* No hardware – show rounds and stimuli only */}
+              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+                <span className="text-xs text-muted-foreground">Rounds</span>
+                <p className="text-3xl font-black text-foreground">{result.roundsCompleted}</p>
+              </div>
+              <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+                <span className="text-xs text-muted-foreground">Estímulos</span>
+                <p className="text-3xl font-black text-foreground">{result.totalStimuli}</p>
               </div>
             </>
           )}
         </div>
       </main>
 
-      {/* Footer */}
+      {/* Footer – 3 action buttons */}
       <footer className="flex-shrink-0 p-4 border-t border-border">
-        <div className="flex gap-3 max-w-md mx-auto">
-          <Button onClick={onBackToMenu} variant="outline" size="lg" className="flex-1 py-6">
-            <Home className="w-5 h-5 mr-2" />
-            Menu
+        <div className="flex gap-2 max-w-lg mx-auto">
+          <Button onClick={onSwitchAthlete} variant="outline" size="lg" className="flex-1 py-5">
+            <UserRoundCog className="w-4 h-4 mr-1.5" />
+            Trocar
+          </Button>
+          <Button onClick={onAdjustSetup} variant="ghost" size="lg" className="flex-1 py-5">
+            <Settings className="w-4 h-4 mr-1.5" />
+            Ajustar
           </Button>
           <Button
             onClick={onPlayAgain}
             size="lg"
-            className="flex-1 bg-green-500 hover:bg-green-600 text-white py-6"
+            className="flex-[1.4] bg-green-500 hover:bg-green-600 text-white py-5 font-bold"
           >
-            <RotateCcw className="w-5 h-5 mr-2" />
-            Jogar Novamente
+            <RotateCcw className="w-4 h-4 mr-1.5" />
+            REPETIR
           </Button>
         </div>
       </footer>

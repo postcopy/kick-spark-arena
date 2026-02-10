@@ -254,6 +254,34 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     setLastResult(null);
   }, [clearAllTimers, config.workSec]);
 
+  // Replay: reset counters but keep config, start countdown immediately
+  const replay = useCallback(() => {
+    clearAllTimers();
+    setCurrentRound(1);
+    setWorkTimeLeft(config.workSec);
+    setStimulusActive(false);
+    setIsResting(false);
+    setRestTimeLeft(0);
+    setLastReactionTime(null);
+    setReactionTimes([]);
+    setTotalStimuli(0);
+    setLastResult(null);
+    // Start countdown immediately
+    setGameState('countdown');
+    setCountdown(3);
+    let c = 3;
+    countdownTimerRef.current = window.setInterval(() => {
+      c--;
+      setCountdown(c);
+      if (c <= 0) {
+        window.clearInterval(countdownTimerRef.current!);
+        countdownTimerRef.current = null;
+        setGameState('running');
+        startRound();
+      }
+    }, 1000);
+  }, [clearAllTimers, config.workSec, startRound]);
+
   useEffect(() => {
     return () => clearAllTimers();
   }, [clearAllTimers]);
@@ -277,6 +305,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     goToSetup,
     goToLoading,
     resetGame,
+    replay,
     registerImpact,
   };
 }
