@@ -38,8 +38,26 @@ export function GameScreen({
   const bluePercentage = total > 0 ? (scores.blue / total) * 100 : 0;
   const totalKicks = scores.red + scores.blue;
 
+  // CPM (Chutes por Minuto) em tempo real
+  const elapsedSeconds = totalDuration - timeLeft;
+  const cpm = elapsedSeconds > 0 ? Math.round((totalKicks / elapsedSeconds) * 60) : 0;
+
+  // Recorde Pessoal (PB) do dia
+  const [dayPB, setDayPB] = useState<number | null>(null);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('kickcounter_dayRecord');
+      if (stored) {
+        const record = JSON.parse(stored);
+        const today = new Date().toISOString().split('T')[0];
+        if (record.date === today) setDayPB(record.bestTotal);
+      }
+    } catch (e) {
+      console.error("Erro ao ler PB", e);
+    }
+  }, []);
+
   // Progress for circular timer
-  const progress = totalDuration > 0 ? (timeLeft / totalDuration) * 100 : 100;
   
   // Time color based on remaining time
   const timeColor = timeLeft <= 5 ? 'text-game-red' : timeLeft <= 10 ? 'text-game-yellow' : 'text-foreground';
