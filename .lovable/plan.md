@@ -1,73 +1,37 @@
 
 
-# Correção: HIT não registra mesmo com threshold baixo
+# Redesign: Tela de Resultado do Treino de Reacao (Full Screen)
 
-## Problema Identificado
+## Problema
+A tela de resultado tem muito espaco vazio na parte inferior e as informacoes (grafico, cards de stats) estao pequenas, limitadas a `max-w-lg` (~32rem). Em telas grandes, o conteudo fica concentrado no topo com metade da tela vazia.
 
-O sistema tem um **filtro de ruído fixo (hardcoded) de intensidade 15** dentro do `ImpactDetector`. Isso significa que qualquer toque com intensidade abaixo de 15 é **silenciosamente descartado** antes mesmo de chegar à lógica de pontuação. Mesmo que você configure `vestHitMin = 1` na interface, o filtro interno já jogou fora o sinal.
+## Solucao
+Expandir o layout para preencher toda a tela, usando `flex-1` para distribuir o espaco verticalmente e removendo o `max-w-lg` restritivo. O grafico e os cards crescerao para ocupar o espaco disponivel.
 
-Além disso, os valores de `hitMin` configurados na interface **nunca são usados** na classificação -- o código apenas verifica se o impacto é forte o suficiente para ser PONTO. Qualquer coisa abaixo do limiar de ponto é automaticamente classificada como HIT, mas só se passar pelo filtro de ruído fixo de 15.
+## Arquivo
+`src/components/game/ReactionFinishedScreen.tsx` (unico arquivo)
 
-## Solução
+## Alteracoes
 
-Tornar o filtro de ruído do ImpactDetector configurável usando os valores de `hitMin` da configuração, em vez do valor fixo 15.
+### 1. Header -- tipografia maior
+- Titulo "TREINO COMPLETO!": de `text-2xl md:text-3xl` para `text-3xl md:text-4xl`
+- Icones Trophy: de `w-7 h-7` para `w-8 h-8`
+- Nivel: de `text-sm` para `text-base`
 
-### Arquivo 1: `src/lib/impactDetector.ts`
+### 2. Area principal -- expandir para preencher a tela
+- Container `main`: remover `items-center` fixo, adicionar `justify-center` para centralizar verticalmente quando ha espaco
+- Grafico: de `max-w-lg h-48 md:h-56` para `max-w-3xl h-[30vh] min-h-[200px]` -- ocupa 30% da altura da tela
+- Stats grid: de `max-w-lg` para `max-w-3xl`
+- Cards de stats: padding de `p-4` para `p-5 md:p-6`, valores de `text-2xl md:text-3xl` para `text-3xl md:text-4xl`, labels de `text-xs` para `text-sm`
 
-- Adicionar uma nova propriedade `noiseIntensityMin` ao `ImpactDetectorConfig` com valor padrão de 15 (comportamento atual mantido por padrão)
-- Substituir o check hardcoded `if (intensity < NOISE_INTENSITY_MIN) return` por `if (intensity < this.config.noiseIntensityMin) return`
-- Manter a constante `NOISE_INTENSITY_MIN = 15` como fallback padrão
+### 3. Footer -- botoes maiores
+- Container: de `max-w-lg` para `max-w-3xl`
+- Botoes: de `py-5` para `py-6`, texto maior
 
-### Arquivo 2: `src/pages/ChampionshipMat.tsx`
+### 4. Sub-componentes StandardStatsGrid, CognitiveStatsGrid, NoHardwareStatsGrid
+- Aumentar padding, tamanho de fonte dos valores e labels em todos os cards
+- Icones: de `w-4 h-4` para `w-5 h-5`
 
-- No `impactDetectorConfigMemo`, calcular o menor `hitMin` entre colete e capacete e passar como `noiseIntensityMin` para o detector
-- Assim, se o usuario configurar `vestHitMin = 5` e `helmetHitMin = 3`, o detector usara `noiseIntensityMin = 3`, permitindo que toques leves cheguem à lógica de pontuação
+## Resultado esperado
+O conteudo se distribui verticalmente por toda a tela: header compacto no topo, grafico grande no centro, 4 cards de stats preenchendo a largura, e footer com botoes na base. Sem espacos vazios grandes.
 
-- Na classificação de impactos (handler `handleImpactRef`), adicionar verificação real do `hitMin`: se `peakIntensity < hitMin` para aquele tipo de equipamento, classificar como IGNORED em vez de HIT
-
-### Arquivo 3: `src/types/championship.ts`
-
-- Verificar se o tipo `ShadowLogEntry` já suporta `decision: 'IGNORED'` -- se não, adicionar
-
-## Fluxo Corrigido
-
-```text
-Toque leve (intensidade 5):
-  ANTES: ImpactDetector descarta (< 15) -> nunca chega ao scoring
-  DEPOIS: ImpactDetector aceita (>= hitMin configurado) -> scoring classifica como HIT
-
-Toque forte (intensidade 25):
-  ANTES: ImpactDetector aceita -> scoring classifica como POINT
-  DEPOIS: Mesmo comportamento (sem mudança)
-
-Ruído (intensidade 2, hitMin = 5):
-  ANTES: ImpactDetector descarta (< 15)
-  DEPOIS: ImpactDetector descarta (< 5 = hitMin configurado)
-```
-
-## Detalhes Técnicos
-
-### impactDetector.ts
-- Nova propriedade no config: `noiseIntensityMin: number` (default: `NOISE_INTENSITY_MIN` = 15)
-- Linha 85: `if (intensity < this.config.noiseIntensityMin) return;`
-
-### ChampionshipMat.tsx
-- No `useMemo` do `impactDetectorConfigMemo` (linha 184): calcular `Math.min(thresholds.vestHitMin, thresholds.helmetHitMin)` e passar como `noiseIntensityMin`
-- No handler de impactos (linha 124): adicionar gate real do hitMin
-```text
-const hitMin = isHelmet ? thresholds.helmetHitMin : thresholds.vestHitMin;
-if (impact.peakIntensity < hitMin) -> IGNORED (log no shadow, nao pontua, nao conta hit)
-if (impact.peakIntensity >= pointMin) -> POINT
-else -> HIT
-```
-
-### useSerialPort.ts
-- No `useEffect` que cria o detector (linha 119): passar `noiseIntensityMin` do config se disponível
-
-### Tipos (serial.ts)
-- Adicionar `noiseIntensityMin?: number` ao tipo `impactDetectorConfig`
-
-## Impacto
-- Modo Campeonato: hits leves passam a ser registrados conforme configuração
-- Outros modos (Arcade, Time Attack): sem mudança (usam debounce, não ImpactDetector)
-- Comportamento padrão mantido (15) quando nenhum threshold customizado é configurado
