@@ -175,7 +175,7 @@ export function GameScreen({
             {/* 1. Header de Contexto (Técnico) */}
             <div className="w-full flex items-center justify-between px-5 pt-4 pb-2">
               <div className="w-8" />
-              <span className="text-[10px] text-slate-500 uppercase tracking-[0.3em] font-mono">
+              <span className="text-xs text-slate-500 uppercase tracking-[0.3em] font-mono">
                 Modo: Contra o Tempo
               </span>
               <button onClick={(e) => { e.stopPropagation(); onPause?.(); }} className="text-slate-400 hover:text-slate-300 transition-colors">
@@ -188,7 +188,7 @@ export function GameScreen({
               
               {/* 2. Timer Circular Técnico (Ciano/Slate) */}
               <div className={cn('relative flex items-center justify-center', timerPulse && 'animate-pulse')}>
-                <svg className="-rotate-90" style={{ width: 'clamp(8rem, 22vh, 14rem)', height: 'clamp(8rem, 22vh, 14rem)' }} viewBox="0 0 100 100">
+                <svg className="-rotate-90" style={{ width: 'clamp(12rem, 35vh, 28rem)', height: 'clamp(12rem, 35vh, 28rem)' }} viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="45" fill="none" stroke="#1e293b" strokeWidth="3" />
                   <circle cx="50" cy="50" r="45" fill="none"
                     stroke={timeLeft <= 5 ? '#EF4444' : '#22d3ee'}
@@ -199,7 +199,7 @@ export function GameScreen({
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="font-medium font-mono tabular-nums text-white" style={{ fontSize: 'clamp(2rem, 8vh, 5rem)' }}>
+                  <span className="font-medium font-mono tabular-nums text-white" style={{ fontSize: 'clamp(3rem, 12vh, 9rem)' }}>
                     {formatTime(timeLeft)}
                   </span>
                 </div>
@@ -210,10 +210,10 @@ export function GameScreen({
                 <span className={cn(
                   'font-semibold text-white leading-none transition-transform duration-100',
                   flashSide ? 'scale-105' : 'scale-100'
-                )} style={{ fontSize: 'clamp(4rem, 16vh, 10rem)' }}>
+                )} style={{ fontSize: 'clamp(6rem, 30vh, 22rem)' }}>
                   {totalKicks}
                 </span>
-                <span className="text-slate-500 uppercase tracking-[0.2em] text-xs mt-1">
+                <span className="text-slate-500 uppercase tracking-[0.3em] text-lg mt-1">
                   Total Hits
                 </span>
               </div>
@@ -269,34 +269,34 @@ export function GameScreen({
       {/* Footer */}
       {isIndividual ? (
         /* Dashboard Telemetria (3 Colunas) */
-        <div className="w-full bg-[#0b1120] border-t border-white/10 py-5 z-50">
+        <div className="w-full bg-[#0b1120] border-t border-white/10 py-8 z-50">
           <div className="grid grid-cols-3 text-center max-w-4xl mx-auto px-4">
             
             {/* Bloco 1: Melhor da Sessão */}
             <div className="flex flex-col items-center justify-center gap-1">
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">
+              <span className="text-sm text-slate-500 uppercase tracking-wider font-mono">
                 Melhor da Sessão
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-3xl text-white font-medium tabular-nums">
+                <span className="text-5xl text-white font-medium tabular-nums">
                   {dayPB ? dayPB : '--'}
                 </span>
-                {dayPB && <TrendingUp className="w-4 h-4 text-[#22d3ee]" />}
+                {dayPB && <TrendingUp className="w-6 h-6 text-[#22d3ee]" />}
               </div>
             </div>
 
             {/* Bloco 2: Intensidade (CPM) com Gauge */}
             <div className="flex flex-col items-center justify-center gap-1 border-x border-white/10 relative">
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">
+              <span className="text-sm text-slate-500 uppercase tracking-wider font-mono">
                 Intensidade (CPM)
               </span>
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-4xl font-bold text-white tabular-nums">{cpm}</div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">CPM</div>
+                  <div className="text-6xl font-bold text-white tabular-nums">{cpm}</div>
+                  <div className="text-sm text-slate-500 font-bold uppercase tracking-wider">CPM</div>
                 </div>
                 {/* Gauge SVG (semicircle) */}
-                <div className="relative w-16 h-8 overflow-hidden">
+                <div className="relative w-32 h-16 overflow-hidden">
                   <svg viewBox="0 0 100 50" className="w-full h-full">
                     <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="#1e293b" strokeWidth="8" />
                     <path 
@@ -313,18 +313,18 @@ export function GameScreen({
                 </div>
               </div>
               {/* Background glow */}
-              <div className="absolute -bottom-2 w-12 h-4 bg-[#22d3ee]/10 blur-xl rounded-full" />
+              <div className="absolute -bottom-2 w-20 h-6 bg-[#22d3ee]/10 blur-xl rounded-full" />
             </div>
 
             {/* Bloco 3: Atleta */}
             <div className="flex flex-col items-center justify-center gap-1 relative">
               <div className="absolute top-0 right-4">
-                <User className="w-3.5 h-3.5 text-slate-600" />
+                <User className="w-5 h-5 text-slate-600" />
               </div>
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">
+              <span className="text-sm text-slate-500 uppercase tracking-wider font-mono">
                 Atleta
               </span>
-              <span className="text-2xl text-white font-medium truncate max-w-[90%]">
+              <span className="text-4xl text-white font-medium truncate max-w-[90%]">
                 {athlete?.name || 'Visitante'}
               </span>
             </div>
