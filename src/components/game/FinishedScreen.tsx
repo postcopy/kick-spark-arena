@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Trophy, RotateCcw, Home, Medal, Sparkles } from 'lucide-react';
+import { Trophy, RotateCcw, Home, Medal, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { GameResult } from '@/types/game';
@@ -101,85 +101,80 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
   // Individual Mode UI - Simplified
   if (isIndividual) {
     return (
-      <div className="flex flex-col h-full w-full overflow-hidden bg-background relative">
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-6 md:p-8">
-        <Confetti />
-
-        {/* Background Glow */}
+      <div className="flex flex-col h-full w-full overflow-hidden bg-[#0b1120] relative border-2 border-white/5 rounded-xl m-4">
+        {/* Scanlines */}
         <div
-          className="absolute inset-0 opacity-30"
+          className="absolute inset-0 pointer-events-none z-10"
           style={{
-            background: 'radial-gradient(circle at 50% 30%, hsl(var(--game-gold) / 0.4), transparent 60%)',
+            background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 4px)',
           }}
         />
 
-        {/* Trophy */}
-        <div className="relative mb-4 animate-trophy-bounce">
-          <Trophy className="w-16 h-16 md:w-20 md:h-20 text-game-gold" />
-          <div className="absolute inset-0 w-16 h-16 md:w-20 md:h-20 rounded-full blur-2xl animate-trophy-pulse opacity-50 bg-game-gold" />
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-6 md:p-8 relative z-20">
+        <Confetti />
+
+        {/* Background Glow - Cyan */}
+        <div
+          className="absolute inset-0 opacity-30"
+          style={{
+            background: 'radial-gradient(circle at 50% 30%, rgba(34,211,238,0.15), transparent 60%)',
+          }}
+        />
+
+        {/* Trophy - Cyan Neon */}
+        <div className="relative mb-6 animate-trophy-bounce" style={{ filter: 'drop-shadow(0 0 20px rgba(34,211,238,0.6))' }}>
+          <Trophy className="w-20 h-20 md:w-24 md:h-24 text-[#22d3ee]" />
         </div>
 
-        {/* Athlete Name */}
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-1 animate-fade-in">
+        {/* Athlete Name - Technical */}
+        <h2 className="font-mono text-slate-400 uppercase tracking-[0.2em] text-sm text-center mb-2 animate-fade-in">
           {athleteName}
-        </h1>
+        </h2>
 
-        {/* Score - Responsive */}
-        <div className="my-4 animate-scale-in">
-          <div className="text-[clamp(5rem,15vh,10rem)] font-bold text-game-gold leading-none text-center drop-shadow-[0_0_40px_rgba(255,215,0,0.4)]">
+        {/* Score - Gradient Gold/Cyan */}
+        <div className="my-4 animate-scale-in" style={{ filter: 'drop-shadow(0 0 25px rgba(34,211,238,0.5))' }}>
+          <div className="text-[clamp(5rem,15vh,10rem)] font-bold leading-none text-center bg-gradient-to-r from-yellow-400 to-cyan-400 bg-clip-text text-transparent">
             {totalKicks}
           </div>
-          <div className="text-xl md:text-2xl text-muted-foreground text-center uppercase tracking-widest">
+          <div className="text-sm font-mono text-slate-500 text-center uppercase tracking-[0.3em] mt-1">
             chutes
           </div>
         </div>
 
-        {/* Mascote celebrando */}
-        <div className="mb-3">
-          <FighterMascot 
-            side="red"
-            state="winner" 
-            size="md"
-          />
-        </div>
-
-        {/* New Record Badge */}
+        {/* New Record Badge - Neon Tag */}
         {isNewRecord && (
-          <div className="mb-4 px-4 py-2 bg-game-gold/20 border-2 border-game-gold rounded-full flex items-center gap-2 animate-fade-in">
-            <Sparkles className="w-4 h-4 text-game-gold" />
-            <span className="text-base font-bold text-game-gold uppercase tracking-wider">
+          <div className="mb-4 px-4 py-1.5 bg-cyan-500 text-black rounded-sm flex items-center gap-2 animate-fade-in shadow-[0_0_10px_rgba(34,211,238,0.5)]">
+            <Zap className="w-4 h-4" />
+            <span className="text-sm font-bold uppercase tracking-wider">
               Novo Recorde!
             </span>
           </div>
         )}
 
-        {/* Rank - Only if top 3 */}
+        {/* Rank - Technical */}
         {rank && rank <= 3 && (
-          <div className="mb-4 flex items-center gap-2 text-lg text-game-gold animate-fade-in">
-            <Medal className="w-5 h-5" />
-            <span>{rank}º lugar na academia</span>
+          <div className="mb-4 flex items-center gap-2 font-mono text-xs text-slate-400 uppercase tracking-wider animate-fade-in">
+            <Medal className="w-4 h-4 text-[#22d3ee]" />
+            <span>RANK #{rank} — TOP PERFORMANCE</span>
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex flex-col w-full max-w-sm gap-3 relative z-10">
-          <Button
-            size="lg"
+        {/* Actions - Technical Buttons */}
+        <div className="flex flex-col w-full max-w-sm gap-3 relative z-10 animate-fade-in" style={{ animationDelay: '0.6s', animationFillMode: 'both' }}>
+          <button
             onClick={onPlayAgain}
-            className="w-full h-16 text-xl font-bold rounded-2xl bg-game-gold hover:bg-game-gold/90 text-background transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full h-16 text-xl font-bold uppercase tracking-wider rounded-sm bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] flex items-center justify-center gap-3"
           >
-            <RotateCcw className="mr-3 h-6 w-6" />
+            <RotateCcw className="h-6 w-6" />
             JOGAR DE NOVO
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
+          </button>
+          <button
             onClick={onBackToMenu}
-            className="w-full h-14 text-lg rounded-2xl"
+            className="w-full h-14 text-lg font-mono uppercase tracking-wider rounded-sm border border-white/10 hover:border-cyan-400 hover:text-cyan-400 text-slate-300 bg-transparent transition-all flex items-center justify-center gap-2"
           >
-            <Home className="mr-2 h-5 w-5" />
+            <Home className="h-5 w-5" />
             Menu
-          </Button>
+          </button>
         </div>
         </div>
       </div>
