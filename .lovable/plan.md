@@ -1,92 +1,82 @@
 
 
-# Redesign: Interface "Telemetria Profissional" para Modo Individual
+# Redesign: Tela de Resultados "E-Sports Pro"
 
 ## Resumo
-Transformar o HUD individual de estilo "arcade maximalista" (dourado, glow, fonte gigante) para um painel de monitoramento tecnico/cientifico: fundo slate escuro (#0b1120), timer com anel ciano fino, contador limpo branco, e dashboard inferior com gauge de intensidade CPM.
+Transformar a tela de resultados individual (`FinishedScreen.tsx`) de uma estetica casual/infantil (dourado, mascote, bordas arredondadas) para um painel pos-partida de E-Sports profissional (Dark Slate/Neon Ciano-Dourado), visualmente alinhado com o GameScreen "Telemetria".
 
 ## Arquivo
-`src/components/game/GameScreen.tsx` (unico arquivo)
+`src/components/game/FinishedScreen.tsx` (unico arquivo, apenas bloco individual -- linhas 102-186)
 
 ## Alteracoes Detalhadas
 
-### 1. Imports (linha 2)
-- Adicionar `TrendingUp`, `User`, `Pause` aos imports de lucide-react
+### 1. Container e Fundo (linhas 104-114)
+- Background: de `bg-background` para `bg-[#0b1120]`
+- Moldura tecnica: adicionar `border-2 border-white/5 rounded-xl m-4`
+- Grid sutil: overlay com `bg-[url]` ou pseudo-elemento com grid pattern em `opacity-5`
+- Glow radial: trocar dourado por ciano -- `radial-gradient(circle at 50% 30%, rgba(34,211,238,0.15), transparent 60%)`
+- Adicionar linhas de "scanline" sutis via CSS repeating-linear-gradient com `opacity-[0.03]`
 
-### 2. Gauge Variables (apos linha 61)
-- Adicionar constantes para o calculo do gauge SVG:
-  - `gaugeMax = 200`
-  - `gaugeCircumference = Math.PI * 40` (~126)
-  - `gaugeProgress` e `gaugeDashoffset` baseados no CPM
+### 2. Trofeu (linhas 117-120)
+- Manter animacao `animate-trophy-bounce`
+- Cor: de `text-game-gold` para gradiente ciano-dourado via `text-[#22d3ee]`
+- Glow: `drop-shadow-[0_0_20px_rgba(34,211,238,0.6)]` (ciano neon)
+- Tamanho: aumentar para `w-20 h-20 md:w-24 md:h-24`
+- Remover div de blur separada, usar apenas drop-shadow
 
-### 3. formatTime (linha 67-71)
-- Ajustar para sempre retornar formato `mm:ss` com padStart(2, '0') em ambos
+### 3. Nome do Atleta (linhas 123-125)
+- Fonte: de `text-2xl font-bold text-foreground` para `font-mono text-slate-400 uppercase tracking-[0.2em] text-sm`
+- Posicionar acima da pontuacao como subtitulo tecnico
 
-### 4. Container Global (linha 86)
-- Condicional: se `isIndividual`, usar `bg-[#0b1120]` em vez de `bg-black`
+### 4. Pontuacao Principal (linhas 128-135)
+- Fonte: de `text-game-gold` para gradiente dourado-ciano: `bg-gradient-to-r from-yellow-400 to-cyan-400 bg-clip-text text-transparent`
+- Tamanho: manter `clamp(5rem, 15vh, 10rem)` ou aumentar levemente
+- Glow: `drop-shadow-[0_0_25px_rgba(34,211,238,0.5)]` (no container pai)
+- Label "CHUTES": de `text-muted-foreground` para `text-sm font-mono text-slate-500 uppercase tracking-[0.3em]`
 
-### 5. Overlay de Pausa (linhas 127-141)
-- Estilo tecnico: trocar "PAUSADO" por "Sessao Pausada" em `font-medium text-cyan-400`
-- Trocar "Toque para continuar" por "Retomar Treino" como botao sutil
+### 5. Remocao do Mascote (linhas 137-144)
+- Remover completamente o bloco `<FighterMascot />`
+- Remover import de FighterMascot (linha 7)
+- Deixar espaco vazio para respiro visual (sem grafico substituto nesta versao)
 
-### 6. Container Individual (linhas 144-192) -- Reescrita Completa
-Substituir todo o bloco individual por:
+### 6. Badge "Novo Recorde" (linhas 147-154)
+- Background: de `bg-game-gold/20 border-game-gold rounded-full` para `bg-cyan-500 text-black rounded-sm`
+- Icone: trocar `Sparkles` por `Zap` (raio neon)
+- Texto: `font-bold uppercase tracking-wider`
+- Shadow: `shadow-[0_0_10px_rgba(34,211,238,0.5)]`
+- Animacao: manter `animate-fade-in`
 
-**Header de Contexto (novo):**
-- Barra superior com "MODO: CONTRA O TEMPO"
-- Estilo: `text-[10px] text-slate-500 uppercase tracking-[0.3em] font-mono`
-- Icone Pause no canto direito (`text-slate-400`)
+### 7. Texto de Ranking (linhas 157-162)
+- De `text-game-gold` para `font-mono text-xs text-slate-400 uppercase tracking-wider`
+- Texto: de "{rank}o lugar na academia" para "RANK #{rank} -- TOP PERFORMANCE"
+- Icone Medal: trocar cor para `text-[#22d3ee]`
 
-**Timer Circular Tecnico:**
-- SVG: de `clamp(12rem, 42vh, 40rem)` para `clamp(8rem, 22vh, 14rem)` (menor)
-- strokeWidth: de `6` para `3` (linha fina)
-- Stroke fundo: de `rgba(255,255,255,0.05)` para `#1e293b`
-- Cor progresso: de `#FFD700` para `#22d3ee` (cyan), vermelho nos ultimos 5s
-- Texto: `font-medium font-mono` com `formatTime(timeLeft)` (mm:ss)
-- Tamanho fonte: de `clamp(4rem, 18vh, 14rem)` para `clamp(2rem, 8vh, 5rem)`
+### 8. Botoes de Acao (linhas 165-183)
+**Botao Principal "JOGAR DE NOVO":**
+- De `bg-game-gold rounded-2xl` para `bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold uppercase tracking-wider rounded-sm shadow-[0_0_15px_rgba(34,211,238,0.3)]`
+- Remover `hover:scale` (manter apenas color transition)
 
-**Contador de Hits (Clean):**
-- Numero: de `text-[#FFD700]` com glow para `text-white font-semibold`
-- Tamanho: de `clamp(6rem, 28vh, 20rem)` para `clamp(4rem, 16vh, 10rem)`
-- Remover drop-shadow dourado
-- Label: de "HITS" dourado para "TOTAL HITS" em `text-slate-500 tracking-[0.2em] text-xs uppercase`
-- Remover badge CPM flutuante (movido para dashboard)
+**Botao Secundario "Menu":**
+- De `variant="outline" rounded-2xl` para `border border-white/10 hover:border-cyan-400 hover:text-cyan-400 text-slate-300 font-mono uppercase tracking-wider rounded-sm bg-transparent`
 
-**Flash Effect:**
-- De `bg-[#FFD700]/20` para `bg-cyan-400/10`
+### 9. Imports
+- Adicionar `Zap` aos imports de lucide-react
+- Remover `FighterMascot` import
+- Remover `Sparkles` se nao usado em outro lugar
 
-### 7. Footer/Dashboard Individual (linhas 236-258) -- Reescrita Completa
-Substituir por painel de telemetria com 3 blocos:
-
-- Background: `bg-[#0b1120] border-t border-white/10`
-- Grid: `grid-cols-3` com divisores verticais
-
-**Bloco 1 -- Melhor da Sessao:**
-- Label: `text-[10px] text-slate-500 uppercase tracking-wider font-mono`
-- Valor: `text-3xl text-white font-medium tabular-nums`
-- Icone TrendingUp cyan ao lado do valor
-
-**Bloco 2 -- Intensidade (CPM) com Gauge SVG:**
-- Valor CPM: `text-4xl text-white font-bold tabular-nums`
-- Gauge: arco SVG de 180 graus (meia-lua), 64x32px
-  - Fundo: `stroke="#1e293b"` strokeWidth 8
-  - Progresso: `stroke="#22d3ee"`, verde (`#4ade80`) quando CPM > 150
-  - Preenchimento via strokeDashoffset baseado em cpm/200
-- Glow sutil de fundo em cyan
-
-**Bloco 3 -- Atleta:**
-- Icone User discreto `text-slate-600`
-- Label: mesma formatacao dos outros blocos
-- Nome: `text-2xl text-white font-medium truncate`
+### 10. Animacoes de Entrada
+- Container principal: `animate-fade-in` com delay escalonado nos filhos
+- Trofeu: manter `animate-trophy-bounce`
+- Pontuacao: `animate-scale-in` (ja existente)
+- Botoes: delay de 0.6s via `style={{ animationDelay: '0.6s' }}`
 
 ### Modo Duo
-Nenhuma alteracao. Permanece identico.
+Nenhuma alteracao. O bloco Duo (linhas 190-293) permanece identico.
 
 ## Paleta de Cores
-- Background: `#0b1120`
+- Background: `#0b1120` (mesmo do GameScreen)
+- Acento primario: `#22d3ee` (cyan-400)
+- Acento secundario: `#facc15` (yellow-400, para gradiente)
 - Texto primario: `#ffffff`
 - Texto secundario: `#64748b` (slate-500)
-- Acento: `#22d3ee` (cyan-400)
-- Bordas: `border-white/10`
-- Stroke fundo: `#1e293b` (slate-800)
-
+- Bordas: `border-white/5` e `border-white/10`
