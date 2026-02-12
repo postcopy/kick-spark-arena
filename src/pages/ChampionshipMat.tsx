@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import { useHardwareDiagnostics } from '@/hooks/useHardwareDiagnostics';
@@ -11,7 +12,7 @@ import { MatchConfigDialog } from '@/components/championship/MatchConfigDialog';
 import { HelpDialog } from '@/components/championship/HelpDialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { HelpCircle } from 'lucide-react';
+import { ArrowLeft, HelpCircle } from 'lucide-react';
 import logoSpe from '@/assets/logo-spe-branca.png';
 import { deviceIdToMatchSide, deviceIdToEquipmentType } from '@/lib/deviceMapping';
 import type { Side, HitType } from '@/types/game';
@@ -48,6 +49,7 @@ export interface ShadowLogEntry {
 const MAX_SHADOW_LOG = 500;
 
 function ChampionshipMatInner() {
+  const navigate = useNavigate();
   const matId = 1;
   
   const sync = useChampionshipSync({ role: 'master', matId });
@@ -57,6 +59,7 @@ function ChampionshipMatInner() {
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const tvWindowRef = useRef<Window | null>(null);
   
   // Shadow log for impact scoring
@@ -307,13 +310,28 @@ function ChampionshipMatInner() {
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-center relative px-6">
-          <button
-            onClick={() => setShowHelpDialog(true)}
-            className="absolute left-6 text-zinc-500 hover:text-zinc-300 transition-colors"
-            title="Guia de Ajuda"
-          >
-            <HelpCircle className="h-5 w-5" />
-          </button>
+          <div className="absolute left-6 flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (sync.state.status === 'RUNNING') {
+                  setShowExitDialog(true);
+                } else {
+                  navigate('/');
+                }
+              }}
+              className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              title="Voltar"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setShowHelpDialog(true)}
+              className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              title="Guia de Ajuda"
+            >
+              <HelpCircle className="h-5 w-5" />
+            </button>
+          </div>
           <img src={logoSpe} alt="SPE" className="h-8 w-auto object-contain" />
           <div className="absolute right-6 flex items-center gap-4 text-sm">
             <span className="px-2 py-1 rounded-md font-bold text-xs uppercase bg-purple-500/20 text-purple-400">
@@ -464,6 +482,29 @@ function ChampionshipMatInner() {
         </AlertDialogContent>
       </AlertDialog>
       
+      {/* Exit Confirmation Dialog */}
+      <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Sair da Luta?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              A luta está em andamento. Se sair agora, o progresso será perdido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+              Continuar Luta
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => navigate('/')}
+              className="bg-red-600 hover:bg-red-500 text-white"
+            >
+              Sair
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Help Dialog */}
       <HelpDialog open={showHelpDialog} onOpenChange={setShowHelpDialog} />
     </div>
