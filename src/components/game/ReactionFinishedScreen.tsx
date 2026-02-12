@@ -96,21 +96,21 @@ export function ReactionFinishedScreen({
       {/* Header */}
       <header className="flex-shrink-0 pt-5 text-center">
         <div className="flex items-center justify-center gap-3 mb-1">
-          <Trophy className="w-7 h-7 text-game-yellow" />
-          <h1 className="text-2xl md:text-3xl font-black text-foreground">TREINO COMPLETO!</h1>
-          <Trophy className="w-7 h-7 text-game-yellow" />
+          <Trophy className="w-8 h-8 text-game-yellow" />
+          <h1 className="text-3xl md:text-4xl font-black text-foreground">TREINO COMPLETO!</h1>
+          <Trophy className="w-8 h-8 text-game-yellow" />
         </div>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-base">
           Nível: <span className="text-green-500 font-bold">{LEVEL_LABELS[result.level]}</span>
           {isCognitive && <span className="text-orange-400 ml-2 font-bold">• Cognitivo</span>}
         </p>
       </header>
 
       {/* Main scrollable area */}
-      <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center p-4 gap-4">
+      <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-4 gap-5">
         {/* Performance Chart */}
         {hasReactionData && chartData.length > 1 && (
-          <div className="w-full max-w-lg h-48 md:h-56">
+          <div className="w-full max-w-3xl h-[30vh] min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 40, bottom: 0 }}>
                 <defs>
@@ -171,7 +171,7 @@ export function ReactionFinishedScreen({
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
+        <div className="grid grid-cols-2 gap-4 max-w-3xl w-full">
           {isCognitive ? (
             <CognitiveStatsGrid
               correctInhibitions={result.correctInhibitions}
@@ -200,21 +200,21 @@ export function ReactionFinishedScreen({
 
       {/* Footer – 3 action buttons */}
       <footer className="flex-shrink-0 p-4 border-t border-border">
-        <div className="flex gap-2 max-w-lg mx-auto">
-          <Button onClick={onSwitchAthlete} variant="outline" size="lg" className="flex-1 py-5 border-white/60 bg-white/10 hover:bg-white/20 text-white">
-            <UserRoundCog className="w-4 h-4 mr-1.5" />
+        <div className="flex gap-3 max-w-3xl mx-auto">
+          <Button onClick={onSwitchAthlete} variant="outline" size="lg" className="flex-1 py-6 border-white/60 bg-white/10 hover:bg-white/20 text-white text-base">
+            <UserRoundCog className="w-5 h-5 mr-1.5" />
             Trocar
           </Button>
-          <Button onClick={onAdjustSetup} variant="ghost" size="lg" className="flex-1 py-5">
-            <Settings className="w-4 h-4 mr-1.5" />
+          <Button onClick={onAdjustSetup} variant="ghost" size="lg" className="flex-1 py-6 text-base">
+            <Settings className="w-5 h-5 mr-1.5" />
             Ajustar
           </Button>
           <Button
             onClick={onPlayAgain}
             size="lg"
-            className="flex-[1.4] bg-green-500 hover:bg-green-600 text-white py-5 font-bold"
+            className="flex-[1.4] bg-green-500 hover:bg-green-600 text-white py-6 font-bold text-base"
           >
-            <RotateCcw className="w-4 h-4 mr-1.5" />
+            <RotateCcw className="w-5 h-5 mr-1.5" />
             REPETIR
           </Button>
         </div>
@@ -242,39 +242,39 @@ function CognitiveStatsGrid({
 }) {
   return (
     <>
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <ShieldCheck className="w-4 h-4 text-green-400" />
-          <span className="text-xs text-muted-foreground">Inibições Corretas</span>
+          <ShieldCheck className="w-5 h-5 text-green-400" />
+          <span className="text-sm text-muted-foreground">Inibições Corretas</span>
         </div>
-        <p className="text-2xl md:text-3xl font-black text-foreground">
+        <p className="text-3xl md:text-4xl font-black text-foreground">
           {correctInhibitions}/{totalNoGoStimuli}
         </p>
-        <p className="text-xs text-green-400 font-bold">{inhibitionRate}%</p>
+        <p className="text-sm text-green-400 font-bold">{inhibitionRate}%</p>
       </div>
 
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <AlertTriangle className="w-4 h-4 text-red-400" />
-          <span className="text-xs text-muted-foreground">Faltas (Impulso)</span>
+          <AlertTriangle className="w-5 h-5 text-red-400" />
+          <span className="text-sm text-muted-foreground">Faltas (Impulso)</span>
         </div>
-        <p className="text-2xl md:text-3xl font-black text-red-400">{commissionErrors}</p>
+        <p className="text-3xl md:text-4xl font-black text-red-400">{commissionErrors}</p>
       </div>
 
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <Clock className="w-4 h-4 text-yellow-400" />
-          <span className="text-xs text-muted-foreground">Omissões</span>
+          <Clock className="w-5 h-5 text-yellow-400" />
+          <span className="text-sm text-muted-foreground">Omissões</span>
         </div>
-        <p className="text-2xl md:text-3xl font-black text-foreground">{omissionErrors}</p>
+        <p className="text-3xl md:text-4xl font-black text-foreground">{omissionErrors}</p>
       </div>
 
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <TrendingDown className="w-4 h-4 text-green-500" />
-          <span className="text-xs text-muted-foreground">Média GO</span>
+          <TrendingDown className="w-5 h-5 text-green-500" />
+          <span className="text-sm text-muted-foreground">Média GO</span>
         </div>
-        <p className="text-2xl md:text-3xl font-black text-foreground">
+        <p className="text-3xl md:text-4xl font-black text-foreground">
           {avgTime !== null ? `${avgTime}ms` : '--'}
         </p>
       </div>
@@ -297,41 +297,41 @@ function StandardStatsGrid({
 }) {
   return (
     <>
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <Trophy className="w-4 h-4 text-game-yellow" />
-          <span className="text-xs text-muted-foreground">Melhor (PB)</span>
+          <Trophy className="w-5 h-5 text-game-yellow" />
+          <span className="text-sm text-muted-foreground">Melhor (PB)</span>
         </div>
-        <p className="text-2xl md:text-3xl font-black text-foreground">{bestTime}ms</p>
+        <p className="text-3xl md:text-4xl font-black text-foreground">{bestTime}ms</p>
       </div>
 
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <TrendingDown className="w-4 h-4 text-green-500" />
-          <span className="text-xs text-muted-foreground">Média</span>
+          <TrendingDown className="w-5 h-5 text-green-500" />
+          <span className="text-sm text-muted-foreground">Média</span>
         </div>
-        <p className="text-2xl md:text-3xl font-black text-foreground">{avgTime}ms</p>
+        <p className="text-3xl md:text-4xl font-black text-foreground">{avgTime}ms</p>
       </div>
 
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <Zap className="w-4 h-4 text-game-yellow" />
-          <span className="text-xs text-muted-foreground">Total Hits</span>
+          <Zap className="w-5 h-5 text-game-yellow" />
+          <span className="text-sm text-muted-foreground">Total Hits</span>
         </div>
-        <p className="text-2xl md:text-3xl font-black text-foreground">
+        <p className="text-3xl md:text-4xl font-black text-foreground">
           {hits}
-          <span className="text-base font-normal text-muted-foreground">
+          <span className="text-lg font-normal text-muted-foreground">
             /{totalStimuli}
           </span>
         </p>
       </div>
 
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <Target className="w-4 h-4 text-green-400" />
-          <span className="text-xs text-muted-foreground">Estabilidade</span>
+          <Target className="w-5 h-5 text-green-400" />
+          <span className="text-sm text-muted-foreground">Estabilidade</span>
         </div>
-        <p className="text-2xl md:text-3xl font-black text-foreground">±{stdDev}ms</p>
+        <p className="text-3xl md:text-4xl font-black text-foreground">±{stdDev}ms</p>
       </div>
     </>
   );
@@ -346,13 +346,13 @@ function NoHardwareStatsGrid({
 }) {
   return (
     <>
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-        <span className="text-xs text-muted-foreground">Rounds</span>
-        <p className="text-3xl font-black text-foreground">{roundsCompleted}</p>
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
+        <span className="text-sm text-muted-foreground">Rounds</span>
+        <p className="text-3xl md:text-4xl font-black text-foreground">{roundsCompleted}</p>
       </div>
-      <div className="bg-muted/50 p-4 rounded-xl border border-border text-center">
-        <span className="text-xs text-muted-foreground">Estímulos</span>
-        <p className="text-3xl font-black text-foreground">{totalStimuli}</p>
+      <div className="bg-muted/50 p-5 md:p-6 rounded-xl border border-border text-center">
+        <span className="text-sm text-muted-foreground">Estímulos</span>
+        <p className="text-3xl md:text-4xl font-black text-foreground">{totalStimuli}</p>
       </div>
     </>
   );
