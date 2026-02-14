@@ -17,7 +17,8 @@ type SoundName =
   | 'victoryBlue'
   | 'roundStart'
   | 'fightModeBg'
-  | 'scoreBeep';
+  | 'scoreBeep'
+  | 'erro';
 
 // Fallback to public/sounds/
 const FALLBACK_PATHS: Record<SoundName, string> = {
@@ -38,6 +39,7 @@ const FALLBACK_PATHS: Record<SoundName, string> = {
   roundStart: '/sounds/round-start.mp3',
   fightModeBg: '/sounds/fight-mode-bg.mp3',
   scoreBeep: '/sounds/score-beep.mp3',
+  erro: '/sounds/erro.mp3',
 };
 
 const STORAGE_KEY = 'kickcounter_soundMuted';
@@ -62,6 +64,7 @@ const POOL_SIZES: Partial<Record<SoundName, number>> = {
   victoryBlue: 1,
   roundStart: 1,
   scoreBeep: 2,
+  erro: 2,
 };
 
 // Evitar 404 (victory-red/blue inexistentes)
