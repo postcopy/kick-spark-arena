@@ -1,77 +1,131 @@
 
-# Auditoria Global de Responsividade (Kiosk Mode)
+# Feedback Visual de Impacto no Circulo Central (Modo Reacao)
 
-## Resultado da Auditoria
+## Resumo
+Adicionar feedback visual imediato dentro do circulo de estimulo central quando o atleta acerta (sucesso) ou erra (falta). O circulo vai "reagir" ao impacto com mudanca de cor, texto e animacao rapida.
 
-### Arquivos JA OK (nenhuma alteracao necessaria)
-- **GameScreen.tsx** - Ja usa `vh` em todos os `clamp()`. Container tem `overflow-hidden`. Footer tem altura fixa.
-- **ReactionScreen.tsx** - Corrigido na sessao anterior. Tudo usando `vh`/`vmin`.
-- **FinishedScreen.tsx** - Layout flex com `overflow-y-auto` no conteudo. OK.
-- **ArcadeFinishedScreen.tsx** - Layout flex com `overflow-y-auto`. OK.
-- **ReactionFinishedScreen.tsx** - Layout flex com `overflow-y-auto` e footer `flex-shrink-0`. OK.
+## Como Funciona
 
----
+- **Acerto (verde)**: Circulo pisca em ciano brilhante, exibe o tempo de reacao (ex: "342ms") em fonte mono grande, com animacao de scale-up rapido. Dura 500ms.
+- **Erro (vermelho)**: Circulo pulsa/treme, exibe "FALTA!" em fonte grande dentro do circulo. Dura 500ms.
+- Quando nao ha feedback ativo, o comportamento atual (icones Check/X no modo cognitivo) permanece inalterado.
 
-### Arquivos com Problemas
+## Alteracoes (apenas ReactionScreen.tsx)
 
-#### 1. ArcadeScreenTV.tsx (13 violacoes de `vw`)
+### 1. Novo estado de feedback (apos linha 31)
+```typescript
+const [hitFeedback, setHitFeedback] = useState<{ type: 'success' | 'error'; value: string } | null>(null);
+```
 
-Este e o arquivo mais critico. Quase todos os tamanhos de texto usam `vw`, o que causa escala exagerada em monitores widescreen.
+### 2. Efeito para acerto - dispara no lastReactionTime (modificar o useEffect existente, linhas 43-50)
+Adicionar ao useEffect existente que ja rastreia `lastReactionTime`:
+```typescript
+useEffect(() => {
+  if (lastReactionTime !== null) {
+    setDisplayedTime(lastReactionTime);
+    setShowReactionTime(true);
+    setHitFeedback({ type: 'success', value: `${lastReactionTime}ms` });
+    const feedbackTimer = window.setTimeout(() => setHitFeedback(null), 500);
+    const displayTimer = window.setTimeout(() => setShowReactionTime(false), 2000);
+    return () => {
+      window.clearTimeout(feedbackTimer);
+      window.clearTimeout(displayTimer);
+    };
+  }
+}, [lastReactionTime]);
+```
 
-| Linha | Atual | Correcao |
-|-------|-------|----------|
-| 98 | `text-[clamp(36px,5vw,72px)]` (nome VERMELHO) | `text-[clamp(36px,5vmin,72px)]` |
-| 109 | `text-[clamp(48px,6vw,96px)]` (VS) | `text-[clamp(48px,6vmin,96px)]` |
-| 120 | `text-[clamp(36px,5vw,72px)]` (nome AZUL) | `text-[clamp(36px,5vmin,72px)]` |
-| 162 | `text-[clamp(80px,14vw,220px)]` (HP vermelho) | `text-[clamp(80px,14vmin,220px)]` |
-| 177 | `text-[clamp(48px,6vw,96px)]` (dano popup red) | `text-[clamp(48px,6vmin,96px)]` |
-| 197 | `text-[clamp(24px,3vw,48px)]` (COMBO text red) | `text-[clamp(24px,3vmin,48px)]` |
-| 202 | `text-[clamp(72px,10vw,140px)]` (combo count red) | `text-[clamp(72px,10vmin,140px)]` |
-| 261 | `text-[clamp(64px,9vw,140px)]` (timer central) | `text-[clamp(64px,9vmin,140px)]` |
-| 310 | `text-[clamp(80px,14vw,220px)]` (HP azul) | `text-[clamp(80px,14vmin,220px)]` |
-| 327 | `text-[clamp(48px,6vw,96px)]` (dano popup blue) | `text-[clamp(48px,6vmin,96px)]` |
-| 347 | `text-[clamp(24px,3vw,48px)]` (COMBO text blue) | `text-[clamp(24px,3vmin,48px)]` |
-| 352 | `text-[clamp(72px,10vw,140px)]` (combo count blue) | `text-[clamp(72px,10vmin,140px)]` |
-| 419 | `text-[clamp(200px,28vw,400px)]` (K.O. overlay) | `text-[clamp(200px,28vmin,400px)]` |
-| 431 | `text-[clamp(48px,6vw,96px)]` (winner text KO) | `text-[clamp(48px,6vmin,96px)]` |
-| 446 | `text-[clamp(18px,2vw,28px)]` (proximo round) | `text-[clamp(18px,2vmin,28px)]` |
-| 449 | `text-[clamp(80px,10vw,140px)]` (recovery countdown) | `text-[clamp(80px,10vmin,140px)]` |
-| 465 | `text-[clamp(140px,16vw,260px)]` (TEMPO!) | `text-[clamp(140px,16vmin,260px)]` |
-| 476 | `text-[clamp(48px,6vw,96px)]` (winner text tempo) | `text-[clamp(48px,6vmin,96px)]` |
-| 489 | `text-[clamp(18px,2vw,28px)]` (proximo round tempo) | `text-[clamp(18px,2vmin,28px)]` |
-| 492 | `text-[clamp(80px,10vw,140px)]` (recovery tempo) | `text-[clamp(80px,10vmin,140px)]` |
-| 506 | `text-[clamp(12px,1.5vw,18px)]` (energia red) | `text-[clamp(12px,1.5vmin,18px)]` |
-| 554 | `text-[clamp(12px,1.5vw,18px)]` (energia blue) | `text-[clamp(12px,1.5vmin,18px)]` |
+### 3. Efeito para erro - dispara no commissionErrors (modificar o useEffect existente, linhas 34-41)
+Adicionar ativacao do hitFeedback dentro do efeito existente:
+```typescript
+useEffect(() => {
+  if (commissionErrors > trackedErrorsRef.current) {
+    trackedErrorsRef.current = commissionErrors;
+    setShowFault(true);
+    setHitFeedback({ type: 'error', value: 'FALTA!' });
+    const faultTimer = window.setTimeout(() => setShowFault(false), 1500);
+    const feedbackTimer = window.setTimeout(() => setHitFeedback(null), 500);
+    return () => {
+      window.clearTimeout(faultTimer);
+      window.clearTimeout(feedbackTimer);
+    };
+  }
+}, [commissionErrors]);
+```
 
-Regra: Trocar todas as ocorrencias de `vw` por `vmin` neste arquivo.
+### 4. Estilo do circulo - modificar getStimulusStyle (linhas 67-84)
+Adicionar condicao para feedback de sucesso (cor ciano brilhante):
+```typescript
+const getStimulusStyle = () => {
+  // Feedback de acerto: circulo ciano brilhante
+  if (hitFeedback?.type === 'success') {
+    return {
+      backgroundColor: '#22d3ee',
+      boxShadow: '0 0 60px 20px rgba(34,211,238,0.5), 0 0 120px 40px rgba(34,211,238,0.2)',
+      transform: 'scale(1.08)',
+      transition: 'transform 0.1s ease-out, background-color 0.05s',
+    };
+  }
+  // Feedback de erro: circulo vermelho com shake
+  if (hitFeedback?.type === 'error') {
+    return {
+      backgroundColor: '#FF3333',
+      boxShadow: '0 0 80px 30px rgba(255,51,51,0.5), 0 0 140px 50px rgba(255,51,51,0.2)',
+      animation: 'shake 0.3s ease-in-out',
+    };
+  }
+  // Estados normais (sem mudanca)
+  if (!stimulusActive || !stimulusColor) { ... }
+  if (stimulusColor === 'red') { ... }
+  return { ... }; // verde
+};
+```
 
-#### 2. CountdownScreen.tsx (1 violacao)
+### 5. Conteudo do circulo - modificar JSX (linhas 157-164)
+Substituir o conteudo condicional dentro do circulo:
+```tsx
+{hitFeedback ? (
+  <span
+    className={`font-black font-mono text-center leading-none ${
+      hitFeedback.type === 'success' ? 'text-white' : 'text-white'
+    }`}
+    style={{ fontSize: 'clamp(1.5rem, 6vmin, 3rem)' }}
+  >
+    {hitFeedback.value}
+  </span>
+) : (
+  <>
+    {isCognitive && stimulusActive && stimulusColor === 'green' && (
+      <Check className="w-16 h-16 text-white" strokeWidth={3} />
+    )}
+    {isCognitive && stimulusActive && stimulusColor === 'red' && (
+      <X className="w-16 h-16 text-white" strokeWidth={3} />
+    )}
+  </>
+)}
+```
 
-| Linha | Atual | Correcao |
-|-------|-------|----------|
-| 79 | `text-[12rem] md:text-[20rem]` (numeros 3,2,1 e FIGHT!) | `text-[clamp(8rem,25vmin,20rem)]` |
+### 6. Adicionar keyframe de shake (no mesmo arquivo, via style tag inline ou no index.css)
+Adicionar ao `src/index.css`:
+```css
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+```
 
-O texto fixo de `20rem` (320px) pode cortar verticalmente em telas 768px de altura. Usar `vmin` com `clamp` resolve.
+### 7. Remover transition-none do circulo (linha 151)
+Mudar de `transition-none` para permitir a animacao de scale no feedback de sucesso. Usar `transition-transform duration-100` apenas quando em feedback, controlado via estilo inline.
 
-#### 3. KickPanel.tsx (2 violacoes - tamanhos fixos)
+## Resumo de Arquivos
+| Arquivo | Tipo de Alteracao |
+|---------|-------------------|
+| `src/components/game/ReactionScreen.tsx` | Novo estado, modificar 2 useEffects, modificar getStimulusStyle, modificar JSX do circulo |
+| `src/index.css` | Adicionar keyframe `shake` |
 
-| Linha | Atual | Correcao |
-|-------|-------|----------|
-| 35 | `w-[480px] h-[480px]` (container do arco) | `w-[clamp(280px,50vmin,480px)] h-[clamp(280px,50vmin,480px)]` |
-| 41 | `text-[14rem]` (score gigante) | `text-[clamp(6rem,20vmin,14rem)]` |
-
-Em notebooks 768px de altura, o arco de 480px + rodape de 96px = 576px > 768px. Cortar e garantido.
-
----
-
-## Resumo de Alteracoes
-
-| Arquivo | Quantidade de Edits | Tipo |
-|---------|---------------------|------|
-| ArcadeScreenTV.tsx | ~22 linhas | `vw` -> `vmin` |
-| CountdownScreen.tsx | 1 linha | `rem` fixo -> `clamp(vmin)` |
-| KickPanel.tsx | 2 linhas | `px`/`rem` fixo -> `clamp(vmin)` |
-
-- Total: 3 arquivos alterados
-- Apenas CSS, nenhuma logica alterada
-- Zero novos arquivos
+- 2 arquivos alterados
+- Nenhum arquivo novo
+- Nenhuma mudanca de logica de jogo, apenas visual
