@@ -32,13 +32,13 @@ export function KickPanel({ side, score, isFlashing, showControls = true, percen
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center">
         {/* Progress Arc with Score inside */}
-        <div className="relative w-[480px] h-[480px]">
+        <div className="relative w-[clamp(280px,50vmin,480px)] h-[clamp(280px,50vmin,480px)]">
           <ProgressArc percentage={percentage} side={side} />
           
           {/* Centered content inside arc */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {/* Score */}
-            <div className="text-[14rem] font-bold leading-none tabular-nums text-white">
+            <div className="text-[clamp(6rem,20vmin,14rem)] font-bold leading-none tabular-nums text-white">
               {score}
             </div>
 

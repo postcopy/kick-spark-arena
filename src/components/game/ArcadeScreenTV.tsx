@@ -95,7 +95,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
         <div className="flex items-center gap-6">
           <span className={cn(
             "font-black italic uppercase tracking-wide text-white",
-            "text-[clamp(36px,5vw,72px)]",
+            "text-[clamp(36px,5vmin,72px)]",
             "drop-shadow-[0_2px_8px_hsl(var(--game-red-glow)/0.6)]"
           )}>
             VERMELHO
@@ -106,7 +106,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
         {/* VS Central */}
         <div className={cn(
           "font-black text-white",
-          "text-[clamp(48px,6vw,96px)]",
+          "text-[clamp(48px,6vmin,96px)]",
           "drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
         )}>
           Vs
@@ -117,7 +117,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           <RoundStars wins={blueWins} maxWins={roundsToWin} side="blue" />
           <span className={cn(
             "font-black italic uppercase tracking-wide text-white",
-            "text-[clamp(36px,5vw,72px)]",
+            "text-[clamp(36px,5vmin,72px)]",
             "drop-shadow-[0_2px_8px_hsl(var(--game-blue-glow)/0.6)]"
           )}>
             AZUL
@@ -159,7 +159,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
               "font-black text-white leading-none",
-              "text-[clamp(80px,14vw,220px)]",
+              "text-[clamp(80px,14vmin,220px)]",
               "drop-shadow-[0_6px_16px_rgba(0,0,0,0.8)]",
               redState.hp <= 25 && "animate-hp-critical"
             )}
@@ -174,7 +174,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             <div className="absolute top-1/3 left-1/2 -translate-x-1/2 z-10">
               <span className={cn(
                 "font-black animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
-                "text-[clamp(48px,6vw,96px)]",
+                "text-[clamp(48px,6vmin,96px)]",
                 lastDamage.hitType === 'helmet' ? "text-game-yellow" : "text-white"
               )}>
                 -{lastDamage.amount}
@@ -194,12 +194,12 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           {showCombo?.side === 'red' && (
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
               <div className="text-center">
-                <span className="block text-game-yellow font-black text-[clamp(24px,3vw,48px)] uppercase tracking-widest">
+                <span className="block text-game-yellow font-black text-[clamp(24px,3vmin,48px)] uppercase tracking-widest">
                   COMBO
                 </span>
                 <span className={cn(
                   "block font-black leading-none text-game-yellow",
-                  "text-[clamp(72px,10vw,140px)]",
+                  "text-[clamp(72px,10vmin,140px)]",
                   "drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
                 )}
                 style={{ textShadow: '0 0 40px hsl(var(--game-yellow-glow) / 0.6)' }}
@@ -215,7 +215,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
               <div className={cn(
                 "px-6 py-3 rounded-lg font-black uppercase tracking-wide",
-                "text-[clamp(20px,2.5vw,36px)]",
+                "text-[clamp(20px,2.5vmin,36px)]",
                 "bg-gradient-to-r from-yellow-600 to-game-yellow",
                 "text-black border-2 border-yellow-400",
                 "animate-special-glow flex items-center gap-2"
@@ -258,7 +258,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           )}>
             <div className={cn(
               "font-mono font-black tracking-tight leading-none text-center",
-              "text-[clamp(64px,9vw,140px)]",
+              "text-[clamp(64px,9vmin,140px)]",
               timeLeft <= 10 
                 ? "text-destructive animate-pulse" 
                 : timeLeft <= 30 
@@ -272,7 +272,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
 
           {/* Round indicator */}
           <div className={cn(
-            "mt-4 text-[clamp(16px,2vw,28px)] text-white/70 uppercase tracking-widest font-bold"
+            "mt-4 text-[clamp(16px,2vmin,28px)] text-white/70 uppercase tracking-widest font-bold"
           )}>
             ROUND {currentRound}/{config.bestOf}
           </div>
@@ -309,7 +309,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
               "font-black text-white leading-none",
-              "text-[clamp(80px,14vw,220px)]",
+              "text-[clamp(80px,14vmin,220px)]",
               "drop-shadow-[0_6px_16px_rgba(0,0,0,0.8)]",
               blueState.hp <= 25 && "animate-hp-critical"
             )}
@@ -324,7 +324,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             <div className="absolute top-1/3 left-1/2 -translate-x-1/2 z-10">
               <span className={cn(
                 "font-black animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
-                "text-[clamp(48px,6vw,96px)]",
+                "text-[clamp(48px,6vmin,96px)]",
                 lastDamage.hitType === 'helmet' ? "text-game-yellow" : "text-white"
               )}>
                 -{lastDamage.amount}
@@ -344,12 +344,12 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           {showCombo?.side === 'blue' && (
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
               <div className="text-center">
-                <span className="block text-game-yellow font-black text-[clamp(24px,3vw,48px)] uppercase tracking-widest">
+                <span className="block text-game-yellow font-black text-[clamp(24px,3vmin,48px)] uppercase tracking-widest">
                   COMBO
                 </span>
                 <span className={cn(
                   "block font-black leading-none text-game-yellow",
-                  "text-[clamp(72px,10vw,140px)]",
+                  "text-[clamp(72px,10vmin,140px)]",
                   "drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
                 )}
                 style={{ textShadow: '0 0 40px hsl(var(--game-yellow-glow) / 0.6)' }}
@@ -365,7 +365,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
               <div className={cn(
                 "px-6 py-3 rounded-lg font-black uppercase tracking-wide",
-                "text-[clamp(20px,2.5vw,36px)]",
+                "text-[clamp(20px,2.5vmin,36px)]",
                 "bg-gradient-to-r from-yellow-600 to-game-yellow",
                 "text-black border-2 border-yellow-400",
                 "animate-special-glow flex items-center gap-2"
@@ -395,7 +395,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           )}>
             <div className={cn(
               "px-10 py-6 rounded-2xl font-black uppercase tracking-wide",
-              "text-[clamp(48px,5vw,80px)]",
+              "text-[clamp(48px,5vmin,80px)]",
               "bg-gradient-to-r from-yellow-600 to-game-yellow",
               "text-black border-4 border-yellow-400",
               "animate-special-glow"
@@ -416,7 +416,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               <div 
                 className={cn(
                   "font-black leading-none",
-                  "text-[clamp(200px,28vw,400px)]",
+                  "text-[clamp(200px,28vmin,400px)]",
                   "text-game-yellow"
                 )}
                 style={{ 
@@ -428,7 +428,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               
               <div className={cn(
                 "font-black uppercase mt-6",
-                "text-[clamp(48px,6vw,96px)]",
+                "text-[clamp(48px,6vmin,96px)]",
                 showKO === 'red' ? "text-game-red" : "text-game-blue"
               )}
               style={{
@@ -443,10 +443,10 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               {/* Recovery countdown */}
               {recoveryCountdown > 0 && (
                 <div className="mt-8">
-                  <span className="text-white/60 text-[clamp(18px,2vw,28px)] uppercase tracking-wider">
+                  <span className="text-white/60 text-[clamp(18px,2vmin,28px)] uppercase tracking-wider">
                     Próximo round em
                   </span>
-                  <div className="text-[clamp(80px,10vw,140px)] font-black text-green-500 animate-pulse">
+                  <div className="text-[clamp(80px,10vmin,140px)] font-black text-green-500 animate-pulse">
                     {recoveryCountdown}
                   </div>
                 </div>
@@ -462,7 +462,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               <div 
                 className={cn(
                   "font-black",
-                  "text-[clamp(140px,16vw,260px)]",
+                  "text-[clamp(140px,16vmin,260px)]",
                   "text-game-yellow"
                 )}
                 style={{ 
@@ -473,7 +473,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               </div>
               <div className={cn(
                 "font-black uppercase mt-4",
-                "text-[clamp(48px,6vw,96px)]"
+                "text-[clamp(48px,6vmin,96px)]"
               )}>
                 {redState.hp > blueState.hp 
                   ? <span className="text-game-red" style={{ textShadow: '0 0 40px hsl(var(--game-red-glow) / 0.6)' }}>VERMELHO VENCE!</span>
@@ -486,10 +486,10 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               {/* Recovery countdown */}
               {recoveryCountdown > 0 && (
                 <div className="mt-8">
-                  <span className="text-white/60 text-[clamp(18px,2vw,28px)] uppercase tracking-wider">
+                  <span className="text-white/60 text-[clamp(18px,2vmin,28px)] uppercase tracking-wider">
                     Próximo round em
                   </span>
-                  <div className="text-[clamp(80px,10vw,140px)] font-black text-green-500 animate-pulse">
+                  <div className="text-[clamp(80px,10vmin,140px)] font-black text-green-500 animate-pulse">
                     {recoveryCountdown}
                   </div>
                 </div>
@@ -503,7 +503,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
       <div className="relative z-20 h-[6vh] min-h-[48px] bg-black/80 flex items-center justify-between px-8 border-t border-white/10">
         {/* Red Energy + Battery */}
         <div className="flex items-center gap-4 flex-1">
-          <span className="text-[clamp(12px,1.5vw,18px)] text-game-red/80 font-bold uppercase">Energia</span>
+          <span className="text-[clamp(12px,1.5vmin,18px)] text-game-red/80 font-bold uppercase">Energia</span>
           <div className="flex-1 max-w-[200px] h-3 bg-white/10 rounded-full overflow-hidden">
             <div 
               className={cn(
@@ -551,9 +551,10 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               style={{ width: `${(blueState.energy / config.energyMax) * 100}%` }}
             />
           </div>
-          <span className="text-[clamp(12px,1.5vw,18px)] text-game-blue/80 font-bold uppercase">Energia</span>
+          <span className="text-[clamp(12px,1.5vmin,18px)] text-game-blue/80 font-bold uppercase">Energia</span>
         </div>
       </div>
     </div>
   );
 }
+
