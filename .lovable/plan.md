@@ -1,37 +1,40 @@
 
-# Adicionar Som "Erro" no Modo Cognitivo
+
+# Layout Responsivo - Modo Reacao
+
+## Diagnostico
+
+### ReactionSetupScreen.tsx - JA ESTA OK
+O arquivo ja possui a estrutura flex correta com header fixo (`flex-shrink-0`), area central com scroll (`flex-1 min-h-0 overflow-y-auto`), e footer fixo (`flex-shrink-0`). Nenhuma alteracao necessaria neste arquivo.
+
+### ReactionScreen.tsx - Precisa de ajuste
+As unidades `vw` causam elementos gigantes em telas widescreen que cortam verticalmente.
+
+## Alteracoes (apenas ReactionScreen.tsx)
+
+### 1. Container principal (linha 112)
+- Adicionar `overflow-hidden` para evitar scrollbar fantasma
+- De: `h-full w-full flex flex-col bg-slate-950 pb-24 relative`
+- Para: `h-full w-full flex flex-col bg-slate-950 pb-24 relative overflow-hidden`
+
+### 2. Timer gigante (linha 139)
+- De: `fontSize: 'clamp(4rem, 12vw, 8rem)'`
+- Para: `fontSize: 'clamp(4rem, 15vh, 10rem)'`
+
+### 3. Circulo de estimulo (linhas 153-154)
+- De: `width/height: 'clamp(180px, 40vw, 350px)'`
+- Para: `width/height: 'clamp(150px, 35vmin, 320px)'`
+
+### 4. Timer de descanso (linha 100)
+- De: `text-[clamp(80px,22vw,200px)]`
+- Para: `text-[clamp(60px,20vh,180px)]`
+
+### 5. Container de descanso (linha 88)
+- Adicionar `overflow-hidden` ao container de descanso tambem
 
 ## Resumo
-Copiar o arquivo `erro.mp3` para o projeto e usa-lo como som de erro de impulso (chute no vermelho) no Modo Cognitivo, substituindo o som `ko` nesse callback especifico.
+- 1 arquivo alterado: `ReactionScreen.tsx`
+- 0 arquivos criados
+- Apenas mudancas de CSS (unidades de medida), sem logica alterada
+- O setup screen ja esta correto e nao precisa de mudancas
 
-## Alteracoes
-
-### 1. Arquivo de Audio
-- Copiar `user-uploads://erro.mp3` para `public/sounds/erro.mp3`
-
-### 2. `src/hooks/useSoundEffects.ts`
-- Adicionar `'erro'` ao tipo `SoundName` (linha 20)
-- Adicionar `erro: '/sounds/erro.mp3'` ao `FALLBACK_PATHS` (apos linha 40)
-- Adicionar `erro: 2` ao `POOL_SIZES` (apos linha 64)
-
-### 3. `src/pages/Index.tsx`
-Seguindo o padrao "Latest Ref" ja existente:
-
-- **Criar Ref** (junto das outras, linha ~76):
-```typescript
-const playErrorRef = useRef(() => play('erro'));
-```
-
-- **Atualizar Effect** (dentro do useEffect que sincroniza refs, linha ~86):
-```typescript
-playErrorRef.current = () => play('erro');
-```
-
-- **Atualizar callback** (linha 143):
-  - De: `onCommissionError: () => playKORef.current()`
-  - Para: `onCommissionError: () => playErrorRef.current()`
-
-## Impacto
-- O som `ko` continua disponivel para outros usos (ex: modo principal)
-- Apenas o callback `onCommissionError` do Modo Reacao/Cognitivo e alterado
-- Nenhuma mudanca de logica ou interface
