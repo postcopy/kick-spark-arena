@@ -85,7 +85,7 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
 
   if (isResting) {
     return (
-      <div className="h-full w-full flex flex-col bg-blue-950">
+      <div className="h-full w-full flex flex-col bg-blue-950 overflow-hidden">
         <button
           onClick={onBack}
           className="absolute top-4 left-4 z-10 p-2 bg-black/30 hover:bg-black/50 rounded-lg transition-colors"
@@ -97,7 +97,7 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
           <h2 className="text-3xl md:text-5xl font-black text-blue-300 uppercase tracking-wider">
             Descanse
           </h2>
-          <div className="text-[clamp(80px,22vw,200px)] font-black text-white animate-pulse">
+          <div className="text-[clamp(60px,20vh,180px)] font-black text-white animate-pulse">
             {restTimeLeft}
           </div>
           <p className="text-blue-400 text-lg">
@@ -109,7 +109,7 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
   }
 
   return (
-    <div className="h-full w-full flex flex-col bg-slate-950 pb-24 relative">
+    <div className="h-full w-full flex flex-col bg-slate-950 pb-24 relative overflow-hidden">
       {/* Back */}
       <button
         onClick={onBack}
@@ -136,7 +136,7 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
               ? 'text-red-500 animate-pulse'
               : 'text-white'
           }`}
-          style={{ fontSize: 'clamp(4rem, 12vw, 8rem)' }}
+          style={{ fontSize: 'clamp(4rem, 15vh, 10rem)' }}
         >
           {formatTime(workTimeLeft)}
         </div>
@@ -150,8 +150,8 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
         <div
           className="rounded-full transition-none flex items-center justify-center"
           style={{
-            width: 'clamp(180px, 40vw, 350px)',
-            height: 'clamp(180px, 40vw, 350px)',
+            width: 'clamp(150px, 35vmin, 320px)',
+            height: 'clamp(150px, 35vmin, 320px)',
             ...getStimulusStyle(),
           }}
         >
