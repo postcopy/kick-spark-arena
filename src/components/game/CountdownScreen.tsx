@@ -76,8 +76,8 @@ export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = 
           isIntroPhase 
             ? 'text-6xl md:text-8xl text-muted-foreground animate-pulse' 
             : isFight 
-              ? 'text-[12rem] md:text-[20rem] text-game-yellow text-glow-yellow' 
-              : 'text-[12rem] md:text-[20rem] text-foreground'
+              ? 'text-[clamp(8rem,25vmin,20rem)] text-game-yellow text-glow-yellow' 
+              : 'text-[clamp(8rem,25vmin,20rem)] text-foreground'
         )}
       >
         {displayText}
