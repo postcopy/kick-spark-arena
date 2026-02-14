@@ -1,30 +1,37 @@
 
+# Adicionar Som "Erro" no Modo Cognitivo
 
-# Ajuste de Presets do Modo Reacao
-
-## Problema
-Os valores do preset Elite (gap 300-600ms, flash 600ms) sao fisicamente impossiveis para executar um Bandal com tecnica correta e retornar a base.
-
-## Arquivo
-`src/types/reaction.ts` -- objeto `REACTION_PRESETS` (linhas 42-68)
+## Resumo
+Copiar o arquivo `erro.mp3` para o projeto e usa-lo como som de erro de impulso (chute no vermelho) no Modo Cognitivo, substituindo o som `ko` nesse callback especifico.
 
 ## Alteracoes
 
-Atualizar os tres presets com valores mais realistas:
+### 1. Arquivo de Audio
+- Copiar `user-uploads://erro.mp3` para `public/sounds/erro.mp3`
 
-| Parametro | Beginner (atual -> novo) | Intermediate (atual -> novo) | Elite (atual -> novo) |
-|-----------|--------------------------|-----------------------------|-----------------------|
-| workSec | 20 -> 30 | 30 -> 45 | 30 -> 60 |
-| restSec | 40 -> 30 | 45 -> 30 | 30 -> 30 |
-| rounds | 6 -> 3 | 6 -> 5 | 8 -> 8 (sem mudanca) |
-| gapMs.min | 1500 -> 2000 | 800 -> 1000 | 300 -> 800 |
-| gapMs.max | 2500 -> 4000 | 1500 -> 2500 | 600 -> 1500 |
-| flashMs | 1000 -> 3000 | 800 -> 1500 | 600 -> 900 |
+### 2. `src/hooks/useSoundEffects.ts`
+- Adicionar `'erro'` ao tipo `SoundName` (linha 20)
+- Adicionar `erro: '/sounds/erro.mp3'` ao `FALLBACK_PATHS` (apos linha 40)
+- Adicionar `erro: 2` ao `POOL_SIZES` (apos linha 64)
 
-Nenhuma alteracao em `cognitiveMode` ou `goProbability` (permanecem `false` e `75`).
+### 3. `src/pages/Index.tsx`
+Seguindo o padrao "Latest Ref" ja existente:
+
+- **Criar Ref** (junto das outras, linha ~76):
+```typescript
+const playErrorRef = useRef(() => play('erro'));
+```
+
+- **Atualizar Effect** (dentro do useEffect que sincroniza refs, linha ~86):
+```typescript
+playErrorRef.current = () => play('erro');
+```
+
+- **Atualizar callback** (linha 143):
+  - De: `onCommissionError: () => playKORef.current()`
+  - Para: `onCommissionError: () => playErrorRef.current()`
 
 ## Impacto
-- Apenas valores numericos no objeto de constantes
-- Nenhuma mudanca de logica, interface ou componentes
-- A tela de setup continuara mostrando os valores atualizados nos inputs
-
+- O som `ko` continua disponivel para outros usos (ex: modo principal)
+- Apenas o callback `onCommissionError` do Modo Reacao/Cognitivo e alterado
+- Nenhuma mudanca de logica ou interface
