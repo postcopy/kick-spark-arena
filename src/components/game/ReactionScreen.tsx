@@ -27,6 +27,9 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
   const [showReactionTime, setShowReactionTime] = useState(false);
   const [displayedTime, setDisplayedTime] = useState<number | null>(null);
 
+  // Visual impact feedback on stimulus circle
+  const [hitFeedback, setHitFeedback] = useState<{ type: 'success' | 'error'; value: string } | null>(null);
+
   // Commission error "FALTA!" flash
   const [showFault, setShowFault] = useState(false);
   const trackedErrorsRef = useRef(0);
@@ -35,8 +38,13 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
     if (commissionErrors > trackedErrorsRef.current) {
       trackedErrorsRef.current = commissionErrors;
       setShowFault(true);
-      const timer = window.setTimeout(() => setShowFault(false), 1500);
-      return () => window.clearTimeout(timer);
+      setHitFeedback({ type: 'error', value: 'FALTA!' });
+      const faultTimer = window.setTimeout(() => setShowFault(false), 1500);
+      const feedbackTimer = window.setTimeout(() => setHitFeedback(null), 500);
+      return () => {
+        window.clearTimeout(faultTimer);
+        window.clearTimeout(feedbackTimer);
+      };
     }
   }, [commissionErrors]);
 
@@ -44,8 +52,13 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
     if (lastReactionTime !== null) {
       setDisplayedTime(lastReactionTime);
       setShowReactionTime(true);
-      const timer = window.setTimeout(() => setShowReactionTime(false), 2000);
-      return () => window.clearTimeout(timer);
+      setHitFeedback({ type: 'success', value: `${lastReactionTime}ms` });
+      const feedbackTimer = window.setTimeout(() => setHitFeedback(null), 500);
+      const displayTimer = window.setTimeout(() => setShowReactionTime(false), 2000);
+      return () => {
+        window.clearTimeout(feedbackTimer);
+        window.clearTimeout(displayTimer);
+      };
     }
   }, [lastReactionTime]);
 
@@ -65,6 +78,21 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
 
   // Determine stimulus circle style
   const getStimulusStyle = () => {
+    if (hitFeedback?.type === 'success') {
+      return {
+        backgroundColor: '#22d3ee',
+        boxShadow: '0 0 60px 20px rgba(34,211,238,0.5), 0 0 120px 40px rgba(34,211,238,0.2)',
+        transform: 'scale(1.08)',
+        transition: 'transform 0.1s ease-out, background-color 0.05s',
+      };
+    }
+    if (hitFeedback?.type === 'error') {
+      return {
+        backgroundColor: '#FF3333',
+        boxShadow: '0 0 80px 30px rgba(255,51,51,0.5), 0 0 140px 50px rgba(255,51,51,0.2)',
+        animation: 'shake 0.3s ease-in-out',
+      };
+    }
     if (!stimulusActive || !stimulusColor) {
       return {
         backgroundColor: '#1e293b',
@@ -148,19 +176,29 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
       {/* Stimulus circle */}
       <div className="flex-1 flex flex-col items-center justify-center gap-4">
         <div
-          className="rounded-full transition-none flex items-center justify-center"
+          className="rounded-full flex items-center justify-center"
           style={{
             width: 'clamp(150px, 35vmin, 320px)',
             height: 'clamp(150px, 35vmin, 320px)',
             ...getStimulusStyle(),
           }}
         >
-          {/* Icon inside stimulus for cognitive mode */}
-          {isCognitive && stimulusActive && stimulusColor === 'green' && (
-            <Check className="w-16 h-16 text-white" strokeWidth={3} />
-          )}
-          {isCognitive && stimulusActive && stimulusColor === 'red' && (
-            <X className="w-16 h-16 text-white" strokeWidth={3} />
+          {hitFeedback ? (
+            <span
+              className="font-black font-mono text-center leading-none text-white"
+              style={{ fontSize: 'clamp(1.5rem, 6vmin, 3rem)' }}
+            >
+              {hitFeedback.value}
+            </span>
+          ) : (
+            <>
+              {isCognitive && stimulusActive && stimulusColor === 'green' && (
+                <Check className="w-16 h-16 text-white" strokeWidth={3} />
+              )}
+              {isCognitive && stimulusActive && stimulusColor === 'red' && (
+                <X className="w-16 h-16 text-white" strokeWidth={3} />
+              )}
+            </>
           )}
         </div>
 
