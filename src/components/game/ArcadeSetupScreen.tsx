@@ -88,7 +88,7 @@ export function ArcadeSetupScreen({
                     "flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200",
                     isActive
                       ? "bg-[#FFD700] text-black border border-transparent"
-                      : "bg-transparent border border-white/5 text-white/20 hover:text-white/40 hover:border-white/10"
+                      : "bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10"
                   )}
                 >
                   <span className="text-2xl md:text-3xl font-black uppercase tracking-tighter">
