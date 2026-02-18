@@ -1,47 +1,56 @@
 
-# Fix: Layout Duo Sobreposto (Spacing)
+# Adicionar Aviso de Hardware (Instrucao Fisica)
 
-## Problema
+## Resumo
 
-Os numeros gigantes estao se sobrepondo aos labels "HITS" e "CPM" porque usam `leading-[0.8]` (line-height apertado) e `marginTop: '-4vw'` (margem negativa puxando os labels para dentro do numero).
+Inserir um aviso sobre limitacao do sensor no rodape das 3 telas de configuracao, orientando o atleta a recolher a perna entre chutes.
 
 ## Alteracoes
 
-### Arquivo: `src/components/game/GameScreen.tsx`
+### 1. `src/components/game/ArcadeSetupScreen.tsx` (linha ~226)
 
-#### Painel Vermelho (linhas 324-333)
-
-1. Trocar `leading-[0.8]` por `leading-none` no span do score
-2. Remover `style={{ marginTop: '-4vw' }}` do container HITS/CPM
-3. Adicionar `mt-2 relative z-20` no container HITS/CPM
-4. Aumentar texto dos labels: `text-sm` para `text-2xl` (HITS) e `text-lg` para `text-xl` (CPM)
-5. Trocar `tracking-[0.3em]` por `tracking-widest`
-
-#### Painel Azul (linhas 363-372)
-
-Mesmas alteracoes identicas ao painel vermelho.
-
-### Codigo resultante (ambos os paineis)
+Adicionar um paragrafo de aviso do sensor logo apos as regras existentes (apos o `</ul>` na linha 226), dentro do mesmo `div.border-l-2`:
 
 ```tsx
-// Score - leading-none em vez de leading-[0.8]
-<span className="text-red-500 font-black italic leading-none tracking-tighter tabular-nums" style={{ 
-  fontSize: 'clamp(8rem, 20vw, 22rem)',
-  filter: 'drop-shadow(0 0 30px rgba(239,68,68,0.4))'
-}}>
-  {scores.red}
-</span>
+<p className="mt-1 text-white/50 font-mono text-xs">
+  <span className="text-orange-500 font-bold tracking-wider">SENSOR:</span>{" "}
+  Detecta apenas impactos limpos. Chutes "colados" sao ignorados.
+  <span className="text-white block mt-0.5 font-bold">
+    ⚠️ Chute → Recolha a perna → Chute novamente.
+  </span>
+</p>
+```
 
-// Labels - mt-2 positivo em vez de marginTop negativo, z-20 para ficar acima
-<div className="flex flex-col gap-1 items-center mt-2 relative z-20">
-  <span className="text-2xl text-white/40 uppercase tracking-widest font-mono">HITS</span>
-  <span className="text-xl text-white/60 font-mono tabular-nums">CPM: {redCpm}</span>
+### 2. `src/components/game/ReactionSetupScreen.tsx` (linha ~300)
+
+Adicionar apos as spans de config (linha 299), dentro do mesmo `div.border-l-2`:
+
+```tsx
+<p className="mt-1 text-white/50 font-mono text-xs">
+  <span className="text-orange-500 font-bold tracking-wider">SENSOR:</span>{" "}
+  Aguarde o reset. O sistema ignora impactos multiplos simultaneos.
+</p>
+```
+
+### 3. `src/components/game/SetupScreen.tsx` (linha ~417)
+
+O SetupScreen nao tem secao "REGRAS DO SISTEMA". Adicionar um bloco de aviso acima do botao "JOGAR!" (antes da linha 404), no step de duracao:
+
+```tsx
+<div className="border-l-2 border-cyan-500/50 pl-3 py-1 mt-2">
+  <p className="text-white/50 font-mono text-xs">
+    <span className="text-orange-500 font-bold tracking-wider">SENSOR:</span>{" "}
+    Detecta apenas impactos limpos. Chutes "colados" sao ignorados.
+    <span className="text-white block mt-0.5 font-bold">
+      ⚠️ Chute → Recolha a perna → Chute novamente.
+    </span>
+  </p>
 </div>
 ```
 
 ## Resultado
 
-- Numeros com respiro vertical adequado (leading-none)
-- Labels HITS/CPM separados fisicamente com margem positiva
-- Z-index garante que labels nunca fiquem cortados
-- Texto dos labels maior e mais legivel
+- Todos os 3 modos exibem aviso do sensor antes do inicio
+- Arcade e Time Attack: mensagem sobre recolher a perna
+- Reaction: mensagem sobre aguardar reset entre estimulos
+- Visual consistente com o estilo mono/tecnico existente
