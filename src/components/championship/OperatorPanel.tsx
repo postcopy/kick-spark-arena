@@ -10,7 +10,6 @@ import {
   Plus,
   Minus,
   Undo2,
-  Usb,
   Settings,
   Activity,
   Download,
@@ -84,343 +83,212 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
   const canStart = (isIdle || isPaused) && !isMatchEnd;
   const canPause = isRunning;
   
-  // GAM-JEOM button rules:
-  // [+] enabled when RUNNING (auto-pause) or PAUSED (apply without status change)
-  // [-] enabled ONLY when status !== 'RUNNING' and gamjeom > 0
   const canAddGamjeom = isRunning || state.status === 'PAUSED';
   const canRemoveGamjeomBlue = !isRunning && state.gamjeomBlue > 0;
   const canRemoveGamjeomRed = !isRunning && state.gamjeomRed > 0;
+
+  const btnSecondary = "h-9 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-xs uppercase disabled:opacity-50";
   
   return (
     <>
-      <aside className="w-[340px] bg-[hsl(var(--sulsport-dark))] border-l border-[hsl(var(--sulsport-gray))] flex flex-col overflow-y-auto">
+      <aside className="w-[340px] bg-[hsl(var(--sulsport-dark))] border-l border-[hsl(var(--sulsport-gray))] h-full flex flex-col justify-between overflow-hidden">
         {/* CONTROLES */}
-        <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+        <section className="p-2.5 border-b border-[hsl(var(--sulsport-gray))] flex-shrink-0">
+          <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
             CONTROLES
           </h3>
           <div className="space-y-1.5">
-            {/* Iniciar Round */}
+            {/* Iniciar Round - full width */}
             <Button
               onClick={actions.startTimer}
               disabled={!canStart || !actions.hasConfig}
-              className="w-full h-10 rounded-md bg-green-600 hover:bg-green-500 text-white font-bold uppercase disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-green-600 hover:bg-green-500 text-white font-bold uppercase text-sm disabled:opacity-50"
             >
-              <Play className="w-5 h-5 mr-2" />
+              <Play className="w-4 h-4 mr-1.5" />
               {isMedical ? 'INICIAR T. MÉDICO' : 'INICIAR ROUND'}
             </Button>
-            
-            {/* Pausar */}
-            <Button
-              onClick={actions.pauseTimer}
-              disabled={!canPause}
-              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
-            >
-              <Pause className="w-5 h-5 mr-2" />
-              PAUSAR
-            </Button>
-            
-            {/* Zerar Tempo */}
-            <Button
-              onClick={actions.resetTime}
-              disabled={isRunning}
-              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
-            >
-              <RotateCcw className="w-5 h-5 mr-2" />
-              ZERAR TEMPO
-            </Button>
-            
-            {/* Tempo Médico */}
-            <Button
-              onClick={isMedical ? actions.endMedicalTime : actions.startMedicalTime}
-              disabled={isMatchEnd}
-              className={cn(
-                "w-full h-10 rounded-md font-bold uppercase disabled:opacity-50",
-                isMedical 
-                  ? "bg-[hsl(var(--sulsport-yellow))] hover:bg-[hsl(var(--sulsport-yellow-dark))] text-black" 
-                  : "bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600"
-              )}
-            >
-              <Stethoscope className="w-5 h-5 mr-2" />
-              {isMedical ? 'VOLTAR P/ ROUND' : 'TEMPO MÉDICO'}
-            </Button>
-            
-            {/* Próximo Round */}
+
+            {/* Próximo Round - conditional full width */}
             {isRoundEnd && state.round < state.config.maxRounds && (
               <Button
                 onClick={actions.nextRound}
-                className="w-full h-10 rounded-md bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase"
+                className="w-full h-10 rounded-md bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase text-sm"
               >
-                <Play className="w-5 h-5 mr-2" />
+                <Play className="w-4 h-4 mr-1.5" />
                 PRÓXIMO ROUND
               </Button>
             )}
-            
-            {/* Logs */}
-            <Button
-              onClick={() => setShowEventLog(true)}
-              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase"
-            >
-              <List className="w-5 h-5 mr-2" />
-              LOGS
-            </Button>
-            
-            {/* Alterar Placar */}
-            <Button
-              onClick={() => setShowScoreAdjust(true)}
-              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase"
-            >
-              <Edit className="w-5 h-5 mr-2" />
-              ALTERAR PLACAR
-            </Button>
-            
-            {/* Desfazer */}
-            <Button
-              onClick={actions.undoLast}
-              disabled={!actions.canUndo}
-              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold uppercase disabled:opacity-50"
-            >
-              <Undo2 className="w-5 h-5 mr-2" />
-              DESFAZER
-            </Button>
-            
-            {/* Encerrar Luta */}
+
+            {/* Grid 2 cols for secondary buttons */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button onClick={actions.pauseTimer} disabled={!canPause} className={btnSecondary}>
+                <Pause className="w-3.5 h-3.5 mr-1" /> PAUSAR
+              </Button>
+              <Button onClick={actions.resetTime} disabled={isRunning} className={btnSecondary}>
+                <RotateCcw className="w-3.5 h-3.5 mr-1" /> ZERAR
+              </Button>
+              <Button
+                onClick={isMedical ? actions.endMedicalTime : actions.startMedicalTime}
+                disabled={isMatchEnd}
+                className={cn(
+                  "h-9 rounded-md font-bold text-xs uppercase disabled:opacity-50",
+                  isMedical 
+                    ? "bg-[hsl(var(--sulsport-yellow))] hover:bg-[hsl(var(--sulsport-yellow-dark))] text-black" 
+                    : "bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600"
+                )}
+              >
+                <Stethoscope className="w-3.5 h-3.5 mr-1" />
+                {isMedical ? 'VOLTAR' : 'T. MÉDICO'}
+              </Button>
+              <Button onClick={actions.undoLast} disabled={!actions.canUndo} className={btnSecondary}>
+                <Undo2 className="w-3.5 h-3.5 mr-1" /> DESFAZER
+              </Button>
+              <Button onClick={() => setShowEventLog(true)} className={btnSecondary}>
+                <List className="w-3.5 h-3.5 mr-1" /> LOGS
+              </Button>
+              <Button onClick={() => setShowScoreAdjust(true)} className={btnSecondary}>
+                <Edit className="w-3.5 h-3.5 mr-1" /> PLACAR
+              </Button>
+            </div>
+
+            {/* Encerrar Luta - full width */}
             <Button
               onClick={() => setShowEndMatchDialog(true)}
               disabled={isMatchEnd}
-              className="w-full h-10 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase disabled:opacity-50"
+              className="w-full h-10 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase text-sm disabled:opacity-50"
             >
-              <XCircle className="w-5 h-5 mr-2" />
+              <XCircle className="w-4 h-4 mr-1.5" />
               ENCERRAR LUTA
             </Button>
           </div>
         </section>
         
-        {/* GAM-JEOM */}
-        <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+        {/* GAM-JEOM - compact single-line per side */}
+        <section className="p-2.5 border-b border-[hsl(var(--sulsport-gray))] flex-shrink-0">
+          <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
             GAM-JEOM
           </h3>
-          <div className="grid grid-cols-2 gap-4">
-            {/* BLUE */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[hsl(var(--sulsport-blue-light))] font-bold text-sm uppercase">BLUE</span>
-                <span className="text-[hsl(var(--sulsport-blue-light))] font-bold text-xl">{state.gamjeomBlue}</span>
-              </div>
-              <div className="flex gap-2">
+          <div className="space-y-1.5">
+            {/* BLUE row */}
+            <div className="flex items-center gap-2">
+              <span className="text-[hsl(var(--sulsport-blue-light))] font-bold text-xs uppercase w-10">BLUE</span>
+              <span className="text-[hsl(var(--sulsport-blue-light))] font-bold text-lg w-6 text-center">{state.gamjeomBlue}</span>
+              <div className="flex gap-1 ml-auto">
                 <Button
                   size="icon"
                   onClick={() => actions.removeGamjeom('BLUE')}
                   disabled={!canRemoveGamjeomBlue}
                   className={cn(
-                    "rounded-md h-10 w-10",
+                    "rounded-md h-8 w-8",
                     canRemoveGamjeomBlue
                       ? "bg-[hsl(var(--sulsport-blue))]/30 border border-[hsl(var(--sulsport-blue-light))]/50 text-[hsl(var(--sulsport-blue-light))] hover:bg-[hsl(var(--sulsport-blue))]/50"
                       : "bg-zinc-800 border border-zinc-700 text-zinc-600"
                   )}
                 >
-                  <Minus className="w-4 h-4" />
+                  <Minus className="w-3.5 h-3.5" />
                 </Button>
                 <Button
                   size="icon"
                   onClick={() => actions.addGamjeom('BLUE')}
                   disabled={!canAddGamjeom}
                   className={cn(
-                    "rounded-md h-10 w-10",
+                    "rounded-md h-8 w-8",
                     canAddGamjeom
                       ? "bg-[hsl(var(--sulsport-blue))] hover:bg-[hsl(var(--sulsport-blue-light))] text-white"
                       : "bg-zinc-800 text-zinc-600"
                   )}
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
-            
-            {/* RED */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[hsl(var(--sulsport-red-light))] font-bold text-sm uppercase">RED</span>
-                <span className="text-[hsl(var(--sulsport-red-light))] font-bold text-xl">{state.gamjeomRed}</span>
-              </div>
-              <div className="flex gap-2">
+            {/* RED row */}
+            <div className="flex items-center gap-2">
+              <span className="text-[hsl(var(--sulsport-red-light))] font-bold text-xs uppercase w-10">RED</span>
+              <span className="text-[hsl(var(--sulsport-red-light))] font-bold text-lg w-6 text-center">{state.gamjeomRed}</span>
+              <div className="flex gap-1 ml-auto">
                 <Button
                   size="icon"
                   onClick={() => actions.removeGamjeom('RED')}
                   disabled={!canRemoveGamjeomRed}
                   className={cn(
-                    "rounded-md h-10 w-10",
+                    "rounded-md h-8 w-8",
                     canRemoveGamjeomRed
                       ? "bg-[hsl(var(--sulsport-red))]/30 border border-[hsl(var(--sulsport-red-light))]/50 text-[hsl(var(--sulsport-red-light))] hover:bg-[hsl(var(--sulsport-red))]/50"
                       : "bg-zinc-800 border border-zinc-700 text-zinc-600"
                   )}
                 >
-                  <Minus className="w-4 h-4" />
+                  <Minus className="w-3.5 h-3.5" />
                 </Button>
                 <Button
                   size="icon"
                   onClick={() => actions.addGamjeom('RED')}
                   disabled={!canAddGamjeom}
                   className={cn(
-                    "rounded-md h-10 w-10",
+                    "rounded-md h-8 w-8",
                     canAddGamjeom
                       ? "bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white"
                       : "bg-zinc-800 text-zinc-600"
                   )}
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
           </div>
-          <p className="text-xs text-zinc-500 mt-3">
-            [+] durante round • [-] quando pausado
-          </p>
         </section>
         
-        {/* STATUS */}
-        <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
-            STATUS
-          </h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <div className={cn(
-                "w-2 h-2 rounded-full",
-                actions.hasConfig ? "bg-green-500" : "bg-[hsl(var(--sulsport-red-light))]"
-              )} />
-              <span className={actions.hasConfig ? "text-green-400" : "text-[hsl(var(--sulsport-red-light))]"}>
-                {actions.hasConfig ? "Configurado" : "Não configurado"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={cn(
-                "w-2 h-2 rounded-full",
-                serialPort?.isConnected ? "bg-green-500" : "bg-zinc-500"
-              )} />
-              <span className={serialPort?.isConnected ? "text-green-400" : "text-zinc-400"}>
-                {serialPort?.isConnected ? "Hardware conectado" : "Hardware não conectado"}
-              </span>
-            </div>
-          </div>
-        </section>
-        
-        {/* HARDWARE */}
-        {serialPort && (
-          <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
-              HARDWARE
-            </h3>
-            <div className="space-y-3">
-              <Button
-                onClick={serialPort.isConnected ? serialPort.disconnect : serialPort.connect}
-                disabled={serialPort.isConnecting}
-                className={cn(
-                  "w-full h-10 rounded-md font-bold text-sm uppercase",
-                  serialPort.isConnected
-                    ? "bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600"
-                    : "bg-yellow-600 hover:bg-yellow-500 text-black"
-                )}
-              >
-                <Usb className="w-4 h-4 mr-2" />
-                {serialPort.isConnecting 
-                  ? 'CONECTANDO...' 
-                  : serialPort.isConnected 
-                    ? 'DESCONECTAR USB' 
-                    : 'CONECTAR USB'}
-              </Button>
-              
-              {diagnostics && (
-                <Button
-                  onClick={() => setShowDiagnostics(true)}
-                  className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase"
-                >
-                  <Activity className="w-4 h-4 mr-2" />
-                  CALIBRAGEM
-                </Button>
-              )}
-              
-              {onExportShadowLog && (
-                <Button
-                  onClick={onExportShadowLog}
-                  className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  EXPORTAR SHADOW LOG
-                </Button>
-              )}
-              
-              {serialPort.error && (
-                <p className="text-xs text-[hsl(var(--sulsport-red-light))]">
-                  {serialPort.error}
-                </p>
-              )}
-              
-              {!serialPort.isSupported && (
-                <p className="text-xs text-[hsl(var(--sulsport-yellow))]">
-                  Web Serial não suportado. Use Chrome ou Edge.
-                </p>
-              )}
-            </div>
-          </section>
-        )}
-        
-        {/* CONFIGURAÇÕES */}
-        <section className="p-3 border-b border-[hsl(var(--sulsport-gray))]">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+        {/* CONFIGURAÇÕES - compact grid */}
+        <section className="p-2.5 border-b border-[hsl(var(--sulsport-gray))] flex-shrink-0">
+          <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
             CONFIGURAÇÕES
           </h3>
-          <div className="space-y-2">
-            <Button
-              onClick={onOpenConfig}
-              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              GERENCIAR LUTA
-            </Button>
-            <Button
-              onClick={() => setShowResetDialog(true)}
-              disabled={isIdle && state.roundScoreRed === 0 && state.roundScoreBlue === 0}
-              className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase disabled:opacity-50"
-            >
-              NOVA LUTA
-            </Button>
-            {onToggleMute && (
-              <Button
-                onClick={onToggleMute}
-                className="w-full h-10 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-sm uppercase"
-              >
-                {isMuted ? <VolumeX className="w-4 h-4 mr-2" /> : <Volume2 className="w-4 h-4 mr-2" />}
-                {isMuted ? 'SOM: DESLIGADO' : 'SOM: LIGADO'}
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button onClick={onOpenConfig} className={btnSecondary}>
+                <Settings className="w-3.5 h-3.5 mr-1" /> LUTA
               </Button>
+              <Button
+                onClick={() => setShowResetDialog(true)}
+                disabled={isIdle && state.roundScoreRed === 0 && state.roundScoreBlue === 0}
+                className={btnSecondary}
+              >
+                NOVA LUTA
+              </Button>
+            </div>
+            {onToggleMute && (
+              <Button onClick={onToggleMute} className={cn(btnSecondary, "w-full")}>
+                {isMuted ? <VolumeX className="w-3.5 h-3.5 mr-1" /> : <Volume2 className="w-3.5 h-3.5 mr-1" />}
+                {isMuted ? 'SOM: OFF' : 'SOM: ON'}
+              </Button>
+            )}
+            {/* Calibragem & Export inline when available */}
+            {(diagnostics || onExportShadowLog) && (
+              <div className="grid grid-cols-2 gap-1.5">
+                {diagnostics && (
+                  <Button onClick={() => setShowDiagnostics(true)} className={btnSecondary}>
+                    <Activity className="w-3.5 h-3.5 mr-1" /> CALIB.
+                  </Button>
+                )}
+                {onExportShadowLog && (
+                  <Button onClick={onExportShadowLog} className={btnSecondary}>
+                    <Download className="w-3.5 h-3.5 mr-1" /> LOG
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </section>
         
-        {/* TELA EXTERNA */}
-        <section className="p-3">
-          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
-            TELA EXTERNA
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-zinc-400">2ª Tela:</span>
-              <span className={isTVOpen ? "text-green-400 font-bold" : "text-zinc-500"}>
-                {isTVOpen ? "ABERTA" : "FECHADA"}
-              </span>
-            </div>
-            <Button
-              onClick={onOpenTV}
-              className="w-full h-10 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase"
-            >
-              <Monitor className="w-5 h-5 mr-2" />
-              ABRIR PLACAR TV
-            </Button>
-            <p className="text-xs text-zinc-500 text-center">
-              Para tela cheia na TV, pressione F11
-            </p>
-          </div>
+        {/* TELA EXTERNA - compact */}
+        <section className="p-2.5 flex-shrink-0">
+          <Button
+            onClick={onOpenTV}
+            className="w-full h-9 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase text-xs"
+          >
+            <Monitor className="w-4 h-4 mr-1.5" />
+            ABRIR PLACAR TV
+          </Button>
         </section>
       </aside>
       
