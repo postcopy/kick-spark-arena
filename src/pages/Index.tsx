@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useGameState } from '@/hooks/useGameState';
 import { useArcadeState } from '@/hooks/useArcadeState';
 import { useReactionState } from '@/hooks/useReactionState';
-import { useSerialPort } from '@/hooks/useSerialPort';
+import { useSerialPortContext } from '@/contexts/SerialPortContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
 import { WelcomeScreen } from '@/components/game/WelcomeScreen';
@@ -156,10 +156,13 @@ const Index = () => {
     }
   }, [gameMode, timeAttackState, arcadeState, reactionState]);
 
-  const serialPort = useSerialPort({ 
-    onKick: handleSerialKick,
-    debounceMs: 150,
-  });
+  const { serialPort, registerKickHandler, unregisterKickHandler } = useSerialPortContext();
+
+  // Register kick handler on mount and when it changes
+  useEffect(() => {
+    registerKickHandler(handleSerialKick);
+    return () => unregisterKickHandler();
+  }, [handleSerialKick, registerKickHandler, unregisterKickHandler]);
 
   // Determine if user can play
   // Admin always can play, subscribed users can play, users in trial can play
