@@ -6,7 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { useSound } from '@/contexts/SoundContext';
 import type { ReactionLevel, ReactionConfig } from '@/types/reaction';
 import { REACTION_PRESETS, LEVEL_LABELS } from '@/types/reaction';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AthletePickerDialog } from './AthletePickerDialog';
 import { StudentAvatar } from './StudentAvatar';
 import type { Athlete } from '@/types/game';
@@ -64,70 +64,71 @@ export function ReactionSetupScreen({
   };
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-background">
+    <div className="flex flex-col h-full w-full bg-[#0b1120] p-4 md:p-6 overflow-hidden">
       {/* Header */}
-      <header className="flex-shrink-0 w-full flex items-center justify-between p-4 md:px-6 border-b border-border">
-        <button onClick={onBack} className="p-2 hover:bg-muted rounded-lg transition-colors">
-          <ArrowLeft className="w-6 h-6 text-foreground" />
+      <header className="flex-shrink-0 flex items-center justify-between mb-2 md:mb-3">
+        <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+          <ArrowLeft className="w-5 h-5 text-white/60" />
         </button>
         <div className="flex items-center gap-2">
-          <Zap className="w-6 h-6 text-green-500" />
-          <h1 className="text-xl font-bold text-foreground">MODO REAÇÃO</h1>
+          <Zap className="w-5 h-5 text-green-400" />
+          <h1 className="text-lg md:text-xl font-bold font-mono text-white tracking-wider">MODO REAÇÃO</h1>
         </div>
-        <div className="w-10" />
+        <div className="w-9" />
       </header>
 
       {/* Main */}
-      <main className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
-        <div className="max-w-lg mx-auto space-y-4">
-          {/* Athlete selector card */}
+      <main className="flex-1 min-h-0 flex flex-col max-w-6xl w-full mx-auto md:overflow-hidden overflow-y-auto gap-3">
+        {/* Row 1: Athlete + Difficulty */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 flex-shrink-0">
+          {/* Athlete card */}
           <button
             onClick={() => setShowPicker(true)}
-            className="w-full flex items-center gap-3 p-4 rounded-xl bg-card border-2 border-border hover:border-primary/50 transition-colors"
+            className="flex items-center gap-3 p-3 md:p-4 rounded-xl bg-slate-900/50 border border-white/5 hover:border-green-500/30 transition-colors"
           >
             {selectedAthlete ? (
               <>
                 <StudentAvatar name={selectedAthlete.name} avatarUrl={selectedAthlete.avatarUrl} belt={selectedAthlete.belt} size="sm" />
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-foreground">{selectedAthlete.name}</p>
-                  <p className="text-xs text-muted-foreground">Resultados serão salvos</p>
+                  <p className="text-sm font-semibold text-white">{selectedAthlete.name}</p>
+                  <p className="text-xs text-white/40">Resultados serão salvos</p>
                 </div>
               </>
             ) : isGuest ? (
               <>
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                  <UserX className="w-5 h-5 text-muted-foreground" />
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                  <UserX className="w-5 h-5 text-white/40" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-foreground">Visitante</p>
-                  <p className="text-xs text-muted-foreground">Sem salvar resultados</p>
+                  <p className="text-sm font-semibold text-white">Visitante</p>
+                  <p className="text-xs text-white/40">Sem salvar resultados</p>
                 </div>
               </>
             ) : (
               <>
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <UserCheck className="w-5 h-5 text-primary" />
+                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-green-400" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-foreground">Selecionar Atleta</p>
-                  <p className="text-xs text-muted-foreground">Toque para escolher quem vai treinar</p>
+                  <p className="text-sm font-semibold text-white">Selecionar Atleta</p>
+                  <p className="text-xs text-white/40">Toque para escolher</p>
                 </div>
               </>
             )}
           </button>
 
-          {/* Preset selector */}
-          <div className="bg-muted/50 p-4 rounded-xl border border-border">
-            <h2 className="text-lg font-bold text-foreground mb-3 text-center">Dificuldade</h2>
+          {/* Difficulty card */}
+          <div className="bg-slate-900/50 p-3 md:p-4 rounded-xl border border-white/5">
+            <h2 className="text-xs font-bold font-mono text-white/60 uppercase tracking-wider mb-2">Dificuldade</h2>
             <div className="grid grid-cols-3 gap-2">
               {LEVELS.map((lvl) => (
                 <button
                   key={lvl}
                   onClick={() => handlePresetSelect(lvl)}
-                  className={`p-3 rounded-lg font-bold text-sm transition-all ${
+                  className={`p-2 md:p-3 rounded-lg font-bold text-xs md:text-sm font-mono transition-all ${
                     activePreset === lvl
-                      ? 'bg-green-500 text-white scale-105'
-                      : 'bg-background text-foreground hover:bg-muted'
+                      ? 'bg-green-500 text-black scale-105'
+                      : 'bg-white/10 text-white/60 hover:bg-white/20'
                   }`}
                 >
                   {LEVEL_LABELS[lvl]}
@@ -135,179 +136,137 @@ export function ReactionSetupScreen({
               ))}
             </div>
             {activePreset === 'custom' && (
-              <p className="text-center text-xs text-muted-foreground mt-2">Personalizado</p>
+              <p className="text-center text-xs text-white/40 mt-2 font-mono">Personalizado</p>
             )}
           </div>
+        </div>
 
-          {/* Editable fields */}
-          <div className="bg-muted/50 p-4 rounded-xl border border-border space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider text-center">
-              Parâmetros do Treino
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" /> Trabalho (s)
-                </label>
-                <Input
-                  type="number"
-                  min={5}
-                  max={120}
-                  value={config.workSec}
-                  onChange={(e) => updateField('workSec', Number(e.target.value))}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Timer className="w-3.5 h-3.5" /> Descanso (s)
-                </label>
-                <Input
-                  type="number"
-                  min={5}
-                  max={120}
-                  value={config.restSec}
-                  onChange={(e) => updateField('restSec', Number(e.target.value))}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Repeat className="w-3.5 h-3.5" /> Rounds
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={config.rounds}
-                  onChange={(e) => updateField('rounds', Number(e.target.value))}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Flash máx (ms)</label>
-                <Input
-                  type="number"
-                  min={200}
-                  max={3000}
-                  step={100}
-                  value={config.flashMs}
-                  onChange={(e) => updateField('flashMs', Number(e.target.value))}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Gap mín (ms)</label>
-                <Input
-                  type="number"
-                  min={100}
-                  max={5000}
-                  step={100}
-                  value={config.gapMs.min}
-                  onChange={(e) => updateField('gapMin', Number(e.target.value))}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Gap máx (ms)</label>
-                <Input
-                  type="number"
-                  min={100}
-                  max={5000}
-                  step={100}
-                  value={config.gapMs.max}
-                  onChange={(e) => updateField('gapMax', Number(e.target.value))}
-                  className="h-9"
-                />
-              </div>
+        {/* Row 2: Training Parameters */}
+        <div className="bg-slate-900/50 p-3 md:p-4 rounded-xl border border-white/5 flex-1 min-h-0">
+          <h3 className="text-xs font-bold font-mono text-white/60 uppercase tracking-wider mb-2">
+            Parâmetros do Treino
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-white/40 flex items-center gap-1 font-mono">
+                <Clock className="w-3 h-3" /> Trabalho (s)
+              </label>
+              <Input
+                type="number" min={5} max={120} value={config.workSec}
+                onChange={(e) => updateField('workSec', Number(e.target.value))}
+                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/40 flex items-center gap-1 font-mono">
+                <Timer className="w-3 h-3" /> Descanso (s)
+              </label>
+              <Input
+                type="number" min={5} max={120} value={config.restSec}
+                onChange={(e) => updateField('restSec', Number(e.target.value))}
+                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/40 flex items-center gap-1 font-mono">
+                <Repeat className="w-3 h-3" /> Rounds
+              </label>
+              <Input
+                type="number" min={1} max={20} value={config.rounds}
+                onChange={(e) => updateField('rounds', Number(e.target.value))}
+                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/40 font-mono">Flash máx (ms)</label>
+              <Input
+                type="number" min={200} max={3000} step={100} value={config.flashMs}
+                onChange={(e) => updateField('flashMs', Number(e.target.value))}
+                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/40 font-mono">Gap mín (ms)</label>
+              <Input
+                type="number" min={100} max={5000} step={100} value={config.gapMs.min}
+                onChange={(e) => updateField('gapMin', Number(e.target.value))}
+                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-white/40 font-mono">Gap máx (ms)</label>
+              <Input
+                type="number" min={100} max={5000} step={100} value={config.gapMs.max}
+                onChange={(e) => updateField('gapMax', Number(e.target.value))}
+                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm"
+              />
             </div>
           </div>
+        </div>
 
+        {/* Row 3: Cognitive + Hardware + Info */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 flex-shrink-0">
           {/* Cognitive Mode */}
-          <div className="bg-muted/50 p-4 rounded-xl border border-border space-y-3">
+          <div className="md:col-span-2 bg-slate-900/50 p-3 md:p-4 rounded-xl border border-white/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Brain className="w-5 h-5 text-orange-400" />
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">Modo Cognitivo (Go/No-Go)</h3>
-                  <p className="text-xs text-muted-foreground">Treina inibição de impulso</p>
+                  <h3 className="text-xs font-bold font-mono text-white">Modo Cognitivo (Go/No-Go)</h3>
+                  <p className="text-xs text-white/40">Treina inibição de impulso</p>
                 </div>
               </div>
               <Switch
                 checked={config.cognitiveMode}
-                onCheckedChange={(checked) =>
-                  onConfigChange({ ...config, cognitiveMode: checked })
-                }
+                onCheckedChange={(checked) => onConfigChange({ ...config, cognitiveMode: checked })}
               />
             </div>
-
             {config.cognitiveMode && (
-              <div className="space-y-2 pt-2 border-t border-border">
+              <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Probabilidade Verde (GO)</span>
-                  <span className="text-sm font-bold text-green-400">{config.goProbability}%</span>
+                  <span className="text-xs text-white/40 font-mono">Probabilidade Verde (GO)</span>
+                  <span className="text-sm font-bold text-green-400 font-mono">{config.goProbability}%</span>
                 </div>
                 <Slider
                   value={[config.goProbability]}
-                  onValueChange={([val]) =>
-                    onConfigChange({ ...config, goProbability: val })
-                  }
-                  min={50}
-                  max={95}
-                  step={5}
+                  onValueChange={([val]) => onConfigChange({ ...config, goProbability: val })}
+                  min={50} max={95} step={5}
                   className="w-full"
                 />
-                <p className="text-xs text-muted-foreground text-center">
+                <p className="text-xs text-white/40 text-center">
                   🟢 Verde = Chuta! &nbsp; 🔴 Vermelho = Não chuta!
                 </p>
               </div>
             )}
           </div>
 
-          {/* Hardware status */}
-          <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-            isHardwareConnected
-              ? 'border-green-500/30 bg-green-500/10'
-              : 'border-border bg-muted/50'
-          }`}>
-            {isHardwareConnected ? (
-              <Wifi className="w-5 h-5 text-green-500" />
-            ) : (
-              <WifiOff className="w-5 h-5 text-muted-foreground" />
-            )}
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {isHardwareConnected ? 'Hardware conectado' : 'Sem hardware'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {isHardwareConnected
-                  ? 'Tempo de reação será medido automaticamente'
-                  : 'Treino visual sem medição de tempo'}
-              </p>
+          {/* Hardware + Info */}
+          <div className="bg-slate-900/50 p-3 md:p-4 rounded-xl border border-white/5 space-y-3">
+            <div className={`flex items-center gap-2 p-2 rounded-lg ${
+              isHardwareConnected ? 'bg-green-500/10' : 'bg-white/5'
+            }`}>
+              {isHardwareConnected ? (
+                <Wifi className="w-4 h-4 text-green-400" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-white/30" />
+              )}
+              <div>
+                <p className="text-xs font-bold text-white font-mono">
+                  {isHardwareConnected ? 'HW Online' : 'Sem hardware'}
+                </p>
+                <p className="text-[10px] text-white/40">
+                  {isHardwareConnected ? 'Medição automática' : 'Treino visual'}
+                </p>
+              </div>
             </div>
-          </div>
-
-          {/* How it works */}
-          <div className="bg-muted/50 p-4 rounded-xl border border-border">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 text-center">
-              Como Funciona
-            </h3>
-            <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="text-[11px] text-white/40 space-y-1">
               {config.cognitiveMode ? (
                 <>
-                  <p>• Círculo <span className="text-green-400 font-bold">VERDE</span> acende — <span className="text-green-400 font-bold">chute o mais rápido possível!</span></p>
-                  <p>• Círculo <span className="text-red-400 font-bold">VERMELHO</span> acende — <span className="text-red-400 font-bold">NÃO chute! Segure o impulso.</span></p>
-                  <p>• Treina controle inibitório e tomada de decisão sob pressão.</p>
+                  <p>🟢 Verde → Chute rápido</p>
+                  <p>🔴 Vermelho → Segure!</p>
                 </>
               ) : (
-                <>
-                  <p>• O círculo acende com uma cor — <span className="text-green-400 font-bold">reaja o mais rápido possível!</span></p>
-                  <p>• A luz apaga sozinha após o tempo máximo ou quando você chuta o colete.</p>
-                </>
-              )}
-              {isHardwareConnected && (
-                <p>• Seu tempo de reação será exibido na tela após cada golpe.</p>
+                <p>💡 Luz acende → Reaja rápido!</p>
               )}
             </div>
           </div>
@@ -315,19 +274,35 @@ export function ReactionSetupScreen({
       </main>
 
       {/* Footer */}
-      <footer className="flex-shrink-0 p-4 border-t border-border">
-        <Button
-          onClick={handleStart}
-          size="lg"
-          disabled={!canStart}
-          className={`w-full font-bold text-lg py-6 ${
-            canStart
-              ? 'bg-green-500 hover:bg-green-600 text-white'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
-          }`}
-        >
-          {canStart ? 'INICIAR TREINO' : 'SELECIONE UM ATLETA'}
-        </Button>
+      <footer className="flex-shrink-0 mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 items-end max-w-6xl w-full mx-auto">
+        {/* Rules summary */}
+        <div className="hidden md:block md:col-span-2 bg-slate-900/50 p-3 rounded-xl border border-white/5">
+          <div className="flex gap-4 text-xs text-white/40 font-mono">
+            <span>⏱ {config.workSec}s trab / {config.restSec}s desc</span>
+            <span>🔄 {config.rounds} rounds</span>
+            <span>⚡ {config.flashMs}ms flash</span>
+            <span>📊 Gap {config.gapMs.min}–{config.gapMs.max}ms</span>
+            {config.cognitiveMode && <span>🧠 Go/No-Go {config.goProbability}%</span>}
+          </div>
+        </div>
+
+        {/* Start button */}
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={handleStart}
+            disabled={!canStart}
+            className={`w-full font-bold font-mono text-base py-5 tracking-wider ${
+              canStart
+                ? 'bg-green-500 hover:bg-green-600 text-black'
+                : 'bg-white/10 text-white/30 cursor-not-allowed'
+            }`}
+          >
+            {canStart ? 'INICIAR TREINO' : 'SELECIONE UM ATLETA'}
+          </Button>
+          <button onClick={onBack} className="text-xs text-white/30 hover:text-white/60 font-mono text-center transition-colors">
+            Voltar
+          </button>
+        </div>
       </footer>
 
       <AthletePickerDialog
