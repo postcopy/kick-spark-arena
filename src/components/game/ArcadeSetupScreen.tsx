@@ -117,8 +117,8 @@ export function ArcadeSetupScreen({
       {/* Main content - flex col, no scroll */}
       <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto flex flex-col overflow-hidden">
         {/* Intensity Preset Cards - flexible height */}
-        <div className="flex-1 min-h-0 mb-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 h-full">
+        <div className="flex-1 min-h-0 mb-3 flex flex-col justify-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 h-full max-h-[500px]">
             {INTENSITY_PRESETS.map((preset) => {
               const isActive = selectedPreset === preset.id;
               return (
