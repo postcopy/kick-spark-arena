@@ -40,7 +40,7 @@ export function MenuDrawer({
       {/* Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] animate-fade-in"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[90] animate-fade-in"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -48,7 +48,7 @@ export function MenuDrawer({
       {/* Drawer */}
       <div 
         className={cn(
-          'fixed top-0 right-0 h-full w-80 bg-[#0b1120] backdrop-blur-xl border-l border-border z-[100] transition-transform duration-300 ease-out',
+          'fixed top-0 right-0 h-full w-80 bg-[#0b1120] backdrop-blur-xl border-l border-border z-[100] shadow-[-10px_0_30px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out',
           isOpen ? 'translate-x-0' : 'translate-x-full'
         )}
       >
