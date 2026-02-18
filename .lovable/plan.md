@@ -1,10 +1,10 @@
 
 
-# Redesign Radical: E-Sports Broadcast Layout (Tela Final)
+# Fix de Layout: Ajuste "Fit-to-Screen" (Sem Scroll)
 
 ## Resumo
 
-Transformar o ArcadeFinishedScreen de um grid centralizado 5-colunas para um layout Full-Width Asymmetrical Split com dois paineis distintos lado a lado, emulando uma transmissao de E-Sports profissional.
+Compactar o ArcadeSetupScreen verticalmente para caber em 100vh sem scroll, usando Flexbox vertical com `flex-1` nos cartoes de intensidade para que encolham automaticamente em telas menores.
 
 ---
 
@@ -12,93 +12,70 @@ Transformar o ArcadeFinishedScreen de um grid centralizado 5-colunas para um lay
 
 | Arquivo | Tipo |
 |---------|------|
-| `src/components/game/ArcadeFinishedScreen.tsx` | Redesign radical de layout |
+| `src/components/game/ArcadeSetupScreen.tsx` | Compactacao vertical CSS/Tailwind |
 
 ---
 
-## Estrutura do Novo Layout
+## Alteracoes
+
+### 1. Container Principal (linha 102)
+- Trocar `overflow-hidden` por manter, mas garantir que `h-full` funcione como `h-screen` no contexto pai
+- Reduzir padding: `p-4 md:p-6` ja esta OK
+
+### 2. Main wrapper (linha 118)
+- **Antes**: `flex-1 min-h-0 w-full max-w-6xl mx-auto overflow-y-auto`
+- **Depois**: `flex-1 min-h-0 w-full max-w-6xl mx-auto flex flex-col overflow-hidden`
+- Remover `overflow-y-auto` (proibido scroll)
+- Adicionar `flex flex-col` para distribuir espaco internamente
+
+### 3. Header (linhas 104-115)
+- Reduzir `mb-4 md:mb-6` para `mb-2 md:mb-3`
+- Titulo: adicionar `text-[clamp(1.5rem,4vmin,3rem)]` para escalar com a tela
+- Subtitulo: reduzir para `text-sm md:text-base`
+
+### 4. Cartoes de Intensidade (linhas 120-150)
+- **Antes**: `grid ... mb-6` (altura fixa pelo conteudo)
+- **Depois**: `flex-1 min-h-0 grid ... mb-3` (cresce/encolhe com espaco disponivel)
+- Wrapper div com `flex-1 min-h-0 mb-3` envolvendo o grid
+- Grid interno: `h-full` para preencher o wrapper
+- Cartoes: `overflow-hidden` para cortar conteudo se muito apertado
+- Reduzir padding: `p-3 md:p-4` (era `p-4 md:p-6`)
+- Icones: `w-6 h-6 md:w-8 md:h-8` (era `w-8 h-8 md:w-10 md:h-10`)
+- Descricao: `hidden md:block` (esconder em telas baixas) ou `text-[0.65rem] leading-tight`
+
+### 5. Painel de Controles (linhas 152-230)
+- **Antes**: `p-4 md:p-6 ... mb-6`
+- **Depois**: `flex-shrink-0 p-3 md:p-4 ... mb-3`
+- `flex-shrink-0` para nao encolher (manter sempre visivel)
+- Reduzir gaps internos: `gap-3 md:gap-4` (era `gap-4 md:gap-6`)
+- Labels e valores na mesma linha (ja estao com `justify-between`)
+- Reduzir `mb-3 md:mb-4` dos sub-headers para `mb-2`
+
+### 6. Rodape (linhas 232-269)
+- **Antes**: `grid ... items-end` sem restricao
+- **Depois**: `flex-shrink-0 grid ... items-end`
+- Regras: texto mais compacto, `p-2 md:p-3` (era `p-3 md:p-4`)
+- Botao Iniciar: `h-12 md:h-14` (era `h-14 md:h-16`)
+- Botao Voltar + hint SPACE: combinar em uma linha so para economizar altura
+
+---
+
+## Estrutura Logica Final
 
 ```text
-+====================================+=========================+
-|                                    |                         |
-|       "THE CHAMPION ZONE"          |    "MATCH STATS HUD"    |
-|           (60-65%)                 |       (35-40%)          |
-|                                    |                         |
-|     WINNER (texto outline 12vmin   |   Placar Final: 2 - 1  |
-|      opacity-30 como watermark)    |                         |
-|                                    |   +------------------+  |
-|     Trofeu 25vmin + mega glow      |   | Round 1 | 45 - 0 |  |
-|                                    |   | Round 2 | 12 - 30|  |
-|     VERMELHO                       |   | Round 3 | 0 - 55 |  |
-|     CAMPEAO DO DUELO!              |   +------------------+  |
-|                                    |                         |
-|                                    |   [Jogar Novamente]     |
-|     border-r-4 winner color -----> |   [Menu Principal]      |
-|                                    |                         |
-+====================================+=========================+
+div (h-full, flex flex-col, overflow-hidden)
+  |-- header (flex-shrink-0)        ~60px
+  |-- main (flex-1, min-h-0, flex flex-col)
+  |     |-- cards (flex-1, min-h-0)  ~preenche espaco livre
+  |     |-- controls (flex-shrink-0) ~120px
+  |     |-- footer (flex-shrink-0)   ~80px
 ```
-
----
-
-## Alteracoes Detalhadas
-
-### 1. Container Mestre
-- **Antes**: `flex flex-col h-full w-full overflow-hidden` com inner scrollable area e grid 5-colunas
-- **Depois**: `absolute inset-0 w-full h-full overflow-hidden flex flex-col lg:flex-row`
-- Background: manter `bg-[#0b1120]` + arcade-pattern
-- Remover o wrapper `flex-1 min-h-0 overflow-y-auto` e o grid `lg:grid-cols-5`
-
-### 2. Painel Esquerdo: "The Champion Zone" (~60%)
-- Container: `flex-[3] relative flex flex-col items-center justify-center overflow-hidden`
-- Gradiente linear do vencedor: `bg-gradient-to-r from-red-900/40 to-transparent` (ou blue)
-- Borda separadora: `border-r-4 border-game-red` (ou blue/yellow) — apenas em lg+
-- Conteudo:
-  - **Texto watermark "WINNER"**: `absolute` centralizado, `text-[12vmin] font-black tracking-tighter opacity-10 text-white uppercase` — efeito de marca d'agua atras do trofeu
-  - **Trofeu**: Aumentar de `15vmin` para `25vmin` (`w-[clamp(100px,25vmin,250px)]`)
-  - **Glow do trofeu**: `shadow-[0_0_100px_...]` mais intenso
-  - **Nome do vencedor**: manter `text-[clamp(3rem,10vmin,6rem)]` com `font-black`
-  - **Subtitulo**: "CAMPEAO DO DUELO!" em `font-mono`
-  - Badge "CORRIDA DE DEMOLICAO" e placar (redWins x blueWins) permanecem aqui
-
-### 3. Painel Direito: "Match Stats HUD" (~40%)
-- Container: `flex-[2] relative flex flex-col bg-slate-950/80 backdrop-blur-md`
-- Padding: `p-6 md:p-8`
-- Conteudo (de cima para baixo):
-  - **Placar Final**: Destaque no topo com numeros grandes `text-[clamp(3rem,8vmin,5rem)]` — o "2 - 1" com cores
-  - **Round Cards**: Substituir a divisoria simples por cards com `bg-white/5 border border-white/10 rounded-lg p-3 mb-2` para cada round
-  - **Botoes de Acao**: Fixos na parte inferior desta coluna (`mt-auto`) — "Jogar Novamente" e "Menu"
-  - **Hint SPACE**: Abaixo dos botoes
-
-### 4. Responsividade Mobile
-- Em telas < lg: layout em coluna unica (flex-col)
-- Painel esquerdo: sem borda-r, centralizado
-- Painel direito: sem backdrop-blur pesado, compacto
-- Botoes voltam ao padrao centralizado
-
-### 5. Detalhes de Acabamento
-- Numeros e stats: `font-mono` consistente
-- Titulos e nomes: `font-black italic`
-- Separador diagonal (opcional): `clip-path` ou simplesmente a `border-r-4` para manter simplicidade
-
----
 
 ## O Que NAO Muda
 
-- Logica de estado (winner, redWins, blueWins, rounds)
-- Efeitos sonoros (play victoryRed/Blue/victory)
-- Componente Confetti
-- Props e callbacks (onPlayAgain, onBackToMenu)
-- Keyboard handler (SPACE)
-- Ref hasPlayedRef
-
----
-
-## Resumo Tecnico
-
-- 1 arquivo alterado
-- 0 arquivos novos
-- 0 imports novos
-- Apenas CSS/Tailwind, nenhuma mudanca de logica
-- Segue padrao vmin/clamp para Kiosk Mode
-- Responsivo: coluna unica em mobile, split assimetrico em lg+
+- Logica de estados e callbacks
+- Props do componente
+- Presets e opcoes
+- Integracao com SoundContext
+- Layout horizontal (3 colunas em desktop)
 
