@@ -60,6 +60,7 @@ export interface EquipmentState {
 export interface UseSerialPortReturn {
   isConnected: boolean;
   isConnecting: boolean;
+  isAutoConnecting: boolean;
   error: string | null;
   isSupported: boolean;
   connect: () => Promise<void>;
