@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Trophy, RotateCcw, Home, Medal, Zap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { GameResult } from '@/types/game';
 import { Confetti } from './Confetti';
-import { FighterMascot } from './FighterMascot';
+import bgMenuModos from '@/assets/menu-modos.jpg';
 import { useSound } from '@/contexts/SoundContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -181,108 +180,108 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
     );
   }
 
-  // Duo Mode UI - Simplified
-  return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-background relative">
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-6 md:p-8">
-      <Confetti />
+  // Duo Mode UI — Industrial Cyber After-Action Report
+  const redCpmFinal = duration > 0 ? Math.round((scores.red / duration) * 60) : 0;
+  const blueCpmFinal = duration > 0 ? Math.round((scores.blue / duration) * 60) : 0;
+  const isRedWinner = winner === 'red';
+  const isBlueWinner = winner === 'blue';
 
-      {/* Background Glow */}
+  const buttonClipPath = 'polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%)';
+
+  return (
+    <div className="fixed inset-0 bg-[#0b1120] flex flex-col items-center justify-center overflow-hidden">
+      {/* Background image */}
+      <img src={bgMenuModos} alt="" className="absolute inset-0 w-full h-full object-cover opacity-[0.05] pointer-events-none" />
+
+      {/* Scanlines */}
       <div
-        className="absolute inset-0 opacity-30"
+        className="absolute inset-0 pointer-events-none z-10"
         style={{
-          background: isTie
-            ? 'radial-gradient(circle at 50% 30%, hsl(var(--game-yellow) / 0.4), transparent 60%)'
-            : winner === 'red'
-            ? 'radial-gradient(circle at 50% 30%, hsl(var(--game-red) / 0.4), transparent 60%)'
-            : 'radial-gradient(circle at 50% 30%, hsl(var(--game-blue) / 0.4), transparent 60%)',
+          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 4px)',
         }}
       />
 
-      {/* Trophy */}
-      <div className="relative mb-3 animate-trophy-bounce">
-        <Trophy className={cn(
-          'w-14 h-14 md:w-16 md:h-16',
-          isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
-        )} />
-        <div className={cn(
-          'absolute inset-0 w-14 h-14 md:w-16 md:h-16 rounded-full blur-2xl animate-trophy-pulse opacity-50',
-          isTie ? 'bg-game-yellow' : winner === 'red' ? 'bg-game-red' : 'bg-game-blue'
-        )} />
+      <Confetti />
+
+      {/* Header — O Veredito */}
+      <div className="relative z-20 flex flex-col items-center mt-8 mb-6">
+        <span className="tracking-[0.5em] text-white/40 uppercase font-mono text-xs mb-3">
+          SESSÃO FINALIZADA
+        </span>
+        <h1
+          className={cn(
+            'text-6xl md:text-8xl font-black italic text-center',
+            isTie && 'text-white',
+            isRedWinner && 'text-red-500',
+            isBlueWinner && 'text-blue-500',
+          )}
+          style={{
+            filter: isTie
+              ? 'drop-shadow(0 0 40px rgba(255,255,255,0.3))'
+              : isRedWinner
+              ? 'drop-shadow(0 0 40px rgba(239,68,68,0.5))'
+              : 'drop-shadow(0 0 40px rgba(59,130,246,0.5))',
+          }}
+        >
+          {winnerText}
+        </h1>
       </div>
 
-      {/* Winner Text */}
-      <h1 className={cn(
-        'text-4xl md:text-5xl font-bold text-center mb-4 animate-winner-text',
-        isTie ? 'text-game-yellow' : winner === 'red' ? 'text-game-red' : 'text-game-blue'
-      )}>
-        {winnerText}
-      </h1>
-
-      {/* Score Cards */}
-      <div className="flex gap-3 md:gap-6 mb-6 relative z-10">
-        {/* Red Score */}
-        <div className={cn(
-          'p-4 md:p-6 rounded-2xl border-2 text-center min-w-[100px] md:min-w-[140px] animate-score-slide-left',
-          winner === 'red'
-            ? 'bg-game-red/20 border-game-red'
-            : 'bg-game-surface border-border'
-        )}>
-          <div className="text-4xl md:text-5xl font-bold text-game-red">{scores.red}</div>
-          {/* Mascote vermelho */}
-          <div className="mt-2 flex justify-center">
-            <FighterMascot 
-              side="red" 
-              state={winner === 'red' ? 'winner' : winner === 'tie' ? 'idle' : 'loser'} 
-              size="sm"
-            />
-          </div>
+      {/* Performance Cards */}
+      <div className="grid grid-cols-2 gap-6 max-w-3xl w-full px-8 relative z-20">
+        {/* Red Card */}
+        <div
+          className={cn(
+            'bg-gradient-to-b from-white/5 to-transparent backdrop-blur-md border border-white/10 rounded-none p-6 flex flex-col items-start transition-opacity',
+            isBlueWinner && 'opacity-60',
+          )}
+        >
+          <div className="h-1 w-full bg-red-500 mb-4" />
+          <span className="text-8xl font-black italic text-red-500 leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {scores.red}
+          </span>
+          <span className="font-mono text-white/40 uppercase tracking-widest text-sm mt-2">HITS</span>
+          <span className="font-mono text-white/30 text-xs mt-1">CPM: {redCpmFinal}</span>
         </div>
 
-        {/* VS */}
-        <div className="flex items-center">
-          <span className="text-2xl md:text-3xl font-bold text-muted-foreground">VS</span>
-        </div>
-
-        {/* Blue Score */}
-        <div className={cn(
-          'p-4 md:p-6 rounded-2xl border-2 text-center min-w-[100px] md:min-w-[140px] animate-score-slide-right',
-          winner === 'blue'
-            ? 'bg-game-blue/20 border-game-blue'
-            : 'bg-game-surface border-border'
-        )}>
-          <div className="text-4xl md:text-5xl font-bold text-game-blue">{scores.blue}</div>
-          {/* Mascote azul */}
-          <div className="mt-2 flex justify-center">
-            <FighterMascot 
-              side="blue" 
-              state={winner === 'blue' ? 'winner' : winner === 'tie' ? 'idle' : 'loser'} 
-              size="sm"
-            />
-          </div>
+        {/* Blue Card */}
+        <div
+          className={cn(
+            'bg-gradient-to-b from-white/5 to-transparent backdrop-blur-md border border-white/10 rounded-none p-6 flex flex-col items-end text-right transition-opacity',
+            isRedWinner && 'opacity-60',
+          )}
+        >
+          <div className="h-1 w-full bg-blue-500 mb-4" />
+          <span className="text-8xl font-black italic text-blue-500 leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {scores.blue}
+          </span>
+          <span className="font-mono text-white/40 uppercase tracking-widest text-sm mt-2">HITS</span>
+          <span className="font-mono text-white/30 text-xs mt-1">CPM: {blueCpmFinal}</span>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-col w-full max-w-sm gap-3 relative z-10">
-        <Button
-          size="lg"
+      {/* Action Buttons */}
+      <div className="flex gap-4 mt-auto pb-8 relative z-20">
+        <button
           onClick={onPlayAgain}
-          className="w-full h-16 text-xl font-bold rounded-2xl bg-game-yellow hover:bg-game-yellow/90 text-background transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="px-8 py-4 bg-[#FFD700] text-black font-bold uppercase tracking-wider hover:brightness-110 transition-all"
+          style={{ clipPath: buttonClipPath }}
         >
-          <RotateCcw className="mr-3 h-6 w-6" />
-          JOGAR DE NOVO
-        </Button>
-        <Button
-          variant="outline"
-          size="lg"
+          <span className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5" />
+            JOGAR DE NOVO
+          </span>
+        </button>
+        <button
           onClick={onBackToMenu}
-          className="w-full h-14 text-lg rounded-2xl"
+          className="px-8 py-4 border border-white/20 text-white hover:bg-white/10 bg-transparent font-bold uppercase tracking-wider transition-all"
+          style={{ clipPath: buttonClipPath }}
         >
-          <Home className="mr-2 h-5 w-5" />
-          Menu
-        </Button>
-      </div>
+          <span className="flex items-center gap-2">
+            <Home className="h-5 w-5" />
+            MENU
+          </span>
+        </button>
       </div>
     </div>
   );
