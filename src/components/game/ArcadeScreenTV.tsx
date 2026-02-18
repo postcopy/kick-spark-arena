@@ -320,84 +320,110 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           )}
         </div>
 
-        {/* KO Overlay — winner zeroed their target */}
-        {showKO && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/85 z-40">
-            <div className="text-center animate-ko-tv">
-              <div 
-                className={cn(
-                  "font-black leading-none font-mono",
-                  "text-[clamp(160px,22vmin,320px)]",
-                  "text-game-yellow"
-                )}
-                style={{ textShadow: '0 12px 0 rgba(0,0,0,0.4), 0 0 100px rgba(255,215,0,0.6)' }}
-              >
-                ZERO!
+        {/* Unified Round Transition Panel */}
+        {(showKO || (gameState === 'round_end' && !showKO)) && (
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-40 flex items-center justify-center">
+            <div className={cn(
+              "bg-[#0b1120]/95 rounded-2xl border-2 p-[clamp(24px,4vmin,48px)] text-center",
+              "w-[clamp(400px,60vmin,700px)] max-w-[90vw]",
+              showKO
+                ? "border-game-yellow/60 shadow-[0_0_60px_rgba(255,215,0,0.3)]"
+                : "border-cyan-400/50 shadow-[0_0_60px_rgba(34,211,238,0.25)]"
+            )}>
+              {/* Header */}
+              <div className="text-[clamp(14px,2vmin,22px)] font-black uppercase tracking-[0.25em] text-white/50 font-mono mb-4">
+                FIM DO ROUND {currentRound}
               </div>
-              
-              <div className={cn(
-                "font-black uppercase mt-6 font-mono",
-                "text-[clamp(48px,6vmin,96px)]",
-                showKO === 'red' ? "text-game-red" : "text-game-blue"
-              )}
-              style={{
-                textShadow: showKO === 'red' 
-                  ? '0 0 50px hsl(var(--game-red-glow) / 0.7)' 
-                  : '0 0 50px hsl(var(--game-blue-glow) / 0.7)'
-              }}
-              >
-                {showKO === 'red' ? 'VERMELHO' : 'AZUL'} VENCE!
-              </div>
-              
-              {recoveryCountdown > 0 && (
-                <div className="mt-8">
-                  <span className="text-white/60 text-[clamp(18px,2vmin,28px)] uppercase tracking-wider font-mono">
-                    Próximo round em
-                  </span>
-                  <div className="text-[clamp(80px,10vmin,140px)] font-black text-green-500 animate-pulse font-mono">
-                    {recoveryCountdown}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+              <div className="border-b border-white/10 mb-6" />
 
-        {/* Round End (time up) — LOWER HP wins */}
-        {gameState === 'round_end' && !showKO && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/85 z-40">
-            <div className="text-center animate-ko-tv">
-              <div 
-                className={cn(
-                  "font-black font-mono",
-                  "text-[clamp(140px,16vmin,260px)]",
-                  "text-game-yellow"
-                )}
-                style={{ textShadow: '0 8px 0 rgba(0,0,0,0.4), 0 0 80px rgba(255,215,0,0.5)' }}
-              >
-                TEMPO!
-              </div>
-              <div className={cn(
-                "font-black uppercase mt-4 font-mono",
-                "text-[clamp(48px,6vmin,96px)]"
-              )}>
-                {redState.hp < blueState.hp 
-                  ? <span className="text-game-red" style={{ textShadow: '0 0 40px hsl(var(--game-red-glow) / 0.6)' }}>VERMELHO VENCE!</span>
-                  : blueState.hp < redState.hp 
-                    ? <span className="text-game-blue" style={{ textShadow: '0 0 40px hsl(var(--game-blue-glow) / 0.6)' }}>AZUL VENCE!</span>
-                    : <span className="text-game-yellow" style={{ textShadow: '0 0 40px hsl(var(--game-yellow-glow) / 0.6)' }}>EMPATE!</span>
-                }
-              </div>
-              
+              {/* Result */}
+              {showKO ? (
+                <>
+                  <div
+                    className="font-black leading-none font-mono text-game-yellow text-[clamp(80px,14vmin,180px)]"
+                    style={{ textShadow: '0 8px 0 rgba(0,0,0,0.4), 0 0 80px rgba(255,215,0,0.6)' }}
+                  >
+                    ZERO!
+                  </div>
+                  <div className={cn(
+                    "font-black uppercase mt-2 font-mono text-[clamp(20px,3.5vmin,42px)]",
+                    showKO === 'red' ? "text-game-red" : "text-game-blue"
+                  )}
+                  style={{
+                    textShadow: showKO === 'red'
+                      ? '0 0 40px hsl(var(--game-red-glow) / 0.7)'
+                      : '0 0 40px hsl(var(--game-blue-glow) / 0.7)'
+                  }}>
+                    {showKO === 'red' ? 'VERMELHO' : 'AZUL'} ZEROU A META!
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    className="font-black leading-none font-mono text-game-yellow text-[clamp(40px,6vmin,80px)]"
+                    style={{ textShadow: '0 6px 0 rgba(0,0,0,0.4), 0 0 60px rgba(255,215,0,0.5)' }}
+                  >
+                    TEMPO ESGOTADO!
+                  </div>
+                  <div className={cn(
+                    "font-black uppercase mt-2 font-mono text-[clamp(20px,3.5vmin,42px)]"
+                  )}>
+                    {redState.hp < blueState.hp
+                      ? <span className="text-game-red" style={{ textShadow: '0 0 30px hsl(var(--game-red-glow) / 0.6)' }}>VANTAGEM VERMELHO</span>
+                      : blueState.hp < redState.hp
+                        ? <span className="text-game-blue" style={{ textShadow: '0 0 30px hsl(var(--game-blue-glow) / 0.6)' }}>VANTAGEM AZUL</span>
+                        : <span className="text-game-yellow" style={{ textShadow: '0 0 30px hsl(var(--game-yellow-glow) / 0.6)' }}>EMPATE!</span>
+                    }
+                  </div>
+                </>
+              )}
+
+              {/* Match Score (Best of N) */}
+              {config.bestOf > 1 && (
+                <>
+                  <div className="border-b border-white/10 my-6" />
+                  <div className="flex items-center justify-center gap-[clamp(16px,3vmin,32px)]">
+                    <div className="text-center">
+                      <div className={cn(
+                        "font-black font-mono text-[clamp(48px,8vmin,96px)] leading-none",
+                        (showKO === 'red' || (!showKO && redState.hp < blueState.hp)) ? "text-game-red" : "text-game-red/40"
+                      )}>
+                        {redWins}
+                      </div>
+                      <div className="text-[clamp(10px,1.5vmin,14px)] font-bold uppercase tracking-wider text-white/40 font-mono mt-1">
+                        VERMELHO
+                      </div>
+                    </div>
+                    <span className="text-[clamp(32px,5vmin,64px)] font-black text-white/20 font-mono">×</span>
+                    <div className="text-center">
+                      <div className={cn(
+                        "font-black font-mono text-[clamp(48px,8vmin,96px)] leading-none",
+                        (showKO === 'blue' || (!showKO && blueState.hp < redState.hp)) ? "text-game-blue" : "text-game-blue/40"
+                      )}>
+                        {blueWins}
+                      </div>
+                      <div className="text-[clamp(10px,1.5vmin,14px)] font-bold uppercase tracking-wider text-white/40 font-mono mt-1">
+                        AZUL
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Countdown */}
               {recoveryCountdown > 0 && (
-                <div className="mt-8">
-                  <span className="text-white/60 text-[clamp(18px,2vmin,28px)] uppercase tracking-wider font-mono">
-                    Próximo round em
-                  </span>
-                  <div className="text-[clamp(80px,10vmin,140px)] font-black text-green-500 animate-pulse font-mono">
+                <>
+                  <div className="border-b border-white/10 my-6" />
+                  <div className="text-[clamp(12px,1.8vmin,18px)] text-white/50 uppercase tracking-wider font-mono mb-2">
+                    Próximo round em:
+                  </div>
+                  <div className={cn(
+                    "text-[clamp(64px,10vmin,120px)] font-black text-green-500 font-mono leading-none",
+                    recoveryCountdown <= 2 && "animate-pulse"
+                  )}>
                     {recoveryCountdown}
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
