@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { useSound } from '@/contexts/SoundContext';
+import { ChevronRight, HelpCircle } from 'lucide-react';
+import { MissionBriefing } from './MissionBriefing';
+import { SetupTutorialDialog } from './SetupTutorialDialog';
+import { useIdleAttention } from '@/hooks/useIdleAttention';
 import bgMenuModos from '@/assets/menu-modos.jpg';
 
 interface ArcadeSetupScreenProps {
@@ -30,6 +34,12 @@ const INTENSITY_PRESETS = [
   { id: 'elite', label: 'ELITE', meta: 'TARGET: 200', damage: 0.5 },
 ];
 
+const BRIEFING_TEXTS: Record<string, string> = {
+  sprint: 'PROTOCOLO DE VELOCIDADE: Atingir a meta no menor tempo. Foco em explosão.',
+  resistance: 'VOLUME DE LUTA: Meta padrão com ritmo constante. Equilíbrio entre potência e resistência.',
+  elite: 'DESAFIO DE MARATONA: Meta extrema que exige estratégia e controle total do combate.',
+};
+
 export function ArcadeSetupScreen({
   onStart,
   onBack,
@@ -46,6 +56,8 @@ export function ArcadeSetupScreen({
 }: ArcadeSetupScreenProps) {
   const { unlockAudio, initFullPreload } = useSound();
   const [selectedPreset, setSelectedPreset] = useState<string>('resistance');
+  const [showTutorial, setShowTutorial] = useState(false);
+  const isIdle = useIdleAttention(5000);
 
   const handleStart = () => {
     unlockAudio();
@@ -66,17 +78,24 @@ export function ArcadeSetupScreen({
       {/* Background overlay */}
       <img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.03] pointer-events-none" alt="" />
 
-      {/* Header — terminal style, left-aligned */}
-      <header className="flex-shrink-0 text-left mb-4 md:mb-6 relative z-10">
+      {/* Header */}
+      <header className="flex-shrink-0 flex items-center justify-between mb-4 md:mb-6 relative z-10">
         <h1 className="text-[clamp(1.5rem,4vmin,3rem)] font-black text-white tracking-tighter font-mono uppercase">
           CORRIDA DE <span className="text-[#FFD700]">DEMOLIÇÃO</span>
         </h1>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 font-mono text-xs text-white/30 hover:text-white/60 transition-colors"
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span className="hidden md:inline">AJUDA</span>
+        </button>
       </header>
 
       {/* Main content */}
       <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto flex flex-col overflow-hidden relative z-10">
-        {/* Intensity Preset Cards — flat horizontal bars */}
-        <div className="flex-shrink-0 mb-4 md:mb-6">
+        {/* Intensity Preset Cards */}
+        <div className="flex-shrink-0 mb-2">
           <div className="flex flex-col gap-2">
             {INTENSITY_PRESETS.map((preset) => {
               const isActive = selectedPreset === preset.id;
@@ -85,7 +104,7 @@ export function ArcadeSetupScreen({
                   key={preset.id}
                   onClick={() => selectPreset(preset)}
                   className={cn(
-                    "flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200",
+                    "group flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 cursor-pointer",
                     isActive
                       ? "bg-[#FFD700] text-black border border-transparent"
                       : "bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10"
@@ -94,16 +113,29 @@ export function ArcadeSetupScreen({
                   <span className="text-2xl md:text-3xl font-black uppercase tracking-tighter">
                     {preset.label}
                   </span>
-                  <span className={cn(
-                    "font-mono text-lg md:text-xl",
-                    isActive ? "text-black/60" : "text-white/20"
-                  )}>
-                    {preset.meta}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={cn(
+                      "font-mono text-lg md:text-xl",
+                      isActive ? "text-black/60" : "text-white/20"
+                    )}>
+                      {preset.meta}
+                    </span>
+                    <ChevronRight className={cn(
+                      "transition-all duration-200",
+                      isActive
+                        ? "w-5 h-5 text-black"
+                        : "w-4 h-4 text-white/20 group-hover:text-white/60 group-hover:translate-x-1"
+                    )} />
+                  </div>
                 </button>
               );
             })}
           </div>
+        </div>
+
+        {/* Mission Briefing */}
+        <div className="flex-shrink-0 mb-3">
+          <MissionBriefing text={BRIEFING_TEXTS[selectedPreset] || ''} />
         </div>
 
         {/* Controls Panel */}
@@ -198,7 +230,10 @@ export function ArcadeSetupScreen({
           <div className="md:col-span-1 flex flex-col gap-2">
             <button
               onClick={handleStart}
-              className="w-full h-14 bg-[#FFD700] text-black font-black uppercase tracking-widest text-lg hover:brightness-110 transition-all flex items-center justify-center"
+              className={cn(
+                "w-full h-14 bg-[#FFD700] text-black font-black uppercase tracking-widest text-lg hover:brightness-110 transition-all flex items-center justify-center",
+                isIdle && "animate-pulse"
+              )}
               style={{ clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)' }}
             >
               INICIAR DUELO
@@ -217,6 +252,8 @@ export function ArcadeSetupScreen({
           </div>
         </div>
       </main>
+
+      <SetupTutorialDialog open={showTutorial} onOpenChange={setShowTutorial} accentColor="bg-[#FFD700]" />
     </div>
   );
 }

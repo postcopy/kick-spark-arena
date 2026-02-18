@@ -4,8 +4,12 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
+import { ChevronRight, HelpCircle } from 'lucide-react';
 import { AddAthleteDialog } from './AddAthleteDialog';
 import { RankingPreview, AthleteStats } from './RankingPreview';
+import { MissionBriefing } from './MissionBriefing';
+import { SetupTutorialDialog } from './SetupTutorialDialog';
+import { useIdleAttention } from '@/hooks/useIdleAttention';
 import type { Athlete } from '@/types/game';
 import bgMenuModos from '@/assets/menu-modos.jpg';
 
@@ -30,6 +34,19 @@ const DURATION_OPTIONS = [
   { value: 90, label: '1:30', sublabel: 'Avançado', ageGroup: 'adult' },
 ];
 
+const VARIANT_BRIEFINGS: Record<TimeAttackVariant, string> = {
+  duo: 'MODO DUPLA: Dois jogadores competem lado a lado. Quem marcar mais chutes vence.',
+  individual: 'MODO SOLO: Treine sozinho e registre seu desempenho no ranking.',
+};
+
+const DURATION_BRIEFINGS: Record<number, string> = {
+  15: 'SPRINT KIDS: Desafio relâmpago para os pequenos guerreiros. Velocidade pura!',
+  30: 'KIDS AVANÇADO: Tempo ideal para crianças de 7 a 9 anos desenvolverem técnica.',
+  45: 'JUVENIL: Equilíbrio entre velocidade e resistência para jovens atletas.',
+  60: 'PADRÃO ADULTO: O tempo clássico de competição. Recomendado para todos.',
+  90: 'AVANÇADO: Teste de resistência e estratégia. Só para os mais preparados.',
+};
+
 export function SetupScreen({ 
   onStart, 
   onBack, 
@@ -47,7 +64,9 @@ export function SetupScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRanking, setShowRanking] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [step, setStep] = useState<'players' | 'athlete' | 'duration'>('players');
+  const isIdle = useIdleAttention(5000);
 
   // Fetch athletes when variant changes to individual
   useEffect(() => {
@@ -143,17 +162,26 @@ export function SetupScreen({
       {/* Background overlay */}
       <img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.03] pointer-events-none" alt="" />
 
-      {/* Progress Indicator — flat bars */}
-      <div className="flex items-center justify-center gap-2 pt-6 pb-2 relative z-10">
-        {Array.from({ length: totalSteps }).map((_, i) => (
-          <div
-            key={i}
-            className={cn(
-              'w-8 h-1 transition-all',
-              i + 1 <= currentStep ? 'bg-[#FFD700]' : 'bg-white/20'
-            )}
-          />
-        ))}
+      {/* Progress Indicator + Help */}
+      <div className="flex items-center justify-between px-6 pt-6 pb-2 relative z-10">
+        <div className="flex items-center gap-2">
+          {Array.from({ length: totalSteps }).map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                'w-8 h-1 transition-all',
+                i + 1 <= currentStep ? 'bg-[#FFD700]' : 'bg-white/20'
+              )}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 font-mono text-xs text-white/30 hover:text-white/60 transition-colors"
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span className="hidden md:inline">AJUDA</span>
+        </button>
       </div>
 
       {/* Main Content Area */}
@@ -168,33 +196,47 @@ export function SetupScreen({
               </h1>
 
               <div className="flex flex-col gap-2 w-full max-w-3xl">
-                {/* Duo */}
                 <button
                   onClick={() => handleVariantSelect('duo')}
                   className={cn(
-                    "flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98]",
+                    "group flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98] cursor-pointer",
                     variant === 'duo'
                       ? "bg-[#FFD700] text-black border border-transparent"
                       : "bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10"
                   )}
                 >
                   <span className="text-2xl md:text-3xl font-black uppercase tracking-tighter">DUPLA</span>
-                  <span className={cn("font-mono text-lg", variant === 'duo' ? "text-black/60" : "text-white/20")}>2 PLAYERS</span>
+                  <div className="flex items-center gap-3">
+                    <span className={cn("font-mono text-lg", variant === 'duo' ? "text-black/60" : "text-white/20")}>2 PLAYERS</span>
+                    <ChevronRight className={cn(
+                      "transition-all duration-200",
+                      variant === 'duo' ? "w-5 h-5 text-black" : "w-4 h-4 text-white/20 group-hover:text-white/60 group-hover:translate-x-1"
+                    )} />
+                  </div>
                 </button>
 
-                {/* Individual */}
                 <button
                   onClick={() => handleVariantSelect('individual')}
                   className={cn(
-                    "flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98]",
+                    "group flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98] cursor-pointer",
                     variant === 'individual'
                       ? "bg-[#FFD700] text-black border border-transparent"
                       : "bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10"
                   )}
                 >
                   <span className="text-2xl md:text-3xl font-black uppercase tracking-tighter">SOZINHO</span>
-                  <span className={cn("font-mono text-lg", variant === 'individual' ? "text-black/60" : "text-white/20")}>RANKING</span>
+                  <div className="flex items-center gap-3">
+                    <span className={cn("font-mono text-lg", variant === 'individual' ? "text-black/60" : "text-white/20")}>RANKING</span>
+                    <ChevronRight className={cn(
+                      "transition-all duration-200",
+                      variant === 'individual' ? "w-5 h-5 text-black" : "w-4 h-4 text-white/20 group-hover:text-white/60 group-hover:translate-x-1"
+                    )} />
+                  </div>
                 </button>
+              </div>
+
+              <div className="mt-4 max-w-3xl">
+                <MissionBriefing text={VARIANT_BRIEFINGS[variant] || ''} />
               </div>
             </div>
           )}
@@ -215,7 +257,6 @@ export function SetupScreen({
               </div>
 
               <div className="w-full max-w-4xl">
-                {/* Search */}
                 <div className="mb-4">
                   <Input
                     placeholder="Buscar atleta..."
@@ -225,7 +266,6 @@ export function SetupScreen({
                   />
                 </div>
 
-                {/* Athletes Grid */}
                 <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-[40vh] overflow-y-auto mb-4 p-1">
                   {isLoading ? (
                     <div className="col-span-full text-center py-8 text-white/40 font-mono text-sm">
@@ -270,7 +310,6 @@ export function SetupScreen({
                   )}
                 </div>
 
-                {/* Add Athlete Button */}
                 <button
                   onClick={() => setShowAddDialog(true)}
                   className="w-full h-12 font-mono text-sm uppercase tracking-widest bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all"
@@ -289,14 +328,13 @@ export function SetupScreen({
               </h1>
 
               <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-                {/* Left column: Duration options */}
                 <div className="flex-1 flex flex-col gap-2">
                   {DURATION_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => onDurationChange(option.value)}
                       className={cn(
-                        'relative flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98]',
+                        'group relative flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98] cursor-pointer',
                         duration === option.value
                           ? 'bg-[#FFD700] text-black border border-transparent'
                           : 'bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10'
@@ -315,19 +353,27 @@ export function SetupScreen({
                           </span>
                         )}
                       </div>
-                      <span className={cn(
-                        "font-mono text-lg",
-                        duration === option.value ? "text-black/60" : "text-white/20"
-                      )}>
-                        {option.sublabel}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className={cn(
+                          "font-mono text-lg",
+                          duration === option.value ? "text-black/60" : "text-white/20"
+                        )}>
+                          {option.sublabel}
+                        </span>
+                        <ChevronRight className={cn(
+                          "transition-all duration-200",
+                          duration === option.value ? "w-5 h-5 text-black" : "w-4 h-4 text-white/20 group-hover:text-white/60 group-hover:translate-x-1"
+                        )} />
+                      </div>
                     </button>
                   ))}
+
+                  <div className="mt-3">
+                    <MissionBriefing text={DURATION_BRIEFINGS[duration] || ''} />
+                  </div>
                 </div>
 
-                {/* Right column: Preview + Athlete Stats + Start */}
                 <div className="flex-1 flex flex-col gap-4 lg:justify-center">
-                  {/* Athlete Stats (Individual mode only) */}
                   {variant === 'individual' && selectedAthlete && (
                     <AthleteStats 
                       athleteId={selectedAthlete.id} 
@@ -335,7 +381,6 @@ export function SetupScreen({
                     />
                   )}
 
-                  {/* Preview */}
                   <div className="w-full h-20 bg-white/5 border border-white/10 flex overflow-hidden">
                     {variant === 'duo' ? (
                       <>
@@ -356,7 +401,6 @@ export function SetupScreen({
                     )}
                   </div>
 
-                  {/* Start Button — chamfered */}
                   <button
                     onClick={handleStart}
                     disabled={!canStart}
@@ -364,7 +408,8 @@ export function SetupScreen({
                       'w-full h-14 font-black uppercase tracking-widest text-lg transition-all flex items-center justify-center',
                       canStart
                         ? 'bg-[#FFD700] text-black hover:brightness-110'
-                        : 'bg-white/10 text-white/30 cursor-not-allowed'
+                        : 'bg-white/10 text-white/30 cursor-not-allowed',
+                      canStart && isIdle && 'animate-pulse'
                     )}
                     style={canStart ? { clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)' } : undefined}
                   >
@@ -402,6 +447,9 @@ export function SetupScreen({
           setShowAddDialog(false);
         }}
       />
+
+      {/* Setup Tutorial Dialog */}
+      <SetupTutorialDialog open={showTutorial} onOpenChange={setShowTutorial} accentColor="bg-[#FFD700]" />
     </div>
   );
 }
