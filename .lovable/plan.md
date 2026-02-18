@@ -1,111 +1,170 @@
 
+# Redesign: Home Screen - Pro Lobby
 
-# Fix: Sincronizacao e Decodificacao de Audio (Warm-Up)
+## Resumo
 
-## O Problema
-
-O navegador baixa o arquivo .mp3 (readyState >= 3), mas adia a **decodificacao final** ate o primeiro `play()`. Isso causa um "soluco" audivel na primeira execucao de cada som.
-
-## A Solucao: Warm-Up Play/Pause
-
-Apos o download, forcar um ciclo `play(vol=0) -> pause() -> currentTime=0` para cada som critico. Isso obriga o motor de audio a decodificar o arquivo para a memoria ativa.
+Transformar a HomeScreen de um grid 2x2 centralizado em um **Lobby de 4 colunas widescreen** com Hero Cards verticais, efeitos de glow/hover agressivos e barra de atalhos moderna no footer.
 
 ---
 
-## Arquivos
+## Arquivo Alterado
 
 | Arquivo | Acao |
 |---------|------|
-| `src/hooks/useSoundEffects.ts` | Editar - Adicionar `warmUpSounds()` e expor no retorno |
-| `src/components/game/LoadingScreen.tsx` | Editar - Chamar warm-up apos download, antes de completar |
-| `src/components/game/CountdownScreen.tsx` | Editar - Antecipar play da musica em ~100ms |
+| `src/components/game/HomeScreen.tsx` | Reescrever layout e cards |
+| `src/index.css` | Adicionar keyframes para glow pulse nos cards |
+
+---
+
+## Layout Atual vs. Novo
+
+```text
+ATUAL (grid 2x2 centrado, max-w-4xl)
++-------------------------------+
+| [Logo]          [Ola, user] [=]|
+|-------------------------------|
+|     Escolha um modo           |
+|   +--------+ +--------+      |
+|   | TEMPO  | | DUELO  |      |
+|   +--------+ +--------+      |
+|   | REACAO | | CAMP.  |      |
+|   +--------+ +--------+      |
+|-------------------------------|
+| o Use A e L no teclado        |
++-------------------------------+
+
+NOVO (4 colunas, max-w-7xl, fill height)
++----------------------------------------------------+
+| [Logo]                     [Ola, user] [=]  <- translucent bar |
+|----------------------------------------------------|
+| +----------+ +----------+ +----------+ +----------+|
+| |   [icon] | |   [icon] | |   [icon] | |   [icon] ||
+| |   glow   | |   glow   | |   glow   | |   glow   ||
+| |          | |          | |          | |          ||
+| |  CONTRA  | |  DUELO   | |  REACAO  | | CAMPEO-  ||
+| | O TEMPO  | |          | |          | |  NATO    ||
+| |          | |          | |          | |          ||
+| | Quem     | | Luta ate | | Reflexo  | | Placar   ||
+| | chuta+?  | | o K.O.!  | | e ctrl   | | pro      ||
+| |----------| |----------| |----------| |----------||
+| | 1-2 jog  | | 2 jog    | | Turma    | | 2 telas  ||
+| +----------+ +----------+ +----------+ +----------+|
+|----------------------------------------------------|
+| [A] Vermelho    [L] Azul    [o] Conectado          |
++----------------------------------------------------+
+```
 
 ---
 
 ## Detalhes Tecnicos
 
-### 1. useSoundEffects.ts - Nova funcao `warmUpSounds`
+### 1. Container Principal
 
-Adicionar uma funcao que recebe uma lista de SoundNames e, para cada um:
+- `bg-[#0b1120]` (dark slate consistente com outros modos)
+- `flex flex-col h-full w-full overflow-hidden`
 
-1. Obtem a instancia de audio (pool[0] ou bgMusicAudio)
-2. Seta `volume = 0`
-3. Chama `.play()` (retorna Promise)
-4. No resolve do play, chama `.pause()`, `.currentTime = 0`, restaura volume original
-5. Verifica `duration` - se `NaN`, marca como nao decodificado
+### 2. Header (flex-shrink-0)
 
-A funcao retorna `Promise.all` de todas as warm-ups.
+- Fundo translucido: `bg-white/5 backdrop-blur-sm border-b border-white/10`
+- Logo a esquerda, usuario + MenuDrawer a direita
+- Texto usuario: `text-white/60 font-mono text-xs`
+
+### 3. Main (flex-1 min-h-0)
+
+- `flex items-center justify-center p-4 md:p-6`
+- Container interno: `max-w-7xl w-full`
+- Titulo "SELECIONE O MODO" centralizado acima dos cards, `font-mono font-bold text-white/40 tracking-[0.3em] text-xs md:text-sm uppercase`
+
+#### Hero Cards Grid
 
 ```text
-warmUpSounds(['fightModeBg', 'hit', 'hitHeavy', 'countdown3'])
-  |-- Para cada som:
-  |     audio.volume = 0
-  |     await audio.play()
-  |     audio.pause()
-  |     audio.currentTime = 0
-  |     audio.volume = originalVolume
-  |     if (isNaN(audio.duration)) -> warn
-  |-- Promise.all(...)
+grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4
 ```
 
-Tambem melhorar `waitForAudioReady`:
-- Alem de `readyState >= 3`, verificar `!isNaN(duration)` como criterio adicional
-- Apos todos passarem o readyState check, chamar `warmUpSounds` automaticamente
-- Se `fightModeBg` nao completar warm-up em 5s, forcar `.load()` novamente antes de desistir
+Cada card e um `<button>` com:
 
-Expor `warmUpSounds` no retorno do hook para uso externo se necessario.
+- **Estrutura vertical**: icone no topo, titulo no meio, info no rodape
+- **Fundo**: gradiente vertical sutil da cor do modo (`from-transparent via-[cor]/5 to-[cor]/20`)
+- **Borda**: `border border-[cor]/30` -> hover: `border-[cor]/80`
+- **Glow no icone**: `shadow-[0_0_20px_cor] group-hover:shadow-[0_0_40px_cor]` com transicao
+- **Hover scale**: `hover:scale-[1.03]` com `transition-all duration-300`
+- **Active**: `active:scale-[0.97]`
+- **Altura**: `h-full` para preencher o grid uniformemente
 
-### 2. LoadingScreen.tsx - Integrar warm-up no fluxo
+Icone container:
+- `w-16 h-16 md:w-20 md:h-20` fundo circular translucido
+- Icone `w-8 h-8 md:w-10 md:h-10` na cor do modo
+- CSS glow persistente via `box-shadow` e `text-shadow` na cor do modo
 
-O fluxo atual:
+Titulo:
+- `font-black italic text-lg md:text-xl lg:text-2xl text-white uppercase tracking-tight`
+
+Subtitulo:
+- `text-sm text-[cor] font-medium`
+
+Info tecnica (rodape do card):
+- `font-mono text-[11px] text-white/40 border-t border-white/10 pt-2 mt-auto`
+- Badges como `[1-2 JOGADORES]`, `[2 TELAS]`
+
+### 4. Footer (flex-shrink-0)
+
+- `bg-white/5 border-t border-white/10 px-4 py-2`
+- Layout: `flex items-center justify-center gap-6`
+
+Quando **nao conectado** (teclado):
 ```text
-unlockAudio() -> initFullPreload() -> poll progress -> waitForAudioReady() -> done
+[A] Vermelho    [L] Azul    [ESC] Menu
 ```
+Cada atalho e um grupo com:
+- Badge da tecla: `bg-white/10 border border-white/20 rounded px-2 py-0.5 font-mono text-xs text-white/80`
+- Label: `text-white/40 text-xs font-mono`
 
-Novo fluxo:
+Quando **conectado** (serial):
 ```text
-unlockAudio() -> initFullPreload() -> poll progress -> waitForAudioReady() -> done
+[o] Plaquinha conectada    [Bateria icons]
 ```
-
-A mudanca e interna ao `waitForAudioReady`: ele agora faz o warm-up automaticamente antes de resolver. A LoadingScreen nao precisa de mudancas na logica, mas vamos melhorar o feedback visual:
-
-- Adicionar fase "Decodificando audio..." quando progress >= 75% (download completo, warm-up em andamento)
-- Texto de progresso mais granular: "Baixando..." -> "Decodificando..." -> "Pronto!"
-
-### 3. CountdownScreen.tsx - Antecipar musica em 100ms
-
-Atualmente a musica inicia no exato momento em que `countdown === 6`. Para compensar a latencia residual do motor de audio:
-
-- Alterar o trigger de `countdown === 6` para usar um `setTimeout` de 0ms (microtask) para o play, mas visualmente a fase PREPARAR so aparece apos um pequeno delay
-- Na pratica: inverter a ordem - chamar `playWithRef` primeiro, depois atualizar o visual
-
-Implementacao: quando `countdown === 6`, chamar `playWithRef` imediatamente (sem esperar o render). Como o warm-up ja aconteceu na LoadingScreen, o play sera instantaneo. O efeito visual "PREPARAR" aparece no mesmo frame, entao a latencia perceptivel sera zero.
+- Indicador verde + `EquipmentStatus` compacto
 
 ---
 
-## Resumo das Mudancas por Arquivo
+## Cores por Modo
 
-### useSoundEffects.ts
-- Nova funcao `warmUpSounds(soundNames: SoundName[]): Promise<void>`
-- `waitForAudioReady` agora chama `warmUpSounds` internamente apos readyState check
-- Verificacao adicional de `!isNaN(duration)` no criterio de "pronto"
-- Timeout inteligente para fightModeBg: tenta `.load()` forcado antes de desistir
-- Expor `warmUpSounds` no retorno
+| Modo | Cor CSS | Glow |
+|------|---------|------|
+| Contra o Tempo | `game-yellow` / `#eab308` | `shadow-yellow-500/50` |
+| Duelo | `game-red` / `#ef4444` | `shadow-red-500/50` |
+| Reacao | `#22c55e` (green-500) | `shadow-green-500/50` |
+| Campeonato | `#eab308` (yellow-500) | `shadow-yellow-500/50` |
 
-### LoadingScreen.tsx
-- Texto de progresso atualizado: fase "Decodificando audio..." quando progress >= 75%
-- Sem mudancas na logica de fluxo (warm-up e interno ao waitForAudioReady)
+---
 
-### CountdownScreen.tsx
-- Mover o `playWithRef('fightModeBg')` para executar antes do state update visual
-- Usar `queueMicrotask` ou execucao sincrona para garantir que o play aconteca no inicio do ciclo de render
+## Responsividade
+
+- **Mobile (< lg)**: Grid 2x2, cards mais compactos, icones menores
+- **Desktop (>= lg)**: Grid 4 colunas, cards verticais altos preenchendo a tela
+- Footer sempre visivel, sem scroll
+- `flex-1 min-h-0` no main garante compressao em telas menores
+
+---
+
+## CSS Adicional (index.css)
+
+Adicionar keyframe `glow-pulse` para o efeito de brilho persistente nos icones:
+
+```text
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+```
+
+Classe utilitaria `.icon-glow` que aplica o pulso sutil no box-shadow do container do icone.
 
 ---
 
 ## O Que NAO Muda
 
-- Pool sizes e round-robin
-- Estrutura de preload em batches
-- API publica do hook (apenas adicao de warmUpSounds)
-- Cleanup no unmount
-
+- Props do componente (mesma interface `HomeScreenProps`)
+- Logica de `handleSelectMode`, `handleChampionship`
+- `MenuDrawer` e `EquipmentStatus` (reutilizados)
+- Integracao com `useAuth`, `useSound`
