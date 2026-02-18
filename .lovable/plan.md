@@ -1,10 +1,10 @@
 
 
-# Redesign de Layout: Setup Widescreen (Dashboard Mode)
+# Redesign de Layout: Tela Final Widescreen (Dashboard Split)
 
 ## Resumo
 
-Refatorar o ArcadeSetupScreen de um layout de coluna unica estreita (max-w-2xl) para um dashboard widescreen (max-w-6xl) com grids horizontais, preenchendo a tela 16:9 de forma profissional.
+Refatorar o ArcadeFinishedScreen de um layout de coluna unica centralizada para um layout "Widescreen Split" com duas colunas horizontais, preenchendo a tela 16:9 com estetica de transmissao E-Sports profissional.
 
 ---
 
@@ -12,67 +12,76 @@ Refatorar o ArcadeSetupScreen de um layout de coluna unica estreita (max-w-2xl) 
 
 | Arquivo | Tipo |
 |---------|------|
-| `src/components/game/ArcadeSetupScreen.tsx` | Refatoracao de layout CSS/Tailwind |
+| `src/components/game/ArcadeFinishedScreen.tsx` | Refatoracao de layout CSS/Tailwind |
 
 ---
 
 ## Alteracoes Detalhadas
 
-### 1. Container Principal (linha 119)
-- **Antes**: `max-w-2xl mx-auto` (coluna estreita)
-- **Depois**: `max-w-6xl mx-auto w-full`
-- Remover `space-y-3 md:space-y-4` (o spacing sera gerenciado pelos grids internos)
+### 1. Container Principal (linhas 48-49)
+- **Antes**: `flex flex-col items-center justify-center p-6` (coluna unica centralizada)
+- **Depois**: `w-full max-w-7xl mx-auto px-6 md:px-12 flex flex-col justify-center h-full`
+- Manter `bg-[#0b1120]` e overlays existentes
 
-### 2. Cartoes de Intensidade (linhas 121-151)
-- **Antes**: `grid grid-cols-3 gap-3` (ja e horizontal mas comprimido pela max-w-2xl)
-- **Depois**: `grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6`
-- Adicionar `h-full` nos botoes de preset para altura igual
-- Aumentar padding interno: `p-4` para `p-4 md:p-6`
-- Icones maiores em desktop: `w-8 h-8 md:w-10 md:h-10`
+### 2. Grid Principal de 2 Colunas (novo wrapper — linhas 69-235)
+Substituir o `div.relative.z-10.text-center` por um grid dividido:
 
-### 3. Controles de Tempo e Formato (linhas 153-223)
-Agrupar os 3 paineis (Tempo, Formato, Intervalo) em um unico container com grid horizontal:
-
+```text
++-----------------------------------------------+
+|  COLUNA ESQUERDA (3/5)  |  COLUNA DIREITA (2/5) |
+|                         |                       |
+|  Header Badge           |  DETALHES DOS ROUNDS  |
+|  Trofeu Gigante         |  (tabela data grid)   |
+|  VERMELHO / AZUL        |  Round 1: 45 — 0 ZERO!|
+|  CAMPAO DO DUELO!       |  Round 2: 12 — 30     |
+|  Placar: 2 x 1          |  Round 3: 0 — 55 ZERO!|
+|                         |                       |
++-----------------------------------------------+
+|         BOTOES DE ACAO (largura total)          |
++-----------------------------------------------+
 ```
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
-  <!-- Coluna Esquerda: Slider de Tempo do Round -->
-  <!-- Coluna Direita: Formato (Rapido/Melhor de 3) + Intervalo (condicional) -->
+
+Estrutura:
+```
+<div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 w-full items-stretch relative z-10">
+  <div className="lg:col-span-3 ...">  <!-- Emocao -->
+  <div className="lg:col-span-2 ...">  <!-- Dados -->
 </div>
 ```
 
-- O container externo tera: `bg-slate-900/50 p-4 md:p-6 rounded-xl border border-white/5`
-- Coluna esquerda: Slider de Tempo (como esta, sem o wrapper bg individual)
-- Coluna direita: Formato + Intervalo empilhados verticalmente (sem wrappers bg individuais)
-- Remover os `bg-white/5 border border-white/10` dos paineis internos (o container externo assume esse papel)
+### 3. Coluna Esquerda (Emocao — lg:col-span-3)
+Mover para ca e alinhar a esquerda em desktop:
+- Header badge ("CORRIDA DE DEMOLICAO")
+- Trofeu com glow (manter tamanhos atuais com clamp/vmin)
+- Titulo do vencedor (VERMELHO/AZUL/EMPATE)
+- Subtitulo "CAMPEO DO DUELO!"
+- Placar central (redWins x blueWins)
+- Classes: `flex flex-col justify-center items-center lg:items-start text-center lg:text-left`
+- O gradiente radial do vencedor deve focar nesta coluna
 
-### 4. Rodape: Regras + Botao (linhas 225-261)
-Reorganizar em grid horizontal:
+### 4. Coluna Direita (Dados — lg:col-span-2)
+Mover para ca a tabela "DETALHES DOS ROUNDS":
+- Remover `max-w-lg mx-auto` do container da tabela
+- Adicionar `h-full` ou `min-h-[300px]` para esticar verticalmente
+- Manter estilo `bg-[#0b1120]/80 border border-white/10 backdrop-blur-sm rounded-xl`
+- Classes da coluna: `flex flex-col justify-center`
 
-```
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end">
-  <!-- md:col-span-2: Card de Regras (largo) -->
-  <!-- md:col-span-1: Botao Iniciar + Voltar (empilhados ou lado a lado) -->
-</div>
-```
-
-- Regras ocupam 2/3 da largura em desktop
-- Botao "INICIAR DUELO" ocupa 1/3, com altura maior: `h-14 md:h-16 text-lg md:text-xl`
-- Botao "Voltar" fica acima do Iniciar ou como link discreto
-- Hint do SPACE fica abaixo do botao
-
-### 5. Footer fixo (linhas 238-262)
-- Mover de `footer` separado para dentro do grid de Regras+Botao
-- Ou manter como footer mas com `max-w-6xl` em vez de `max-w-md`
+### 5. Botoes de Acao (fora do grid, abaixo)
+Mover botoes e hint do SPACE para fora do grid principal:
+- Container: `flex flex-col sm:flex-row gap-3 justify-center mt-8 relative z-10`
+- Manter estilos existentes dos botoes
+- Hint SPACE centralizado abaixo
 
 ---
 
 ## O Que NAO Muda
 
-- Nenhuma logica de estado (selectedPreset, selectPreset, handleStart, etc.)
-- Props do componente
-- Valores dos presets (INTENSITY_PRESETS, BEST_OF_OPTIONS)
-- Comportamento do slider
-- Integracao com SoundContext
+- Logica de estado (winner, redWins, blueWins, rounds)
+- Efeitos sonoros (play victoryRed/Blue/victory)
+- Componente Confetti
+- Gradientes radiais (apenas reposicionamento visual)
+- Props e callbacks (onPlayAgain, onBackToMenu)
+- Responsividade mobile (coluna unica em telas < lg)
 
 ---
 
@@ -81,6 +90,6 @@ Reorganizar em grid horizontal:
 - 1 arquivo alterado
 - 0 arquivos novos
 - Apenas CSS/Tailwind, nenhuma mudanca de logica
-- Responsivo: coluna unica em mobile, dashboard em md+
-- Segue padrao max-w-6xl para preencher tela 16:9
+- Responsivo: coluna unica em mobile, split 3/5 + 2/5 em lg+
+- Segue padrao vmin/clamp para Kiosk Mode
 
