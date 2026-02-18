@@ -321,15 +321,15 @@ export function GameScreen({
                 "col-span-5 border-l-4 border-red-500 bg-gradient-to-r from-red-500/10 to-transparent px-6 md:px-10 py-0 rounded-r-xl transition-transform duration-100 flex flex-col justify-center items-center h-full",
                 flashSide === 'red' && "scale-105 from-red-500/25 shadow-[inset_0_0_30px_rgba(239,68,68,0.3)]"
               )}>
-                <span className="text-red-500 font-black italic leading-[0.8] tracking-tighter tabular-nums" style={{ 
+                <span className="text-red-500 font-black italic leading-none tracking-tighter tabular-nums" style={{ 
                   fontSize: 'clamp(8rem, 20vw, 22rem)',
                   filter: 'drop-shadow(0 0 30px rgba(239,68,68,0.4))'
                 }}>
                   {scores.red}
                 </span>
-                <div className="flex flex-col gap-1 items-center" style={{ marginTop: '-4vw' }}>
-                  <span className="text-sm text-white/40 uppercase tracking-[0.3em] font-mono">HITS</span>
-                  <span className="text-lg text-white/60 font-mono tabular-nums">CPM: {redCpm}</span>
+                <div className="flex flex-col gap-1 items-center mt-2 relative z-20">
+                  <span className="text-2xl text-white/40 uppercase tracking-widest font-mono">HITS</span>
+                  <span className="text-xl text-white/60 font-mono tabular-nums">CPM: {redCpm}</span>
                 </div>
               </div>
 
@@ -360,15 +360,15 @@ export function GameScreen({
                 "col-span-5 border-r-4 border-blue-500 bg-gradient-to-l from-blue-500/10 to-transparent px-6 md:px-10 py-0 rounded-l-xl text-right transition-transform duration-100 flex flex-col justify-center items-center h-full",
                 flashSide === 'blue' && "scale-105 from-blue-500/25 shadow-[inset_0_0_30px_rgba(59,130,246,0.3)]"
               )}>
-                <span className="text-blue-500 font-black italic leading-[0.8] tracking-tighter tabular-nums" style={{ 
+                <span className="text-blue-500 font-black italic leading-none tracking-tighter tabular-nums" style={{ 
                   fontSize: 'clamp(8rem, 20vw, 22rem)',
                   filter: 'drop-shadow(0 0 30px rgba(59,130,246,0.4))'
                 }}>
                   {scores.blue}
                 </span>
-                <div className="flex flex-col gap-1 items-center" style={{ marginTop: '-4vw' }}>
-                  <span className="text-sm text-white/40 uppercase tracking-[0.3em] font-mono">HITS</span>
-                  <span className="text-lg text-white/60 font-mono tabular-nums">CPM: {blueCpm}</span>
+                <div className="flex flex-col gap-1 items-center mt-2 relative z-20">
+                  <span className="text-2xl text-white/40 uppercase tracking-widest font-mono">HITS</span>
+                  <span className="text-xl text-white/60 font-mono tabular-nums">CPM: {blueCpm}</span>
                 </div>
               </div>
             </div>
