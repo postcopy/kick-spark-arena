@@ -104,9 +104,14 @@ export function ReactionSetupScreen({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <button
             onClick={() => setShowPicker(true)}
-            className="flex items-center justify-between px-6 h-10 md:h-12 bg-transparent border border-white/5 hover:bg-white/5 hover:border-white/10 transition-all"
+            className={cn(
+              "flex items-center justify-between px-6 h-10 md:h-12 transition-all",
+              canStart
+                ? "bg-transparent border border-white/5 hover:bg-white/5 hover:border-white/10"
+                : "bg-green-500/15 border border-green-500/40 hover:bg-green-500/25 animate-pulse"
+            )}
           >
-            <span className="font-mono font-bold text-white text-sm">
+            <span className={cn("font-mono font-bold text-sm", canStart ? "text-white" : "text-green-400")}>
               {selectedAthlete ? selectedAthlete.name : isGuest ? 'VISITANTE' : 'SELECIONAR ATLETA'}
             </span>
             <div className="flex items-center gap-2">
@@ -164,7 +169,7 @@ export function ReactionSetupScreen({
         </div>
 
         {/* Row 2: Training Parameters */}
-        <div className="bg-black/20 p-3 md:p-4 rounded-xl border border-white/10 flex-1 min-h-0 overflow-hidden">
+        <div className="bg-black/20 p-3 md:p-4 rounded-xl border border-white/10 flex-shrink-0">
           <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-white/40 mb-3">
             PARÂMETROS DO TREINO
           </h3>
@@ -176,7 +181,7 @@ export function ReactionSetupScreen({
               <Input
                 type="number" min={5} max={120} value={config.workSec}
                 onChange={(e) => updateField('workSec', Number(e.target.value))}
-                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
               />
             </div>
             <div className="space-y-1">
@@ -186,7 +191,7 @@ export function ReactionSetupScreen({
               <Input
                 type="number" min={5} max={120} value={config.restSec}
                 onChange={(e) => updateField('restSec', Number(e.target.value))}
-                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
               />
             </div>
             <div className="space-y-1">
@@ -196,31 +201,31 @@ export function ReactionSetupScreen({
               <Input
                 type="number" min={1} max={20} value={config.rounds}
                 onChange={(e) => updateField('rounds', Number(e.target.value))}
-                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
               />
             </div>
             <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Flash máx (ms)</label>
+              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Tempo do alvo (ms)</label>
               <Input
                 type="number" min={200} max={3000} step={100} value={config.flashMs}
                 onChange={(e) => updateField('flashMs', Number(e.target.value))}
-                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
               />
             </div>
             <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Gap mín (ms)</label>
+              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Intervalo mín (ms)</label>
               <Input
                 type="number" min={100} max={5000} step={100} value={config.gapMs.min}
                 onChange={(e) => updateField('gapMin', Number(e.target.value))}
-                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
               />
             </div>
             <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Gap máx (ms)</label>
+              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Intervalo máx (ms)</label>
               <Input
                 type="number" min={100} max={5000} step={100} value={config.gapMs.max}
                 onChange={(e) => updateField('gapMax', Number(e.target.value))}
-                className="h-9 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
               />
             </div>
           </div>
