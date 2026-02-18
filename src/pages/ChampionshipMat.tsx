@@ -331,8 +331,8 @@ function ChampionshipMatInner() {
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-center relative px-6">
-          <div className="absolute left-6 flex items-center gap-3">
+        <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-between px-6">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => {
                 if (sync.state.status === 'RUNNING') {
@@ -354,8 +354,10 @@ function ChampionshipMatInner() {
               <HelpCircle className="h-5 w-5" />
             </button>
           </div>
-          <img src={logoSpe} alt="SPE" className="h-8 w-auto object-contain" />
-          <div className="absolute right-6 flex items-center gap-4 text-sm">
+          <div className="flex-1 flex justify-center">
+            <img src={logoSpe} alt="SPE" className="h-8 w-auto object-contain" />
+          </div>
+          <div className="flex items-center gap-2 text-sm">
             <span className="px-2 py-1 rounded-md font-bold text-xs uppercase bg-purple-500/20 text-purple-400">
               IMPACTOS
             </span>
@@ -368,7 +370,7 @@ function ChampionshipMatInner() {
               {serialPort.isConnected ? 'USB' : 'USB OFF'}
             </span>
             <span className={cn(
-              "px-2 py-1 rounded-md font-bold uppercase",
+              "px-2 py-1 rounded-md font-bold text-xs uppercase",
               sync.state.status === 'RUNNING' 
                 ? "bg-green-500/20 text-green-500" 
                 : sync.state.status === 'MATCH_END'
@@ -382,7 +384,7 @@ function ChampionshipMatInner() {
               {sync.state.status === 'ROUND_END' && 'FIM DO ROUND'}
               {sync.state.status === 'MATCH_END' && 'FIM DA LUTA'}
             </span>
-            <span className="text-zinc-400 font-bold">
+            <span className="text-zinc-400 font-bold text-xs">
               ROUND {sync.state.round}/{sync.state.config.maxRounds}
             </span>
           </div>
