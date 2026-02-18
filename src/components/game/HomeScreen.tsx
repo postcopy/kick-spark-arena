@@ -112,6 +112,13 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
 
       {/* Main */}
       <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-3 md:p-6">
+        {/* Logo centralizada */}
+        <img
+          src={logoSfighter}
+          alt="S-Fight Modo"
+          className="h-16 md:h-20 lg:h-24 w-auto mb-4 md:mb-6 drop-shadow-[0_0_15px_rgba(255,255,255,0.15)]"
+        />
+
         {/* Section label */}
         <p className="font-mono font-bold text-white/20 tracking-[0.4em] text-[10px] md:text-xs uppercase mb-4 md:mb-6">
           Selecione o modo
