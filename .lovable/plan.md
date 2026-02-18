@@ -1,63 +1,44 @@
 
+# Fix: Reorganizacao do Header do Campeonato
 
-# Fix de Layout: Modo Campeonato "Full-View" (Sem Scroll)
+## Problema
 
-Refatorar o OperatorPanel para eliminar scroll vertical, compactando controles e removendo blocos redundantes.
+Os badges de status (IMPACTOS, USB, EM ANDAMENTO, ROUND) estao posicionados com `absolute right-6` e crescem para a esquerda, invadindo o espaco da logo central.
 
-## Alteracoes
+## Solucao
 
-### 1. Remover blocos redundantes (OperatorPanel.tsx)
+Trocar o layout de `justify-center` + absolutos para um `justify-between` com 3 zonas explicitas (esquerda, centro, direita), garantindo espaco exclusivo para a logo.
 
-| Bloco | Acao | Motivo |
-|-------|------|--------|
-| STATUS (linhas 282-307) | Remover inteiro | Ja exibido no header do ChampionshipMat (badges USB, status, round) |
-| HARDWARE (linhas 309-367) | Remover inteiro | SerialPortContext global ja gerencia conexao; status USB ja aparece no header |
+## Alteracao
 
-Isso libera ~85px de altura vertical.
+**Arquivo:** `src/pages/ChampionshipMat.tsx` (linhas 334-388)
 
-### 2. Compactar CONTROLES em grid 2 colunas (OperatorPanel.tsx)
-
-Botoes secundarios lado a lado em `grid grid-cols-2 gap-1.5`:
+Reestruturar o `<header>` de:
 
 ```text
-[  INICIAR ROUND  ] (full width, h-10)
-[ PAUSAR ] [ ZERAR TEMPO ]
-[ T. MEDICO ] [ DESFAZER ]
-[ LOGS ] [ ALT. PLACAR ]
-[ ENCERRAR LUTA ] (full width, h-10)
+header (justify-center, relative)
+  div (absolute left) -> Voltar + Ajuda
+  img (logo centralizada pelo justify-center)
+  div (absolute right) -> badges + round
 ```
 
-Isso reduz 8 linhas verticais para ~5 linhas, economizando ~120px.
-
-### 3. Compactar GAM-JEOM (OperatorPanel.tsx)
-
-Colocar nome, valor e botoes +/- na mesma linha horizontal:
+Para:
 
 ```text
-BLUE [3] [-][+]    RED [1] [-][+]
+header (justify-between)
+  div (left) -> Voltar + Ajuda
+  div (center, flex-1 flex justify-center) -> Logo
+  div (right) -> badges + round (sem absolute)
 ```
 
-Cada lado em uma unica linha em vez de duas. Remover texto explicativo inferior. Economiza ~40px.
+### Detalhes
 
-### 4. Compactar CONFIGURACOES (OperatorPanel.tsx)
+1. Remover `relative` e `justify-center` do `<header>`
+2. Usar `justify-between` no header
+3. Remover `absolute left-6` do grupo esquerdo -- manter como elemento normal do flex
+4. Envolver a logo em um `div` com `flex-1 flex justify-center` para centralizacao natural
+5. Remover `absolute right-6` do grupo direito -- manter como elemento normal do flex
+6. Reduzir o `text-xs` dos badges de status da luta (que esta sem `text-xs`) para consistencia visual
+7. Os 3 grupos terao larguras flexiveis, com o centro sempre centralizado
 
-Colocar "Gerenciar Luta" e "Nova Luta" lado a lado em grid 2 colunas. Manter "Som" e "Abrir Placar TV" em largura total. Remover texto "F11" e status "2a Tela" para economizar espaco.
-
-### 5. Container da sidebar (OperatorPanel.tsx)
-
-Mudar o `<aside>` de `overflow-y-auto` para `h-full flex flex-col justify-between overflow-hidden`, garantindo que nao haja scroll.
-
-## Resumo de Arquivos
-
-| Arquivo | Mudancas |
-|---------|----------|
-| `src/components/championship/OperatorPanel.tsx` | Remover secoes STATUS e HARDWARE; reorganizar botoes em grid 2 colunas; compactar GAM-JEOM em linha unica; compactar CONFIGURACOES; ajustar container para overflow-hidden |
-
-Nenhuma mudanca em ChampionshipMat.tsx -- toda a refatoracao e interna ao OperatorPanel.
-
-## Resultado Esperado
-
-- Todos os controles visiveis sem scroll em telas 1080p e notebooks
-- ~30% de espaco vertical recuperado
-- Funcionalidade 100% preservada (botoes, dialogs, props permanecem iguais)
-
+Nenhuma mudanca funcional -- apenas redistribuicao de CSS no header.
