@@ -1,123 +1,135 @@
 
 
-# Redesign: Tela de Conexao (System Boot) + Auto-Connect Fix
+# Redesign: Modo Reacao Widescreen (Dashboard Mode)
 
 ## Resumo
 
-Duas mudancas: (1) expor estado de auto-reconexao no hook serial para que a UI saiba quando esta tentando reconectar automaticamente, e (2) redesign completo do EquipmentSetupScreen com visual "System Boot" estilo terminal/hardware.
+Refatorar o ReactionSetupScreen de um layout vertical com scroll (max-w-lg) para um layout dashboard widescreen (max-w-6xl) sem scroll, seguindo o mesmo padrao do ArcadeSetupScreen.
 
 ---
 
-## Arquivos
+## Arquivo Alterado
 
 | Arquivo | Acao |
 |---------|------|
-| `src/hooks/useSerialPort.ts` | Editar - Adicionar estado `isAutoConnecting` |
-| `src/types/serial.ts` | Editar - Adicionar `isAutoConnecting` ao `UseSerialPortReturn` |
-| `src/components/game/EquipmentSetupScreen.tsx` | Reescrever - Novo visual "System Boot" |
+| `src/components/game/ReactionSetupScreen.tsx` | Reescrever layout (mesma logica) |
 
 ---
 
-## Parte 1: Auto-Connect com Feedback Visual
+## Layout Atual vs. Novo
 
-### useSerialPort.ts
-
-O auto-reconnect ja existe (linhas 376-411), mas nao expoe estado visual. Alteracoes:
-
-1. Adicionar `const [isAutoConnecting, setIsAutoConnecting] = useState(false)`
-2. No `tryAutoReconnect()`:
-   - Setar `setIsAutoConnecting(true)` antes de tentar
-   - Setar `setIsAutoConnecting(false)` ao terminar (sucesso ou falha)
-3. Retornar `isAutoConnecting` no objeto de retorno
-
-### types/serial.ts
-
-Adicionar `isAutoConnecting: boolean` ao `UseSerialPortReturn`.
+```text
+ATUAL (vertical, scroll)          NOVO (widescreen, fit-to-screen)
++------------------+              +------------------------------------------+
+| Header           |              | Header (compacto, centralizado)          |
+|------------------|              |------------------------------------------|
+| [Atleta]         |              | [Atleta card]    | [Dificuldade botoes]  |
+| [Dificuldade]    |  scroll      |------------------------------------------|
+| [Trabalho]       |    |         | Trab | Desc | Rounds | Flash | GapMin/Max|
+| [Descanso]       |    v         |------------------------------------------|
+| [Rounds]         |              | [Cognitivo toggle + slider]  | [HW+Info] |
+| [Flash]          |              |------------------------------------------|
+| [Gap min/max]    |              | [INICIAR TREINO] botao largo             |
+| [Cognitivo]      |              +------------------------------------------+
+| [Hardware]       |
+| [Como funciona]  |
+|------------------|
+| [INICIAR]        |
++------------------+
+```
 
 ---
 
-## Parte 2: Redesign Visual - "System Boot"
+## Estrutura Detalhada
 
-### Conceito
+### 1. Container Principal
 
-Abandonar o visual de card/formulario. Adotar estetica de inicializacao de hardware com:
-- Fundo escuro translucido com borda ciano
-- Icone central grande (Cpu do lucide-react) com estados visuais distintos
-- Checklist estilo terminal (font-mono)
-- Botao de acao grande e luminoso
+- Antes: `flex flex-col h-full w-full overflow-hidden bg-background`
+- Depois: `flex flex-col h-full w-full bg-[#0b1120] p-4 md:p-6 overflow-hidden`
+- Fundo escuro consistente com ArcadeSetupScreen
 
-### Estados Visuais
+### 2. Header (flex-shrink-0)
 
-**Auto-Conectando** (isAutoConnecting = true):
-- Icone Cpu com `animate-pulse` em ciano
-- Texto: "BUSCANDO HARDWARE..." em font-mono
-- Barra de progresso indeterminada (animate-pulse)
-- Botao escondido
+- Titulo "MODO REACAO" centralizado com icone Zap
+- Subtitulo curto descritivo
+- Botao voltar no canto esquerdo
+- Margens verticais reduzidas (`mb-2 md:mb-3`)
 
-**Desconectado** (aguardando acao manual):
-- Icone Cpu grande (`w-20 h-20`) em cinza (`text-slate-600`)
-- Titulo: "AGUARDANDO CONEXAO" em font-mono text-cyan-400
-- Checklist terminal:
-  - `[OK]` Compatibilidade do Navegador (se suportado)
-  - `[..]` Permissao de Acesso USB
-  - `[..]` Handshake do Equipamento
-- Botao grande: "INICIALIZAR CONEXAO"
-  - `bg-cyan-600 hover:bg-cyan-500 text-white font-bold tracking-widest uppercase py-4 px-8`
-  - `shadow-[0_0_20px_rgba(8,145,178,0.4)]`
+### 3. Main (flex-1 min-h-0, max-w-6xl mx-auto)
 
-**Conectando** (isConnecting = true):
-- Icone Cpu com `animate-spin` em amarelo
-- Texto: "CONECTANDO..." 
-- Botao desabilitado
+Organizado em 3 faixas verticais flexiveis:
 
-**Conectado** (isConnected = true):
-- Icone Cpu em verde com glow: `text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.8)]`
-- Titulo: "SISTEMA ONLINE" com animacao de entrada
-- Checklist tudo `[OK]` em verde
-- Botao "CONTINUAR" grande em emerald
-- Link discreto "Desconectar" abaixo
-
-### Estrutura do Componente
+#### Faixa 1: Atleta + Dificuldade (grid 2 colunas)
 
 ```text
-div (h-full w-full flex items-center justify-center)
-  |-- OctagonBackground (mantido)
-  |-- div (container central, max-w-lg, bg-[#0b1120]/90 backdrop-blur-md border-cyan-500/30)
-  |     |-- header (botao Voltar + logo, compacto)
-  |     |-- icone central (Cpu, tamanho grande, estados visuais)
-  |     |-- titulo + subtitulo (font-mono)
-  |     |-- checklist terminal (3 itens, font-mono text-sm)
-  |     |-- botao de acao (ou feedback auto-connect)
-  |     |-- link "Pular" (discreto, sempre visivel quando nao conectado)
+grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-3
 ```
 
-### Checklist Terminal
+- **Coluna esquerda**: Card do atleta (mesmo botao atual, adaptado ao tema escuro)
+- **Coluna direita**: Card de dificuldade com 3 botoes horizontais (Iniciante/Intermediario/Elite) + indicador "Personalizado"
 
-Cada item usa prefixo de status colorido:
+#### Faixa 2: Parametros do Treino (flex-1 min-h-0)
+
+Area flexivel que encolhe em telas pequenas:
 
 ```text
-[OK] = text-emerald-400
-[..] = text-slate-500 (animate-pulse quando relevante)
-[!!] = text-red-400 (erro)
+bg-slate-900/50 p-3 md:p-4 rounded-xl border border-white/5
+grid grid-cols-2 md:grid-cols-3 gap-3
 ```
 
-Items:
-1. "Compatibilidade do Navegador" - OK se `isSupported`, !! se nao
-2. "Permissao de Acesso USB" - OK se conectado, .. se aguardando
-3. "Handshake do Equipamento" - OK se conectado, .. se aguardando
+6 campos organizados em 3 colunas (desktop) ou 2 colunas (mobile):
+- Trabalho (s) | Descanso (s) | Rounds
+- Flash max (ms) | Gap min (ms) | Gap max (ms)
 
-### Alerta de Navegador Incompativel
+Inputs compactos com labels menores (`text-xs`), fundo escuro (`bg-white/10 border-white/10 text-white`).
 
-Se `!isSupported`, substituir o checklist e botao por um alerta:
-- Borda vermelha, texto informando para usar Chrome/Edge
-- Sem botao de conectar (impossivel)
+#### Faixa 3: Cognitivo + Hardware + Info (flex-shrink-0)
+
+```text
+grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-3
+```
+
+- **Coluna 1-2 (md:col-span-2)**: Modo Cognitivo toggle + slider de probabilidade (quando ativo)
+- **Coluna 3**: Status do hardware (compacto) + resumo "Como Funciona" condensado
+
+### 4. Footer (flex-shrink-0)
+
+```text
+grid grid-cols-1 md:grid-cols-3 gap-3 items-end
+```
+
+- **Colunas 1-2**: Resumo das regras em card compacto (como no ArcadeSetupScreen)
+- **Coluna 3**: Botao "INICIAR TREINO" + link "Voltar"
+
+Botao estilizado: `bg-green-500 hover:bg-green-600 text-black font-bold font-mono`
+
+---
+
+## Estilizacao (Tema Escuro)
+
+Seguir o padrao do ArcadeSetupScreen:
+- Fundo: `bg-[#0b1120]`
+- Cards/paineis: `bg-slate-900/50 border border-white/5`
+- Textos: `text-white`, `text-white/60`, `text-white/40`
+- Inputs: fundo `bg-white/10`, borda `border-white/10`, texto `text-white`
+- Cor de destaque: verde (`text-green-400`, `bg-green-500`) em vez do amarelo do Arcade
+- Font: `font-mono` para titulos e valores numericos
+
+---
+
+## Responsividade
+
+- Mobile (< md): Colunas empilham verticalmente, `overflow-y-auto` no main
+- Desktop (>= md): Layout widescreen completo, zero scroll
+- Inputs e labels usam tamanhos compactos (`h-9`, `text-xs`)
+- `flex-1 min-h-0` na faixa de parametros permite compressao em telas 768p
 
 ---
 
 ## O Que NAO Muda
 
-- Props do componente (`serialPort`, `onContinue`, `onSkip`, `onBack`)
-- Logica de conexao do `useSerialPort` (apenas exposicao de estado novo)
-- Contexto `SerialPortContext` (passa `isAutoConnecting` transparentemente)
-- Integracao com as paginas (`Index.tsx`, `ChampionshipMat.tsx`)
+- Props do componente (mesma interface)
+- Logica de presets, updateField, handleStart
+- AthletePickerDialog
+- Valores dos campos e validacoes
 
