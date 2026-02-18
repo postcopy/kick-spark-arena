@@ -1,32 +1,27 @@
 
 
-# Duo Score Maximalist — Numeros Gigantes
+# Favicon + Meta Tags — Arena Sulsport
 
 ## Resumo
 
-Aumentar drasticamente os placares do modo Duo no `GameScreen.tsx` para preencher os paineis coloridos. Ajustar tipografia, spacing e leading para que os numeros dominem visualmente.
+Atualizar o favicon com o logo da Sulsport enviado, o titulo da aba e a descricao meta do site.
 
 ## Alteracoes
 
-### Arquivo: `src/components/game/GameScreen.tsx`
+### 1. Copiar favicon
 
-#### 1. Red Panel (linhas 320-334)
+Copiar `user-uploads://favicon.png` para `public/favicon.png`.
 
-- Score: mudar `fontSize` de `clamp(5rem, 12vw, 14rem)` para `clamp(7rem, 18vw, 20rem)`
-- Adicionar `tracking-tighter` e `leading-[0.8]` ao span do score
-- Reduzir padding do container de `p-6` para `px-2 py-0`
-- Adicionar `flex flex-col justify-center h-full` ao container
-- Labels: adicionar `mt-[-2vw]` para colar no numero
+### 2. Atualizar `index.html`
 
-#### 2. Blue Panel (linhas 359-373)
-
-- Mesmas alteracoes espelhadas: `fontSize` para `clamp(7rem, 18vw, 20rem)`
-- Adicionar `tracking-tighter` e `leading-[0.8]`
-- Reduzir padding de `p-6` para `px-2 py-0`
-- Adicionar `flex flex-col justify-center h-full`
-- Labels: adicionar `mt-[-2vw]`
+- Adicionar `<link rel="icon" href="/favicon.png" type="image/png">` no head
+- Titulo: `Arena Sulsport | High Performance`
+- Description: `Entre na arena. Sistema de treinamento gamificado para atletas de elite e academias de Taekwondo.`
+- og:title: `Arena Sulsport | High Performance`
+- og:description: mesma descricao acima
 
 ### Arquivos alterados
 
-- `src/components/game/GameScreen.tsx` — linhas 320-334 (Red Panel) e 359-373 (Blue Panel)
+- `public/favicon.png` — novo arquivo (copia do upload)
+- `index.html` — titulo, descricao, favicon, og tags
 
