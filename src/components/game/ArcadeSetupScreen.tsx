@@ -222,7 +222,7 @@ export function ArcadeSetupScreen({
             <h3 className="font-mono text-[0.65rem] font-bold text-cyan-500/60 uppercase tracking-widest mb-1">REGRAS DO SISTEMA</h3>
             <ul className="font-mono text-xs text-white/40 space-y-0.5">
               <li>• META: <span className="text-white/70 font-bold">100</span> pts | Dano: <span className="text-white/70 font-bold">{activePreset.damage}</span> | Chutes: <span className="text-white/70 font-bold">{activePreset.meta}</span></li>
-              <li>• Combo: chutes rápidos em sequência (até +4 dano) · <span className="text-[#FFD700] font-bold">Quem zerar primeiro vence!</span></li>
+              <li>• <span className="text-[#FFD700] font-bold">Quem zerar primeiro vence!</span></li>
             </ul>
             <p className="mt-1 text-white/50 font-mono text-xs">
               <span className="text-orange-500 font-bold tracking-wider">SENSOR:</span>{" "}

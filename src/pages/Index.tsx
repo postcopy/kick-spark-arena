@@ -123,7 +123,6 @@ const Index = () => {
     recoveryIntervalSec: recoveryInterval,
     onHit: () => playHitRef.current(),
     onHitHeavy: () => playHitHeavyRef.current(),
-    onCombo: () => playComboRef.current(),
     onSpecialReady: () => playSpecialReadyRef.current(),
     onSpecialAttack: () => playSpecialAttackRef.current(),
     onKO: () => playKORef.current(),
