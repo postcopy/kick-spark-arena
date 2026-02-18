@@ -1,43 +1,40 @@
 
-# Fix: Fluxo de Conexao Inteligente (Auto-Open)
+# Refatorar SetupScreen (Contra o Tempo) para Layout Fullscreen
 
-## Resumo
+## Problema
 
-Refatorar a funcao `connect()` para tentar reusar portas ja autorizadas antes de abrir o pop-up do navegador, e garantir que `isAutoConnecting` seja sempre resetado corretamente.
+A `SetupScreen` do modo "Contra o Tempo" usa um layout estreito (`max-w-lg`) com scroll, enquanto o modo "Duelo" (`ArcadeSetupScreen`) ocupa a tela inteira com `max-w-6xl`, `overflow-hidden` e fundo escuro `bg-[#0b1120]`. A experiencia visual fica inconsistente entre os dois modos.
 
 ## Alteracoes
 
-### 1. `src/hooks/useSerialPort.ts` -- Funcao `connect()` (linhas 335-374)
+### Arquivo: `src/components/game/SetupScreen.tsx`
 
-Refatorar para duas etapas:
+Aplicar o mesmo padrao de layout do `ArcadeSetupScreen`:
 
-- **Etapa A (silenciosa):** Chamar `getPorts()`. Se houver porta conhecida:
-  - Se `port.readable || port.writable` -> reusar diretamente (setar `isConnected=true`, chamar `startReading`)
-  - Senao -> tentar `port.open()`. Se der `InvalidStateError` e `port.readable` existir, reusar mesmo assim
-- **Etapa B (manual):** Somente se nenhuma porta conhecida for encontrada ou reusada, chamar `requestPort()` (pop-up)
+1. **Container raiz**: trocar `bg-background` por `bg-[#0b1120]` e manter `overflow-hidden`
+2. **Area de conteudo**: trocar `max-w-lg` por `max-w-6xl` para ocupar a largura da tela
+3. **Cada step** sera redesenhado para usar o espaco horizontal disponivel:
 
-```text
-connect():
-  1. getPorts() -> portas conhecidas?
-     SIM -> porta.readable? -> reusar (isConnected=true)
-            senao -> try open() -> sucesso -> isConnected=true
-                                -> erro InvalidState + readable -> reusar
-     NAO -> requestPort() (pop-up) -> open() -> isConnected=true
-```
+**Step 1 (Quantos jogadores?):**
+- Layout horizontal em desktop: dois cards lado a lado (`grid-cols-2`) ao inves de empilhados
+- Cards maiores, com mais padding e icones maiores
+- Titulo e subtitulo centralizados acima
 
-### 2. `src/hooks/useSerialPort.ts` -- Auto-reconnect (linhas 376-418)
+**Step 2 (Selecao de atleta):**
+- Grid de atletas expandido (`grid-cols-3 md:grid-cols-4 lg:grid-cols-6`) para usar a largura
+- Busca e botoes mais largos
 
-- No bloco catch do auto-reconnect (linha 401), adicionar verificacao: se o erro for `InvalidStateError` e `port.readable` existir, considerar como conectado em vez de falhar silenciosamente
-- No cleanup do useEffect (linhas 415-417), adicionar `setIsAutoConnecting(false)` antes de `disconnect()` para evitar travamento da UI
+**Step 3 (Duracao):**
+- Layout em duas colunas no desktop: opcoes de duracao a esquerda, preview + botao iniciar a direita
+- Cards de duracao mais compactos verticalmente para caber sem scroll
+- Botao de voltar no rodape, estilo tecnico como no Duelo (`text-white/30`)
 
-```text
-// Cleanup corrigido:
-return () => {
-  setIsAutoConnecting(false);
-  disconnect();
-};
-```
+4. **Botao Voltar**: mover do canto superior esquerdo (`absolute`) para o rodape, no estilo do Duelo (botao ghost pequeno com seta)
+5. **Progress dots**: manter no topo, estilo ajustado para fundo escuro (dots brancos/amarelos)
+6. **Cores de texto**: ajustar todos os textos para funcionar sobre fundo escuro (`text-white`, `text-white/60`, etc.) em vez de `text-foreground`/`text-muted-foreground`
 
-### 3. `src/components/game/EquipmentSetupScreen.tsx` -- Sem alteracoes
+### Arquivos nao alterados
 
-A tela ja trata corretamente todos os estados (`isAutoConnecting`, `isConnecting`, `isConnected`). O checklist terminal, os botoes e o link "Pular" ja respondem a essas flags. Nenhuma alteracao necessaria neste arquivo.
+- `ArcadeSetupScreen.tsx` -- ja esta no padrao correto
+- `LoadingScreen.tsx`, `FinishedScreen.tsx` -- fora do escopo (nao sao "menus de setup")
+- `Index.tsx` -- nenhuma alteracao de props necessaria
