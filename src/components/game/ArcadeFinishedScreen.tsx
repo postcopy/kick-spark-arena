@@ -51,11 +51,19 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
 
       {winner !== 'tie' && <Confetti />}
 
+      {/* Dramatic radial glow — stronger */}
+      <div className={cn(
+        "absolute inset-0 opacity-40",
+        winner === 'red' && "bg-gradient-radial from-game-red/50 to-transparent",
+        winner === 'blue' && "bg-gradient-radial from-game-blue/50 to-transparent",
+        winner === 'tie' && "bg-gradient-radial from-game-yellow/40 to-transparent"
+      )} />
+      {/* Secondary concentrated glow */}
       <div className={cn(
         "absolute inset-0 opacity-20",
-        winner === 'red' && "bg-gradient-radial from-game-red/40 to-transparent",
-        winner === 'blue' && "bg-gradient-radial from-game-blue/40 to-transparent",
-        winner === 'tie' && "bg-gradient-radial from-game-yellow/30 to-transparent"
+        winner === 'red' && "bg-gradient-radial from-game-red/60 via-transparent to-transparent",
+        winner === 'blue' && "bg-gradient-radial from-game-blue/60 via-transparent to-transparent",
+        winner === 'tie' && "bg-gradient-radial from-game-yellow/50 via-transparent to-transparent"
       )} />
 
       <div className="relative z-10 text-center">
@@ -68,18 +76,21 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           <Shield className="w-4 h-4 text-game-yellow" />
         </div>
 
-        {/* Trophy / Icon */}
+        {/* Trophy / Icon — larger with glow */}
         <div className="mb-4 animate-winner">
           {winner !== 'tie' ? (
             <div className="relative inline-block">
               <div className={cn(
-                "p-4 rounded-full",
-                winner === 'red' ? "bg-game-red/20" : "bg-game-blue/20",
-                "box-glow-gold"
+                "p-6 rounded-full",
+                winner === 'red' 
+                  ? "bg-game-red/20 shadow-[0_0_60px_hsl(var(--game-red-glow)/0.5)]" 
+                  : "bg-game-blue/20 shadow-[0_0_60px_hsl(var(--game-blue-glow)/0.5)]"
               )}>
                 <Trophy className={cn(
-                  "w-16 h-16 md:w-20 md:h-20",
-                  winner === 'red' ? "text-game-red" : "text-game-blue"
+                  "w-[clamp(80px,15vmin,160px)] h-[clamp(80px,15vmin,160px)]",
+                  winner === 'red' 
+                    ? "text-game-red drop-shadow-[0_0_30px_hsl(var(--game-red-glow)/0.6)]" 
+                    : "text-game-blue drop-shadow-[0_0_30px_hsl(var(--game-blue-glow)/0.6)]"
                 )} />
               </div>
               {hasZero && (
@@ -89,44 +100,46 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
               )}
             </div>
           ) : (
-            <div className="p-4 rounded-full bg-game-yellow/20 box-glow-gold">
-              <Swords className="w-16 h-16 md:w-20 md:h-20 text-game-yellow" />
+            <div className="p-6 rounded-full bg-game-yellow/20 shadow-[0_0_60px_rgba(255,215,0,0.4)]">
+              <Swords className="w-[clamp(80px,15vmin,160px)] h-[clamp(80px,15vmin,160px)] text-game-yellow drop-shadow-[0_0_30px_rgba(255,215,0,0.5)]" />
             </div>
           )}
         </div>
 
-        {/* Winner announcement */}
+        {/* Winner announcement — dramatic typography */}
         <div className="animate-winner">
           {winner !== 'tie' ? (
             <>
               <h1 className={cn(
-                "text-5xl md:text-6xl font-black mb-1 font-mono",
+                "font-black mb-1 font-mono leading-none",
+                "text-[clamp(3rem,10vmin,6rem)]",
                 getWinnerColor()
               )}>
                 {getWinnerLabel()}
               </h1>
-              <p className="text-xl md:text-2xl font-bold text-white/80 font-mono">
-                ZEROU A META!
+              <p className="text-[clamp(1rem,3vmin,2rem)] font-bold text-white/80 font-mono">
+                CAMPEÃO DO DUELO!
               </p>
             </>
           ) : (
-            <h1 className="text-4xl md:text-5xl font-black text-game-yellow text-glow-yellow font-mono">
+            <h1 className="text-[clamp(2.5rem,8vmin,5rem)] font-black text-game-yellow text-glow-yellow font-mono leading-none">
               DUELO EMPATADO!
             </h1>
           )}
         </div>
 
-        {/* Round Score */}
+        {/* Round Score — responsive */}
         <div className="flex items-center justify-center gap-4 md:gap-6 my-6">
           <div className="text-center">
             <div className={cn(
-              "text-5xl md:text-6xl font-black font-mono",
+              "font-black font-mono leading-none",
+              "text-[clamp(3rem,8vmin,5rem)]",
               winner === 'red' ? "text-game-red text-glow-red" : "text-game-red/60"
             )}>
               {redWins}
             </div>
             <div className={cn(
-              "text-xs uppercase mt-1 font-bold tracking-wider font-mono",
+              "text-[clamp(10px,1.5vmin,14px)] uppercase mt-1 font-bold tracking-wider font-mono",
               winner === 'red' ? "text-game-red" : "text-white/40"
             )}>
               VERMELHO
@@ -134,19 +147,20 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           </div>
 
           <div className="flex flex-col items-center">
-            <Swords className="w-8 h-8 text-white/20 mb-1" />
-            <span className="text-3xl font-black text-white/20 font-mono">×</span>
+            <Swords className="w-[clamp(24px,4vmin,40px)] h-[clamp(24px,4vmin,40px)] text-white/20 mb-1" />
+            <span className="text-[clamp(1.5rem,4vmin,3rem)] font-black text-white/20 font-mono">×</span>
           </div>
 
           <div className="text-center">
             <div className={cn(
-              "text-5xl md:text-6xl font-black font-mono",
+              "font-black font-mono leading-none",
+              "text-[clamp(3rem,8vmin,5rem)]",
               winner === 'blue' ? "text-game-blue text-glow-blue" : "text-game-blue/60"
             )}>
               {blueWins}
             </div>
             <div className={cn(
-              "text-xs uppercase mt-1 font-bold tracking-wider font-mono",
+              "text-[clamp(10px,1.5vmin,14px)] uppercase mt-1 font-bold tracking-wider font-mono",
               winner === 'blue' ? "text-game-blue" : "text-white/40"
             )}>
               AZUL
@@ -154,41 +168,37 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           </div>
         </div>
 
-        {/* Round details */}
-        <div className="bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm mb-6 max-w-lg mx-auto">
+        {/* Round details — Data Grid style */}
+        <div className="bg-[#0b1120]/80 p-4 rounded-xl border border-white/10 backdrop-blur-sm mb-6 max-w-lg mx-auto">
           <h3 className="text-xs font-black text-white/40 uppercase mb-3 tracking-wider font-mono">
             DETALHES DOS ROUNDS
           </h3>
-          <div className="space-y-2">
+          <div className="divide-y divide-white/5">
             {rounds.map((round, index) => (
               <div 
                 key={index} 
                 className={cn(
-                  "flex items-center justify-between p-2 rounded-lg",
-                  round.winner === 'red' 
-                    ? "bg-game-red/10 border border-game-red/30" 
-                    : round.winner === 'blue'
-                      ? "bg-game-blue/10 border border-game-blue/30"
-                      : "bg-white/5 border border-white/10"
+                  "flex items-center justify-between py-2.5 px-3",
+                  index === 0 && "pt-0"
                 )}
               >
-                <span className="text-sm text-white/50 font-bold font-mono">Round {index + 1}</span>
+                <span className="text-[clamp(12px,1.5vmin,16px)] text-white/50 font-bold font-mono">Round {index + 1}</span>
                 <div className="flex items-center gap-3">
                   <span className={cn(
-                    "font-mono font-black text-lg",
+                    "font-mono font-black text-[clamp(1rem,2.5vmin,1.5rem)]",
                     round.winner === 'red' ? "text-game-red" : "text-white/40"
                   )}>
                     {round.redHP}
                   </span>
                   <span className="text-white/20">—</span>
                   <span className={cn(
-                    "font-mono font-black text-lg",
+                    "font-mono font-black text-[clamp(1rem,2.5vmin,1.5rem)]",
                     round.winner === 'blue' ? "text-game-blue" : "text-white/40"
                   )}>
                     {round.blueHP}
                   </span>
                   {round.isKO && (
-                    <span className="px-1.5 py-0.5 bg-game-yellow/20 text-game-yellow text-xs font-black rounded border border-game-yellow/40 font-mono">
+                    <span className="px-2 py-0.5 bg-game-yellow/20 text-game-yellow text-[clamp(10px,1.2vmin,13px)] font-black rounded border border-game-yellow/40 font-mono shadow-[0_0_12px_rgba(255,215,0,0.4)]">
                       ZERO!
                     </span>
                   )}
