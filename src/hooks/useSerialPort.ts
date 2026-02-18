@@ -332,7 +332,7 @@ export function useSerialPort({
     setEquipmentVersion(v => v + 1);
   }, [stopReading]);
 
-  const tryOpenPort = useCallback(async (port: SerialPort): Promise<boolean> => {
+  const tryOpenPort = async (port: SerialPort): Promise<boolean> => {
     // Already open? Reuse directly
     if (port.readable || port.writable) {
       console.log('[Serial] Porta já aberta, reusando...');
@@ -361,7 +361,7 @@ export function useSerialPort({
       }
       throw e;
     }
-  }, [startReading]);
+  };
 
   const connect = useCallback(async () => {
     if (!isWebSerialSupported()) {
@@ -414,7 +414,7 @@ export function useSerialPort({
         setError(`Erro: ${e.name || 'desconhecido'} - ${e.message || 'Verifique conexão'}`);
       }
     }
-  }, [startReading, tryOpenPort]);
+  }, [startReading]);
 
   // Auto-reconnect on mount
   useEffect(() => {
