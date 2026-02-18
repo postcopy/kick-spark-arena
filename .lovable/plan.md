@@ -1,131 +1,161 @@
 
-# Feedback Visual de Impacto no Circulo Central (Modo Reacao)
+# Redesign Total: Modo Duelo ("Corrida de Demolicao" + Visual Pro)
 
-## Resumo
-Adicionar feedback visual imediato dentro do circulo de estimulo central quando o atleta acerta (sucesso) ou erra (falta). O circulo vai "reagir" ao impacto com mudanca de cor, texto e animacao rapida.
+## Resumo da Transformacao
 
-## Como Funciona
+O Modo Duelo vai mudar de um "jogo de luta" (atacar o adversario) para uma "Corrida de Demolicao" (destruir seu proprio alvo). A configuracao sera simplificada com presets de intensidade, e o visual adotara estetica E-Sports profissional sem mascotes.
 
-- **Acerto (verde)**: Circulo pisca em ciano brilhante, exibe o tempo de reacao (ex: "342ms") em fonte mono grande, com animacao de scale-up rapido. Dura 500ms.
-- **Erro (vermelho)**: Circulo pulsa/treme, exibe "FALTA!" em fonte grande dentro do circulo. Dura 500ms.
-- Quando nao ha feedback ativo, o comportamento atual (icones Check/X no modo cognitivo) permanece inalterado.
+---
 
-## Alteracoes (apenas ReactionScreen.tsx)
+## Arquivos Alterados (4 arquivos)
 
-### 1. Novo estado de feedback (apos linha 31)
-```typescript
-const [hitFeedback, setHitFeedback] = useState<{ type: 'success' | 'error'; value: string } | null>(null);
-```
+| Arquivo | Tipo de Mudanca |
+|---------|-----------------|
+| `src/components/game/ArcadeSetupScreen.tsx` | Redesign completo dos controles |
+| `src/components/game/ArcadeScreenTV.tsx` | Redesign visual + inversao de logica |
+| `src/hooks/useArcadeState.ts` | Inversao de dano (proprio alvo) + remocao de energy/special + suporte a float |
+| `src/components/game/ArcadeFinishedScreen.tsx` | Remover mascotes, atualizar terminologia |
 
-### 2. Efeito para acerto - dispara no lastReactionTime (modificar o useEffect existente, linhas 43-50)
-Adicionar ao useEffect existente que ja rastreia `lastReactionTime`:
-```typescript
-useEffect(() => {
-  if (lastReactionTime !== null) {
-    setDisplayedTime(lastReactionTime);
-    setShowReactionTime(true);
-    setHitFeedback({ type: 'success', value: `${lastReactionTime}ms` });
-    const feedbackTimer = window.setTimeout(() => setHitFeedback(null), 500);
-    const displayTimer = window.setTimeout(() => setShowReactionTime(false), 2000);
-    return () => {
-      window.clearTimeout(feedbackTimer);
-      window.clearTimeout(displayTimer);
-    };
-  }
-}, [lastReactionTime]);
-```
+---
 
-### 3. Efeito para erro - dispara no commissionErrors (modificar o useEffect existente, linhas 34-41)
-Adicionar ativacao do hitFeedback dentro do efeito existente:
-```typescript
-useEffect(() => {
-  if (commissionErrors > trackedErrorsRef.current) {
-    trackedErrorsRef.current = commissionErrors;
-    setShowFault(true);
-    setHitFeedback({ type: 'error', value: 'FALTA!' });
-    const faultTimer = window.setTimeout(() => setShowFault(false), 1500);
-    const feedbackTimer = window.setTimeout(() => setHitFeedback(null), 500);
-    return () => {
-      window.clearTimeout(faultTimer);
-      window.clearTimeout(feedbackTimer);
-    };
-  }
-}, [commissionErrors]);
-```
+## Parte 1: Setup (ArcadeSetupScreen.tsx)
 
-### 4. Estilo do circulo - modificar getStimulusStyle (linhas 67-84)
-Adicionar condicao para feedback de sucesso (cor ciano brilhante):
-```typescript
-const getStimulusStyle = () => {
-  // Feedback de acerto: circulo ciano brilhante
-  if (hitFeedback?.type === 'success') {
-    return {
-      backgroundColor: '#22d3ee',
-      boxShadow: '0 0 60px 20px rgba(34,211,238,0.5), 0 0 120px 40px rgba(34,211,238,0.2)',
-      transform: 'scale(1.08)',
-      transition: 'transform 0.1s ease-out, background-color 0.05s',
-    };
-  }
-  // Feedback de erro: circulo vermelho com shake
-  if (hitFeedback?.type === 'error') {
-    return {
-      backgroundColor: '#FF3333',
-      boxShadow: '0 0 80px 30px rgba(255,51,51,0.5), 0 0 140px 50px rgba(255,51,51,0.2)',
-      animation: 'shake 0.3s ease-in-out',
-    };
-  }
-  // Estados normais (sem mudanca)
-  if (!stimulusActive || !stimulusColor) { ... }
-  if (stimulusColor === 'red') { ... }
-  return { ... }; // verde
-};
-```
+### Remover
+- Sliders de `vestDamage` e `helmetDamage`
+- Presets antigos (Kids/Juvenil/Adulto)
+- Regras sobre "combos" e "especial"
 
-### 5. Conteudo do circulo - modificar JSX (linhas 157-164)
-Substituir o conteudo condicional dentro do circulo:
-```tsx
-{hitFeedback ? (
-  <span
-    className={`font-black font-mono text-center leading-none ${
-      hitFeedback.type === 'success' ? 'text-white' : 'text-white'
-    }`}
-    style={{ fontSize: 'clamp(1.5rem, 6vmin, 3rem)' }}
-  >
-    {hitFeedback.value}
-  </span>
-) : (
-  <>
-    {isCognitive && stimulusActive && stimulusColor === 'green' && (
-      <Check className="w-16 h-16 text-white" strokeWidth={3} />
-    )}
-    {isCognitive && stimulusActive && stimulusColor === 'red' && (
-      <X className="w-16 h-16 text-white" strokeWidth={3} />
-    )}
-  </>
-)}
-```
+### Adicionar: Cartoes de Intensidade
+Tres cartoes grandes selecionaveis em grid:
 
-### 6. Adicionar keyframe de shake (no mesmo arquivo, via style tag inline ou no index.css)
-Adicionar ao `src/index.css`:
-```css
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8px); }
-  40% { transform: translateX(8px); }
-  60% { transform: translateX(-6px); }
-  80% { transform: translateX(6px); }
-}
-```
+**SPRINT** (Zap, amarelo/laranja)
+- Meta: ~50 chutes | vestDamage: 2.0 | helmetDamage: 2.0
+- "Explosao maxima. Quem termina 50 chutes primeiro?"
 
-### 7. Remover transition-none do circulo (linha 151)
-Mudar de `transition-none` para permitir a animacao de scale no feedback de sucesso. Usar `transition-transform duration-100` apenas quando em feedback, controlado via estilo inline.
+**RESISTENCIA** (Swords, azul/ciano)
+- Meta: ~100 chutes | vestDamage: 1.0 | helmetDamage: 1.0
+- "Volume de luta. 100 chutes de pura resistencia."
 
-## Resumo de Arquivos
-| Arquivo | Tipo de Alteracao |
-|---------|-------------------|
-| `src/components/game/ReactionScreen.tsx` | Novo estado, modificar 2 useEffects, modificar getStimulusStyle, modificar JSX do circulo |
-| `src/index.css` | Adicionar keyframe `shake` |
+**ELITE** (Trophy, roxo)
+- Meta: ~200 chutes | vestDamage: 0.5 | helmetDamage: 0.5
+- "Desafio Olimpico. 200 chutes para testar o limite."
 
-- 2 arquivos alterados
-- Nenhum arquivo novo
-- Nenhuma mudanca de logica de jogo, apenas visual
+### Manter
+- Slider de Tempo do Round
+- Selector de Formato (Rapido / Melhor de 3)
+- Slider de Intervalo de Recuperacao (quando Best of 3)
+
+### Atualizar
+- Titulo: "DUELO ARCADE" -> "CORRIDA DE DEMOLICAO" ou "DUELO"
+- Subtitulo: "Destrua seu alvo primeiro!" 
+- Regras: "META: X chutes | Colete: X dano | Quem zerar primeiro vence!"
+- Visual: bg-[#0b1120], font-mono nos numeros
+
+### Props
+- `vestDamage` e `helmetDamage` continuam sendo passados para Index.tsx mas sao definidos automaticamente pelo preset selecionado (nao por sliders manuais)
+
+---
+
+## Parte 2: Logica (useArcadeState.ts)
+
+### Inversao de Dano
+- Antes: Vermelho chuta -> dano no Azul (`setBlueState`)
+- Depois: Vermelho chuta -> dano no PROPRIO Vermelho (`setRedState`)
+- O `registerKick` vai aplicar dano no `attackerState` em vez do `defenderState`
+
+### Remocao de Energy/Special
+- Remover campos `energy`, `specialReady` do `ArcadePlayerState` (manter no tipo para nao quebrar, mas setar sempre 0/false)
+- Remover logica de `energyPerKick`, `energyMax`, `specialDamageBonus` do `calculateDamage`
+- Manter combo bonus (chutes rapidos = +dano bonus)
+
+### Vitoria por Zeragem
+- KO: Quem chega a HP 0 primeiro VENCE (nao perde)
+- Antes: `if (redState.hp <= 0) endRound('blue', true)` (azul vence porque vermelho morreu)
+- Depois: `if (redState.hp <= 0) endRound('red', true)` (vermelho vence porque zerou seu alvo)
+
+### Empate por Tempo
+- Antes: Maior HP vence
+- Depois: MENOR HP vence (quem destruiu mais)
+- `const winner = redState.hp < blueState.hp ? 'red' : blueState.hp < redState.hp ? 'blue' : 'tie'`
+
+### Suporte a Float
+- O `vestDamage` e `helmetDamage` ja sao `number` no tipo, entao 0.5 funciona
+- O slider de setup vai ser removido, entao o step nao e problema
+- O HP exibido usara `Math.round()` ou `Math.ceil()` para evitar decimais na tela
+
+### Visual Feedback
+- `flashSide` agora indica o lado de quem CHUTOU (nao do defensor)
+- `lastDamage.side` agora mostra no lado de quem chutou (proprio)
+
+---
+
+## Parte 3: Tela do Jogo (ArcadeScreenTV.tsx)
+
+### Remover
+- `FighterMascot` (ambos os lados)
+- Import do `FighterMascot`
+- Funcao `getMascotState`
+- Barras de energia no footer
+- Indicadores "ESPECIAL" (special ready/used)
+- Import de `Zap`
+
+### Adicionar
+- Import de `Shield` (lucide-react)
+- Icone grande de Shield no centro de cada lado, com animacao de shake quando recebe dano
+- Label "META" em vez de "VIDA"
+
+### Redesign Visual
+- Background: `bg-[#0b1120]` (Slate 950) em vez de `bg-black`
+- Tipografia: `font-mono` nos numeros (timer, HP)
+- Top bar simplificada (nomes + round stars)
+- Footer simplificado: apenas controles hint + battery badges (sem energia)
+
+### HP Display
+- Manter a barra como background height (visual atual) - ja e bom
+- O numero gigante continua centralizado mas agora representa "quanto falta para zerar"
+- Adicionar label pequeno "META" ou "RESTANTE" acima do numero
+
+### Feedback de Hit
+- Manter popups de dano flutuante
+- Garantir que valores float (ex: -0.5) sejam exibidos corretamente
+- Popup aparece sobre o lado de quem CHUTOU (nao do adversario)
+
+---
+
+## Parte 4: Tela Final (ArcadeFinishedScreen.tsx)
+
+### Remover
+- `FighterMascot` (ambos os mascotes)
+- Imports de `FighterMascot`
+
+### Atualizar
+- Badge: "ARCADE MODE" -> "CORRIDA DE DEMOLICAO"
+- Round details: HP restante agora significa "quanto faltou" (menor = melhor)
+- Manter confetti, trofeu, e botoes
+
+---
+
+## Fluxo de Dados (sem mudancas em Index.tsx)
+
+O `Index.tsx` continua passando `vestDamage`, `helmetDamage`, `roundDuration`, `bestOf`, `recoveryInterval` para o setup e para o hook. A unica diferenca e que o setup agora define esses valores via presets em vez de sliders manuais. Nao e necessario alterar props ou estado em Index.tsx.
+
+---
+
+## Resumo Tecnico
+
+| Item | Antes | Depois |
+|------|-------|--------|
+| Dano aplicado em | Adversario | Proprio |
+| Vitoria | Adversario HP = 0 | Proprio HP = 0 |
+| Empate (tempo) | Maior HP vence | Menor HP vence |
+| Energy/Special | Ativo | Removido |
+| Combos | Ativo | Mantido |
+| Mascotes | FighterMascot | Shield icon |
+| Setup | 3 sliders + presets | 3 cartoes de intensidade |
+| Dano float | Nao usado | Suportado (0.5) |
+| Visual | Street Fighter / infantil | E-Sports / profissional |
+
+- 4 arquivos alterados
+- 0 arquivos novos
+- Mudancas de logica + visual
+- Responsividade mantida (vmin/vh em todos os clamp)
