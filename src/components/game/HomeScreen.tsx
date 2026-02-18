@@ -1,6 +1,7 @@
 import { Timer, Swords, Zap, Eye, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logoSfighter from '@/assets/logo-sfighter.png';
+import bgMenuModos from '@/assets/menu-modos.jpg';
 import { UseSerialPortReturn } from '@/types/serial';
 import { MenuDrawer } from './MenuDrawer';
 import { EquipmentStatus } from './EquipmentStatus';
@@ -84,7 +85,11 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   };
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden" style={{ background: '#0b1120' }}>
+    <div className="flex flex-col h-full w-full overflow-hidden relative">
+      <img src={bgMenuModos} alt="" className="absolute inset-0 w-full h-full object-cover z-0" />
+      <div className="absolute inset-0 bg-black/60 z-[1]" />
+
+      <div className="relative z-10 flex flex-col h-full w-full">
       {/* Header - translucent bar */}
       <header className="flex-shrink-0 w-full flex items-center justify-between px-4 md:px-6 py-3 bg-white/5 backdrop-blur-sm border-b border-white/10">
         <img
@@ -197,6 +202,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
           )}
         </div>
       </footer>
+      </div>
     </div>
   );
 }
