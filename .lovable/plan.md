@@ -1,18 +1,10 @@
 
 
-# Fix: Conexao Serial Unica Compartilhada Entre Todos os Modos
+# Redesign: Tela de Conexao (System Boot) + Auto-Connect Fix
 
-## O Problema
+## Resumo
 
-Existem duas instancias independentes de `useSerialPort`:
-- `Index.tsx` (modos Time Attack, Arcade, Reaction) em `/`
-- `ChampionshipMat.tsx` (modo Campeonato) em `/championship/mat`
-
-Quando o usuario navega entre as paginas, a instancia anterior e destruida e uma nova e criada, exigindo reconexao manual.
-
-## A Solucao: SerialPortContext (Provider Global)
-
-Criar um React Context que encapsula `useSerialPort` no nivel do App, acima de todas as rotas. Todas as paginas consomem a mesma instancia via `useContext`.
+Duas mudancas: (1) expor estado de auto-reconexao no hook serial para que a UI saiba quando esta tentando reconectar automaticamente, e (2) redesign completo do EquipmentSetupScreen com visual "System Boot" estilo terminal/hardware.
 
 ---
 
@@ -20,89 +12,112 @@ Criar um React Context que encapsula `useSerialPort` no nivel do App, acima de t
 
 | Arquivo | Acao |
 |---------|------|
-| `src/contexts/SerialPortContext.tsx` | **NOVO** - Context + Provider |
-| `src/App.tsx` | Editar - Envolver rotas com `SerialPortProvider` |
-| `src/pages/Index.tsx` | Editar - Trocar `useSerialPort()` local por `useSerialPortContext()` |
-| `src/pages/ChampionshipMat.tsx` | Editar - Trocar `useSerialPort()` local por `useSerialPortContext()` |
+| `src/hooks/useSerialPort.ts` | Editar - Adicionar estado `isAutoConnecting` |
+| `src/types/serial.ts` | Editar - Adicionar `isAutoConnecting` ao `UseSerialPortReturn` |
+| `src/components/game/EquipmentSetupScreen.tsx` | Reescrever - Novo visual "System Boot" |
 
 ---
 
-## Detalhes Tecnicos
+## Parte 1: Auto-Connect com Feedback Visual
 
-### 1. SerialPortContext.tsx (Novo)
+### useSerialPort.ts
+
+O auto-reconnect ja existe (linhas 376-411), mas nao expoe estado visual. Alteracoes:
+
+1. Adicionar `const [isAutoConnecting, setIsAutoConnecting] = useState(false)`
+2. No `tryAutoReconnect()`:
+   - Setar `setIsAutoConnecting(true)` antes de tentar
+   - Setar `setIsAutoConnecting(false)` ao terminar (sucesso ou falha)
+3. Retornar `isAutoConnecting` no objeto de retorno
+
+### types/serial.ts
+
+Adicionar `isAutoConnecting: boolean` ao `UseSerialPortReturn`.
+
+---
+
+## Parte 2: Redesign Visual - "System Boot"
+
+### Conceito
+
+Abandonar o visual de card/formulario. Adotar estetica de inicializacao de hardware com:
+- Fundo escuro translucido com borda ciano
+- Icone central grande (Cpu do lucide-react) com estados visuais distintos
+- Checklist estilo terminal (font-mono)
+- Botao de acao grande e luminoso
+
+### Estados Visuais
+
+**Auto-Conectando** (isAutoConnecting = true):
+- Icone Cpu com `animate-pulse` em ciano
+- Texto: "BUSCANDO HARDWARE..." em font-mono
+- Barra de progresso indeterminada (animate-pulse)
+- Botao escondido
+
+**Desconectado** (aguardando acao manual):
+- Icone Cpu grande (`w-20 h-20`) em cinza (`text-slate-600`)
+- Titulo: "AGUARDANDO CONEXAO" em font-mono text-cyan-400
+- Checklist terminal:
+  - `[OK]` Compatibilidade do Navegador (se suportado)
+  - `[..]` Permissao de Acesso USB
+  - `[..]` Handshake do Equipamento
+- Botao grande: "INICIALIZAR CONEXAO"
+  - `bg-cyan-600 hover:bg-cyan-500 text-white font-bold tracking-widest uppercase py-4 px-8`
+  - `shadow-[0_0_20px_rgba(8,145,178,0.4)]`
+
+**Conectando** (isConnecting = true):
+- Icone Cpu com `animate-spin` em amarelo
+- Texto: "CONECTANDO..." 
+- Botao desabilitado
+
+**Conectado** (isConnected = true):
+- Icone Cpu em verde com glow: `text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.8)]`
+- Titulo: "SISTEMA ONLINE" com animacao de entrada
+- Checklist tudo `[OK]` em verde
+- Botao "CONTINUAR" grande em emerald
+- Link discreto "Desconectar" abaixo
+
+### Estrutura do Componente
 
 ```text
-SerialPortProvider
-  |-- useSerialPort({ onKick: noop, onRawPacket, onImpact })
-  |-- Expoe: serialPort (connect/disconnect/equipment/etc)
-  |-- Expoe: registerKickHandler(fn) / registerImpactHandler(fn)
-  |-- Expoe: registerRawPacketHandler(fn)
+div (h-full w-full flex items-center justify-center)
+  |-- OctagonBackground (mantido)
+  |-- div (container central, max-w-lg, bg-[#0b1120]/90 backdrop-blur-md border-cyan-500/30)
+  |     |-- header (botao Voltar + logo, compacto)
+  |     |-- icone central (Cpu, tamanho grande, estados visuais)
+  |     |-- titulo + subtitulo (font-mono)
+  |     |-- checklist terminal (3 itens, font-mono text-sm)
+  |     |-- botao de acao (ou feedback auto-connect)
+  |     |-- link "Pular" (discreto, sempre visivel quando nao conectado)
 ```
 
-O desafio principal: os callbacks `onKick` e `onImpact` precisam variar conforme o modo ativo. A solucao e usar **refs de callback** dentro do Provider:
+### Checklist Terminal
 
-- O Provider cria o `useSerialPort` com callbacks que delegam para refs
-- Cada pagina registra seus callbacks via `registerKickHandler(fn)` e `registerImpactHandler(fn)` no mount
-- Quando o usuario navega, a pagina nova registra seus handlers — a conexao serial permanece intacta
-
-### 2. App.tsx
-
-Envolver `<BrowserRouter>` com `<SerialPortProvider>`:
+Cada item usa prefixo de status colorido:
 
 ```text
-QueryClientProvider
-  AuthProvider
-    SoundProvider
-      SerialPortProvider    <-- NOVO
-        TooltipProvider
-          BrowserRouter
-            Routes...
+[OK] = text-emerald-400
+[..] = text-slate-500 (animate-pulse quando relevante)
+[!!] = text-red-400 (erro)
 ```
 
-### 3. Index.tsx
+Items:
+1. "Compatibilidade do Navegador" - OK se `isSupported`, !! se nao
+2. "Permissao de Acesso USB" - OK se conectado, .. se aguardando
+3. "Handshake do Equipamento" - OK se conectado, .. se aguardando
 
-- Remover a chamada local `useSerialPort({ onKick, debounceMs })`
-- Importar `useSerialPortContext()`
-- No mount, registrar o `handleSerialKick` como kick handler
-- Usar `serialPort` do context (connect/disconnect/equipment)
+### Alerta de Navegador Incompativel
 
-### 4. ChampionshipMat.tsx
-
-- Remover a chamada local `useSerialPort({ onKick, onRawPacket, onImpact, ... })`
-- Importar `useSerialPortContext()`
-- No mount, registrar `handleImpact` como impact handler e `onRawPacket` como raw handler
-- Usar `serialPort` do context (connect/disconnect/equipment)
-
----
-
-## Fluxo do Usuario (Depois)
-
-1. Usuario abre o app (`/`)
-2. Clica "Conectar placa USB" na EquipmentSetupScreen
-3. Conexao estabelecida (uma unica vez)
-4. Joga Time Attack, Arcade, etc — tudo funciona
-5. Navega para Campeonato (`/championship/mat`) — **conexao permanece ativa**
-6. Volta para `/` — **conexao permanece ativa**
-7. Nunca mais precisa reconectar (a menos que desconecte manualmente ou desplugue o USB)
-
----
-
-## Configuracao do ImpactDetector
-
-O `useSerialPort` aceita `impactDetectorConfig` que hoje so e usado no Championship. No Provider global, teremos duas opcoes:
-
-- **Opcao A**: Sempre ativar o ImpactDetector globalmente (custo computacional minimo)
-- **Opcao B**: Expor `setImpactDetectorConfig(config)` no context para cada pagina configurar quando necessario
-
-Recomendacao: **Opcao B** — o Championship registra seu config ao montar, e ao desmontar ele desativa. Os outros modos nao precisam do ImpactDetector.
+Se `!isSupported`, substituir o checklist e botao por um alerta:
+- Borda vermelha, texto informando para usar Chrome/Edge
+- Sem botao de conectar (impossivel)
 
 ---
 
 ## O Que NAO Muda
 
-- API do `useSerialPort` hook (permanece identica internamente)
-- Logica de parsing serial, debounce, equipment tracking
-- EquipmentSetupScreen (ja recebe `serialPort` via props)
-- Diagnostics, calibration wizard
-- Nenhuma tabela ou backend
+- Props do componente (`serialPort`, `onContinue`, `onSkip`, `onBack`)
+- Logica de conexao do `useSerialPort` (apenas exposicao de estado novo)
+- Contexto `SerialPortContext` (passa `isAutoConnecting` transparentemente)
+- Integracao com as paginas (`Index.tsx`, `ChampionshipMat.tsx`)
 
