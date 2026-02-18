@@ -1,31 +1,87 @@
 
 
-# Fix: Tela de Setup Reacao — Fit-to-Screen sem Scroll
+# UX Upgrade: Tutorial, Dicas Visuais e Descricoes Dinamicas
 
-## Problema
+## Resumo
 
-A correcao anterior adicionou `overflow-y-auto` e `flex-shrink-0`, criando scroll. O objetivo correto e que tudo caiba na tela sem rolar, em qualquer monitor.
-
-## Solucao
-
-Reverter para a estrategia "Fit-to-Screen" (overflow-hidden), mas tornar TODAS as secoes flexiveis (nenhuma com `flex-shrink-0` rigido). Usar `flex-1 min-h-0` no main e permitir que as 3 rows encolham proporcionalmente. Reduzir paddings e alturas fixas em telas menores usando classes responsivas.
+Adicionar elementos de usabilidade nas 3 telas de setup (Arcade, Contra o Tempo, Reacao) sem quebrar a estetica brutalista: Mission Briefing dinamico, chevrons de affordance, botao tutorial com modal, e animacao de atencao por inatividade.
 
 ## Alteracoes
 
-### Arquivo: `src/components/game/ReactionSetupScreen.tsx`
+### 1. Novo componente: `src/components/game/MissionBriefing.tsx`
 
-1. **Linha 84** — Main container: Trocar `overflow-y-auto` por `overflow-hidden`. Manter `flex-1 min-h-0`
-2. **Linha 86** — Row 1 (Athlete+Difficulty): Remover `flex-shrink-0` para permitir encolhimento
-3. **Linha 90, 114** — Botoes de atleta e dificuldade: Reduzir altura fixa de `h-14 md:h-16` para `h-10 md:h-12` para economizar espaco vertical
-4. **Linha 138** — Row 2 (Parametros): Trocar `flex-shrink-0` por `flex-1 min-h-0 overflow-hidden` para encolher proporcionalmente. Reduzir padding de `p-4 md:p-6` para `p-3 md:p-4`
-5. **Linha 201** — Row 3 (Cognitive): Remover `flex-shrink-0` para permitir encolhimento. Reduzir padding de `p-4 md:p-6` para `p-3 md:p-4`
-6. **Linha 77** — Header: Reduzir `mb-4 md:mb-6` para `mb-2 md:mb-3` para economizar espaco
-7. **Linha 84** — Gap entre rows: Reduzir `gap-3` para `gap-2`
+Container reutilizavel estilo terminal que recebe um texto e o exibe com efeito de "digitacao".
 
-### Resultado
+- Props: `text: string` (a descricao do modo selecionado)
+- Visual: `border-l-2 border-cyan-500/30 pl-4 py-2 bg-black/20 min-h-[48px]`
+- Header: `MISSION BRIEFING` em `font-mono text-[0.65rem] text-cyan-500/60 uppercase tracking-widest`
+- Texto: `font-mono text-sm text-white/60` com efeito typewriter (revela caractere a caractere via `useState` + `setInterval`)
+- Quando `text` muda, reinicia a animacao de digitacao
+- Texto padrao quando vazio: `"SELECIONE UM PROTOCOLO PARA INICIAR A ANALISE..."`
 
-- Todas as secoes encolhem proporcionalmente quando a tela e baixa
-- Sem scroll em nenhuma resolucao
-- Em telas altas: layout respira normalmente
-- Em telas de 768px de altura: tudo cabe sem sobreposicao
+### 2. Novo componente: `src/components/game/SetupTutorialDialog.tsx`
+
+Modal "Manual do Operador" reutilizavel pelas 3 telas.
+
+- Usa `Dialog` do shadcn/ui
+- Props: `open: boolean; onOpenChange: (open: boolean) => void; accentColor?: string` (amarelo para Arcade/Setup, verde para Reacao)
+- Titulo: `MANUAL DO OPERADOR` em font-mono
+- 3 passos com numero grande (01, 02, 03) e texto:
+  - `01 — SELECIONE O PROTOCOLO`: Escolha o tipo de treino
+  - `02 — AJUSTE A CARGA`: Configure tempo e dificuldade
+  - `03 — INICIAR COMBATE`: De o play e acerte os alvos
+- Botao de fechar: `ENTENDIDO` com accent color
+- Visual: fundo escuro, bordas tecnicas, estilo "arquivo confidencial"
+
+### 3. Hook customizado: `src/hooks/useIdleAttention.ts`
+
+Hook que detecta inatividade e retorna um boolean para trigger de animacao.
+
+- Recebe `timeoutMs: number` (default 5000)
+- Reseta timer a cada `mousemove`, `touchstart`, `keydown`, `click`
+- Retorna `isIdle: boolean`
+- Usado para aplicar `animate-pulse` condicionalmente nos botoes de iniciar ou nos cards de modo
+
+### 4. Alteracoes em `src/components/game/ArcadeSetupScreen.tsx`
+
+- Importar `MissionBriefing`, `SetupTutorialDialog`, `useIdleAttention`, `ChevronRight` e `HelpCircle` do lucide-react
+- **Header**: Adicionar botao `[ ? ]` ao lado do titulo que abre o `SetupTutorialDialog`
+- **Barras de preset**: Adicionar `<ChevronRight>` na extremidade direita de cada barra
+  - Inativo: `text-white/20 w-4`
+  - Hover: `text-white/60 translate-x-1`
+  - Ativo: `text-black w-5`
+  - Adicionar `cursor-pointer` (ja implicito no `button`)
+- **Mission Briefing**: Inserir `<MissionBriefing>` logo abaixo das barras de preset (antes do Controls Panel)
+  - Mapeamento: sprint -> "PROTOCOLO DE VELOCIDADE: Atingir a meta no menor tempo. Foco em explosao.", resistance -> "VOLUME DE LUTA: Meta padrao com ritmo constante. Equilibrio entre potencia e resistencia.", elite -> "DESAFIO DE MARATONA: Meta extrema que exige estrategia e controle total do combate."
+- **Botao INICIAR DUELO**: Aplicar `animate-pulse` condicional via `useIdleAttention(5000)` quando `isIdle === true`
+
+### 5. Alteracoes em `src/components/game/SetupScreen.tsx`
+
+- Importar `MissionBriefing`, `SetupTutorialDialog`, `useIdleAttention`, `ChevronRight`, `HelpCircle`
+- **Header**: Adicionar progress bars existentes + botao `[ ? ]` no topo
+- **Step "players"**: Adicionar `<ChevronRight>` nas barras DUPLA/SOZINHO
+  - Inserir `<MissionBriefing>` abaixo com textos: duo -> "MODO DUPLA: Dois jogadores competem lado a lado. Quem marcar mais chutes vence.", individual -> "MODO SOLO: Treine sozinho e registre seu desempenho no ranking."
+- **Step "duration"**: Adicionar `<ChevronRight>` nas barras de duracao
+  - Inserir `<MissionBriefing>` com descricao da duracao selecionada
+- **Botao JOGAR!**: `animate-pulse` condicional via `useIdleAttention`
+
+### 6. Alteracoes em `src/components/game/ReactionSetupScreen.tsx`
+
+- Importar `MissionBriefing`, `SetupTutorialDialog`, `useIdleAttention`, `ChevronRight`, `HelpCircle`
+- **Header**: Adicionar botao `[ ? ]` ao lado do titulo
+- **Barras de dificuldade**: Adicionar `<ChevronRight>` em cada barra
+- **Mission Briefing**: Inserir abaixo do Row 1 (Athlete + Difficulty)
+  - beginner -> "MODO INICIANTE: Reflexos basicos com tempos generosos. Ideal para aquecimento.", intermediate -> "MODO INTERMEDIARIO: Velocidade e consistencia. Prepare-se para reagir rapido.", elite -> "MODO ELITE: Reflexos no limite. Cada milissegundo conta."
+- **Botao INICIAR TREINO**: `animate-pulse` condicional via `useIdleAttention`
+
+## Arquivos criados/alterados
+
+| Arquivo | Acao |
+|---------|------|
+| `src/components/game/MissionBriefing.tsx` | Criar componente |
+| `src/components/game/SetupTutorialDialog.tsx` | Criar componente |
+| `src/hooks/useIdleAttention.ts` | Criar hook |
+| `src/components/game/ArcadeSetupScreen.tsx` | Adicionar briefing, chevrons, tutorial, idle pulse |
+| `src/components/game/SetupScreen.tsx` | Adicionar briefing, chevrons, tutorial, idle pulse |
+| `src/components/game/ReactionSetupScreen.tsx` | Adicionar briefing, chevrons, tutorial, idle pulse |
 
