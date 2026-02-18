@@ -574,3 +574,8 @@
   0%, 100% { opacity: 0.6; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.08); }
 }
+
+@keyframes logo-glow {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(34,211,238,0.6)) drop-shadow(0 0 40px rgba(34,211,238,0.3)); }
+  50% { filter: drop-shadow(0 0 10px rgba(34,211,238,0.2)) drop-shadow(0 0 20px rgba(34,211,238,0.1)); }
+}
