@@ -364,7 +364,8 @@ export function useSoundEffects() {
   }, []);
 
   // Warm-up: force decode by playing at volume 0 then immediately pausing
-  const warmUpSounds = useCallback(async (soundNames: SoundName[]): Promise<void> => {
+  // Plain function (not a hook) — only uses refs, no need for useCallback
+  const warmUpSounds = async (soundNames: SoundName[]): Promise<void> => {
     const promises = soundNames.map(async (name) => {
       let audio: HTMLAudioElement | null = null;
 
@@ -397,7 +398,7 @@ export function useSoundEffects() {
     });
 
     await Promise.all(promises);
-  }, []);
+  };
 
   // Wait for critical audio files to be ready (buffered + decoded)
   const waitForAudioReady = useCallback(async (
@@ -471,7 +472,7 @@ export function useSoundEffects() {
     }
 
     return downloadReady;
-  }, [initFullPreload, warmUpSounds]);
+  }, [initFullPreload]);
 
   // Get current loading progress for UI feedback
   const getAudioProgress = useCallback((
