@@ -1,37 +1,27 @@
 
 
-# Fix: Menu Drawer Transparencia e Sobreposicao
+# Fix: Menu Drawer Preso Dentro do Header
 
-## Problema
+## Causa Raiz
 
-O MenuDrawer usa implementacao manual (div com translate-x), e mesmo com z-[100], os `box-shadow` (glow) dos Hero Cards "vazam" visualmente por cima do backdrop e do drawer. Isso acontece porque os cards e o drawer compartilham o mesmo contexto de empilhamento (stacking context).
+O `<header>` na HomeScreen usa `backdrop-blur-sm`, que no CSS cria um **novo "containing block"**. Isso faz com que os elementos `position: fixed` do MenuDrawer (backdrop e painel lateral) fiquem posicionados **relativos ao header** em vez da tela inteira. Por isso o fundo escuro nao cobre a tela toda e o drawer parece misturado com os cards.
 
-## Solucao (3 ajustes no mesmo arquivo)
+## Solucao
+
+Usar um **React Portal** para renderizar o backdrop e o drawer diretamente no `<body>`, escapando completamente do contexto do header.
+
+## Alteracao
 
 | Arquivo | Acao |
 |---------|------|
-| `src/components/game/MenuDrawer.tsx` | Backdrop mais opaco + drawer totalmente isolado |
-| `src/components/game/HomeScreen.tsx` | Isolar stacking context dos cards |
+| `src/components/game/MenuDrawer.tsx` | Envolver backdrop + drawer em `createPortal` |
 
-### 1. HomeScreen.tsx - Isolar cards
+## Detalhes Tecnicos
 
-Adicionar `isolation: isolate` (classe Tailwind `isolate`) e `z-0` no container do grid dos cards. Isso cria um novo stacking context que impede que os `box-shadow` dos cards escapem para camadas superiores.
+1. Importar `createPortal` de `react-dom`
+2. Manter o botao do menu (hamburguer) no lugar atual dentro do header
+3. Envolver **apenas** o backdrop e o drawer com `createPortal(..., document.body)`
+4. Manter todos os z-index, cores e estilos como estao (`z-[90]`, `z-[100]`, `bg-[#0b1120]`)
 
-```text
-Container do grid: adicionar "isolate z-0 relative"
-```
-
-### 2. MenuDrawer.tsx - Backdrop mais opaco
-
-Mudar o backdrop de `bg-black/60` para `bg-black/80` para escurecer mais e cobrir melhor os glows.
-
-### 3. MenuDrawer.tsx - Drawer com fundo reforçado
-
-Adicionar `shadow-[-10px_0_30px_rgba(0,0,0,0.8)]` ao drawer para criar uma sombra lateral escura que "corta" qualquer vazamento residual de glow dos cards.
-
-## Resultado Esperado
-
-- Ao abrir o menu, fundo fica escuro (80% opacidade) cobrindo totalmente os cards
-- O painel lateral tem fundo solido sem nenhum brilho vazando por baixo
-- Cards ficam confinados em seu proprio stacking context (`isolate`)
+Isso garante que o backdrop e o painel lateral sejam renderizados fora de qualquer ancestor com `backdrop-blur`, `transform` ou `overflow`, resolvendo definitivamente o problema de sobreposicao.
 
