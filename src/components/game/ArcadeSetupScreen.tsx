@@ -96,7 +96,6 @@ export function ArcadeSetupScreen({
     onHelmetDamageChange(preset.damage);
   };
 
-  // Find active preset info
   const activePreset = INTENSITY_PRESETS.find(p => p.id === selectedPreset) || INTENSITY_PRESETS[1];
 
   return (
@@ -116,9 +115,9 @@ export function ArcadeSetupScreen({
       </header>
 
       {/* Settings - scrollable area */}
-      <main className="flex-1 min-h-0 w-full max-w-2xl mx-auto overflow-y-auto space-y-3 md:space-y-4">
-        {/* Intensity Preset Cards */}
-        <div className="grid grid-cols-3 gap-3">
+      <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto overflow-y-auto">
+        {/* Intensity Preset Cards - 3 columns on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6">
           {INTENSITY_PRESETS.map((preset) => {
             const isActive = selectedPreset === preset.id;
             return (
@@ -126,20 +125,20 @@ export function ArcadeSetupScreen({
                 key={preset.id}
                 onClick={() => selectPreset(preset)}
                 className={cn(
-                  "relative p-4 rounded-xl border-2 transition-all duration-200 text-left",
+                  "relative p-4 md:p-6 rounded-xl border-2 transition-all duration-200 text-left h-full",
                   isActive ? preset.activeClass : preset.colorClass,
                   "hover:scale-[1.02]"
                 )}
               >
-                <preset.Icon className={cn("w-8 h-8 mb-2", preset.iconColor)} />
-                <div className={cn("font-black text-lg font-mono", preset.textColor)}>
+                <preset.Icon className={cn("w-8 h-8 md:w-10 md:h-10 mb-2", preset.iconColor)} />
+                <div className={cn("font-black text-lg md:text-xl font-mono", preset.textColor)}>
                   {preset.label}
                 </div>
-                <div className="text-xs text-white/50 font-bold uppercase">{preset.subtitle}</div>
-                <div className={cn("text-sm font-bold font-mono mt-1", preset.textColor)}>
+                <div className="text-xs md:text-sm text-white/50 font-bold uppercase">{preset.subtitle}</div>
+                <div className={cn("text-sm md:text-base font-bold font-mono mt-1", preset.textColor)}>
                   {preset.meta}
                 </div>
-                <p className="text-xs text-white/40 mt-2 leading-relaxed">{preset.description}</p>
+                <p className="text-xs md:text-sm text-white/40 mt-2 leading-relaxed">{preset.description}</p>
                 {isActive && (
                   <div className={cn("absolute top-2 right-2 w-3 h-3 rounded-full", 
                     preset.id === 'sprint' ? 'bg-yellow-400' : preset.id === 'resistance' ? 'bg-cyan-400' : 'bg-purple-400'
@@ -150,116 +149,125 @@ export function ArcadeSetupScreen({
           })}
         </div>
 
-        {/* Round Duration Slider */}
-        <div className="bg-white/5 p-3 md:p-4 rounded-lg border border-white/10">
-          <div className="flex items-center justify-between mb-3 md:mb-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <Clock className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
-              <h2 className="text-lg md:text-xl font-bold text-white">TEMPO DO ROUND</h2>
-            </div>
-            <span className="text-2xl md:text-3xl font-black text-game-yellow font-mono">{roundDuration}s</span>
-          </div>
-          <Slider
-            value={[roundDuration]}
-            onValueChange={(values) => onRoundDurationChange(values[0])}
-            min={15}
-            max={120}
-            step={5}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-white/40 mt-1 font-mono">
-            <span>15s</span>
-            <span>120s</span>
-          </div>
-        </div>
-
-        {/* Best Of */}
-        <div className="bg-white/5 p-3 md:p-4 rounded-lg border border-white/10">
-          <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-            <Trophy className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
-            <h2 className="text-lg md:text-xl font-bold text-white">FORMATO</h2>
-          </div>
-          <div className="flex gap-3 md:gap-4">
-            {BEST_OF_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => onBestOfChange(option.value)}
-                className={cn(
-                  "flex-1 py-2 md:py-3 px-4 md:px-6 rounded-lg font-bold text-lg md:text-xl transition-all font-mono",
-                  bestOf === option.value
-                    ? "bg-game-yellow text-black"
-                    : "bg-white/10 text-white/50 hover:bg-white/15"
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Recovery Interval Slider - Only visible when Best of 3 */}
-        {bestOf === 3 && (
-          <div className="bg-white/5 p-3 md:p-4 rounded-lg border border-white/10">
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <div className="flex items-center gap-2 md:gap-3">
-                <Timer className="w-5 h-5 md:w-6 md:h-6 text-green-500" />
-                <h2 className="text-lg md:text-xl font-bold text-white">INTERVALO</h2>
+        {/* Controls Panel - unified container */}
+        <div className="bg-slate-900/50 p-4 md:p-6 rounded-xl border border-white/5 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            {/* Left Column: Round Duration Slider */}
+            <div>
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Clock className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
+                  <h2 className="text-lg md:text-xl font-bold text-white">TEMPO DO ROUND</h2>
+                </div>
+                <span className="text-2xl md:text-3xl font-black text-game-yellow font-mono">{roundDuration}s</span>
               </div>
-              <span className="text-2xl md:text-3xl font-black text-green-500 font-mono">{recoveryInterval}s</span>
+              <Slider
+                value={[roundDuration]}
+                onValueChange={(values) => onRoundDurationChange(values[0])}
+                min={15}
+                max={120}
+                step={5}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-white/40 mt-1 font-mono">
+                <span>15s</span>
+                <span>120s</span>
+              </div>
             </div>
-            <Slider
-              value={[recoveryInterval]}
-              onValueChange={(values) => onRecoveryIntervalChange(values[0])}
-              min={5}
-              max={60}
-              step={5}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-white/40 mt-1 font-mono">
-              <span>5s</span>
-              <span>60s</span>
+
+            {/* Right Column: Format + Interval stacked */}
+            <div className="space-y-4 md:space-y-6">
+              {/* Best Of */}
+              <div>
+                <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+                  <Trophy className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
+                  <h2 className="text-lg md:text-xl font-bold text-white">FORMATO</h2>
+                </div>
+                <div className="flex gap-3 md:gap-4">
+                  {BEST_OF_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => onBestOfChange(option.value)}
+                      className={cn(
+                        "flex-1 py-2 md:py-3 px-4 md:px-6 rounded-lg font-bold text-lg md:text-xl transition-all font-mono",
+                        bestOf === option.value
+                          ? "bg-game-yellow text-black"
+                          : "bg-white/10 text-white/50 hover:bg-white/15"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recovery Interval - Only visible when Best of 3 */}
+              {bestOf === 3 && (
+                <div>
+                  <div className="flex items-center justify-between mb-3 md:mb-4">
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <Timer className="w-5 h-5 md:w-6 md:h-6 text-green-500" />
+                      <h2 className="text-lg md:text-xl font-bold text-white">INTERVALO</h2>
+                    </div>
+                    <span className="text-2xl md:text-3xl font-black text-green-500 font-mono">{recoveryInterval}s</span>
+                  </div>
+                  <Slider
+                    value={[recoveryInterval]}
+                    onValueChange={(values) => onRecoveryIntervalChange(values[0])}
+                    min={5}
+                    max={60}
+                    step={5}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-white/40 mt-1 font-mono">
+                    <span>5s</span>
+                    <span>60s</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Game Rules Preview */}
-        <div className="bg-white/5 p-2 md:p-3 rounded-lg border border-white/10">
-          <h3 className="text-xs md:text-sm font-bold text-white/40 uppercase mb-1 md:mb-2 font-mono">REGRAS</h3>
-          <ul className="text-xs md:text-sm text-white/50 space-y-0.5 md:space-y-1">
-            <li>• META: <span className="text-white font-bold font-mono">100</span> pontos para zerar</li>
-            <li>• Dano por chute: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.damage}</span></li>
-            <li>• Meta de chutes: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.meta}</span></li>
-            <li>• Combo: chutes rápidos em sequência (até +4 dano)</li>
-            <li>• <span className="text-game-yellow font-bold">Quem zerar primeiro vence!</span></li>
-          </ul>
+        {/* Footer: Rules + Action Buttons */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end">
+          {/* Rules Card - 2/3 width */}
+          <div className="md:col-span-2 bg-white/5 p-3 md:p-4 rounded-lg border border-white/10">
+            <h3 className="text-xs md:text-sm font-bold text-white/40 uppercase mb-1 md:mb-2 font-mono">REGRAS</h3>
+            <ul className="text-xs md:text-sm text-white/50 space-y-0.5 md:space-y-1">
+              <li>• META: <span className="text-white font-bold font-mono">100</span> pontos para zerar</li>
+              <li>• Dano por chute: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.damage}</span></li>
+              <li>• Meta de chutes: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.meta}</span></li>
+              <li>• Combo: chutes rápidos em sequência (até +4 dano)</li>
+              <li>• <span className="text-game-yellow font-bold">Quem zerar primeiro vence!</span></li>
+            </ul>
+          </div>
+
+          {/* Action Buttons - 1/3 width */}
+          <div className="md:col-span-1 flex flex-col gap-3">
+            <Button
+              size="default"
+              onClick={handleStart}
+              className="w-full h-14 md:h-16 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-lg md:text-xl font-mono"
+            >
+              <Shield className="w-5 h-5 md:w-6 md:h-6" />
+              INICIAR DUELO
+            </Button>
+            <Button
+              variant="ghost"
+              size="default"
+              onClick={onBack}
+              className="w-full gap-2 text-white/30 hover:text-white/70 hover:bg-white/5"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar
+            </Button>
+            <div className="text-center text-xs text-white/30">
+              <kbd className="px-2 py-1 bg-white/10 rounded font-mono">SPACE</kbd> para iniciar
+            </div>
+          </div>
         </div>
       </main>
-
-      {/* Footer - Action Buttons */}
-      <footer className="flex-shrink-0 pt-3 md:pt-4">
-        <div className="flex gap-3 w-full max-w-md mx-auto">
-          <Button
-            variant="outline"
-            size="default"
-            onClick={onBack}
-            className="flex-1 gap-2 border-white/20 text-white/70 hover:bg-white/10"
-          >
-            <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-            Voltar
-          </Button>
-          <Button
-            size="default"
-            onClick={handleStart}
-            className="flex-1 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-base md:text-lg font-mono"
-          >
-            <Shield className="w-4 h-4 md:w-5 md:h-5" />
-            INICIAR DUELO
-          </Button>
-        </div>
-        <div className="mt-2 md:mt-3 text-center text-xs md:text-sm text-white/30">
-          <kbd className="px-2 py-1 bg-white/10 rounded font-mono">SPACE</kbd> para iniciar
-        </div>
-      </footer>
     </div>
   );
 }
