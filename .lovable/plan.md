@@ -1,10 +1,10 @@
 
 
-# Redesign: Tela de Contagem Regressiva ("Launch Sequence")
+# Redesign de Layout: Setup Widescreen (Dashboard Mode)
 
 ## Resumo
 
-Transformar o CountdownScreen de um overlay basico (fundo liso, numeros cinzas) em uma sequencia de lancamento imersiva com estetica E-Sports Pro, usando logica de semaforo (vermelho/amarelo/verde) sincronizada com o audio narrado.
+Refatorar o ArcadeSetupScreen de um layout de coluna unica estreita (max-w-2xl) para um dashboard widescreen (max-w-6xl) com grids horizontais, preenchendo a tela 16:9 de forma profissional.
 
 ---
 
@@ -12,57 +12,67 @@ Transformar o CountdownScreen de um overlay basico (fundo liso, numeros cinzas) 
 
 | Arquivo | Tipo |
 |---------|------|
-| `src/components/game/CountdownScreen.tsx` | Redesign visual completo (sem mudanca de logica) |
+| `src/components/game/ArcadeSetupScreen.tsx` | Refatoracao de layout CSS/Tailwind |
 
 ---
 
 ## Alteracoes Detalhadas
 
-### 1. Container e Fundo
-- **Antes**: `bg-background` (liso)
-- **Depois**: `bg-[#0b1120]` com gradiente radial centralizado `bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15),transparent_70%)]`
-- Manter `overflow-hidden relative` e z existente
+### 1. Container Principal (linha 119)
+- **Antes**: `max-w-2xl mx-auto` (coluna estreita)
+- **Depois**: `max-w-6xl mx-auto w-full`
+- Remover `space-y-3 md:space-y-4` (o spacing sera gerenciado pelos grids internos)
 
-### 2. Fase Intro (countdown > 3: segundos 6, 5, 4)
-- **Antes**: "VAI COMECAR!" em `text-6xl md:text-8xl text-muted-foreground animate-pulse`
-- **Depois**: 
-  - Icone `AlertTriangle` (lucide) em ciano acima do texto
-  - Texto "PREPARAR" em `font-mono tracking-[0.3em] text-cyan-400 animate-pulse`
-  - Tamanho: `text-[clamp(2rem,6vmin,4rem)]`
+### 2. Cartoes de Intensidade (linhas 121-151)
+- **Antes**: `grid grid-cols-3 gap-3` (ja e horizontal mas comprimido pela max-w-2xl)
+- **Depois**: `grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6`
+- Adicionar `h-full` nos botoes de preset para altura igual
+- Aumentar padding interno: `p-4` para `p-4 md:p-6`
+- Icones maiores em desktop: `w-8 h-8 md:w-10 md:h-10`
 
-### 3. Fase Contagem (3, 2, 1) - Logica de Semaforo
-Helper function `getCountdownStyle(n)`:
-- **3**: `text-red-500` + `drop-shadow-[0_0_35px_rgba(239,68,68,0.6)]`
-- **2**: `text-yellow-400` + `drop-shadow-[0_0_35px_rgba(250,204,21,0.6)]`
-- **1**: `text-green-500` + `drop-shadow-[0_0_35px_rgba(34,197,94,0.6)]`
+### 3. Controles de Tempo e Formato (linhas 153-223)
+Agrupar os 3 paineis (Tempo, Formato, Intervalo) em um unico container com grid horizontal:
 
-Tamanho dos numeros: `fontSize: clamp(10rem, 40vmin, 25rem)` via style inline (Regra Kiosk)
-Classe: `font-black` com `animate-countdown-pop` existente
+```
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
+  <!-- Coluna Esquerda: Slider de Tempo do Round -->
+  <!-- Coluna Direita: Formato (Rapido/Melhor de 3) + Intervalo (condicional) -->
+</div>
+```
 
-### 4. Fase Final (countdown === 0 / "FIGHT!")
-- **Antes**: `text-game-yellow text-glow-yellow`
-- **Depois**: `text-white font-black italic tracking-tighter`
-- Glow intenso: `drop-shadow-[0_0_60px_rgba(255,255,255,0.8)]`
-- Tamanho: `fontSize: clamp(6rem, 25vmin, 16rem)`
-- Manter animacao `animate-countdown-pop`
+- O container externo tera: `bg-slate-900/50 p-4 md:p-6 rounded-xl border border-white/5`
+- Coluna esquerda: Slider de Tempo (como esta, sem o wrapper bg individual)
+- Coluna direita: Formato + Intervalo empilhados verticalmente (sem wrappers bg individuais)
+- Remover os `bg-white/5 border border-white/10` dos paineis internos (o container externo assume esse papel)
 
-### 5. Paineis Laterais (Preview)
-- **Antes**: `opacity-30` com bordas red/blue
-- **Depois**: Manter mas reduzir para `opacity-15` para nao competir com semaforo
+### 4. Rodape: Regras + Botao (linhas 225-261)
+Reorganizar em grid horizontal:
 
-### 6. Botao Voltar
-- **Antes**: `bg-black/50 text-white/70`
-- **Depois**: `bg-transparent text-white/30 hover:text-white/70` (mais discreto)
+```
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end">
+  <!-- md:col-span-2: Card de Regras (largo) -->
+  <!-- md:col-span-1: Botao Iniciar + Voltar (empilhados ou lado a lado) -->
+</div>
+```
+
+- Regras ocupam 2/3 da largura em desktop
+- Botao "INICIAR DUELO" ocupa 1/3, com altura maior: `h-14 md:h-16 text-lg md:text-xl`
+- Botao "Voltar" fica acima do Iniciar ou como link discreto
+- Hint do SPACE fica abaixo do botao
+
+### 5. Footer fixo (linhas 238-262)
+- Mover de `footer` separado para dentro do grid de Regras+Botao
+- Ou manter como footer mas com `max-w-6xl` em vez de `max-w-md`
 
 ---
 
 ## O Que NAO Muda
 
-- Logica de countdown (valores, fases, refs)
-- Integracao com audio (`playWithRef`, `onMusicStarted`, `shouldStartMusic`)
-- Ref `hasStartedMusicRef` e efeito de reset
+- Nenhuma logica de estado (selectedPreset, selectPreset, handleStart, etc.)
 - Props do componente
-- Comportamento do botao voltar (apenas visual)
+- Valores dos presets (INTENSITY_PRESETS, BEST_OF_OPTIONS)
+- Comportamento do slider
+- Integracao com SoundContext
 
 ---
 
@@ -70,7 +80,7 @@ Classe: `font-black` com `animate-countdown-pop` existente
 
 - 1 arquivo alterado
 - 0 arquivos novos
-- Import adicional: `AlertTriangle` de lucide-react
-- Apenas mudancas de CSS/classes, nenhuma logica alterada
-- Responsividade via `clamp(..., vmin, ...)` conforme padrao Kiosk
+- Apenas CSS/Tailwind, nenhuma mudanca de logica
+- Responsivo: coluna unica em mobile, dashboard em md+
+- Segue padrao max-w-6xl para preencher tela 16:9
 
