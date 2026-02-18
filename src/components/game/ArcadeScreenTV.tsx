@@ -18,7 +18,6 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
     redState,
     blueState,
     flashSide,
-    showCombo,
     showKO,
     lastDamage,
     config,
@@ -169,25 +168,6 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             </div>
           )}
 
-          {/* Combo */}
-          {showCombo?.side === 'red' && (
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
-              <div className="text-center">
-                <span className="block text-game-yellow font-black text-[clamp(24px,3vmin,48px)] uppercase tracking-widest font-mono">
-                  COMBO
-                </span>
-                <span className={cn(
-                  "block font-black leading-none text-game-yellow font-mono",
-                  "text-[clamp(72px,10vmin,140px)]",
-                  "drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
-                )}
-                style={{ textShadow: '0 0 40px hsl(var(--game-yellow-glow) / 0.6)' }}
-                >
-                  x{showCombo.count}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Center Divider */}
@@ -299,25 +279,6 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             </div>
           )}
 
-          {/* Combo */}
-          {showCombo?.side === 'blue' && (
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
-              <div className="text-center">
-                <span className="block text-game-yellow font-black text-[clamp(24px,3vmin,48px)] uppercase tracking-widest font-mono">
-                  COMBO
-                </span>
-                <span className={cn(
-                  "block font-black leading-none text-game-yellow font-mono",
-                  "text-[clamp(72px,10vmin,140px)]",
-                  "drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
-                )}
-                style={{ textShadow: '0 0 40px hsl(var(--game-yellow-glow) / 0.6)' }}
-                >
-                  x{showCombo.count}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Unified Round Transition Panel */}
