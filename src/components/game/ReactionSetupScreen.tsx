@@ -297,6 +297,10 @@ export function ReactionSetupScreen({
             <span>⚡ {config.flashMs}ms flash</span>
             <span>📊 Gap {config.gapMs.min}–{config.gapMs.max}ms</span>
             {config.cognitiveMode && <span>🧠 Go/No-Go {config.goProbability}%</span>}
+            <p className="mt-1 text-white/50 font-mono text-xs">
+              <span className="text-orange-500 font-bold tracking-wider">SENSOR:</span>{" "}
+              Aguarde o reset. O sistema ignora impactos múltiplos simultâneos.
+            </p>
           </div>
         </div>
 

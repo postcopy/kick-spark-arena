@@ -224,6 +224,13 @@ export function ArcadeSetupScreen({
               <li>• META: <span className="text-white/70 font-bold">100</span> pts | Dano: <span className="text-white/70 font-bold">{activePreset.damage}</span> | Chutes: <span className="text-white/70 font-bold">{activePreset.meta}</span></li>
               <li>• Combo: chutes rápidos em sequência (até +4 dano) · <span className="text-[#FFD700] font-bold">Quem zerar primeiro vence!</span></li>
             </ul>
+            <p className="mt-1 text-white/50 font-mono text-xs">
+              <span className="text-orange-500 font-bold tracking-wider">SENSOR:</span>{" "}
+              Detecta apenas impactos limpos. Chutes "colados" são ignorados.
+              <span className="text-white block mt-0.5 font-bold">
+                ⚠️ Chute → Recolha a perna → Chute novamente.
+              </span>
+            </p>
           </div>
 
           {/* Action Buttons */}
