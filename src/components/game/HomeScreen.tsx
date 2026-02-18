@@ -21,13 +21,10 @@ const modes = [
     info: '1-2 JOGADORES',
     icon: Timer,
     color: '#eab308',
-    glow: 'shadow-[0_0_24px_rgba(234,179,8,0.4)]',
-    glowHover: 'group-hover:shadow-[0_0_40px_rgba(234,179,8,0.6)]',
-    border: 'border-yellow-500/30 hover:border-yellow-500/80',
-    bg: 'from-transparent via-yellow-500/5 to-yellow-500/20',
-    iconBg: 'bg-yellow-500/15',
+    ledColor: 'rgba(234,179,8,0.2)',
+    borderColor: 'border-yellow-500/20 hover:border-yellow-500/60',
     textColor: 'text-yellow-500',
-    textMuted: 'text-yellow-500/60',
+    textMuted: 'text-yellow-500/50',
   },
   {
     id: 'arcade' as GameMode,
@@ -36,13 +33,10 @@ const modes = [
     info: '2 JOGADORES',
     icon: Swords,
     color: '#ef4444',
-    glow: 'shadow-[0_0_24px_rgba(239,68,68,0.4)]',
-    glowHover: 'group-hover:shadow-[0_0_40px_rgba(239,68,68,0.6)]',
-    border: 'border-red-500/30 hover:border-red-500/80',
-    bg: 'from-transparent via-red-500/5 to-red-500/20',
-    iconBg: 'bg-red-500/15',
+    ledColor: 'rgba(239,68,68,0.2)',
+    borderColor: 'border-red-500/20 hover:border-red-500/60',
     textColor: 'text-red-500',
-    textMuted: 'text-red-500/60',
+    textMuted: 'text-red-500/50',
   },
   {
     id: 'reaction' as GameMode,
@@ -51,13 +45,10 @@ const modes = [
     info: 'TURMA INTEIRA',
     icon: Eye,
     color: '#22c55e',
-    glow: 'shadow-[0_0_24px_rgba(34,197,94,0.4)]',
-    glowHover: 'group-hover:shadow-[0_0_40px_rgba(34,197,94,0.6)]',
-    border: 'border-green-500/30 hover:border-green-500/80',
-    bg: 'from-transparent via-green-500/5 to-green-500/20',
-    iconBg: 'bg-green-500/15',
+    ledColor: 'rgba(34,197,94,0.2)',
+    borderColor: 'border-green-500/20 hover:border-green-500/60',
     textColor: 'text-green-500',
-    textMuted: 'text-green-500/60',
+    textMuted: 'text-green-500/50',
   },
   {
     id: 'championship' as const,
@@ -66,13 +57,10 @@ const modes = [
     info: '2 TELAS',
     icon: Trophy,
     color: '#eab308',
-    glow: 'shadow-[0_0_24px_rgba(234,179,8,0.4)]',
-    glowHover: 'group-hover:shadow-[0_0_40px_rgba(234,179,8,0.6)]',
-    border: 'border-yellow-500/30 hover:border-yellow-500/80',
-    bg: 'from-transparent via-yellow-500/5 to-yellow-500/20',
-    iconBg: 'bg-yellow-500/15',
+    ledColor: 'rgba(234,179,8,0.2)',
+    borderColor: 'border-yellow-500/20 hover:border-yellow-500/60',
     textColor: 'text-yellow-500',
-    textMuted: 'text-yellow-500/60',
+    textMuted: 'text-yellow-500/50',
   },
 ] as const;
 
@@ -120,7 +108,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
       {/* Main */}
       <main className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-3 md:p-6">
         {/* Section label */}
-        <p className="font-mono font-bold text-white/30 tracking-[0.3em] text-[10px] md:text-xs uppercase mb-4 md:mb-6">
+        <p className="font-mono font-bold text-white/20 tracking-[0.4em] text-[10px] md:text-xs uppercase mb-4 md:mb-6">
           Selecione o modo
         </p>
 
@@ -132,31 +120,36 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
               <button
                 key={mode.id}
                 onClick={() => handleClick(mode.id)}
-                className={`group relative flex flex-col items-center text-center rounded-2xl border bg-gradient-to-b p-4 md:p-6 lg:p-8
-                  ${mode.border} ${mode.bg}
-                  hover:scale-[1.03] active:scale-[0.97]
+                className={`group relative cyber-card flex flex-col items-center text-center border p-4 md:p-6 lg:p-8
+                  ${mode.borderColor}
+                  hover:scale-[1.02] active:scale-[0.97]
                   transition-all duration-300 ease-out
                   min-h-[140px] md:min-h-[200px] lg:min-h-[280px]`}
+                style={{
+                  background: `linear-gradient(180deg, #0f172a 0%, #0b1120 60%, ${mode.color}08 100%)`,
+                }}
               >
-                {/* Icon with glow */}
+                {/* LED icon */}
                 <div
-                  className={`w-14 h-14 md:w-18 md:h-18 lg:w-20 lg:h-20 rounded-full flex items-center justify-center
-                    ${mode.iconBg} ${mode.glow} ${mode.glowHover}
-                    transition-shadow duration-300 icon-glow mb-3 md:mb-5`}
+                  className="led-glow w-14 h-14 md:w-18 md:h-18 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-3 md:mb-5"
+                  style={{
+                    '--led-color': mode.ledColor,
+                    background: `radial-gradient(circle, ${mode.color}18 0%, transparent 70%)`,
+                  } as React.CSSProperties}
                 >
                   <Icon
-                    className={`w-7 h-7 md:w-9 md:h-9 lg:w-10 lg:h-10 ${mode.textColor}`}
-                    strokeWidth={2}
+                    className={`w-7 h-7 md:w-9 md:h-9 lg:w-10 lg:h-10 ${mode.textColor} drop-shadow-[0_0_8px_${mode.color}]`}
+                    strokeWidth={2.5}
                   />
                 </div>
 
                 {/* Title */}
-                <h2 className="font-black italic text-base md:text-lg lg:text-2xl text-white uppercase tracking-tight leading-tight">
+                <h2 className="font-black italic text-base md:text-lg lg:text-2xl text-white uppercase tracking-tighter leading-tight">
                   {mode.title}
                 </h2>
 
                 {/* Subtitle */}
-                <p className={`text-xs md:text-sm font-medium mt-1 ${mode.textColor}`}>
+                <p className={`text-xs md:text-sm uppercase tracking-wide font-semibold mt-1 ${mode.textColor}`}>
                   {mode.subtitle}
                 </p>
 
@@ -164,8 +157,8 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
                 <div className="flex-1" />
 
                 {/* Tech info badge */}
-                <div className="w-full border-t border-white/10 pt-2 mt-3 md:mt-4">
-                  <span className={`font-mono text-[10px] md:text-[11px] ${mode.textMuted}`}>
+                <div className="w-full border-t border-white/5 pt-2 mt-3 md:mt-4">
+                  <span className={`font-mono text-[10px] md:text-[11px] tracking-widest ${mode.textMuted}`}>
                     {mode.info}
                   </span>
                 </div>
