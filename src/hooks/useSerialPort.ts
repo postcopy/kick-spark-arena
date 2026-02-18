@@ -332,6 +332,37 @@ export function useSerialPort({
     setEquipmentVersion(v => v + 1);
   }, [stopReading]);
 
+  const tryOpenPort = useCallback(async (port: SerialPort): Promise<boolean> => {
+    // Already open? Reuse directly
+    if (port.readable || port.writable) {
+      console.log('[Serial] Porta já aberta, reusando...');
+      portRef.current = port;
+      setIsConnected(true);
+      startReading(port);
+      return true;
+    }
+
+    // Try to open
+    try {
+      await port.open({ baudRate: BAUD_RATE });
+      console.log('[Serial] Porta aberta com sucesso!');
+      portRef.current = port;
+      setIsConnected(true);
+      startReading(port);
+      return true;
+    } catch (e: any) {
+      // InvalidStateError but port is readable = already open, reuse
+      if (e.name === 'InvalidStateError' && port.readable) {
+        console.log('[Serial] InvalidStateError mas porta readable, reusando...');
+        portRef.current = port;
+        setIsConnected(true);
+        startReading(port);
+        return true;
+      }
+      throw e;
+    }
+  }, [startReading]);
+
   const connect = useCallback(async () => {
     if (!isWebSerialSupported()) {
       setError('Web Serial não suportado. Use Chrome ou Edge.');
@@ -342,19 +373,31 @@ export function useSerialPort({
     setError(null);
 
     try {
-      console.log('[Serial] Solicitando porta...');
+      // Stage A: Try known/authorized ports first (no popup)
+      const knownPorts = await navigator.serial.getPorts();
+      console.log('[Serial] Portas conhecidas:', knownPorts.length);
+
+      if (knownPorts.length > 0) {
+        for (const port of knownPorts) {
+          try {
+            const success = await tryOpenPort(port);
+            if (success) {
+              setIsConnecting(false);
+              return;
+            }
+          } catch (e: any) {
+            console.log('[Serial] Porta conhecida falhou:', e.name, e.message);
+            // Continue to next port or fall through to requestPort
+          }
+        }
+      }
+
+      // Stage B: No known port worked, ask user (popup)
+      console.log('[Serial] Nenhuma porta conhecida, solicitando via popup...');
       const port = await navigator.serial.requestPort();
-      console.log('[Serial] Porta selecionada, abrindo a', BAUD_RATE, 'baud...');
-      
-      await port.open({ baudRate: BAUD_RATE });
-      console.log('[Serial] Porta aberta com sucesso!');
-      
-      portRef.current = port;
-      setIsConnected(true);
+      await tryOpenPort(port);
       setIsConnecting(false);
-      
-      startReading(port);
-      
+
     } catch (e: any) {
       setIsConnecting(false);
       console.error('[Serial] Erro de conexão:', e.name, e.message);
@@ -371,7 +414,7 @@ export function useSerialPort({
         setError(`Erro: ${e.name || 'desconhecido'} - ${e.message || 'Verifique conexão'}`);
       }
     }
-  }, [startReading]);
+  }, [startReading, tryOpenPort]);
 
   // Auto-reconnect on mount
   useEffect(() => {
@@ -381,28 +424,30 @@ export function useSerialPort({
       try {
         const ports = await navigator.serial.getPorts();
         if (ports.length > 0) {
-          const port = ports[0];
-          
           setIsAutoConnecting(true);
           
-          if (port.readable) {
-            portRef.current = port;
-            setIsConnected(true);
-            setIsAutoConnecting(false);
-            startReading(port);
-            return;
+          for (const port of ports) {
+            try {
+              const success = await tryOpenPort(port);
+              if (success) {
+                setIsAutoConnecting(false);
+                return;
+              }
+            } catch (e: any) {
+              // InvalidStateError with readable = already open, reuse
+              if (e.name === 'InvalidStateError' && port.readable) {
+                console.log('[Serial] Auto-reconnect: InvalidStateError mas porta readable, reusando...');
+                portRef.current = port;
+                setIsConnected(true);
+                startReading(port);
+                setIsAutoConnecting(false);
+                return;
+              }
+              console.log('[Serial] Auto-reconexão falhou:', e.name, '- tentando próxima porta');
+            }
           }
           
-          try {
-            await port.open({ baudRate: BAUD_RATE });
-            portRef.current = port;
-            setIsConnected(true);
-            startReading(port);
-          } catch (e: any) {
-            console.log('[Serial] Auto-reconexão falhou:', e.name, '- porta pode estar em uso');
-          } finally {
-            setIsAutoConnecting(false);
-          }
+          setIsAutoConnecting(false);
         }
       } catch (e) {
         console.log('Auto-reconnect check failed:', e);
@@ -413,6 +458,7 @@ export function useSerialPort({
     tryAutoReconnect();
     
     return () => {
+      setIsAutoConnecting(false);
       disconnect();
     };
   }, []);
