@@ -1,54 +1,47 @@
 
-# Redesign da LoadingScreen com Logo S-FIGHT MODO
+
+# Refatorar LoadingScreen: Imagem como Plano de Fundo
 
 ## Resumo
 
-Substituir o layout atual (icone spinner + barra de progresso) por uma splash screen cinematografica centrada na logo "S-FIGHT MODO", com efeito de brilho pulsante durante o carregamento e transicao fade-out + scale-up ao finalizar.
+Transformar a imagem `S-FIGHT-MODO.jpg` de elemento centralizado para plano de fundo fullscreen com overlay escuro, barra de progresso na parte inferior e animacao de saida unificada.
 
 ## Alteracoes
 
-### 1. Copiar imagem para o projeto
+### Arquivo: `src/components/game/LoadingScreen.tsx`
 
-Copiar `user-uploads://S-FIGHT-MODO.jpg` para `src/assets/S-FIGHT-MODO.jpg` e importar como modulo ES6 no componente.
+Reestruturar o JSX do `return` para:
 
-### 2. `src/components/game/LoadingScreen.tsx` -- Redesign completo
+1. **Container principal**: `div` com `fixed inset-0 z-50 overflow-hidden`. A animacao de fade-out (`opacity-0 scale-105 transition-all duration-700`) sera aplicada neste container, fazendo tudo desaparecer junto.
 
-**Layout:**
-- Fundo escuro `bg-[#0b1120]` em tela cheia
-- Logo centralizada (max-width ~500px, responsivo)
-- Barra de progresso fina e discreta abaixo da logo (mantida para feedback visual)
-- Texto de status pequeno abaixo da barra
+2. **Imagem de fundo**: `img` com `absolute inset-0 w-full h-full object-cover z-0` -- preenche toda a tela sem distorcao.
 
-**Efeito de brilho pulsante (durante carregamento):**
-- Aplicar animacao CSS `animate-pulse` customizada na logo com `drop-shadow` cyan/azul brilhante, similar ao estilo da propria imagem
-- Usar classe com keyframes que alterna opacidade do glow (ex: `0% -> shadow forte`, `50% -> shadow suave`, `100% -> shadow forte`)
+3. **Overlay escuro**: `div` com `absolute inset-0 bg-black/60 z-10` -- garante contraste para texto e barra.
 
-**Transicao ao completar (onReady):**
-- Quando `isComplete = true`, ao inves de chamar `onReady()` imediatamente, adicionar estado `isFadingOut`
-- Aplicar classes `opacity-0 scale-110` com `transition-all duration-700` na logo
-- Apos a transicao CSS terminar (~700ms), chamar `onReady()`
+4. **Barra de progresso + texto**: Container posicionado na parte inferior com `absolute bottom-10 left-0 right-0 z-20 flex flex-col items-center`. Barra com `max-w-[500px] w-full` (mais larga que os 400px atuais). Texto branco (`text-white/60`).
 
-**Fluxo de estados:**
+5. **Remover**: O wrapper centralizado atual (`flex flex-col items-center justify-center`) e o `max-w-[500px] px-4` da imagem.
+
+6. **Manter**: Toda a logica de estados (`progress`, `isComplete`, `isFadingOut`), os useEffects de audio e a animacao de glow (removida pois nao faz sentido no fundo -- a imagem de fundo nao precisa de glow pulsante).
+
+### Estrutura final do JSX
 
 ```text
-[Carregando]                    [Completo]                [Fade-out]
-Logo pulsando brilho     ->     setIsComplete(true)  ->   isFadingOut=true
-Barra de progresso               Progresso 100%           opacity-0 scale-110
-Texto "Carregando..."                                     Apos 700ms -> onReady()
+<div className="fixed inset-0 z-50 overflow-hidden transition-all duration-700 [fade-out classes]">
+  <!-- Imagem de fundo -->
+  <img src={sfightLogo} className="absolute inset-0 w-full h-full object-cover z-0" />
+
+  <!-- Overlay escuro -->
+  <div className="absolute inset-0 bg-black/60 z-10" />
+
+  <!-- Barra + texto no rodape -->
+  <div className="absolute bottom-10 left-0 right-0 z-20 flex flex-col items-center px-6">
+    <Progress value={progress} className="h-2 max-w-[500px] w-full" />
+    <p className="text-sm text-white/60 font-mono mt-3">...</p>
+  </div>
+</div>
 ```
 
-### 3. `src/index.css` -- Keyframe de glow (opcional)
-
-Adicionar keyframe `logo-glow` para o efeito de brilho pulsante:
-
-```text
-@keyframes logo-glow {
-  0%, 100% { filter: drop-shadow(0 0 20px rgba(34,211,238,0.6)) drop-shadow(0 0 40px rgba(34,211,238,0.3)); }
-  50% { filter: drop-shadow(0 0 10px rgba(34,211,238,0.2)) drop-shadow(0 0 20px rgba(34,211,238,0.1)); }
-}
-```
-
-### Arquivos alterados
-- `src/components/game/LoadingScreen.tsx` -- redesign visual
-- `src/index.css` -- keyframe `logo-glow`
-- `src/assets/S-FIGHT-MODO.jpg` -- novo asset (copia)
+### Arquivos nao alterados
+- `src/index.css` -- o keyframe `logo-glow` pode ficar (nao causa problemas), mas nao sera mais usado
+- Nenhum outro arquivo afetado
