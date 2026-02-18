@@ -125,7 +125,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         </p>
 
         {/* Hero Cards Grid */}
-        <div className="w-full max-w-7xl grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="w-full max-w-7xl grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 isolate z-0 relative">
           {modes.map((mode) => {
             const Icon = mode.icon;
             return (
