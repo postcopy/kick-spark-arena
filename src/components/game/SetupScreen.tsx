@@ -401,6 +401,16 @@ export function SetupScreen({
                     )}
                   </div>
 
+                  <div className="border-l-2 border-cyan-500/50 pl-3 py-1 mt-2 mb-2">
+                    <p className="text-white/50 font-mono text-xs">
+                      <span className="text-orange-500 font-bold tracking-wider">SENSOR:</span>{" "}
+                      Detecta apenas impactos limpos. Chutes "colados" são ignorados.
+                      <span className="text-white block mt-0.5 font-bold">
+                        ⚠️ Chute → Recolha a perna → Chute novamente.
+                      </span>
+                    </p>
+                  </div>
+
                   <button
                     onClick={handleStart}
                     disabled={!canStart}
