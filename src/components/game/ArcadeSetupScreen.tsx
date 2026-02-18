@@ -101,65 +101,67 @@ export function ArcadeSetupScreen({
   return (
     <div className="flex flex-col h-full w-full bg-[#0b1120] p-4 md:p-6 overflow-hidden">
       {/* Header */}
-      <header className="flex-shrink-0 text-center mb-4 md:mb-6">
-        <div className="flex items-center justify-center gap-2 md:gap-3 mb-2">
-          <Shield className="w-8 h-8 md:w-10 md:h-10 text-game-red" />
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight font-mono">
+      <header className="flex-shrink-0 text-center mb-2 md:mb-3">
+        <div className="flex items-center justify-center gap-2 md:gap-3 mb-1">
+          <Shield className="w-6 h-6 md:w-8 md:h-8 text-game-red" />
+          <h1 className="text-[clamp(1.5rem,4vmin,3rem)] font-black text-white tracking-tight font-mono">
             CORRIDA DE <span className="text-game-yellow">DEMOLIÇÃO</span>
           </h1>
-          <Shield className="w-8 h-8 md:w-10 md:h-10 text-game-blue" />
+          <Shield className="w-6 h-6 md:w-8 md:h-8 text-game-blue" />
         </div>
-        <p className="text-base md:text-lg text-white/60">
+        <p className="text-sm md:text-base text-white/60">
           Destrua seu alvo primeiro! Quem <span className="text-game-yellow font-bold">zerar a META</span> vence.
         </p>
       </header>
 
-      {/* Settings - scrollable area */}
-      <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto overflow-y-auto">
-        {/* Intensity Preset Cards - 3 columns on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6">
-          {INTENSITY_PRESETS.map((preset) => {
-            const isActive = selectedPreset === preset.id;
-            return (
-              <button
-                key={preset.id}
-                onClick={() => selectPreset(preset)}
-                className={cn(
-                  "relative p-4 md:p-6 rounded-xl border-2 transition-all duration-200 text-left h-full",
-                  isActive ? preset.activeClass : preset.colorClass,
-                  "hover:scale-[1.02]"
-                )}
-              >
-                <preset.Icon className={cn("w-8 h-8 md:w-10 md:h-10 mb-2", preset.iconColor)} />
-                <div className={cn("font-black text-lg md:text-xl font-mono", preset.textColor)}>
-                  {preset.label}
-                </div>
-                <div className="text-xs md:text-sm text-white/50 font-bold uppercase">{preset.subtitle}</div>
-                <div className={cn("text-sm md:text-base font-bold font-mono mt-1", preset.textColor)}>
-                  {preset.meta}
-                </div>
-                <p className="text-xs md:text-sm text-white/40 mt-2 leading-relaxed">{preset.description}</p>
-                {isActive && (
-                  <div className={cn("absolute top-2 right-2 w-3 h-3 rounded-full", 
-                    preset.id === 'sprint' ? 'bg-yellow-400' : preset.id === 'resistance' ? 'bg-cyan-400' : 'bg-purple-400'
-                  )} />
-                )}
-              </button>
-            );
-          })}
+      {/* Main content - flex col, no scroll */}
+      <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto flex flex-col overflow-hidden">
+        {/* Intensity Preset Cards - flexible height */}
+        <div className="flex-1 min-h-0 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 h-full">
+            {INTENSITY_PRESETS.map((preset) => {
+              const isActive = selectedPreset === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => selectPreset(preset)}
+                  className={cn(
+                    "relative p-3 md:p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden flex flex-col",
+                    isActive ? preset.activeClass : preset.colorClass,
+                    "hover:scale-[1.02]"
+                  )}
+                >
+                  <preset.Icon className={cn("w-6 h-6 md:w-8 md:h-8 mb-1", preset.iconColor)} />
+                  <div className={cn("font-black text-base md:text-lg font-mono", preset.textColor)}>
+                    {preset.label}
+                  </div>
+                  <div className="text-xs text-white/50 font-bold uppercase">{preset.subtitle}</div>
+                  <div className={cn("text-sm font-bold font-mono mt-0.5", preset.textColor)}>
+                    {preset.meta}
+                  </div>
+                  <p className="text-[0.65rem] leading-tight text-white/40 mt-1 hidden md:block">{preset.description}</p>
+                  {isActive && (
+                    <div className={cn("absolute top-2 right-2 w-3 h-3 rounded-full", 
+                      preset.id === 'sprint' ? 'bg-yellow-400' : preset.id === 'resistance' ? 'bg-cyan-400' : 'bg-purple-400'
+                    )} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Controls Panel - unified container */}
-        <div className="bg-slate-900/50 p-4 md:p-6 rounded-xl border border-white/5 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        {/* Controls Panel - fixed height */}
+        <div className="flex-shrink-0 bg-slate-900/50 p-3 md:p-4 rounded-xl border border-white/5 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             {/* Left Column: Round Duration Slider */}
             <div>
-              <div className="flex items-center justify-between mb-3 md:mb-4">
-                <div className="flex items-center gap-2 md:gap-3">
-                  <Clock className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
-                  <h2 className="text-lg md:text-xl font-bold text-white">TEMPO DO ROUND</h2>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 md:w-5 md:h-5 text-game-yellow" />
+                  <h2 className="text-sm md:text-base font-bold text-white">TEMPO DO ROUND</h2>
                 </div>
-                <span className="text-2xl md:text-3xl font-black text-game-yellow font-mono">{roundDuration}s</span>
+                <span className="text-xl md:text-2xl font-black text-game-yellow font-mono">{roundDuration}s</span>
               </div>
               <Slider
                 value={[roundDuration]}
@@ -176,20 +178,20 @@ export function ArcadeSetupScreen({
             </div>
 
             {/* Right Column: Format + Interval stacked */}
-            <div className="space-y-4 md:space-y-6">
+            <div className="space-y-3">
               {/* Best Of */}
               <div>
-                <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
-                  <Trophy className="w-5 h-5 md:w-6 md:h-6 text-game-yellow" />
-                  <h2 className="text-lg md:text-xl font-bold text-white">FORMATO</h2>
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-4 h-4 md:w-5 md:h-5 text-game-yellow" />
+                  <h2 className="text-sm md:text-base font-bold text-white">FORMATO</h2>
                 </div>
-                <div className="flex gap-3 md:gap-4">
+                <div className="flex gap-3">
                   {BEST_OF_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => onBestOfChange(option.value)}
                       className={cn(
-                        "flex-1 py-2 md:py-3 px-4 md:px-6 rounded-lg font-bold text-lg md:text-xl transition-all font-mono",
+                        "flex-1 py-2 px-4 rounded-lg font-bold text-base md:text-lg transition-all font-mono",
                         bestOf === option.value
                           ? "bg-game-yellow text-black"
                           : "bg-white/10 text-white/50 hover:bg-white/15"
@@ -204,12 +206,12 @@ export function ArcadeSetupScreen({
               {/* Recovery Interval - Only visible when Best of 3 */}
               {bestOf === 3 && (
                 <div>
-                  <div className="flex items-center justify-between mb-3 md:mb-4">
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <Timer className="w-5 h-5 md:w-6 md:h-6 text-green-500" />
-                      <h2 className="text-lg md:text-xl font-bold text-white">INTERVALO</h2>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Timer className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
+                      <h2 className="text-sm md:text-base font-bold text-white">INTERVALO</h2>
                     </div>
-                    <span className="text-2xl md:text-3xl font-black text-green-500 font-mono">{recoveryInterval}s</span>
+                    <span className="text-xl md:text-2xl font-black text-green-500 font-mono">{recoveryInterval}s</span>
                   </div>
                   <Slider
                     value={[recoveryInterval]}
@@ -229,41 +231,40 @@ export function ArcadeSetupScreen({
           </div>
         </div>
 
-        {/* Footer: Rules + Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end">
+        {/* Footer: Rules + Action Buttons - fixed height */}
+        <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
           {/* Rules Card - 2/3 width */}
-          <div className="md:col-span-2 bg-white/5 p-3 md:p-4 rounded-lg border border-white/10">
-            <h3 className="text-xs md:text-sm font-bold text-white/40 uppercase mb-1 md:mb-2 font-mono">REGRAS</h3>
-            <ul className="text-xs md:text-sm text-white/50 space-y-0.5 md:space-y-1">
-              <li>• META: <span className="text-white font-bold font-mono">100</span> pontos para zerar</li>
-              <li>• Dano por chute: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.damage}</span></li>
-              <li>• Meta de chutes: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.meta}</span></li>
-              <li>• Combo: chutes rápidos em sequência (até +4 dano)</li>
-              <li>• <span className="text-game-yellow font-bold">Quem zerar primeiro vence!</span></li>
+          <div className="md:col-span-2 bg-white/5 p-2 md:p-3 rounded-lg border border-white/10">
+            <h3 className="text-xs font-bold text-white/40 uppercase mb-1 font-mono">REGRAS</h3>
+            <ul className="text-xs text-white/50 space-y-0.5">
+              <li>• META: <span className="text-white font-bold font-mono">100</span> pts | Dano: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.damage}</span> | Chutes: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.meta}</span></li>
+              <li>• Combo: chutes rápidos em sequência (até +4 dano) · <span className="text-game-yellow font-bold">Quem zerar primeiro vence!</span></li>
             </ul>
           </div>
 
           {/* Action Buttons - 1/3 width */}
-          <div className="md:col-span-1 flex flex-col gap-3">
+          <div className="md:col-span-1 flex flex-col gap-2">
             <Button
               size="default"
               onClick={handleStart}
-              className="w-full h-14 md:h-16 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-lg md:text-xl font-mono"
+              className="w-full h-12 md:h-14 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-base md:text-lg font-mono"
             >
-              <Shield className="w-5 h-5 md:w-6 md:h-6" />
+              <Shield className="w-5 h-5" />
               INICIAR DUELO
             </Button>
-            <Button
-              variant="ghost"
-              size="default"
-              onClick={onBack}
-              className="w-full gap-2 text-white/30 hover:text-white/70 hover:bg-white/5"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar
-            </Button>
-            <div className="text-center text-xs text-white/30">
-              <kbd className="px-2 py-1 bg-white/10 rounded font-mono">SPACE</kbd> para iniciar
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBack}
+                className="gap-1 text-white/30 hover:text-white/70 hover:bg-white/5 text-xs"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Voltar
+              </Button>
+              <span className="text-xs text-white/30">
+                <kbd className="px-1.5 py-0.5 bg-white/10 rounded font-mono text-[0.65rem]">SPACE</kbd> iniciar
+              </span>
             </div>
           </div>
         </div>
