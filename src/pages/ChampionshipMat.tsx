@@ -358,9 +358,6 @@ function ChampionshipMatInner() {
             <img src={logoSpe} alt="SPE" className="h-8 w-auto object-contain" />
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <span className="px-2 py-1 rounded-md font-bold text-xs uppercase bg-purple-500/20 text-purple-400">
-              IMPACTOS
-            </span>
             <span className={cn(
               "px-2 py-1 rounded-md font-bold text-xs uppercase",
               serialPort.isConnected 
