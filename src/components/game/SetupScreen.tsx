@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Users, User, Search, Plus, Play, Check, Trophy } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +7,7 @@ import { useSound } from '@/contexts/SoundContext';
 import { AddAthleteDialog } from './AddAthleteDialog';
 import { RankingPreview, AthleteStats } from './RankingPreview';
 import type { Athlete } from '@/types/game';
+import bgMenuModos from '@/assets/menu-modos.jpg';
 
 type TimeAttackVariant = 'duo' | 'individual';
 
@@ -141,86 +140,60 @@ export function SetupScreen({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0b1120] relative">
-      {/* Progress Indicator */}
-      <div className="flex items-center justify-center gap-2 pt-6 pb-2">
+      {/* Background overlay */}
+      <img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.03] pointer-events-none" alt="" />
+
+      {/* Progress Indicator — flat bars */}
+      <div className="flex items-center justify-center gap-2 pt-6 pb-2 relative z-10">
         {Array.from({ length: totalSteps }).map((_, i) => (
           <div
             key={i}
             className={cn(
-              'w-3 h-3 rounded-full transition-all',
-              i + 1 <= currentStep ? 'bg-game-yellow' : 'bg-white/20'
+              'w-8 h-1 transition-all',
+              i + 1 <= currentStep ? 'bg-[#FFD700]' : 'bg-white/20'
             )}
           />
         ))}
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-6 md:px-8">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center px-4 md:px-6 relative z-10">
         <div className="w-full max-w-6xl">
 
           {/* Step 1: How many players? */}
           {step === 'players' && (
-            <div className="animate-fade-in flex flex-col items-center">
-              <h1 className="text-3xl md:text-4xl font-bold text-center text-white mb-2">
-                Quantos vão jogar?
+            <div className="animate-fade-in flex flex-col">
+              <h1 className="font-mono font-black uppercase tracking-tighter text-white text-2xl md:text-3xl mb-6">
+                MODO DE JOGO
               </h1>
-              <p className="text-lg text-white/50 text-center mb-10">
-                Escolha o modo de jogo
-              </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 w-full max-w-3xl">
+              <div className="flex flex-col gap-2 w-full max-w-3xl">
                 {/* Duo */}
                 <button
                   onClick={() => handleVariantSelect('duo')}
                   className={cn(
-                    'group relative w-full p-8 md:p-10 rounded-2xl border-2 transition-all active:scale-[0.98]',
+                    "flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98]",
                     variant === 'duo'
-                      ? 'bg-game-yellow/10 border-game-yellow'
-                      : 'bg-white/5 border-white/10 hover:border-game-yellow/50'
+                      ? "bg-[#FFD700] text-black border border-transparent"
+                      : "bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10"
                   )}
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className={cn(
-                      'p-5 rounded-xl transition-colors',
-                      variant === 'duo' ? 'bg-game-yellow/20' : 'bg-white/10'
-                    )}>
-                      <Users className={cn(
-                        'w-14 h-14',
-                        variant === 'duo' ? 'text-game-yellow' : 'text-white/60'
-                      )} />
-                    </div>
-                    <div className="text-center">
-                      <h2 className="text-2xl md:text-3xl font-bold text-white">DUPLA</h2>
-                      <p className="text-base text-white/50 mt-1">2 pessoas, quem chuta mais</p>
-                    </div>
-                  </div>
+                  <span className="text-2xl md:text-3xl font-black uppercase tracking-tighter">DUPLA</span>
+                  <span className={cn("font-mono text-lg", variant === 'duo' ? "text-black/60" : "text-white/20")}>2 PLAYERS</span>
                 </button>
 
                 {/* Individual */}
                 <button
                   onClick={() => handleVariantSelect('individual')}
                   className={cn(
-                    'group relative w-full p-8 md:p-10 rounded-2xl border-2 transition-all active:scale-[0.98]',
+                    "flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98]",
                     variant === 'individual'
-                      ? 'bg-game-gold/10 border-game-gold'
-                      : 'bg-white/5 border-white/10 hover:border-game-gold/50'
+                      ? "bg-[#FFD700] text-black border border-transparent"
+                      : "bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10"
                   )}
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className={cn(
-                      'p-5 rounded-xl transition-colors',
-                      variant === 'individual' ? 'bg-game-gold/20' : 'bg-white/10'
-                    )}>
-                      <User className={cn(
-                        'w-14 h-14',
-                        variant === 'individual' ? 'text-game-gold' : 'text-white/60'
-                      )} />
-                    </div>
-                    <div className="text-center">
-                      <h2 className="text-2xl md:text-3xl font-bold text-white">SOZINHO</h2>
-                      <p className="text-base text-white/50 mt-1">Ranking e recordes pessoais</p>
-                    </div>
-                  </div>
+                  <span className="text-2xl md:text-3xl font-black uppercase tracking-tighter">SOZINHO</span>
+                  <span className={cn("font-mono text-lg", variant === 'individual' ? "text-black/60" : "text-white/20")}>RANKING</span>
                 </button>
               </div>
             </div>
@@ -228,43 +201,38 @@ export function SetupScreen({
 
           {/* Step 2: Select Athlete (Individual only) */}
           {step === 'athlete' && (
-            <div className="animate-fade-in flex flex-col items-center">
-              <h1 className="text-3xl md:text-4xl font-bold text-center text-white mb-2">
-                Quem vai jogar?
-              </h1>
-              <p className="text-lg text-white/50 text-center mb-6">
-                Selecione o atleta
-              </p>
-
-              <div className="w-full max-w-4xl">
-                {/* Ranking Button */}
+            <div className="animate-fade-in flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <h1 className="font-mono font-black uppercase tracking-tighter text-white text-2xl md:text-3xl">
+                  SELECIONAR ATLETA
+                </h1>
                 <button
                   onClick={() => setShowRanking(true)}
-                  className="w-full mb-4 p-4 rounded-xl bg-game-gold/10 border-2 border-game-gold/30 hover:border-game-gold/60 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                  className="font-mono text-xs uppercase tracking-widest text-[#FFD700]/60 hover:text-[#FFD700] transition-colors"
                 >
-                  <Trophy className="w-6 h-6 text-game-gold" />
-                  <span className="text-lg font-semibold text-game-gold">Ver Ranking</span>
+                  RANKING →
                 </button>
+              </div>
 
+              <div className="w-full max-w-4xl">
                 {/* Search */}
-                <div className="relative mb-4">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                <div className="mb-4">
                   <Input
                     placeholder="Buscar atleta..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-12 h-14 text-lg rounded-xl bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    className="h-12 text-base bg-white/5 border-white/10 text-white placeholder:text-white/30 font-mono rounded-none"
                   />
                 </div>
 
                 {/* Athletes Grid */}
-                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-[40vh] overflow-y-auto mb-4 p-1">
+                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-[40vh] overflow-y-auto mb-4 p-1">
                   {isLoading ? (
-                    <div className="col-span-full text-center py-8 text-white/40">
+                    <div className="col-span-full text-center py-8 text-white/40 font-mono text-sm">
                       Carregando...
                     </div>
                   ) : filteredAthletes.length === 0 ? (
-                    <div className="col-span-full text-center py-8 text-white/40">
+                    <div className="col-span-full text-center py-8 text-white/40 font-mono text-sm">
                       {athletes.length === 0 ? 'Nenhum atleta cadastrado' : 'Nenhum resultado'}
                     </div>
                   ) : (
@@ -273,26 +241,29 @@ export function SetupScreen({
                         key={athlete.id}
                         onClick={() => handleAthleteSelect(athlete)}
                         className={cn(
-                          'flex flex-col items-center p-4 rounded-xl transition-all active:scale-[0.98]',
+                          'flex flex-col items-center p-3 transition-all active:scale-[0.98]',
                           selectedAthlete?.id === athlete.id
-                            ? 'bg-game-gold/20 border-2 border-game-gold'
-                            : 'bg-white/5 border-2 border-transparent hover:border-game-gold/30'
+                            ? 'bg-[#FFD700] text-black'
+                            : 'bg-white/5 border border-white/5 hover:bg-white/10'
                         )}
                       >
                         <div className={cn(
-                          'w-14 h-14 rounded-full flex items-center justify-center mb-2',
-                          selectedAthlete?.id === athlete.id ? 'bg-game-gold/30' : 'bg-white/10'
+                          'w-12 h-12 flex items-center justify-center mb-2 font-black text-lg',
+                          selectedAthlete?.id === athlete.id ? 'bg-black/20 text-black' : 'bg-white/10 text-white/60'
                         )}>
-                          <User className={cn(
-                            'w-7 h-7',
-                            selectedAthlete?.id === athlete.id ? 'text-game-gold' : 'text-white/60'
-                          )} />
+                          {athlete.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="font-semibold text-white text-center truncate w-full">
+                        <span className={cn(
+                          "font-semibold text-center truncate w-full text-sm",
+                          selectedAthlete?.id === athlete.id ? 'text-black' : 'text-white'
+                        )}>
                           {athlete.name.split(' ')[0]}
                         </span>
                         {athlete.belt && (
-                          <span className="text-xs text-white/40">{athlete.belt}</span>
+                          <span className={cn(
+                            "text-xs",
+                            selectedAthlete?.id === athlete.id ? 'text-black/60' : 'text-white/40'
+                          )}>{athlete.belt}</span>
                         )}
                       </button>
                     ))
@@ -300,14 +271,12 @@ export function SetupScreen({
                 </div>
 
                 {/* Add Athlete Button */}
-                <Button
-                  variant="outline"
+                <button
                   onClick={() => setShowAddDialog(true)}
-                  className="w-full h-14 gap-2 text-lg rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white"
+                  className="w-full h-12 font-mono text-sm uppercase tracking-widest bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all"
                 >
-                  <Plus className="w-5 h-5" />
-                  Novo Atleta
-                </Button>
+                  + NOVO ATLETA
+                </button>
               </div>
             </div>
           )}
@@ -315,12 +284,9 @@ export function SetupScreen({
           {/* Step 3: Duration */}
           {step === 'duration' && (
             <div className="animate-fade-in">
-              <h1 className="text-3xl md:text-4xl font-bold text-center text-white mb-2">
-                Quanto tempo?
+              <h1 className="font-mono font-black uppercase tracking-tighter text-white text-2xl md:text-3xl mb-6">
+                TEMPO DO DESAFIO
               </h1>
-              <p className="text-lg text-white/50 text-center mb-6">
-                Escolha a duração do desafio
-              </p>
 
               <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
                 {/* Left column: Duration options */}
@@ -330,35 +296,31 @@ export function SetupScreen({
                       key={option.value}
                       onClick={() => onDurationChange(option.value)}
                       className={cn(
-                        'relative w-full p-4 md:p-5 rounded-xl border-2 transition-all active:scale-[0.98]',
+                        'relative flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200 active:scale-[0.98]',
                         duration === option.value
-                          ? 'bg-game-yellow/10 border-game-yellow'
-                          : 'bg-white/5 border-white/10 hover:border-game-yellow/50'
+                          ? 'bg-[#FFD700] text-black border border-transparent'
+                          : 'bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10'
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4">
+                        <span className="text-2xl md:text-3xl font-black">
+                          {option.label}
+                        </span>
+                        {option.recommended && (
                           <span className={cn(
-                            'text-2xl md:text-3xl font-bold',
-                            duration === option.value ? 'text-game-yellow' : 'text-white'
+                            "font-mono text-[0.65rem] uppercase tracking-widest px-2 py-0.5",
+                            duration === option.value ? "bg-black/20 text-black" : "bg-white/10 text-white/30"
                           )}>
-                            {option.label}
+                            REC
                           </span>
-                          <span className="text-base text-white/40">{option.sublabel}</span>
-                        </div>
-                        
-                        {duration === option.value && (
-                          <div className="w-7 h-7 rounded-full bg-game-yellow flex items-center justify-center">
-                            <Check className="w-4 h-4 text-[#0b1120]" />
-                          </div>
                         )}
                       </div>
-
-                      {option.recommended && (
-                        <span className="absolute -top-2.5 right-4 px-3 py-0.5 bg-game-yellow text-[#0b1120] text-xs font-bold rounded-full">
-                          RECOMENDADO
-                        </span>
-                      )}
+                      <span className={cn(
+                        "font-mono text-lg",
+                        duration === option.value ? "text-black/60" : "text-white/20"
+                      )}>
+                        {option.sublabel}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -374,41 +336,40 @@ export function SetupScreen({
                   )}
 
                   {/* Preview */}
-                  <div className="w-full h-20 bg-white/5 rounded-xl border border-white/10 flex overflow-hidden">
+                  <div className="w-full h-20 bg-white/5 border border-white/10 flex overflow-hidden">
                     {variant === 'duo' ? (
                       <>
                         <div className="flex-1 flex items-center justify-center bg-game-red/10 border-l-4 border-game-red">
-                          <span className="text-2xl font-bold text-game-red">RED</span>
+                          <span className="text-2xl font-black text-game-red font-mono">RED</span>
                         </div>
                         <div className="w-px bg-white/10" />
                         <div className="flex-1 flex items-center justify-center bg-game-blue/10 border-r-4 border-game-blue">
-                          <span className="text-2xl font-bold text-game-blue">BLUE</span>
+                          <span className="text-2xl font-black text-game-blue font-mono">BLUE</span>
                         </div>
                       </>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center bg-game-gold/10 border-2 border-game-gold rounded-xl">
-                        <span className="text-xl font-bold text-game-gold">
-                          {selectedAthlete?.name || 'Atleta'}
+                      <div className="flex-1 flex items-center justify-center bg-[#FFD700]/10 border-2 border-[#FFD700]">
+                        <span className="text-xl font-black text-[#FFD700] font-mono">
+                          {selectedAthlete?.name || 'ATLETA'}
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Start Button */}
-                  <Button
-                    size="lg"
+                  {/* Start Button — chamfered */}
+                  <button
                     onClick={handleStart}
                     disabled={!canStart}
                     className={cn(
-                      'w-full h-16 text-2xl font-bold rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]',
-                      variant === 'individual'
-                        ? 'bg-game-gold hover:bg-game-gold/90 text-[#0b1120]'
-                        : 'bg-game-yellow hover:bg-game-yellow/90 text-[#0b1120]'
+                      'w-full h-14 font-black uppercase tracking-widest text-lg transition-all flex items-center justify-center',
+                      canStart
+                        ? 'bg-[#FFD700] text-black hover:brightness-110'
+                        : 'bg-white/10 text-white/30 cursor-not-allowed'
                     )}
+                    style={canStart ? { clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)' } : undefined}
                   >
-                    <Play className="mr-3 h-7 w-7" />
                     JOGAR!
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
@@ -422,13 +383,12 @@ export function SetupScreen({
       </div>
 
       {/* Footer: Back button */}
-      <div className="flex items-center justify-center py-4">
+      <div className="flex items-center justify-center py-4 relative z-10">
         <button
           onClick={handleBack}
-          className="flex items-center gap-1.5 text-sm text-white/30 hover:text-white/60 transition-colors"
+          className="font-mono text-xs text-white/30 hover:text-white/60 transition-colors"
         >
-          <ChevronLeft className="w-4 h-4" />
-          Voltar
+          ← VOLTAR
         </button>
       </div>
 
