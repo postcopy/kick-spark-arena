@@ -318,16 +318,16 @@ export function GameScreen({
               
               {/* Red Panel */}
               <div className={cn(
-                "col-span-5 border-l-4 border-red-500 bg-gradient-to-r from-red-500/10 to-transparent p-6 rounded-r-xl transition-transform duration-100",
+                "col-span-5 border-l-4 border-red-500 bg-gradient-to-r from-red-500/10 to-transparent px-2 py-0 rounded-r-xl transition-transform duration-100 flex flex-col justify-center h-full",
                 flashSide === 'red' && "scale-105 from-red-500/25 shadow-[inset_0_0_30px_rgba(239,68,68,0.3)]"
               )}>
-                <span className="text-red-500 font-black italic leading-none tabular-nums" style={{ 
-                  fontSize: 'clamp(5rem, 12vw, 14rem)',
+                <span className="text-red-500 font-black italic leading-[0.8] tracking-tighter tabular-nums" style={{ 
+                  fontSize: 'clamp(7rem, 18vw, 20rem)',
                   filter: 'drop-shadow(0 0 30px rgba(239,68,68,0.4))'
                 }}>
                   {scores.red}
                 </span>
-                <div className="mt-2 flex flex-col gap-1">
+                <div className="flex flex-col gap-1" style={{ marginTop: '-2vw' }}>
                   <span className="text-sm text-white/40 uppercase tracking-[0.3em] font-mono">HITS</span>
                   <span className="text-lg text-white/60 font-mono tabular-nums">CPM: {redCpm}</span>
                 </div>
@@ -357,16 +357,16 @@ export function GameScreen({
 
               {/* Blue Panel */}
               <div className={cn(
-                "col-span-5 border-r-4 border-blue-500 bg-gradient-to-l from-blue-500/10 to-transparent p-6 rounded-l-xl text-right transition-transform duration-100",
+                "col-span-5 border-r-4 border-blue-500 bg-gradient-to-l from-blue-500/10 to-transparent px-2 py-0 rounded-l-xl text-right transition-transform duration-100 flex flex-col justify-center items-end h-full",
                 flashSide === 'blue' && "scale-105 from-blue-500/25 shadow-[inset_0_0_30px_rgba(59,130,246,0.3)]"
               )}>
-                <span className="text-blue-500 font-black italic leading-none tabular-nums" style={{ 
-                  fontSize: 'clamp(5rem, 12vw, 14rem)',
+                <span className="text-blue-500 font-black italic leading-[0.8] tracking-tighter tabular-nums" style={{ 
+                  fontSize: 'clamp(7rem, 18vw, 20rem)',
                   filter: 'drop-shadow(0 0 30px rgba(59,130,246,0.4))'
                 }}>
                   {scores.blue}
                 </span>
-                <div className="mt-2 flex flex-col gap-1 items-end">
+                <div className="flex flex-col gap-1 items-end" style={{ marginTop: '-2vw' }}>
                   <span className="text-sm text-white/40 uppercase tracking-[0.3em] font-mono">HITS</span>
                   <span className="text-lg text-white/60 font-mono tabular-nums">CPM: {blueCpm}</span>
                 </div>
