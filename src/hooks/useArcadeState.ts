@@ -1,35 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { GameState, Side, ArcadeConfig, ArcadePlayerState, ArcadeRoundResult, ArcadeResult, HitType } from '@/types/game';
 
-// Difficulty configs by round duration
-// Kids: higher damage for faster matches
-// Adult: lower damage for tactical matches
-const DIFFICULTY_CONFIGS: Record<number, { vestDamage: number; helmetDamage: number; specialDamageBonus: number }> = {
-  20: { vestDamage: 3, helmetDamage: 5, specialDamageBonus: 10 },  // Kids 4-6
-  30: { vestDamage: 2, helmetDamage: 4, specialDamageBonus: 12 },  // Kids 7-9
-  45: { vestDamage: 2, helmetDamage: 3, specialDamageBonus: 12 },  // Juvenil
-  60: { vestDamage: 1, helmetDamage: 2, specialDamageBonus: 15 },  // Adulto
-};
-
-function getDifficultyConfig(roundDuration: number) {
-  return DIFFICULTY_CONFIGS[roundDuration] || DIFFICULTY_CONFIGS[45]; // Default to Juvenil
-}
-
 const DEFAULT_ARCADE_CONFIG: ArcadeConfig = {
   roundDurationSec: 60,
   startingHP: 100,
   bestOf: 3,
   comboWindowMs: 700,
-  energyPerKick: 10,
+  energyPerKick: 0,
   energyMax: 100,
-  vestDamage: 2,
-  helmetDamage: 3,
-  specialDamageBonus: 12,
+  vestDamage: 1,
+  helmetDamage: 1,
+  specialDamageBonus: 0,
   minIntervalMs: 150,
   recoveryIntervalSec: 15,
 };
 
-const COUNTDOWN_DURATION = 6; // 3s intro + 3s synchronized countdown
+const COUNTDOWN_DURATION = 6;
 
 const createInitialPlayerState = (hp: number): ArcadePlayerState => ({
   hp,
@@ -53,11 +39,8 @@ interface UseArcadeStateOptions extends Partial<ArcadeConfig> {
 export function useArcadeState(options: UseArcadeStateOptions = {}) {
   const { onHit, onHitHeavy, onCombo, onSpecialReady, onSpecialAttack, onKO, onTimeUp, onRoundEnd, ...config } = options;
   
-  // Get difficulty-based config
-  const difficultyConfig = getDifficultyConfig(config.roundDurationSec || DEFAULT_ARCADE_CONFIG.roundDurationSec);
   const fullConfig = { 
     ...DEFAULT_ARCADE_CONFIG, 
-    ...difficultyConfig,
     ...config 
   };
   
@@ -186,32 +169,24 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     }
   }, [gameState, countdown, startGame]);
 
-  // Calculate damage with combo and hit type
-  const calculateDamage = useCallback((attackerState: ArcadePlayerState, now: number, hitType: HitType): { damage: number; newCombo: number; usedSpecial: boolean } => {
-    // Check combo
+  // Calculate damage with combo (no energy/special)
+  const calculateDamage = useCallback((attackerState: ArcadePlayerState, now: number, hitType: HitType): { damage: number; newCombo: number } => {
     const timeSinceLastKick = now - attackerState.lastKickAt;
     const isCombo = timeSinceLastKick <= fullConfig.comboWindowMs && attackerState.lastKickAt > 0;
     const newCombo = isCombo ? attackerState.comboCount + 1 : 1;
     
-    // Base damage based on hit type (helmet does more damage)
     const baseDamage = hitType === 'helmet' 
       ? fullConfig.helmetDamage 
       : fullConfig.vestDamage;
     
     // Combo bonus (max +4)
     const comboBonus = Math.min(newCombo - 1, 4);
-    let damage = baseDamage + comboBonus;
+    const damage = baseDamage + comboBonus;
     
-    // Special bonus
-    const usedSpecial = attackerState.specialReady;
-    if (usedSpecial) {
-      damage += fullConfig.specialDamageBonus;
-    }
-    
-    return { damage, newCombo, usedSpecial };
-  }, [fullConfig.vestDamage, fullConfig.helmetDamage, fullConfig.comboWindowMs, fullConfig.specialDamageBonus]);
+    return { damage, newCombo };
+  }, [fullConfig.vestDamage, fullConfig.helmetDamage, fullConfig.comboWindowMs]);
 
-  // Register kick with hit type
+  // Register kick — DEMOLITION RACE: damage applies to OWN HP
   const registerKick = useCallback((side: Side, hitType: HitType = 'vest') => {
     if (gameState !== 'running') return false;
 
@@ -227,38 +202,25 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
 
     const attackerState = side === 'red' ? redState : blueState;
     const setAttackerState = side === 'red' ? setRedState : setBlueState;
-    const setDefenderState = side === 'red' ? setBlueState : setRedState;
-    const defenderSide: Side = side === 'red' ? 'blue' : 'red';
 
-    // Calculate damage with hit type
-    const { damage, newCombo, usedSpecial } = calculateDamage(attackerState, now, hitType);
+    const { damage, newCombo } = calculateDamage(attackerState, now, hitType);
 
-    // Check if special will become ready after this kick
-    const currentEnergy = attackerState.energy;
-    const newEnergy = usedSpecial ? 0 : Math.min(currentEnergy + fullConfig.energyPerKick, fullConfig.energyMax);
-    const willBecomeSpecialReady = !attackerState.specialReady && newEnergy >= fullConfig.energyMax;
+    // Update attacker state (combo tracking only, no energy)
+    setAttackerState(prev => ({
+      ...prev,
+      comboCount: newCombo,
+      lastKickAt: now,
+    }));
 
-    // Update attacker state
-    setAttackerState(prev => {
-      return {
-        ...prev,
-        energy: newEnergy,
-        comboCount: newCombo,
-        lastKickAt: now,
-        specialReady: newEnergy >= fullConfig.energyMax,
-      };
-    });
-
-    // Apply damage to defender
-    setDefenderState(prev => ({
+    // Apply damage to OWN HP (demolition race)
+    setAttackerState(prev => ({
       ...prev,
       hp: Math.max(0, prev.hp - damage),
     }));
 
-    // Play sound effects
-    if (usedSpecial || damage >= 10) {
+    // Sound effects
+    if (damage >= 5) {
       onHitHeavy?.();
-      onSpecialAttack?.();
     } else {
       onHit?.();
     }
@@ -267,12 +229,8 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
       onCombo?.();
     }
 
-    if (willBecomeSpecialReady) {
-      onSpecialReady?.();
-    }
-
-    // Visual feedback
-    setFlashSide(defenderSide);
+    // Visual feedback — flash on OWN side (attacker side)
+    setFlashSide(side);
     setTimeout(() => setFlashSide(null), 150);
 
     // Show combo if > 1
@@ -281,28 +239,22 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
       setTimeout(() => setShowCombo(null), 600);
     }
 
-    // Show special used
-    if (usedSpecial) {
-      setShowSpecialUsed(side);
-      setTimeout(() => setShowSpecialUsed(null), 800);
-    }
-
-    // Show damage with hit type
-    setLastDamage({ side: defenderSide, amount: damage, hitType });
+    // Show damage on OWN side
+    setLastDamage({ side, amount: damage, hitType });
     setTimeout(() => setLastDamage(null), 400);
 
     return true;
-  }, [gameState, redState, blueState, fullConfig, calculateDamage, onHit, onHitHeavy, onCombo, onSpecialReady, onSpecialAttack]);
+  }, [gameState, redState, blueState, fullConfig, calculateDamage, onHit, onHitHeavy, onCombo]);
 
   // End round
   const endRound = useCallback((winner: Side | 'tie', isKO: boolean) => {
     clearTimers();
-    onRoundEnd?.(); // Stop background music
+    onRoundEnd?.();
     
     const roundResult: ArcadeRoundResult = {
       winner,
-      redHP: redState.hp,
-      blueHP: blueState.hp,
+      redHP: Math.round(redState.hp),
+      blueHP: Math.round(blueState.hp),
       isKO,
     };
 
@@ -323,7 +275,6 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
 
     // Check if match is over
     if (redWins >= winsNeeded || blueWins >= winsNeeded || currentRound >= fullConfig.bestOf) {
-      // Match finished
       const matchWinner: Side | 'tie' = redWins > blueWins ? 'red' : blueWins > redWins ? 'blue' : 'tie';
       
       const result: ArcadeResult = {
@@ -339,7 +290,6 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
       setLastResult(result);
       setGameState('finished');
 
-      // Save to localStorage
       try {
         localStorage.setItem('kickcounter_lastArcadeResult', JSON.stringify(result));
       } catch (e) {
@@ -350,7 +300,6 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
       setGameState('round_end');
       setRecoveryCountdown(fullConfig.recoveryIntervalSec);
       
-      // Recovery countdown timer
       recoveryTimerRef.current = window.setInterval(() => {
         setRecoveryCountdown(prev => {
           if (prev <= 1) {
@@ -367,25 +316,25 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     }
   }, [clearTimers, redState.hp, blueState.hp, roundResults, currentRound, fullConfig.bestOf, fullConfig.recoveryIntervalSec, startCountdown, onKO, onTimeUp, onRoundEnd]);
 
-  // Check for KO or time up
+  // Check for KO or time up — DEMOLITION RACE: reaching 0 HP = WIN
   useEffect(() => {
     if (gameState !== 'running') return;
 
-    // Check KO
+    // KO: whoever reaches 0 first WINS
     if (redState.hp <= 0) {
-      endRound('blue', true);
-      return;
-    }
-    if (blueState.hp <= 0) {
       endRound('red', true);
       return;
     }
+    if (blueState.hp <= 0) {
+      endRound('blue', true);
+      return;
+    }
 
-    // Check time up
+    // Time up: LOWER HP wins (destroyed more)
     if (timeLeft === 0) {
       const winner: Side | 'tie' = 
-        redState.hp > blueState.hp ? 'red' : 
-        blueState.hp > redState.hp ? 'blue' : 'tie';
+        redState.hp < blueState.hp ? 'red' : 
+        blueState.hp < redState.hp ? 'blue' : 'tie';
       endRound(winner, false);
     }
   }, [gameState, redState.hp, blueState.hp, timeLeft, endRound]);
@@ -399,13 +348,13 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
         case 'a':
           registerKick('red', 'vest');
           break;
-        case 'q': // Helmet hit for red
+        case 'q':
           registerKick('red', 'helmet');
           break;
         case 'l':
           registerKick('blue', 'vest');
           break;
-        case 'p': // Helmet hit for blue
+        case 'p':
           registerKick('blue', 'helmet');
           break;
         case ' ':
@@ -434,30 +383,21 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
   }, [clearTimers]);
 
   return {
-    // Game state
     gameState,
     currentRound,
     timeLeft,
     countdown,
     roundResults,
     lastResult,
-    
-    // Player states
     redState,
     blueState,
-    
-    // Visual feedback
     flashSide,
     showCombo,
     showSpecialUsed,
     showKO,
     lastDamage,
     recoveryCountdown,
-    
-    // Config
     config: fullConfig,
-    
-    // Actions
     goToSetup,
     goToLoading,
     startCountdown,
