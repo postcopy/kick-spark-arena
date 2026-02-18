@@ -1,103 +1,76 @@
 
 
-# Redesign Visual: Transicoes e Final de Partida (Modo Duelo)
+# Redesign: Tela de Contagem Regressiva ("Launch Sequence")
 
 ## Resumo
 
-Transformar os overlays de transicao entre rounds e a tela final de vitoria em paineis com estetica de transmissao E-Sports profissional, com blur, bordas neon, tipografia dramatica e feedback visual de alto impacto.
+Transformar o CountdownScreen de um overlay basico (fundo liso, numeros cinzas) em uma sequencia de lancamento imersiva com estetica E-Sports Pro, usando logica de semaforo (vermelho/amarelo/verde) sincronizada com o audio narrado.
 
 ---
 
-## Parte 1: Transicao entre Rounds (ArcadeScreenTV.tsx)
+## Arquivo Alterado
 
-### Estado Atual
-- Overlays simples com `bg-black/85`, texto centralizado e countdown basico
-- Dois overlays separados: KO (ZERO!) e round_end (TEMPO!)
-- Visual "flat" sem profundidade
-
-### Novo Visual: Painel de Transicao Profissional
-
-Substituir os dois overlays (linhas 324-404) por um painel centralizado com estrutura dramatica:
-
-**Overlay de fundo:**
-- `bg-black/80 backdrop-blur-md` em vez de `bg-black/85` simples
-
-**Painel central:**
-- Container com `bg-[#0b1120]/95 rounded-2xl border-2` + borda neon (dourada para ZERO!, ciano para TEMPO!)
-- Padding generoso, max-width controlado com `max-w-[clamp(400px,60vmin,700px)]`
-- Shadow intenso: `shadow-[0_0_60px_rgba(255,215,0,0.3)]`
-
-**Estrutura do painel (de cima para baixo):**
-
-1. **Cabecalho**: "FIM DO ROUND X" em `text-[clamp(14px,2vmin,22px)]` uppercase, tracking-widest, text-white/50
-2. **Separador**: Linha horizontal `border-b border-white/10`
-3. **Resultado do Round**:
-   - Para ZERO!: Titulo gigante "ZERO!" em `text-[clamp(80px,14vmin,180px)]` dourado + "VERMELHO ZEROU A META!" abaixo em cor do vencedor
-   - Para TEMPO!: Titulo "TEMPO ESGOTADO!" em `text-[clamp(40px,6vmin,80px)]` dourado + "VANTAGEM AZUL" em cor do vencedor
-   - Para empate: "EMPATE!" em amarelo
-4. **Placar da Partida** (somente se bestOf > 1):
-   - Dois numeros gigantes `text-[clamp(48px,8vmin,96px)]` separados por "X"
-   - Labels "VERMELHO" e "AZUL" abaixo em `text-[clamp(10px,1.5vmin,14px)]`
-   - Cores: numero do vencedor brilhante, perdedor opaco
-5. **Separador**: Outra linha horizontal
-6. **Countdown**: 
-   - Label "Proximo round em:" em text-white/50
-   - Timer `text-[clamp(64px,10vmin,120px)]` font-mono text-green-500
-   - Pulsar (`animate-pulse`) nos ultimos 2 segundos
-
-### Detalhes Tecnicos
-- Merge dos dois blocos condicionais (showKO e round_end sem showKO) em um unico overlay com logica interna
-- Manter todas as condicoes existentes (`showKO`, `gameState === 'round_end'`, `recoveryCountdown`)
-- Manter `z-40` e `absolute inset-0`
-- Todos os textos com `vmin` dentro de `clamp()` para responsividade
+| Arquivo | Tipo |
+|---------|------|
+| `src/components/game/CountdownScreen.tsx` | Redesign visual completo (sem mudanca de logica) |
 
 ---
 
-## Parte 2: Tela Final (ArcadeFinishedScreen.tsx)
+## Alteracoes Detalhadas
 
-### Estado Atual
-- Trofeu pequeno (w-16 h-16 a w-20 h-20)
-- Gradiente radial com apenas 20% opacidade
-- Placar `text-5xl/6xl` com tamanhos fixos em rem
-- Tabela de detalhes com estilo basico
+### 1. Container e Fundo
+- **Antes**: `bg-background` (liso)
+- **Depois**: `bg-[#0b1120]` com gradiente radial centralizado `bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15),transparent_70%)]`
+- Manter `overflow-hidden relative` e z existente
 
-### Novo Visual
+### 2. Fase Intro (countdown > 3: segundos 6, 5, 4)
+- **Antes**: "VAI COMECAR!" em `text-6xl md:text-8xl text-muted-foreground animate-pulse`
+- **Depois**: 
+  - Icone `AlertTriangle` (lucide) em ciano acima do texto
+  - Texto "PREPARAR" em `font-mono tracking-[0.3em] text-cyan-400 animate-pulse`
+  - Tamanho: `text-[clamp(2rem,6vmin,4rem)]`
 
-**Background dramatico:**
-- Aumentar opacidade do gradiente radial de `opacity-20` para `opacity-40`
-- Adicionar segundo layer de glow mais concentrado
+### 3. Fase Contagem (3, 2, 1) - Logica de Semaforo
+Helper function `getCountdownStyle(n)`:
+- **3**: `text-red-500` + `drop-shadow-[0_0_35px_rgba(239,68,68,0.6)]`
+- **2**: `text-yellow-400` + `drop-shadow-[0_0_35px_rgba(250,204,21,0.6)]`
+- **1**: `text-green-500` + `drop-shadow-[0_0_35px_rgba(34,197,94,0.6)]`
 
-**Trofeu maior com glow:**
-- Aumentar de `w-16 h-16 md:w-20 md:h-20` para `w-[clamp(80px,15vmin,160px)] h-[clamp(80px,15vmin,160px)]`
-- Padding do container: `p-6` em vez de `p-4`
-- Drop-shadow colorido intenso no container (cor do vencedor)
+Tamanho dos numeros: `fontSize: clamp(10rem, 40vmin, 25rem)` via style inline (Regra Kiosk)
+Classe: `font-black` com `animate-countdown-pop` existente
 
-**Tipografia dramatica:**
-- Nome do vencedor: De `text-5xl md:text-6xl` para `text-[clamp(3rem,10vmin,6rem)]`
-- Subtitulo: De "ZEROU A META!" para "CAMPEAO DO DUELO!" em `text-[clamp(1rem,3vmin,2rem)]`
-- Placar: De `text-5xl md:text-6xl` para `text-[clamp(3rem,8vmin,5rem)]` com separador "X" estilizado
+### 4. Fase Final (countdown === 0 / "FIGHT!")
+- **Antes**: `text-game-yellow text-glow-yellow`
+- **Depois**: `text-white font-black italic tracking-tighter`
+- Glow intenso: `drop-shadow-[0_0_60px_rgba(255,255,255,0.8)]`
+- Tamanho: `fontSize: clamp(6rem, 25vmin, 16rem)`
+- Manter animacao `animate-countdown-pop`
 
-**Tabela de detalhes estilo "Data Grid":**
-- Container: `bg-[#0b1120]/80 border border-white/10 rounded-xl`
-- Titulo "DETALHES DOS ROUNDS": Manter
-- Linhas: Adicionar `border-b border-white/5` entre linhas em vez de `space-y-2`
-- Badge "ZERO!": Aumentar padding, adicionar `shadow-[0_0_12px_rgba(255,215,0,0.4)]` para efeito de "carimbo digital"
-- HP values: Usar `text-[clamp(1rem,2.5vmin,1.5rem)]` em vez de `text-lg` fixo
+### 5. Paineis Laterais (Preview)
+- **Antes**: `opacity-30` com bordas red/blue
+- **Depois**: Manter mas reduzir para `opacity-15` para nao competir com semaforo
 
-**Botoes:**
-- Manter estilos atuais (ja estao bons)
+### 6. Botao Voltar
+- **Antes**: `bg-black/50 text-white/70`
+- **Depois**: `bg-transparent text-white/30 hover:text-white/70` (mais discreto)
 
 ---
 
-## Resumo de Arquivos
+## O Que NAO Muda
 
-| Arquivo | Alteracoes |
-|---------|-----------|
-| `src/components/game/ArcadeScreenTV.tsx` | Redesign dos 2 overlays de transicao (linhas 323-404) em painel profissional unificado |
-| `src/components/game/ArcadeFinishedScreen.tsx` | Trofeu maior, gradiente mais forte, tipografia responsiva, tabela estilo data grid |
+- Logica de countdown (valores, fases, refs)
+- Integracao com audio (`playWithRef`, `onMusicStarted`, `shouldStartMusic`)
+- Ref `hasStartedMusicRef` e efeito de reset
+- Props do componente
+- Comportamento do botao voltar (apenas visual)
 
-- 2 arquivos alterados
+---
+
+## Resumo Tecnico
+
+- 1 arquivo alterado
 - 0 arquivos novos
-- Apenas CSS/layout, nenhuma mudanca de logica
-- Responsividade com vmin em todos os clamp()
+- Import adicional: `AlertTriangle` de lucide-react
+- Apenas mudancas de CSS/classes, nenhuma logica alterada
+- Responsividade via `clamp(..., vmin, ...)` conforme padrao Kiosk
 
