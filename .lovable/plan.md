@@ -1,119 +1,101 @@
 
 
-# Redesign: Arcade Setup Screen — Cyber Loadout Menu
+# Redesign: Arcade Setup — Minimalismo Brutalista
 
 ## Resumo
 
-Transformar a `ArcadeSetupScreen.tsx` em um menu de configuracao "AAA" alinhado com a identidade Industrial Cyber, aplicando background com imagem, cards com backdrop-blur, botao chanfrado, segmented control militar e bloco de regras estilo "nota de sistema".
+Eliminar toda a poluicao visual da `ArcadeSetupScreen.tsx`: remover icones, descricoes, glows e sombras coloridas. Substituir por tipografia pesada, geometria flat e interacao "industrial" (amarelo solido quando ativo, cinza apagado quando inativo).
 
 ## Alteracoes
 
-### Arquivo: `src/components/game/ArcadeSetupScreen.tsx`
+### Arquivo 1: `src/components/game/ArcadeSetupScreen.tsx`
 
-#### 1. Import de Background
+#### 1. Imports — Limpar icones
 
-Adicionar `import bgMenuModos from '@/assets/menu-modos.jpg'` no topo do arquivo.
+- Remover todos os imports de Lucide: `ArrowLeft, Swords, Clock, Trophy, Zap, Timer, Shield`.
+- Manter apenas: `useState`, `Slider`, `cn`, `useSound`, `bgMenuModos`.
 
-#### 2. Container Principal (linha 102)
+#### 2. INTENSITY_PRESETS — Simplificar dados
 
-- Adicionar imagem `bgMenuModos` como fundo absoluto com `opacity-[0.05]` e `pointer-events-none` (mesmo padrao do GameScreen e FinishedScreen).
-- Container mantem `bg-[#0b1120]` com `relative overflow-hidden`.
+Remover campos desnecessarios de cada preset: `subtitle`, `description`, `Icon`, `activeGlow`, `barColor`, `iconColor`, `textColor`.
 
-#### 3. Cards de Intensidade (linhas 122-151)
+Manter apenas: `id`, `label`, `meta`, `damage`.
 
-Substituir o estilo dos cards:
+Atualizar `meta` para formato tecnico: `"TARGET: 50"`, `"TARGET: 100"`, `"TARGET: 200"`.
 
-- **Inativo**: `bg-white/5 backdrop-blur-sm border border-white/10 rounded-none` (sem arredondamento, industrial).
-- **Ativo**: `bg-{color}-500/10 border-{color}-500 shadow-[0_0_20px_rgba(...)]` com brilho intenso.
-- Titulos maiores: `text-xl md:text-2xl font-black italic` (em vez de `text-base md:text-lg`).
-- Descricoes: `text-white/60` (mais legivel).
-- Remover `rounded-xl` e `border-2`, usar `border` simples.
-- Adicionar `transition-all duration-300` para transicoes suaves.
-- Indicador ativo: substituir bolinha por barra lateral `w-1 h-full absolute left-0 top-0` na cor do preset.
+#### 3. Cards de Selecao — Barras horizontais flat
 
-#### 4. Painel de Controles (linhas 155-232)
+Substituir cards verticais altos por barras horizontais compactas:
 
-- Container: trocar `bg-slate-900/50` por `bg-black/20 rounded-xl p-6 border border-white/10`.
-- Sliders: manter componente Slider existente (ja funcional), valor numerico destacado.
+- Layout: `flex flex-col gap-2` (sem grid de 3 colunas).
+- Cada card e uma barra com `h-14 md:h-16`, layout `flex items-center justify-between px-6`.
+- **Esquerda**: Titulo em `text-2xl md:text-3xl font-black uppercase tracking-tighter`.
+- **Direita**: Meta em `font-mono text-lg md:text-xl`.
 
-#### 5. Segmented Control "Formato" (linhas 188-203)
+**Estados:**
+- **Inativo**: `bg-transparent border border-white/5 text-white/20`. Completamente apagado.
+- **Ativo**: `bg-[#FFD700] text-black border-transparent`. Amarelo solido, sem glow, sem sombra.
 
-Substituir botoes arredondados por segmented control militar:
+Remover: icones, descricoes, barras laterais indicadoras, backdrop-blur, sombras coloridas.
 
-- Container: `bg-black/40 rounded-lg p-1 flex gap-1`.
-- Item selecionado: `bg-white/10 text-white shadow-sm`.
-- Item nao selecionado: `text-white/40 bg-transparent`.
-- Remover `rounded-lg` individual, usar `rounded-md` menor.
+#### 4. Header — Terminal style
 
-#### 6. Botao "INICIAR DUELO" (linhas 247-254)
+- Remover icones `Shield`.
+- Alinhar titulo a esquerda (`text-left`).
+- Remover subtitulo descritivo.
+- Titulo: `font-mono font-black uppercase tracking-tighter text-white`.
+- "DEMOLICAO" destacado em `text-[#FFD700]`.
 
-Substituir `Button` por elemento nativo com clip-path chanfrado:
+#### 5. Controles — Labels mono tecnicos
 
-- Cor: `bg-[#FFD700] text-black`.
-- Clip-path: `polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)`.
-- Texto: `font-black uppercase tracking-widest text-lg`.
-- Largura: `w-full`.
-- Hover: `hover:brightness-110`.
+- Remover icones `Clock`, `Trophy`, `Timer` dos labels.
+- Labels: `font-mono text-xs uppercase tracking-[0.2em] text-white/40`.
+- Valores numericos: `font-mono text-white/70` (sem cores especiais).
 
-#### 7. Bloco de Regras (linhas 237-243)
+#### 6. Slider — Thumb tecnico
 
-Estilizar como "Nota de Sistema":
+Criar um slider customizado inline ou via className override:
+- Track: `h-1 bg-white/10 rounded-none`.
+- Thumb: quadrado pequeno `w-3 h-3 rounded-none bg-[#FFD700]` (sem borda arredondada).
 
-- Trocar `bg-white/5 rounded-lg` por `bg-transparent border-l-2 border-cyan-500/50 pl-4`.
-- Fonte: `font-mono text-xs text-white/40`.
-- Titulo: `text-cyan-500/60 uppercase tracking-widest`.
+Para isso, passar `className` customizado ao componente Slider e tambem ajustar o componente `slider.tsx` para aceitar classes de customizacao no Track e Thumb, ou criar um wrapper.
 
-#### 8. Botao Voltar (linhas 256-264)
+**Abordagem escolhida**: Modificar `src/components/ui/slider.tsx` para aceitar props `trackClassName` e `thumbClassName`, mantendo backward compatibility com defaults.
 
-Manter funcionalidade, ajustar para `text-white/30 hover:text-white/60` com estilo outline sutil.
+#### 7. Botao "INICIAR DUELO"
 
-### Detalhes Tecnicos
+- Remover icone `Shield` de dentro do botao.
+- Manter clip-path chanfrado e estilo amarelo.
+- Texto apenas: `INICIAR DUELO`.
 
-**Background overlay:**
-```
-<img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.05] pointer-events-none" alt="" />
-```
+#### 8. Botao Voltar
 
-**Card ativo (exemplo Sprint):**
-```
-className={cn(
-  "relative p-4 md:p-5 border transition-all duration-300 text-left flex flex-col backdrop-blur-sm",
-  isActive
-    ? "bg-yellow-500/10 border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]"
-    : "bg-white/5 border-white/10 hover:bg-white/8"
-)}
-```
+- Remover icone `ArrowLeft`.
+- Texto puro: `← VOLTAR` usando caractere unicode.
 
-**Botao chanfrado:**
-```
-<button
-  onClick={handleStart}
-  className="w-full h-14 bg-[#FFD700] text-black font-black uppercase tracking-widest text-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
-  style={{ clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)' }}
->
-  INICIAR DUELO
-</button>
+#### 9. Background
+
+- Reduzir opacidade da imagem de `0.05` para `0.03`.
+- Remover qualquer gradiente radial (nao ha nenhum atualmente, apenas confirmar).
+
+### Arquivo 2: `src/components/ui/slider.tsx`
+
+Adicionar props opcionais `trackClassName`, `rangeClassName` e `thumbClassName` ao componente Slider para permitir customizacao sem quebrar usos existentes.
+
+```typescript
+interface SliderProps extends React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> {
+  trackClassName?: string;
+  rangeClassName?: string;
+  thumbClassName?: string;
+}
 ```
 
-**Segmented control:**
-```
-<div className="flex bg-black/40 rounded-lg p-1 gap-1">
-  {BEST_OF_OPTIONS.map((option) => (
-    <button
-      className={cn(
-        "flex-1 py-2 px-4 rounded-md font-bold text-base font-mono transition-all",
-        bestOf === option.value
-          ? "bg-white/10 text-white shadow-sm"
-          : "text-white/40 bg-transparent hover:text-white/60"
-      )}
-    >
-      {option.label}
-    </button>
-  ))}
-</div>
-```
+Os valores default continuam iguais aos atuais. A ArcadeSetupScreen passara:
+- `trackClassName="h-1 bg-white/10 rounded-none"`
+- `thumbClassName="w-3 h-3 rounded-none bg-[#FFD700] border-none"`
 
 ### Arquivos alterados
 
-- `src/components/game/ArcadeSetupScreen.tsx` — redesign completo com estetica Industrial Cyber
+- `src/components/game/ArcadeSetupScreen.tsx` — redesign brutalista completo
+- `src/components/ui/slider.tsx` — adicionar props de customizacao (trackClassName, thumbClassName, rangeClassName)
 
