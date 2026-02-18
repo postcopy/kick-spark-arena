@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { ArrowLeft, Swords, Clock, Trophy, Zap, Timer, Shield } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { useSound } from '@/contexts/SoundContext';
+import bgMenuModos from '@/assets/menu-modos.jpg';
 
 interface ArcadeSetupScreenProps {
   onStart: () => void;
@@ -34,8 +34,8 @@ const INTENSITY_PRESETS = [
     damage: 2.0,
     description: 'Explosão máxima. Quem termina 50 chutes primeiro?',
     Icon: Zap,
-    colorClass: 'border-yellow-500/60 bg-yellow-500/10',
-    activeClass: 'border-yellow-400 bg-yellow-500/20 shadow-[0_0_30px_rgba(234,179,8,0.3)]',
+    activeGlow: 'bg-yellow-500/10 border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]',
+    barColor: 'bg-yellow-500',
     iconColor: 'text-yellow-400',
     textColor: 'text-yellow-400',
   },
@@ -47,8 +47,8 @@ const INTENSITY_PRESETS = [
     damage: 1.0,
     description: 'Volume de luta. 100 chutes de pura resistência.',
     Icon: Swords,
-    colorClass: 'border-cyan-500/60 bg-cyan-500/10',
-    activeClass: 'border-cyan-400 bg-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.3)]',
+    activeGlow: 'bg-cyan-500/10 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.3)]',
+    barColor: 'bg-cyan-500',
     iconColor: 'text-cyan-400',
     textColor: 'text-cyan-400',
   },
@@ -60,8 +60,8 @@ const INTENSITY_PRESETS = [
     damage: 0.5,
     description: 'Desafio Olímpico. 200 chutes para testar o limite.',
     Icon: Trophy,
-    colorClass: 'border-purple-500/60 bg-purple-500/10',
-    activeClass: 'border-purple-400 bg-purple-500/20 shadow-[0_0_30px_rgba(168,85,247,0.3)]',
+    activeGlow: 'bg-purple-500/10 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)]',
+    barColor: 'bg-purple-500',
     iconColor: 'text-purple-400',
     textColor: 'text-purple-400',
   },
@@ -99,9 +99,12 @@ export function ArcadeSetupScreen({
   const activePreset = INTENSITY_PRESETS.find(p => p.id === selectedPreset) || INTENSITY_PRESETS[1];
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#0b1120] p-4 md:p-6 overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-[#0b1120] p-4 md:p-6 overflow-hidden relative">
+      {/* Background overlay */}
+      <img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.05] pointer-events-none" alt="" />
+
       {/* Header */}
-      <header className="flex-shrink-0 text-center mb-2 md:mb-3">
+      <header className="flex-shrink-0 text-center mb-2 md:mb-3 relative z-10">
         <div className="flex items-center justify-center gap-2 md:gap-3 mb-1">
           <Shield className="w-6 h-6 md:w-8 md:h-8 text-game-red" />
           <h1 className="text-[clamp(1.5rem,4vmin,3rem)] font-black text-white tracking-tight font-mono">
@@ -114,11 +117,11 @@ export function ArcadeSetupScreen({
         </p>
       </header>
 
-      {/* Main content - flex col, no scroll */}
-      <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto flex flex-col overflow-hidden">
-        {/* Intensity Preset Cards - flexible height */}
+      {/* Main content */}
+      <main className="flex-1 min-h-0 w-full max-w-6xl mx-auto flex flex-col overflow-hidden relative z-10">
+        {/* Intensity Preset Cards */}
         <div className="flex-1 min-h-0 mb-3 flex flex-col justify-center">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 h-full max-h-[500px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 h-full max-h-[500px]">
             {INTENSITY_PRESETS.map((preset) => {
               const isActive = selectedPreset === preset.id;
               return (
@@ -126,33 +129,33 @@ export function ArcadeSetupScreen({
                   key={preset.id}
                   onClick={() => selectPreset(preset)}
                   className={cn(
-                    "relative p-3 md:p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden flex flex-col",
-                    isActive ? preset.activeClass : preset.colorClass,
-                    "hover:scale-[1.02]"
+                    "relative p-4 md:p-5 border transition-all duration-300 text-left overflow-hidden flex flex-col backdrop-blur-sm",
+                    isActive
+                      ? preset.activeGlow
+                      : "bg-white/5 border-white/10 hover:bg-white/[0.08]"
                   )}
                 >
-                  <preset.Icon className={cn("w-6 h-6 md:w-8 md:h-8 mb-1", preset.iconColor)} />
-                  <div className={cn("font-black text-base md:text-lg font-mono", preset.textColor)}>
+                  {/* Active indicator bar */}
+                  {isActive && (
+                    <div className={cn("absolute left-0 top-0 w-1 h-full", preset.barColor)} />
+                  )}
+                  <preset.Icon className={cn("w-7 h-7 md:w-9 md:h-9 mb-2", preset.iconColor)} />
+                  <div className={cn("font-black text-xl md:text-2xl italic font-mono", preset.textColor)}>
                     {preset.label}
                   </div>
                   <div className="text-xs text-white/50 font-bold uppercase">{preset.subtitle}</div>
-                  <div className={cn("text-sm font-bold font-mono mt-0.5", preset.textColor)}>
+                  <div className={cn("text-sm font-bold font-mono mt-1", preset.textColor)}>
                     {preset.meta}
                   </div>
-                  <p className="text-[0.65rem] leading-tight text-white/40 mt-1 hidden md:block">{preset.description}</p>
-                  {isActive && (
-                    <div className={cn("absolute top-2 right-2 w-3 h-3 rounded-full", 
-                      preset.id === 'sprint' ? 'bg-yellow-400' : preset.id === 'resistance' ? 'bg-cyan-400' : 'bg-purple-400'
-                    )} />
-                  )}
+                  <p className="text-[0.7rem] leading-tight text-white/60 mt-2 hidden md:block">{preset.description}</p>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Controls Panel - fixed height */}
-        <div className="flex-shrink-0 bg-slate-900/50 p-3 md:p-4 rounded-xl border border-white/5 mb-3">
+        {/* Controls Panel */}
+        <div className="flex-shrink-0 bg-black/20 p-4 md:p-6 rounded-xl border border-white/10 mb-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             {/* Left Column: Round Duration Slider */}
             <div>
@@ -179,22 +182,22 @@ export function ArcadeSetupScreen({
 
             {/* Right Column: Format + Interval stacked */}
             <div className="space-y-3">
-              {/* Best Of */}
+              {/* Best Of - Segmented Control */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Trophy className="w-4 h-4 md:w-5 md:h-5 text-game-yellow" />
                   <h2 className="text-sm md:text-base font-bold text-white">FORMATO</h2>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex bg-black/40 rounded-lg p-1 gap-1">
                   {BEST_OF_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => onBestOfChange(option.value)}
                       className={cn(
-                        "flex-1 py-2 px-4 rounded-lg font-bold text-base md:text-lg transition-all font-mono",
+                        "flex-1 py-2 px-4 rounded-md font-bold text-base font-mono transition-all",
                         bestOf === option.value
-                          ? "bg-game-yellow text-black"
-                          : "bg-white/10 text-white/50 hover:bg-white/15"
+                          ? "bg-white/10 text-white shadow-sm"
+                          : "text-white/40 bg-transparent hover:text-white/60"
                       )}
                     >
                       {option.label}
@@ -231,37 +234,35 @@ export function ArcadeSetupScreen({
           </div>
         </div>
 
-        {/* Footer: Rules + Action Buttons - fixed height */}
+        {/* Footer: Rules + Action Buttons */}
         <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
-          {/* Rules Card - 2/3 width */}
-          <div className="md:col-span-2 bg-white/5 p-2 md:p-3 rounded-lg border border-white/10">
-            <h3 className="text-xs font-bold text-white/40 uppercase mb-1 font-mono">REGRAS</h3>
-            <ul className="text-xs text-white/50 space-y-0.5">
-              <li>• META: <span className="text-white font-bold font-mono">100</span> pts | Dano: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.damage}</span> | Chutes: <span className={cn("font-bold font-mono", activePreset.textColor)}>{activePreset.meta}</span></li>
+          {/* Rules - System Note style */}
+          <div className="md:col-span-2 bg-transparent border-l-2 border-cyan-500/50 pl-4 py-2">
+            <h3 className="text-[0.65rem] font-bold text-cyan-500/60 uppercase tracking-widest mb-1 font-mono">REGRAS DO SISTEMA</h3>
+            <ul className="font-mono text-xs text-white/40 space-y-0.5">
+              <li>• META: <span className="text-white/70 font-bold">100</span> pts | Dano: <span className={cn("font-bold", activePreset.textColor)}>{activePreset.damage}</span> | Chutes: <span className={cn("font-bold", activePreset.textColor)}>{activePreset.meta}</span></li>
               <li>• Combo: chutes rápidos em sequência (até +4 dano) · <span className="text-game-yellow font-bold">Quem zerar primeiro vence!</span></li>
             </ul>
           </div>
 
-          {/* Action Buttons - 1/3 width */}
+          {/* Action Buttons */}
           <div className="md:col-span-1 flex flex-col gap-2">
-            <Button
-              size="default"
+            <button
               onClick={handleStart}
-              className="w-full h-12 md:h-14 gap-2 bg-game-yellow text-black hover:bg-game-yellow/90 font-bold text-base md:text-lg font-mono"
+              className="w-full h-14 bg-[#FFD700] text-black font-black uppercase tracking-widest text-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
+              style={{ clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)' }}
             >
               <Shield className="w-5 h-5" />
               INICIAR DUELO
-            </Button>
+            </button>
             <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
                 onClick={onBack}
-                className="gap-1 text-white/30 hover:text-white/70 hover:bg-white/5 text-xs"
+                className="flex items-center gap-1 text-white/30 hover:text-white/60 transition-colors text-xs"
               >
                 <ArrowLeft className="w-3 h-3" />
                 Voltar
-              </Button>
+              </button>
               <span className="text-xs text-white/30">
                 <kbd className="px-1.5 py-0.5 bg-white/10 rounded font-mono text-[0.65rem]">SPACE</kbd> iniciar
               </span>
