@@ -1,47 +1,45 @@
 
 
-# Refatorar LoadingScreen: Imagem como Plano de Fundo
+# Adicionar Imagem de Fundo ao Menu de Selecao de Modos
 
 ## Resumo
 
-Transformar a imagem `S-FIGHT-MODO.jpg` de elemento centralizado para plano de fundo fullscreen com overlay escuro, barra de progresso na parte inferior e animacao de saida unificada.
+Usar a imagem `menu-modos.jpg` como plano de fundo fullscreen na `HomeScreen` (tela de selecao de modos), substituindo o fundo solido `#0b1120` atual. Adicionar overlay escuro para manter legibilidade dos cards e textos.
 
 ## Alteracoes
 
-### Arquivo: `src/components/game/LoadingScreen.tsx`
+### 1. Copiar imagem para o projeto
 
-Reestruturar o JSX do `return` para:
+Copiar `user-uploads://menu-modos.jpg` para `src/assets/menu-modos.jpg`.
 
-1. **Container principal**: `div` com `fixed inset-0 z-50 overflow-hidden`. A animacao de fade-out (`opacity-0 scale-105 transition-all duration-700`) sera aplicada neste container, fazendo tudo desaparecer junto.
+### 2. `src/components/game/HomeScreen.tsx`
 
-2. **Imagem de fundo**: `img` com `absolute inset-0 w-full h-full object-cover z-0` -- preenche toda a tela sem distorcao.
+- Importar a imagem: `import bgMenuModos from '@/assets/menu-modos.jpg'`
+- No container raiz, remover o `style={{ background: '#0b1120' }}` e tornar o fundo `relative`
+- Adicionar a imagem como fundo absoluto (`absolute inset-0 w-full h-full object-cover z-0`)
+- Adicionar overlay `absolute inset-0 bg-black/60 z-0` sobre a imagem
+- Envolver header, main e footer em um wrapper `relative z-10` para ficarem acima do overlay
+- Manter toda a logica e estilos dos cards, header e footer inalterados
 
-3. **Overlay escuro**: `div` com `absolute inset-0 bg-black/60 z-10` -- garante contraste para texto e barra.
-
-4. **Barra de progresso + texto**: Container posicionado na parte inferior com `absolute bottom-10 left-0 right-0 z-20 flex flex-col items-center`. Barra com `max-w-[500px] w-full` (mais larga que os 400px atuais). Texto branco (`text-white/60`).
-
-5. **Remover**: O wrapper centralizado atual (`flex flex-col items-center justify-center`) e o `max-w-[500px] px-4` da imagem.
-
-6. **Manter**: Toda a logica de estados (`progress`, `isComplete`, `isFadingOut`), os useEffects de audio e a animacao de glow (removida pois nao faz sentido no fundo -- a imagem de fundo nao precisa de glow pulsante).
-
-### Estrutura final do JSX
+### Estrutura final
 
 ```text
-<div className="fixed inset-0 z-50 overflow-hidden transition-all duration-700 [fade-out classes]">
+<div className="flex flex-col h-full w-full overflow-hidden relative">
   <!-- Imagem de fundo -->
-  <img src={sfightLogo} className="absolute inset-0 w-full h-full object-cover z-0" />
+  <img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover z-0" />
+  <!-- Overlay -->
+  <div className="absolute inset-0 bg-black/60 z-[1]" />
 
-  <!-- Overlay escuro -->
-  <div className="absolute inset-0 bg-black/60 z-10" />
-
-  <!-- Barra + texto no rodape -->
-  <div className="absolute bottom-10 left-0 right-0 z-20 flex flex-col items-center px-6">
-    <Progress value={progress} className="h-2 max-w-[500px] w-full" />
-    <p className="text-sm text-white/60 font-mono mt-3">...</p>
+  <!-- Conteudo existente com z-10 -->
+  <div className="relative z-10 flex flex-col h-full w-full">
+    <header>...</header>
+    <main>...</main>
+    <footer>...</footer>
   </div>
 </div>
 ```
 
-### Arquivos nao alterados
-- `src/index.css` -- o keyframe `logo-glow` pode ficar (nao causa problemas), mas nao sera mais usado
-- Nenhum outro arquivo afetado
+### Arquivos alterados
+- `src/assets/menu-modos.jpg` -- novo asset
+- `src/components/game/HomeScreen.tsx` -- fundo com imagem + overlay
+
