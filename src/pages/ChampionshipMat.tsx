@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
-import { useSerialPort } from '@/hooks/useSerialPort';
+import { useSerialPortContext } from '@/contexts/SerialPortContext';
 import { useHardwareDiagnostics } from '@/hooks/useHardwareDiagnostics';
 import { useSound } from '@/contexts/SoundContext';
 import { OperatorPanel } from '@/components/championship/OperatorPanel';
@@ -195,6 +195,15 @@ function ChampionshipMatInner() {
   // Always impacts mode — no RAW path
   const impactThresholds = sync.state.config.impactThresholds;
   
+  // ─── Serial Port from global context ───
+  const { 
+    serialPort, 
+    registerKickHandler, unregisterKickHandler,
+    registerImpactHandler, unregisterImpactHandler,
+    registerRawPacketHandler, unregisterRawPacketHandler,
+    setImpactDetectorConfig,
+  } = useSerialPortContext();
+  
   // Stabilize impactDetectorConfig to avoid re-creating on every render (timer runs every 100ms)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const noiseFloorJson = JSON.stringify(impactThresholds?.noiseFloor ?? {});
@@ -214,13 +223,26 @@ function ChampionshipMatInner() {
     console.log('[ChampionshipMat] impactDetectorConfig changed:', impactDetectorConfigMemo);
   }, [impactDetectorConfigMemo]);
 
-  const serialPort = useSerialPort({
-    onKick: handleHardwareKick,
-    onRawPacket: diagnostics.onRawPacket,
-    onImpact: handleImpact,
-    debounceMs: 150,
-    impactDetectorConfig: impactDetectorConfigMemo,
-  });
+  // Register handlers and impact detector config on mount
+  useEffect(() => {
+    registerKickHandler(handleHardwareKick);
+    registerImpactHandler(handleImpact);
+    registerRawPacketHandler(diagnostics.onRawPacket);
+    setImpactDetectorConfig(impactDetectorConfigMemo);
+    
+    return () => {
+      unregisterKickHandler();
+      unregisterImpactHandler();
+      unregisterRawPacketHandler();
+      setImpactDetectorConfig(null); // Disable impact detector when leaving championship
+    };
+  }, [
+    handleHardwareKick, handleImpact, diagnostics.onRawPacket, impactDetectorConfigMemo,
+    registerKickHandler, unregisterKickHandler,
+    registerImpactHandler, unregisterImpactHandler,
+    registerRawPacketHandler, unregisterRawPacketHandler,
+    setImpactDetectorConfig,
+  ]);
   
   // ─── Unlock audio + preload on mount ───
   useEffect(() => {
