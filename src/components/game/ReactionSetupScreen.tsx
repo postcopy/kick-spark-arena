@@ -74,20 +74,20 @@ export function ReactionSetupScreen({
       <img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.03] pointer-events-none" alt="" />
 
       {/* Header — terminal style, left-aligned */}
-      <header className="flex-shrink-0 text-left mb-4 md:mb-6 relative z-10">
+      <header className="flex-shrink-0 text-left mb-2 md:mb-3 relative z-10">
         <h1 className="text-[clamp(1.5rem,4vmin,3rem)] font-black text-white tracking-tighter font-mono uppercase">
           MODO <span className="text-green-400">REAÇÃO</span>
         </h1>
       </header>
 
       {/* Main */}
-      <main className="flex-1 min-h-0 flex flex-col max-w-6xl w-full mx-auto overflow-y-auto gap-3 relative z-10">
+      <main className="flex-1 min-h-0 flex flex-col max-w-6xl w-full mx-auto overflow-hidden gap-2 relative z-10">
         {/* Row 1: Athlete + Difficulty */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 flex-shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           {/* Athlete card — flat bar */}
           <button
             onClick={() => setShowPicker(true)}
-            className="flex items-center justify-between px-6 h-14 md:h-16 bg-transparent border border-white/5 hover:bg-white/5 hover:border-white/10 transition-all"
+            className="flex items-center justify-between px-6 h-10 md:h-12 bg-transparent border border-white/5 hover:bg-white/5 hover:border-white/10 transition-all"
           >
             <span className="font-mono font-bold text-white text-sm">
               {selectedAthlete ? selectedAthlete.name : isGuest ? 'VISITANTE' : 'SELECIONAR ATLETA'}
@@ -111,7 +111,7 @@ export function ReactionSetupScreen({
                 key={lvl}
                 onClick={() => handlePresetSelect(lvl)}
                 className={cn(
-                  "flex items-center justify-between px-6 h-14 md:h-16 transition-all duration-200",
+                  "flex items-center justify-between px-6 h-10 md:h-12 transition-all duration-200",
                   activePreset === lvl
                     ? "bg-green-500 text-black border border-transparent"
                     : "bg-transparent border border-white/5 text-white/20 hover:bg-white/5 hover:text-white/40 hover:border-white/10"
@@ -135,7 +135,7 @@ export function ReactionSetupScreen({
         </div>
 
         {/* Row 2: Training Parameters */}
-        <div className="bg-black/20 p-4 md:p-6 rounded-xl border border-white/10 flex-shrink-0">
+        <div className="bg-black/20 p-3 md:p-4 rounded-xl border border-white/10 flex-1 min-h-0 overflow-hidden">
           <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-white/40 mb-3">
             PARÂMETROS DO TREINO
           </h3>
@@ -198,9 +198,9 @@ export function ReactionSetupScreen({
         </div>
 
         {/* Row 3: Cognitive + Rules */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 flex-shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
           {/* Cognitive Mode */}
-          <div className="md:col-span-2 bg-black/20 p-4 md:p-6 rounded-xl border border-white/10">
+          <div className="md:col-span-2 bg-black/20 p-3 md:p-4 rounded-xl border border-white/10">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-mono text-xs font-bold text-white uppercase tracking-[0.2em]">Modo Cognitivo (Go/No-Go)</h3>
