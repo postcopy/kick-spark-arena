@@ -19,7 +19,16 @@ import ChampionshipTV from "./pages/ChampionshipTV";
 import Students from "./pages/Students";
 import StudentProfile from "./pages/StudentProfile";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 1000 * 60 * 60 * 24,
+      retry: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

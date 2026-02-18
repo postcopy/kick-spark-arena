@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Use setTimeout to avoid potential race conditions
           setTimeout(() => {
             checkAdminRole(session.user.id);
-            checkSubscription(true); // Initial check - show loading
+            checkSubscription(false); // Non-blocking: initial load covered by getSession
           }, 0);
         } else {
           setIsAdmin(false);
