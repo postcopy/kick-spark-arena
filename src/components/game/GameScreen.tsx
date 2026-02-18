@@ -43,6 +43,13 @@ export function GameScreen({
   const elapsedSeconds = totalDuration - timeLeft;
   const cpm = elapsedSeconds > 0 ? Math.round((totalKicks / elapsedSeconds) * 60) : 0;
 
+  // Duo individual metrics
+  const redCpm = elapsedSeconds > 0 ? Math.round((scores.red / elapsedSeconds) * 60) : 0;
+  const blueCpm = elapsedSeconds > 0 ? Math.round((scores.blue / elapsedSeconds) * 60) : 0;
+  const totalDuo = scores.red + scores.blue;
+  const redPercent = totalDuo > 0 ? (scores.red / totalDuo) * 100 : 50;
+  const scoreDiff = Math.abs(scores.red - scores.blue);
+
   // Recorde Pessoal (PB) do dia
   const [dayPB, setDayPB] = useState<number | null>(null);
   useEffect(() => {
@@ -100,39 +107,7 @@ export function GameScreen({
       {/* Low Battery Alert - Top Right */}
       {equipment && <LowBatteryAlert equipment={equipment} />}
       
-      {/* Minimalist Timer - Top Center (DUO ONLY) */}
-      {!isIndividual && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20">
-          <div className={cn(
-            'relative flex items-center justify-center',
-            timerPulse && 'animate-pulse'
-          )}>
-            <svg className="-rotate-90" style={{ width: 'clamp(7rem, 25vh, 18rem)', height: 'clamp(7rem, 25vh, 18rem)' }} viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="45" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
-              <circle cx="50" cy="50" r="45" fill="none"
-                stroke={timeLeft <= 5 ? 'hsl(var(--game-red))' : timeLeft <= 10 ? 'hsl(var(--game-yellow))' : 'hsl(var(--game-yellow))'}
-                strokeWidth="4" strokeLinecap="round"
-                strokeDasharray={`${progress * 2.83} 283`}
-                className="transition-all duration-300"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className={cn('font-bold font-mono tabular-nums', timeColor)} style={{ fontSize: 'clamp(3rem, 15vh, 8rem)' }}>
-                {formatTime(timeLeft)}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Pause Hint - Fades out */}
-      {showPauseHint && !isPaused && !isIndividual && (
-        <div className="absolute top-44 md:top-48 left-1/2 -translate-x-1/2 z-20 animate-fade-in">
-          <span className="text-sm text-muted-foreground bg-black/50 px-4 py-2 rounded-full">
-            Toque na tela para pausar
-          </span>
-        </div>
-      )}
+      {/* (Circular timer and pause hint removed — replaced by horizontal bar in duo) */}
 
       {/* Pause Overlay */}
       {isPaused && (
@@ -304,64 +279,123 @@ export function GameScreen({
             )}
           </div>
         ) : (
-          /* Duo Mode - Two Panels Side by Side */
-          <>
-            {/* Left Panel - Red */}
-            <div className="flex-1 relative">
-              <KickPanel
-                side="red"
-                score={scores.red}
-                isFlashing={flashSide === 'red'}
-                percentage={redPercentage}
-              />
-              {/* Mascote vermelho */}
-              <div className="absolute bottom-24 left-4 z-10 pointer-events-none">
-                <FighterMascot 
-                  side="red" 
-                  state={flashSide === 'red' ? 'attacking' : 'idle'} 
-                  size="md"
+          /* Duo Mode - Arena Battle HUD */
+          <div className="flex-1 flex flex-col w-full h-full relative overflow-hidden bg-[#0b1120]">
+            
+            {/* Background image */}
+            <img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.05] z-0 pointer-events-none" alt="" />
+
+            {/* === HEADER: Barra de Tempo === */}
+            <div className="w-full px-6 pt-4 flex-shrink-0 relative z-[1]">
+              <div className="w-full h-3 bg-white/[0.08] rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded-full transition-all duration-1000 ease-linear",
+                    progress > 60 ? "bg-[#4ade80]" : progress > 30 ? "bg-[#facc15]" : "bg-[#ef4444] animate-pulse"
+                  )}
+                  style={{ 
+                    width: `${progress}%`,
+                    boxShadow: progress > 60 
+                      ? '0 0 20px rgba(74,222,128,0.4)' 
+                      : progress > 30 
+                        ? '0 0 20px rgba(250,204,21,0.4)' 
+                        : '0 0 20px rgba(239,68,68,0.4)'
+                  }}
                 />
+              </div>
+              <div className="text-center mt-2">
+                <span className={cn(
+                  "font-black font-mono tabular-nums text-white",
+                  timerPulse && "animate-pulse"
+                )} style={{ fontSize: 'clamp(2.5rem, 6vh, 5rem)' }}>
+                  {formatTime(timeLeft)}
+                </span>
               </div>
             </div>
 
-            {/* Right Panel - Blue */}
-            <div className="flex-1 relative">
-              <KickPanel
-                side="blue"
-                score={scores.blue}
-                isFlashing={flashSide === 'blue'}
-                percentage={bluePercentage}
-              />
-              {/* Mascote azul */}
-              <div className="absolute bottom-24 right-4 z-10 pointer-events-none">
-                <FighterMascot 
-                  side="blue" 
-                  state={flashSide === 'blue' ? 'attacking' : 'idle'} 
-                  size="md"
-                />
+            {/* === ARENA GRID === */}
+            <div className="grid grid-cols-12 gap-4 flex-1 items-center px-4 relative z-[1]">
+              
+              {/* Red Panel */}
+              <div className={cn(
+                "col-span-5 border-l-4 border-red-500 bg-gradient-to-r from-red-500/10 to-transparent p-6 rounded-r-xl transition-transform duration-100",
+                flashSide === 'red' && "scale-105 from-red-500/25 shadow-[inset_0_0_30px_rgba(239,68,68,0.3)]"
+              )}>
+                <span className="text-red-500 font-black italic leading-none tabular-nums" style={{ 
+                  fontSize: 'clamp(5rem, 12vw, 14rem)',
+                  filter: 'drop-shadow(0 0 30px rgba(239,68,68,0.4))'
+                }}>
+                  {scores.red}
+                </span>
+                <div className="mt-2 flex flex-col gap-1">
+                  <span className="text-sm text-white/40 uppercase tracking-[0.3em] font-mono">HITS</span>
+                  <span className="text-lg text-white/60 font-mono tabular-nums">CPM: {redCpm}</span>
+                </div>
+              </div>
+
+              {/* VS Center */}
+              <div className="col-span-2 flex flex-col items-center justify-center gap-4">
+                <span className="text-4xl font-black text-white/20 italic">VS</span>
+                {/* Tug-of-war bar */}
+                <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-500 rounded-full transition-all duration-300"
+                    style={{ width: `${redPercent}%` }} />
+                </div>
+                {/* Score diff */}
+                {scoreDiff > 0 && (
+                  <span className={cn(
+                    "text-2xl font-bold tabular-nums",
+                    scores.red > scores.blue ? "text-red-400" : "text-blue-400"
+                  )}>
+                    +{scoreDiff}
+                  </span>
+                )}
+                <span className="text-sm text-white/30 font-mono tabular-nums">
+                  Total: {totalDuo}
+                </span>
+              </div>
+
+              {/* Blue Panel */}
+              <div className={cn(
+                "col-span-5 border-r-4 border-blue-500 bg-gradient-to-l from-blue-500/10 to-transparent p-6 rounded-l-xl text-right transition-transform duration-100",
+                flashSide === 'blue' && "scale-105 from-blue-500/25 shadow-[inset_0_0_30px_rgba(59,130,246,0.3)]"
+              )}>
+                <span className="text-blue-500 font-black italic leading-none tabular-nums" style={{ 
+                  fontSize: 'clamp(5rem, 12vw, 14rem)',
+                  filter: 'drop-shadow(0 0 30px rgba(59,130,246,0.4))'
+                }}>
+                  {scores.blue}
+                </span>
+                <div className="mt-2 flex flex-col gap-1 items-end">
+                  <span className="text-sm text-white/40 uppercase tracking-[0.3em] font-mono">HITS</span>
+                  <span className="text-lg text-white/60 font-mono tabular-nums">CPM: {blueCpm}</span>
+                </div>
               </div>
             </div>
-          </>
+
+            {/* === FOOTER TÉCNICO === */}
+            <div className="w-full bg-black/60 backdrop-blur border-t border-white/10 flex items-center justify-between px-10 py-3 relative z-[1]">
+              <span className="text-sm font-bold text-red-500 uppercase tracking-[0.2em]">Vermelho</span>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse" />
+                  <span className="text-xs text-white/40 font-mono">Conectado</span>
+                </div>
+                <span className="text-xs text-white/30 font-mono">[P] Pausar  [ESC] Sair</span>
+              </div>
+              <span className="text-sm font-bold text-blue-500 uppercase tracking-[0.2em]">Azul</span>
+            </div>
+
+            {/* Flash de Impacto Global */}
+            {flashSide && (
+              <div 
+                className="absolute inset-0 pointer-events-none z-[2] animate-pulse"
+                style={{ boxShadow: 'inset 0 0 100px rgba(255,255,255,0.15)' }}
+              />
+            )}
+          </div>
         )}
       </div>
-
-      {/* Footer */}
-      {/* Arena Monitor has its own footer built-in */}
-      {!isIndividual && (
-        <div className="h-20 md:h-24 bg-black flex items-center border-t border-white/10">
-          <div className="flex-1 flex items-center justify-center">
-            <span className="font-bold text-[#E10000] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
-              Vermelho
-            </span>
-          </div>
-          <div className="w-px h-12 bg-white/20" />
-          <div className="flex-1 flex items-center justify-center">
-            <span className="font-bold text-[#0066FF] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
-              Azul
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
