@@ -8,19 +8,19 @@ interface LoadingScreenProps {
 
 const BOOT_LOGS = [
   '> INITIALIZING CORE KERNEL...',
-  '> LOADING ARENA ASSETS [MODULE 1/4]...',
+  '> LOADING ARENA ASSETS...',
   '> ESTABLISHING NEURAL LINK PROTOCOL...',
-  '> CALIBRATING SENSORS...',
-  '> LOADING ARENA ASSETS [MODULE 2/4]...',
+  '> CALIBRATING IMPACT SENSORS...',
+  '> RUNNING SENSOR DIAGNOSTICS...',
+  '> SENSOR THRESHOLD: NOMINAL',
+  '> SYNCHRONIZING TARGETS...',
   '> SYSTEM INTEGRITY CHECK... PASSED',
-  '> LOADING ARENA ASSETS [MODULE 3/4]...',
   '> WARNING: HIGH VOLTAGE DETECTED',
-  '> LOADING ARENA ASSETS [MODULE 4/4]...',
   '> ALL SYSTEMS OPERATIONAL',
 ];
 
 export function LoadingScreen({ onReady, skipBgMusic = false }: LoadingScreenProps) {
-  const { waitForAudioReady, getAudioProgress, unlockAudio, initFullPreload } = useSound();
+  const { waitForAudioReady, unlockAudio, initFullPreload } = useSound();
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
@@ -44,12 +44,25 @@ export function LoadingScreen({ onReady, skipBgMusic = false }: LoadingScreenPro
       ? ['hit', 'hitHeavy', 'countdown3'] as const
       : ['fightModeBg', 'hit', 'hitHeavy', 'countdown3'] as const;
 
-    progressIntervalRef.current = window.setInterval(() => {
-      const currentProgress = getAudioProgress(requiredSounds as any);
-      setProgress(currentProgress);
-    }, 100);
+    const MIN_DURATION = 4000;
+    const TICK_INTERVAL = 100;
+    const totalTicks = MIN_DURATION / TICK_INTERVAL;
+    let currentTick = 0;
 
-    waitForAudioReady(requiredSounds as any, 5000).then(() => {
+    progressIntervalRef.current = window.setInterval(() => {
+      currentTick++;
+      const linearProgress = Math.min((currentTick / totalTicks) * 100, 100);
+      setProgress(linearProgress);
+      if (currentTick >= totalTicks && progressIntervalRef.current) {
+        window.clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    }, TICK_INTERVAL);
+
+    const timerPromise = new Promise(resolve => setTimeout(resolve, MIN_DURATION));
+    const audioPromise = waitForAudioReady(requiredSounds as any, 8000);
+
+    Promise.all([timerPromise, audioPromise]).then(() => {
       if (progressIntervalRef.current) {
         window.clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
@@ -64,7 +77,7 @@ export function LoadingScreen({ onReady, skipBgMusic = false }: LoadingScreenPro
         progressIntervalRef.current = null;
       }
     };
-  }, [waitForAudioReady, getAudioProgress, unlockAudio, initFullPreload, skipBgMusic]);
+  }, [waitForAudioReady, unlockAudio, initFullPreload, skipBgMusic]);
 
   // Fade-out + scale-up transition then call onReady
   useEffect(() => {
@@ -120,6 +133,23 @@ export function LoadingScreen({ onReady, skipBgMusic = false }: LoadingScreenPro
               <div className="absolute right-0 top-0 bottom-0 w-3 animate-pulse-tip" style={{ backgroundColor: 'rgba(255,255,255,0.6)' }} />
             </div>
           </div>
+        </div>
+
+        {/* Hardware warning */}
+        <div className="mt-6 flex flex-col items-center gap-2 animate-pulse">
+          <div className="flex items-center gap-2 text-yellow-500">
+            <span className="text-xl">⚠️</span>
+            <span className="font-mono font-bold text-sm uppercase tracking-widest">
+              PROTOCOLO DO SENSOR
+            </span>
+          </div>
+          <p className="text-white/80 font-mono text-sm text-center max-w-md">
+            O sistema ignora chutes colados.
+            <br/>
+            <span className="text-yellow-400 font-bold text-base mt-1 block">
+              CHUTE → RECOLHA A PERNA → CHUTE
+            </span>
+          </p>
         </div>
       </div>
 
