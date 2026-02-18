@@ -363,7 +363,43 @@ export function useSoundEffects() {
     setIsLoaded(true);
   }, []);
 
-  // Wait for critical audio files to be ready (buffered)
+  // Warm-up: force decode by playing at volume 0 then immediately pausing
+  const warmUpSounds = useCallback(async (soundNames: SoundName[]): Promise<void> => {
+    const promises = soundNames.map(async (name) => {
+      let audio: HTMLAudioElement | null = null;
+
+      if (name === BG_MUSIC_SOUND) {
+        audio = bgMusicAudio.current;
+      } else {
+        const pool = audioPool.current.get(name);
+        audio = pool?.[0] ?? null;
+      }
+
+      if (!audio) return;
+
+      const originalVolume = audio.volume;
+      audio.volume = 0;
+
+      try {
+        await audio.play();
+        audio.pause();
+        try { audio.currentTime = 0; } catch {}
+      } catch (err) {
+        // Autoplay blocked or other error — still reset
+        console.debug(`[Audio] Warm-up play failed for ${name}:`, (err as Error).message);
+      }
+
+      audio.volume = originalVolume;
+
+      if (isNaN(audio.duration)) {
+        console.warn(`[Audio] Duration still NaN after warm-up for ${name}`);
+      }
+    });
+
+    await Promise.all(promises);
+  }, []);
+
+  // Wait for critical audio files to be ready (buffered + decoded)
   const waitForAudioReady = useCallback(async (
     requiredSounds: (typeof FALLBACK_PATHS extends Record<infer K, any> ? K : never)[] = ['fightModeBg', 'hit', 'hitHeavy', 'countdown3'],
     timeoutMs: number = 5000
@@ -374,14 +410,21 @@ export function useSoundEffects() {
     }
 
     const audiosToWait: HTMLAudioElement[] = [];
+    const soundNamesTyped: SoundName[] = [];
 
     // Collect audio elements to wait for
     for (const name of requiredSounds) {
       if (name === 'fightModeBg') {
-        if (bgMusicAudio.current) audiosToWait.push(bgMusicAudio.current);
+        if (bgMusicAudio.current) {
+          audiosToWait.push(bgMusicAudio.current);
+          soundNamesTyped.push(name as SoundName);
+        }
       } else {
         const pool = audioPool.current.get(name as SoundName);
-        if (pool?.[0]) audiosToWait.push(pool[0]);
+        if (pool?.[0]) {
+          audiosToWait.push(pool[0]);
+          soundNamesTyped.push(name as SoundName);
+        }
       }
     }
 
@@ -389,12 +432,14 @@ export function useSoundEffects() {
       return { ready: true, progress: 100 };
     }
 
-    // Wait for all to be ready (readyState >= 3 means HAVE_FUTURE_DATA)
-    return new Promise((resolve) => {
+    // Phase 1: Wait for readyState >= 3 AND valid duration
+    const isAudioReady = (a: HTMLAudioElement) => a.readyState >= 3 && !isNaN(a.duration);
+
+    const downloadReady = await new Promise<{ ready: boolean; progress: number }>((resolve) => {
       const startTime = Date.now();
 
       const check = () => {
-        const readyCount = audiosToWait.filter(a => a.readyState >= 3).length;
+        const readyCount = audiosToWait.filter(isAudioReady).length;
         const progress = Math.round((readyCount / audiosToWait.length) * 100);
         const allReady = readyCount === audiosToWait.length;
         const elapsed = Date.now() - startTime;
@@ -402,7 +447,12 @@ export function useSoundEffects() {
         if (allReady) {
           resolve({ ready: true, progress: 100 });
         } else if (elapsed >= timeoutMs) {
-          // Timeout - proceed anyway
+          // Smart retry for fightModeBg before giving up
+          const bgAudio = bgMusicAudio.current;
+          if (bgAudio && !isAudioReady(bgAudio)) {
+            console.warn('[Audio] fightModeBg not ready after timeout, forcing reload...');
+            bgAudio.load();
+          }
           console.warn('[Audio] Timeout waiting for audio ready, proceeding with partial load');
           resolve({ ready: false, progress });
         } else {
@@ -412,7 +462,16 @@ export function useSoundEffects() {
 
       check();
     });
-  }, [initFullPreload]);
+
+    // Phase 2: Warm-up — force decode into active memory
+    try {
+      await warmUpSounds(soundNamesTyped);
+    } catch (err) {
+      console.warn('[Audio] Warm-up phase failed:', err);
+    }
+
+    return downloadReady;
+  }, [initFullPreload, warmUpSounds]);
 
   // Get current loading progress for UI feedback
   const getAudioProgress = useCallback((
@@ -449,6 +508,7 @@ export function useSoundEffects() {
     initFullPreload,
     waitForAudioReady,
     getAudioProgress,
+    warmUpSounds,
   };
 }
 

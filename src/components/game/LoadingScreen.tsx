@@ -80,12 +80,14 @@ export function LoadingScreen({ onReady, skipBgMusic = false }: LoadingScreenPro
           <h2 className="text-2xl font-bold text-foreground mb-2">
             {isComplete ? 'Pronto!' : 'Carregando áudio...'}
           </h2>
-        <p className="text-muted-foreground">
+          <p className="text-muted-foreground">
             {isComplete 
               ? 'Iniciando...' 
               : progress < 50 
                 ? 'Baixando música de fundo...'
-                : 'Finalizando carregamento...'
+                : progress < 75
+                  ? 'Finalizando download...'
+                  : 'Decodificando áudio...'
             }
           </p>
         </div>
