@@ -49,7 +49,7 @@ export function MenuDrawer({
           )}
           <div 
             className={cn(
-              'fixed top-0 right-0 h-full w-80 bg-[#0b1120] backdrop-blur-xl border-l border-border z-[100] shadow-[-10px_0_30px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out',
+              'fixed top-0 right-0 h-full w-80 bg-[#0b1120] backdrop-blur-xl border-l border-border z-[100] shadow-[-10px_0_30px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col',
               isOpen ? 'translate-x-0' : 'translate-x-full'
             )}
           >
@@ -85,7 +85,7 @@ export function MenuDrawer({
             )}
 
             {/* Menu Items */}
-            <div className="p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {/* Sound Toggle */}
               <button
                 onClick={toggleMute}
@@ -180,7 +180,7 @@ export function MenuDrawer({
 
             {/* Logout */}
             {user && (
-              <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-border">
+              <div className="shrink-0 p-6 border-t border-border">
                 <Button
                   variant="ghost"
                   onClick={() => {
