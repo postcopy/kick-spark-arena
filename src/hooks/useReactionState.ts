@@ -60,6 +60,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
   const activeRef = useRef(false); // is the work phase running?
   const configRef = useRef(config);
   const stimulusColorRef = useRef<'green' | 'red' | null>(null);
+  const isMountedRef = useRef(true);
 
   // Keep config ref fresh
   useEffect(() => {
@@ -95,11 +96,11 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
 
   // --- Stimulus cycle ---
   const scheduleNextStimulus = useCallback(() => {
-    if (!activeRef.current) return;
+    if (!activeRef.current || !isMountedRef.current) return;
     const cfg = configRef.current;
     const gap = randomBetween(cfg.gapMs.min, cfg.gapMs.max);
     gapTimerRef.current = window.setTimeout(() => {
-      if (!activeRef.current) return;
+      if (!activeRef.current || !isMountedRef.current) return;
 
       // Determine stimulus color
       const isGo = !cfg.cognitiveMode || Math.random() * 100 < cfg.goProbability;
@@ -121,7 +122,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
 
       // Schedule auto-off after flashMs
       flashTimerRef.current = window.setTimeout(() => {
-        if (!activeRef.current) return;
+        if (!activeRef.current || !isMountedRef.current) return;
 
         // Cognitive timeout logic
         if (cfg.cognitiveMode && !hitRegisteredRef.current) {
@@ -146,7 +147,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
 
   // --- Register impact (called by hardware) ---
   const registerImpact = useCallback(() => {
-    if (!activeRef.current || hitRegisteredRef.current) return;
+    if (!activeRef.current || hitRegisteredRef.current || !isMountedRef.current) return;
     // Only register if stimulus is currently on
     if (stimulusOnTimeRef.current === 0) return;
     const now = Date.now();
@@ -203,6 +204,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     // Work countdown
     let remaining = cfg.workSec;
     workTimerRef.current = window.setInterval(() => {
+      if (!isMountedRef.current) return;
       remaining--;
       setWorkTimeLeft(remaining);
       if (remaining <= 0) {
@@ -245,6 +247,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
             setRestTimeLeft(cfg.restSec);
             let restRemaining = cfg.restSec;
             restTimerRef.current = window.setInterval(() => {
+              if (!isMountedRef.current) return;
               restRemaining--;
               setRestTimeLeft(restRemaining);
               if (restRemaining <= 0) {
@@ -287,6 +290,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     setCountdown(3);
     let c = 3;
     countdownTimerRef.current = window.setInterval(() => {
+      if (!isMountedRef.current) return;
       c--;
       setCountdown(c);
       if (c <= 0) {
@@ -361,6 +365,7 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     setCountdown(3);
     let c = 3;
     countdownTimerRef.current = window.setInterval(() => {
+      if (!isMountedRef.current) return;
       c--;
       setCountdown(c);
       if (c <= 0) {
@@ -373,7 +378,11 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
   }, [clearAllTimers, config.workSec, startRound, resetCognitiveCounters]);
 
   useEffect(() => {
-    return () => clearAllTimers();
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearAllTimers();
+    };
   }, [clearAllTimers]);
 
   return {
