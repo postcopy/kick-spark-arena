@@ -1,135 +1,111 @@
 
 
-# Redesign: Modo Reacao Widescreen (Dashboard Mode)
+# Fix: Sincronizacao e Decodificacao de Audio (Warm-Up)
 
-## Resumo
+## O Problema
 
-Refatorar o ReactionSetupScreen de um layout vertical com scroll (max-w-lg) para um layout dashboard widescreen (max-w-6xl) sem scroll, seguindo o mesmo padrao do ArcadeSetupScreen.
+O navegador baixa o arquivo .mp3 (readyState >= 3), mas adia a **decodificacao final** ate o primeiro `play()`. Isso causa um "soluco" audivel na primeira execucao de cada som.
+
+## A Solucao: Warm-Up Play/Pause
+
+Apos o download, forcar um ciclo `play(vol=0) -> pause() -> currentTime=0` para cada som critico. Isso obriga o motor de audio a decodificar o arquivo para a memoria ativa.
 
 ---
 
-## Arquivo Alterado
+## Arquivos
 
 | Arquivo | Acao |
 |---------|------|
-| `src/components/game/ReactionSetupScreen.tsx` | Reescrever layout (mesma logica) |
+| `src/hooks/useSoundEffects.ts` | Editar - Adicionar `warmUpSounds()` e expor no retorno |
+| `src/components/game/LoadingScreen.tsx` | Editar - Chamar warm-up apos download, antes de completar |
+| `src/components/game/CountdownScreen.tsx` | Editar - Antecipar play da musica em ~100ms |
 
 ---
 
-## Layout Atual vs. Novo
+## Detalhes Tecnicos
+
+### 1. useSoundEffects.ts - Nova funcao `warmUpSounds`
+
+Adicionar uma funcao que recebe uma lista de SoundNames e, para cada um:
+
+1. Obtem a instancia de audio (pool[0] ou bgMusicAudio)
+2. Seta `volume = 0`
+3. Chama `.play()` (retorna Promise)
+4. No resolve do play, chama `.pause()`, `.currentTime = 0`, restaura volume original
+5. Verifica `duration` - se `NaN`, marca como nao decodificado
+
+A funcao retorna `Promise.all` de todas as warm-ups.
 
 ```text
-ATUAL (vertical, scroll)          NOVO (widescreen, fit-to-screen)
-+------------------+              +------------------------------------------+
-| Header           |              | Header (compacto, centralizado)          |
-|------------------|              |------------------------------------------|
-| [Atleta]         |              | [Atleta card]    | [Dificuldade botoes]  |
-| [Dificuldade]    |  scroll      |------------------------------------------|
-| [Trabalho]       |    |         | Trab | Desc | Rounds | Flash | GapMin/Max|
-| [Descanso]       |    v         |------------------------------------------|
-| [Rounds]         |              | [Cognitivo toggle + slider]  | [HW+Info] |
-| [Flash]          |              |------------------------------------------|
-| [Gap min/max]    |              | [INICIAR TREINO] botao largo             |
-| [Cognitivo]      |              +------------------------------------------+
-| [Hardware]       |
-| [Como funciona]  |
-|------------------|
-| [INICIAR]        |
-+------------------+
+warmUpSounds(['fightModeBg', 'hit', 'hitHeavy', 'countdown3'])
+  |-- Para cada som:
+  |     audio.volume = 0
+  |     await audio.play()
+  |     audio.pause()
+  |     audio.currentTime = 0
+  |     audio.volume = originalVolume
+  |     if (isNaN(audio.duration)) -> warn
+  |-- Promise.all(...)
 ```
+
+Tambem melhorar `waitForAudioReady`:
+- Alem de `readyState >= 3`, verificar `!isNaN(duration)` como criterio adicional
+- Apos todos passarem o readyState check, chamar `warmUpSounds` automaticamente
+- Se `fightModeBg` nao completar warm-up em 5s, forcar `.load()` novamente antes de desistir
+
+Expor `warmUpSounds` no retorno do hook para uso externo se necessario.
+
+### 2. LoadingScreen.tsx - Integrar warm-up no fluxo
+
+O fluxo atual:
+```text
+unlockAudio() -> initFullPreload() -> poll progress -> waitForAudioReady() -> done
+```
+
+Novo fluxo:
+```text
+unlockAudio() -> initFullPreload() -> poll progress -> waitForAudioReady() -> done
+```
+
+A mudanca e interna ao `waitForAudioReady`: ele agora faz o warm-up automaticamente antes de resolver. A LoadingScreen nao precisa de mudancas na logica, mas vamos melhorar o feedback visual:
+
+- Adicionar fase "Decodificando audio..." quando progress >= 75% (download completo, warm-up em andamento)
+- Texto de progresso mais granular: "Baixando..." -> "Decodificando..." -> "Pronto!"
+
+### 3. CountdownScreen.tsx - Antecipar musica em 100ms
+
+Atualmente a musica inicia no exato momento em que `countdown === 6`. Para compensar a latencia residual do motor de audio:
+
+- Alterar o trigger de `countdown === 6` para usar um `setTimeout` de 0ms (microtask) para o play, mas visualmente a fase PREPARAR so aparece apos um pequeno delay
+- Na pratica: inverter a ordem - chamar `playWithRef` primeiro, depois atualizar o visual
+
+Implementacao: quando `countdown === 6`, chamar `playWithRef` imediatamente (sem esperar o render). Como o warm-up ja aconteceu na LoadingScreen, o play sera instantaneo. O efeito visual "PREPARAR" aparece no mesmo frame, entao a latencia perceptivel sera zero.
 
 ---
 
-## Estrutura Detalhada
+## Resumo das Mudancas por Arquivo
 
-### 1. Container Principal
+### useSoundEffects.ts
+- Nova funcao `warmUpSounds(soundNames: SoundName[]): Promise<void>`
+- `waitForAudioReady` agora chama `warmUpSounds` internamente apos readyState check
+- Verificacao adicional de `!isNaN(duration)` no criterio de "pronto"
+- Timeout inteligente para fightModeBg: tenta `.load()` forcado antes de desistir
+- Expor `warmUpSounds` no retorno
 
-- Antes: `flex flex-col h-full w-full overflow-hidden bg-background`
-- Depois: `flex flex-col h-full w-full bg-[#0b1120] p-4 md:p-6 overflow-hidden`
-- Fundo escuro consistente com ArcadeSetupScreen
+### LoadingScreen.tsx
+- Texto de progresso atualizado: fase "Decodificando audio..." quando progress >= 75%
+- Sem mudancas na logica de fluxo (warm-up e interno ao waitForAudioReady)
 
-### 2. Header (flex-shrink-0)
-
-- Titulo "MODO REACAO" centralizado com icone Zap
-- Subtitulo curto descritivo
-- Botao voltar no canto esquerdo
-- Margens verticais reduzidas (`mb-2 md:mb-3`)
-
-### 3. Main (flex-1 min-h-0, max-w-6xl mx-auto)
-
-Organizado em 3 faixas verticais flexiveis:
-
-#### Faixa 1: Atleta + Dificuldade (grid 2 colunas)
-
-```text
-grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-3
-```
-
-- **Coluna esquerda**: Card do atleta (mesmo botao atual, adaptado ao tema escuro)
-- **Coluna direita**: Card de dificuldade com 3 botoes horizontais (Iniciante/Intermediario/Elite) + indicador "Personalizado"
-
-#### Faixa 2: Parametros do Treino (flex-1 min-h-0)
-
-Area flexivel que encolhe em telas pequenas:
-
-```text
-bg-slate-900/50 p-3 md:p-4 rounded-xl border border-white/5
-grid grid-cols-2 md:grid-cols-3 gap-3
-```
-
-6 campos organizados em 3 colunas (desktop) ou 2 colunas (mobile):
-- Trabalho (s) | Descanso (s) | Rounds
-- Flash max (ms) | Gap min (ms) | Gap max (ms)
-
-Inputs compactos com labels menores (`text-xs`), fundo escuro (`bg-white/10 border-white/10 text-white`).
-
-#### Faixa 3: Cognitivo + Hardware + Info (flex-shrink-0)
-
-```text
-grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-3
-```
-
-- **Coluna 1-2 (md:col-span-2)**: Modo Cognitivo toggle + slider de probabilidade (quando ativo)
-- **Coluna 3**: Status do hardware (compacto) + resumo "Como Funciona" condensado
-
-### 4. Footer (flex-shrink-0)
-
-```text
-grid grid-cols-1 md:grid-cols-3 gap-3 items-end
-```
-
-- **Colunas 1-2**: Resumo das regras em card compacto (como no ArcadeSetupScreen)
-- **Coluna 3**: Botao "INICIAR TREINO" + link "Voltar"
-
-Botao estilizado: `bg-green-500 hover:bg-green-600 text-black font-bold font-mono`
-
----
-
-## Estilizacao (Tema Escuro)
-
-Seguir o padrao do ArcadeSetupScreen:
-- Fundo: `bg-[#0b1120]`
-- Cards/paineis: `bg-slate-900/50 border border-white/5`
-- Textos: `text-white`, `text-white/60`, `text-white/40`
-- Inputs: fundo `bg-white/10`, borda `border-white/10`, texto `text-white`
-- Cor de destaque: verde (`text-green-400`, `bg-green-500`) em vez do amarelo do Arcade
-- Font: `font-mono` para titulos e valores numericos
-
----
-
-## Responsividade
-
-- Mobile (< md): Colunas empilham verticalmente, `overflow-y-auto` no main
-- Desktop (>= md): Layout widescreen completo, zero scroll
-- Inputs e labels usam tamanhos compactos (`h-9`, `text-xs`)
-- `flex-1 min-h-0` na faixa de parametros permite compressao em telas 768p
+### CountdownScreen.tsx
+- Mover o `playWithRef('fightModeBg')` para executar antes do state update visual
+- Usar `queueMicrotask` ou execucao sincrona para garantir que o play aconteca no inicio do ciclo de render
 
 ---
 
 ## O Que NAO Muda
 
-- Props do componente (mesma interface)
-- Logica de presets, updateField, handleStart
-- AthletePickerDialog
-- Valores dos campos e validacoes
+- Pool sizes e round-robin
+- Estrutura de preload em batches
+- API publica do hook (apenas adicao de warmUpSounds)
+- Cleanup no unmount
 
