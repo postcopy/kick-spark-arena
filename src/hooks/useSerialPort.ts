@@ -87,6 +87,7 @@ export function useSerialPort({
 }: UseSerialPortOptions): UseSerialPortReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isAutoConnecting, setIsAutoConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [equipmentVersion, setEquipmentVersion] = useState(0);
   
@@ -382,9 +383,12 @@ export function useSerialPort({
         if (ports.length > 0) {
           const port = ports[0];
           
+          setIsAutoConnecting(true);
+          
           if (port.readable) {
             portRef.current = port;
             setIsConnected(true);
+            setIsAutoConnecting(false);
             startReading(port);
             return;
           }
@@ -396,10 +400,13 @@ export function useSerialPort({
             startReading(port);
           } catch (e: any) {
             console.log('[Serial] Auto-reconexão falhou:', e.name, '- porta pode estar em uso');
+          } finally {
+            setIsAutoConnecting(false);
           }
         }
       } catch (e) {
         console.log('Auto-reconnect check failed:', e);
+        setIsAutoConnecting(false);
       }
     }
     
@@ -432,6 +439,7 @@ export function useSerialPort({
   return {
     isConnected,
     isConnecting,
+    isAutoConnecting,
     error,
     isSupported: isWebSerialSupported(),
     connect,

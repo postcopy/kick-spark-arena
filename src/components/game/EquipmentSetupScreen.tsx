@@ -1,7 +1,8 @@
-import { cn } from "@/lib/utils";
 import { OctagonBackground } from "./OctagonBackground";
 import { UseSerialPortReturn } from "@/types/serial";
 import logoImage from "@/assets/logo-desafio-relampago.png";
+import { Cpu, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 export interface EquipmentSetupScreenProps {
   serialPort: UseSerialPortReturn;
@@ -10,37 +11,24 @@ export interface EquipmentSetupScreenProps {
   onBack: () => void;
 }
 
-function BolinhaStatus({ ok, alerta }: { ok: boolean; alerta?: boolean }) {
-  return (
-    <span
-      className={cn(
-        "inline-block h-3 w-3 rounded-full ring-1 ring-white/10",
-        ok ? "bg-emerald-400" : alerta ? "bg-amber-400" : "bg-white/20"
-      )}
-    />
-  );
-}
+type CheckStatus = "ok" | "pending" | "error" | "loading";
 
-function Selo({
-  texto,
-  tipo = "neutro",
-}: {
-  texto: string;
-  tipo?: "verde" | "amarelo" | "vermelho" | "neutro";
-}) {
-  const cls =
-    tipo === "verde"
-      ? "bg-emerald-500/15 text-emerald-200 ring-emerald-400/20"
-      : tipo === "amarelo"
-      ? "bg-amber-500/15 text-amber-200 ring-amber-400/20"
-      : tipo === "vermelho"
-      ? "bg-red-500/15 text-red-200 ring-red-400/20"
-      : "bg-white/5 text-white/70 ring-white/10";
+function CheckItem({ label, status }: { label: string; status: CheckStatus }) {
+  const prefix =
+    status === "ok" ? "[OK]" :
+    status === "error" ? "[!!]" :
+    "[..]";
+
+  const colorClass =
+    status === "ok" ? "text-emerald-400" :
+    status === "error" ? "text-red-400" :
+    "text-slate-500";
 
   return (
-    <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-xs ring-1", cls)}>
-      {texto}
-    </span>
+    <div className={`font-mono text-sm flex gap-2 ${status === "loading" ? "animate-pulse" : ""}`}>
+      <span className={colorClass}>{prefix}</span>
+      <span className="text-slate-300">{label}</span>
+    </div>
   );
 }
 
@@ -50,137 +38,165 @@ export function EquipmentSetupScreen({
   onSkip,
   onBack,
 }: EquipmentSetupScreenProps) {
-  const navegadorOk = serialPort.isSupported;
-  const placaConectada = serialPort.isConnected;
-  const conectando = serialPort.isConnecting;
+  const { isSupported, isConnected, isConnecting, isAutoConnecting, error } = serialPort;
+
+  // Determine visual state
+  const browserStatus: CheckStatus = isSupported ? "ok" : "error";
+  const usbStatus: CheckStatus = isConnected ? "ok" : isConnecting || isAutoConnecting ? "loading" : "pending";
+  const handshakeStatus: CheckStatus = isConnected ? "ok" : isConnecting ? "loading" : "pending";
+
+  // Icon state
+  const iconClass = isAutoConnecting
+    ? "text-cyan-400 animate-pulse"
+    : isConnecting
+    ? "text-amber-400 animate-spin"
+    : isConnected
+    ? "text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.8)]"
+    : "text-slate-600";
 
   return (
     <div className="relative h-full w-full overflow-auto bg-background text-white">
       <OctagonBackground />
 
-      <div className="relative z-10 mx-auto flex min-h-full max-w-3xl flex-col px-4 pb-10 pt-10">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-xl bg-white/10 px-3 py-2 text-sm font-medium text-white ring-1 ring-white/10 hover:bg-white/15"
-          >
-            ← Voltar
-          </button>
-          <div className="flex items-center gap-2">
-            <img src={logoImage} alt="Logo" className="h-9 w-auto" />
+      <div className="relative z-10 mx-auto flex min-h-full max-w-lg flex-col items-center justify-center px-4 py-10">
+        {/* Central panel */}
+        <div className="w-full rounded-2xl border border-cyan-500/30 bg-[#0b1120]/90 p-6 backdrop-blur-md animate-in zoom-in duration-300">
+          {/* Header */}
+          <div className="mb-6 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-2 text-xs font-medium text-slate-400 ring-1 ring-white/10 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <ArrowLeft size={14} />
+              Voltar
+            </button>
+            <img src={logoImage} alt="Logo" className="h-8 w-auto opacity-80" />
           </div>
-          <div className="w-[72px]" />
-        </div>
 
-        <div className="mb-5 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Conectar Placa USB</h1>
-          <p className="mt-2 text-sm text-white/70">
-            Conecte a placa no USB do computador e clique para permitir o acesso.
-          </p>
-        </div>
-
-        {/* Browser alert */}
-        {!navegadorOk && (
-          <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-            Este navegador não suporta a conexão da placa. Use <b>Chrome</b> ou <b>Edge</b>.
+          {/* Central icon */}
+          <div className="flex justify-center mb-4">
+            <Cpu className={`w-20 h-20 transition-all duration-500 ${iconClass}`} />
           </div>
-        )}
 
-        {/* Card USB */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-sm backdrop-blur">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-base font-semibold">Placa USB</div>
-              <div className="mt-1 text-sm text-white/70">
-                Clique para permitir o acesso da placa no navegador.
-              </div>
-            </div>
-            {placaConectada ? (
-              <Selo texto="Conectada" tipo="verde" />
+          {/* Title */}
+          <div className="text-center mb-6">
+            {isAutoConnecting ? (
+              <>
+                <h2 className="font-mono text-xl font-bold tracking-wider text-cyan-400">
+                  BUSCANDO HARDWARE...
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Dispositivo autorizado detectado. Reconectando...
+                </p>
+                <div className="mt-4">
+                  <Progress value={60} className="h-1.5 bg-slate-800 [&>div]:bg-cyan-500 [&>div]:animate-pulse" />
+                </div>
+              </>
+            ) : isConnecting ? (
+              <>
+                <h2 className="font-mono text-xl font-bold tracking-wider text-amber-400">
+                  CONECTANDO...
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Estabelecendo comunicação com a placa.
+                </p>
+              </>
+            ) : isConnected ? (
+              <>
+                <h2 className="font-mono text-xl font-bold tracking-wider text-emerald-400 animate-in fade-in duration-500">
+                  SISTEMA ONLINE
+                </h2>
+                <p className="mt-2 text-sm text-emerald-300/70">
+                  Hardware conectado e operacional.
+                </p>
+              </>
             ) : (
-              <Selo texto={conectando ? "Conectando..." : "Aguardando"} tipo={conectando ? "amarelo" : "neutro"} />
+              <>
+                <h2 className="font-mono text-xl font-bold tracking-wider text-cyan-400">
+                  AGUARDANDO CONEXÃO
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Conecte o USB para iniciar o protocolo.
+                </p>
+              </>
             )}
           </div>
 
-          <div className="mt-4 space-y-2 text-sm text-white/80">
-            <div className="flex items-center gap-2">
-              <BolinhaStatus ok={navegadorOk} />
-              <span>
-                Navegador:{" "}
-                <span className="text-white/70">
-                  {navegadorOk ? "Web Serial OK" : "Não suportado"}
-                </span>
-              </span>
+          {/* Browser incompatible alert */}
+          {!isSupported ? (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 mb-4">
+              <div className="flex items-center gap-2 text-red-400 mb-2">
+                <AlertTriangle size={18} />
+                <span className="font-mono text-sm font-bold">NAVEGADOR INCOMPATÍVEL</span>
+              </div>
+              <p className="text-sm text-red-300/80">
+                Web Serial API não disponível. Use <b>Google Chrome</b> ou <b>Microsoft Edge</b> para conectar a placa.
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <BolinhaStatus ok={placaConectada} alerta={conectando} />
-              <span>
-                Placa:{" "}
-                <span className="text-white/70">
-                  {placaConectada ? "Conectada" : "Ainda não conectada"}
-                </span>
-              </span>
-            </div>
-          </div>
+          ) : (
+            <>
+              {/* Terminal checklist */}
+              <div className="rounded-lg border border-white/5 bg-black/30 p-4 mb-6 space-y-2">
+                <CheckItem label="Compatibilidade do Navegador" status={browserStatus} />
+                <CheckItem label="Permissão de Acesso USB" status={usbStatus} />
+                <CheckItem label="Handshake do Equipamento" status={handshakeStatus} />
+              </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            {!placaConectada ? (
+              {/* Error display */}
+              {error && (
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 mb-4 font-mono text-xs text-red-300">
+                  [ERRO] {error}
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {!isAutoConnecting && (
+                <div className="space-y-3">
+                  {isConnected ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={onContinue}
+                        className="w-full rounded-xl bg-emerald-600 py-4 px-8 font-bold tracking-widest uppercase text-white shadow-[0_0_20px_rgba(52,211,153,0.3)] hover:bg-emerald-500 transition-colors"
+                      >
+                        CONTINUAR
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => serialPort.disconnect()}
+                        className="w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                      >
+                        Desconectar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => serialPort.connect()}
+                      disabled={isConnecting}
+                      className="w-full rounded-xl bg-cyan-600 py-4 px-8 font-bold tracking-widest uppercase text-white shadow-[0_0_20px_rgba(8,145,178,0.4)] hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isConnecting ? "CONECTANDO..." : "INICIALIZAR CONEXÃO"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Skip link */}
+          {!isConnected && !isAutoConnecting && (
+            <div className="mt-4 text-center">
               <button
                 type="button"
-                onClick={() => serialPort.connect()}
-                disabled={!navegadorOk || conectando}
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-500/25 px-4 py-3 text-sm font-semibold text-blue-100 ring-1 ring-blue-400/30 hover:bg-blue-500/30 disabled:opacity-50"
+                onClick={onSkip}
+                className="text-xs text-slate-600 hover:text-slate-400 transition-colors"
               >
-                {conectando ? "Conectando..." : "Conectar placa USB"}
+                Pular e usar teclado (modo teste)
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => serialPort.disconnect()}
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white ring-1 ring-white/10 hover:bg-white/15"
-              >
-                Desconectar
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Footer / CTA */}
-        <div className="mt-auto pt-6">
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur">
-            {placaConectada ? (
-              <div className="flex flex-col items-center gap-3 text-center">
-                <div className="flex items-center gap-2 text-emerald-200">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span className="text-lg font-semibold">PLACA CONECTADA!</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={onContinue}
-                  className="w-full max-w-md min-h-12 rounded-2xl bg-emerald-600 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700"
-                >
-                  Continuar →
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-center">
-                <div className="text-sm text-white/70">
-                  Conecte a placa USB para começar.
-                </div>
-                <button
-                  type="button"
-                  onClick={onSkip}
-                  className="text-xs text-white/60 underline hover:text-white/80"
-                >
-                  Pular e usar teclado (modo teste)
-                </button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
