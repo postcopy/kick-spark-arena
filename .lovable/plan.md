@@ -1,27 +1,43 @@
 
+# Fix: Fluxo de Conexao Inteligente (Auto-Open)
 
-# Fix: Centralizar logo no header do Campeonato
+## Resumo
 
-## Problema
+Refatorar a funcao `connect()` para tentar reusar portas ja autorizadas antes de abrir o pop-up do navegador, e garantir que `isAutoConnecting` seja sempre resetado corretamente.
 
-A logo esta centralizada no espaco restante do flexbox, nao no centro real do header. Como o grupo direito (USB + PAUSADO + ROUND) e mais largo que o grupo esquerdo (2 icones), a logo fica visivelmente deslocada para a esquerda.
+## Alteracoes
 
-## Solucao
+### 1. `src/hooks/useSerialPort.ts` -- Funcao `connect()` (linhas 335-374)
 
-Usar posicionamento absoluto na logo para centraliza-la em relacao ao header inteiro, independente do tamanho dos grupos laterais.
+Refatorar para duas etapas:
 
-## Alteracao
-
-**Arquivo:** `src/pages/ChampionshipMat.tsx`
-
-1. Adicionar `relative` ao `<header>` (linha 334)
-2. Trocar o wrapper da logo (linha 357) de `flex-1 flex justify-center` para `absolute left-1/2 -translate-x-1/2` -- isso garante centralizacao real independente dos tamanhos laterais
-3. Manter os grupos esquerdo e direito como estao (sem flex-1)
+- **Etapa A (silenciosa):** Chamar `getPorts()`. Se houver porta conhecida:
+  - Se `port.readable || port.writable` -> reusar diretamente (setar `isConnected=true`, chamar `startReading`)
+  - Senao -> tentar `port.open()`. Se der `InvalidStateError` e `port.readable` existir, reusar mesmo assim
+- **Etapa B (manual):** Somente se nenhuma porta conhecida for encontrada ou reusada, chamar `requestPort()` (pop-up)
 
 ```text
-header (justify-between, relative)
-  div (left)  -> Voltar + Ajuda
-  div (absolute center) -> Logo  <-- centralizada de verdade
-  div (right) -> USB + Status + Round
+connect():
+  1. getPorts() -> portas conhecidas?
+     SIM -> porta.readable? -> reusar (isConnected=true)
+            senao -> try open() -> sucesso -> isConnected=true
+                                -> erro InvalidState + readable -> reusar
+     NAO -> requestPort() (pop-up) -> open() -> isConnected=true
 ```
 
+### 2. `src/hooks/useSerialPort.ts` -- Auto-reconnect (linhas 376-418)
+
+- No bloco catch do auto-reconnect (linha 401), adicionar verificacao: se o erro for `InvalidStateError` e `port.readable` existir, considerar como conectado em vez de falhar silenciosamente
+- No cleanup do useEffect (linhas 415-417), adicionar `setIsAutoConnecting(false)` antes de `disconnect()` para evitar travamento da UI
+
+```text
+// Cleanup corrigido:
+return () => {
+  setIsAutoConnecting(false);
+  disconnect();
+};
+```
+
+### 3. `src/components/game/EquipmentSetupScreen.tsx` -- Sem alteracoes
+
+A tela ja trata corretamente todos os estados (`isAutoConnecting`, `isConnecting`, `isConnected`). O checklist terminal, os botoes e o link "Pular" ja respondem a essas flags. Nenhuma alteracao necessaria neste arquivo.
