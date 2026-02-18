@@ -168,60 +168,128 @@ export function GameScreen({
 
       {/* Main Game Area */}
       <div className="flex-1 flex items-center justify-center">
-        {isIndividual ? (
-          /* Individual Mode - Telemetria Profissional */
-          <div className="flex-1 flex flex-col items-center h-full relative">
+      {isIndividual ? (
+          /* Individual Mode - Arena Monitor (Widescreen HUD) */
+          <div className="flex-1 flex flex-col w-full h-full relative overflow-hidden">
             
-            {/* 1. Header de Contexto (Técnico) */}
-            <div className="w-full flex items-center justify-between px-5 pt-4 pb-2">
-              <div className="w-8" />
-              <span className="text-xs text-slate-500 uppercase tracking-[0.3em] font-mono">
-                Modo: Contra o Tempo
-              </span>
-              <button onClick={(e) => { e.stopPropagation(); onPause?.(); }} className="text-slate-400 hover:text-slate-300 transition-colors">
-                <Pause className="w-5 h-5" />
-              </button>
+            {/* === ZONA SUPERIOR: Barra de Tempo === */}
+            <div className="w-full px-6 pt-4 flex-shrink-0">
+              {/* Progress Bar */}
+              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded-full transition-all duration-1000 ease-linear",
+                    progress > 60 ? "bg-[#4ade80]" : progress > 30 ? "bg-[#facc15]" : "bg-[#ef4444] animate-pulse"
+                  )}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              {/* Timer flutuante */}
+              <div className="text-center mt-2">
+                <span className={cn(
+                  "font-black font-mono tabular-nums text-white",
+                  timerPulse && "animate-pulse"
+                )} style={{ fontSize: 'clamp(3rem, 8vh, 6rem)' }}>
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
             </div>
 
-            {/* Conteúdo Centralizado */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-[2vh]">
+            {/* === ZONA CENTRAL: Palco (Grid 12 colunas) === */}
+            <div className="grid grid-cols-12 gap-6 flex-1 items-center px-8">
               
-              {/* 2. Timer Circular Técnico (Ciano/Slate) */}
-              <div className={cn('relative flex items-center justify-center', timerPulse && 'animate-pulse')}>
-                <svg className="-rotate-90" style={{ width: 'clamp(12rem, 35vh, 28rem)', height: 'clamp(12rem, 35vh, 28rem)' }} viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="#1e293b" strokeWidth="3" />
-                  <circle cx="50" cy="50" r="45" fill="none"
-                    stroke={timeLeft <= 5 ? '#EF4444' : '#22d3ee'}
-                    strokeWidth="3" strokeLinecap="round"
-                    strokeDasharray="283"
-                    strokeDashoffset={283 - (283 * (timeLeft / totalDuration))}
-                    className="transition-all duration-1000"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="font-medium font-mono tabular-nums text-white" style={{ fontSize: 'clamp(3rem, 12vh, 9rem)' }}>
-                    {formatTime(timeLeft)}
+              {/* Coluna Esquerda: Estatísticas */}
+              <div className="col-span-3 flex flex-col gap-6">
+                <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp className="w-5 h-5 text-[#22d3ee]" />
+                    <span className="text-sm text-white/40 uppercase tracking-widest font-mono">Melhor Sessão</span>
+                  </div>
+                  <span className="text-5xl font-bold text-white tabular-nums">
+                    {dayPB ?? '--'}
                   </span>
+                </div>
+                <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Zap className="w-5 h-5 text-[#facc15]" />
+                    <span className="text-sm text-white/40 uppercase tracking-widest font-mono">Média</span>
+                  </div>
+                  <span className="text-5xl font-bold text-white tabular-nums">
+                    {elapsedSeconds > 5 ? Math.round(totalKicks / (elapsedSeconds / 60)) : '--'}
+                  </span>
+                  <span className="text-lg text-white/30 ml-2">k/min</span>
                 </div>
               </div>
 
-              {/* 3. Contador de Hits (Clean) */}
-              <div className="text-center flex flex-col items-center">
+              {/* Coluna Central: Hero Counter */}
+              <div className="col-span-6 flex flex-col items-center justify-center">
                 <span className={cn(
-                  'font-semibold text-white leading-none transition-transform duration-100',
-                  flashSide ? 'scale-105' : 'scale-100'
-                )} style={{ fontSize: 'clamp(6rem, 30vh, 22rem)' }}>
+                  'font-black italic text-[#FFD700] leading-none transition-transform duration-100',
+                  flashSide ? 'scale-110' : 'scale-100'
+                )} style={{ 
+                  fontSize: 'clamp(10rem, 15vw, 20rem)',
+                  filter: 'drop-shadow(0 0 40px rgba(255,215,0,0.5))'
+                }}>
                   {totalKicks}
                 </span>
-                <span className="text-slate-500 uppercase tracking-[0.3em] text-lg mt-1">
-                  Total Hits
+                <span className="text-2xl text-white/40 uppercase tracking-[0.5em] mt-2">
+                  HITS
                 </span>
+              </div>
+
+              {/* Coluna Direita: Gauge CPM */}
+              <div className="col-span-3 flex flex-col items-center justify-center">
+                <div className="relative" style={{ width: 'clamp(10rem, 15vw, 16rem)', height: 'clamp(10rem, 15vw, 16rem)' }}>
+                  <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                    {/* Background arc */}
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="10" 
+                      strokeDasharray={`${Math.PI * 50 * 0.75} ${Math.PI * 50 * 0.25}`}
+                      strokeDashoffset={Math.PI * 50 * 0.375}
+                      strokeLinecap="round"
+                    />
+                    {/* Progress arc */}
+                    <circle cx="60" cy="60" r="50" fill="none" 
+                      stroke={cpm > 150 ? "#4ade80" : "#22d3ee"}
+                      strokeWidth="10" 
+                      strokeLinecap="round"
+                      strokeDasharray={`${Math.PI * 50 * 0.75} ${Math.PI * 50 * 0.25}`}
+                      strokeDashoffset={Math.PI * 50 * 0.375 + (Math.PI * 50 * 0.75) * (1 - Math.min(cpm, gaugeMax) / gaugeMax)}
+                      style={{ transition: 'stroke-dashoffset 300ms ease-out' }}
+                    />
+                  </svg>
+                  {/* Center text */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-5xl font-bold text-white tabular-nums">{cpm}</span>
+                    <span className="text-sm text-white/40 uppercase tracking-widest font-mono">CPM</span>
+                  </div>
+                </div>
+                {/* Scale labels */}
+                <div className="flex justify-between w-full px-4 mt-1">
+                  <span className="text-xs text-white/30 font-mono">0</span>
+                  <span className="text-xs text-white/30 font-mono">200</span>
+                </div>
               </div>
             </div>
 
-            {/* Flash Effect Sutil (Ciano) */}
+            {/* === ZONA INFERIOR: Barra Técnica === */}
+            <div className="absolute bottom-0 w-full bg-black/40 backdrop-blur border-t border-white/10 flex items-center justify-between px-10 py-3 z-10">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-white/40" />
+                <span className="text-sm text-white/60 font-mono">{athlete?.name || 'Visitante'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse" />
+                <span className="text-xs text-white/40 font-mono">Conectado</span>
+              </div>
+              <span className="text-xs text-white/30 font-mono">[P] Pausar  [ESC] Sair</span>
+            </div>
+
+            {/* Flash de Impacto */}
             {flashSide && (
-              <div className="absolute inset-0 bg-[#22d3ee]/10 pointer-events-none animate-pulse" />
+              <div 
+                className="absolute inset-0 pointer-events-none animate-pulse"
+                style={{ boxShadow: 'inset 0 0 100px rgba(255,255,255,0.15)' }}
+              />
             )}
           </div>
         ) : (
@@ -267,71 +335,8 @@ export function GameScreen({
       </div>
 
       {/* Footer */}
-      {isIndividual ? (
-        /* Dashboard Telemetria (3 Colunas) */
-        <div className="w-full bg-[#0b1120] border-t border-white/10 py-8 z-50">
-          <div className="grid grid-cols-3 text-center max-w-4xl mx-auto px-4">
-            
-            {/* Bloco 1: Melhor da Sessão */}
-            <div className="flex flex-col items-center justify-center gap-1">
-              <span className="text-sm text-slate-500 uppercase tracking-wider font-mono">
-                Melhor da Sessão
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-5xl text-white font-medium tabular-nums">
-                  {dayPB ? dayPB : '--'}
-                </span>
-                {dayPB && <TrendingUp className="w-6 h-6 text-[#22d3ee]" />}
-              </div>
-            </div>
-
-            {/* Bloco 2: Intensidade (CPM) com Gauge */}
-            <div className="flex flex-col items-center justify-center gap-1 border-x border-white/10 relative">
-              <span className="text-sm text-slate-500 uppercase tracking-wider font-mono">
-                Intensidade (CPM)
-              </span>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-6xl font-bold text-white tabular-nums">{cpm}</div>
-                  <div className="text-sm text-slate-500 font-bold uppercase tracking-wider">CPM</div>
-                </div>
-                {/* Gauge SVG (semicircle) */}
-                <div className="relative w-32 h-16 overflow-hidden">
-                  <svg viewBox="0 0 100 50" className="w-full h-full">
-                    <path d="M10,50 A40,40 0 0,1 90,50" fill="none" stroke="#1e293b" strokeWidth="8" />
-                    <path 
-                      d="M10,50 A40,40 0 0,1 90,50" 
-                      fill="none" 
-                      stroke={cpm > 150 ? "#4ade80" : "#22d3ee"}
-                      strokeWidth="8" 
-                      strokeLinecap="round"
-                      strokeDasharray={gaugeCircumference}
-                      strokeDashoffset={gaugeDashoffset}
-                      className="transition-all duration-500 ease-out"
-                    />
-                  </svg>
-                </div>
-              </div>
-              {/* Background glow */}
-              <div className="absolute -bottom-2 w-20 h-6 bg-[#22d3ee]/10 blur-xl rounded-full" />
-            </div>
-
-            {/* Bloco 3: Atleta */}
-            <div className="flex flex-col items-center justify-center gap-1 relative">
-              <div className="absolute top-0 right-4">
-                <User className="w-5 h-5 text-slate-600" />
-              </div>
-              <span className="text-sm text-slate-500 uppercase tracking-wider font-mono">
-                Atleta
-              </span>
-              <span className="text-4xl text-white font-medium truncate max-w-[90%]">
-                {athlete?.name || 'Visitante'}
-              </span>
-            </div>
-
-          </div>
-        </div>
-      ) : (
+      {/* Arena Monitor has its own footer built-in */}
+      {!isIndividual && (
         <div className="h-20 md:h-24 bg-black flex items-center border-t border-white/10">
           <div className="flex-1 flex items-center justify-center">
             <span className="font-bold text-[#E10000] uppercase tracking-[0.2em]" style={{ fontSize: 'clamp(1.5rem, 4vh, 3rem)' }}>
