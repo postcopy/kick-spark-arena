@@ -6,6 +6,7 @@ import { LowBatteryAlert } from './EquipmentStatus';
 import type { GameScore, Side, Athlete } from '@/types/game';
 import type { EquipmentSlot, EquipmentState } from '@/types/serial';
 import { cn } from '@/lib/utils';
+import bgMenuModos from '@/assets/menu-modos.jpg';
 
 interface GameScreenProps {
   scores: GameScore;
@@ -172,16 +173,26 @@ export function GameScreen({
           /* Individual Mode - Arena Monitor (Widescreen HUD) */
           <div className="flex-1 flex flex-col w-full h-full relative overflow-hidden">
             
+            {/* Background image */}
+            <img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.07] z-0 pointer-events-none" alt="" />
+            
             {/* === ZONA SUPERIOR: Barra de Tempo === */}
-            <div className="w-full px-6 pt-4 flex-shrink-0">
-              {/* Progress Bar */}
-              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+            <div className="w-full px-6 pt-4 flex-shrink-0 relative z-[1]">
+              {/* Progress Bar with track */}
+              <div className="w-full h-3 bg-white/[0.08] rounded-full overflow-hidden">
                 <div 
                   className={cn(
                     "h-full rounded-full transition-all duration-1000 ease-linear",
                     progress > 60 ? "bg-[#4ade80]" : progress > 30 ? "bg-[#facc15]" : "bg-[#ef4444] animate-pulse"
                   )}
-                  style={{ width: `${progress}%` }}
+                  style={{ 
+                    width: `${progress}%`,
+                    boxShadow: progress > 60 
+                      ? '0 0 20px rgba(74,222,128,0.4)' 
+                      : progress > 30 
+                        ? '0 0 20px rgba(250,204,21,0.4)' 
+                        : '0 0 20px rgba(239,68,68,0.4)'
+                  }}
                 />
               </div>
               {/* Timer flutuante */}
@@ -196,11 +207,11 @@ export function GameScreen({
             </div>
 
             {/* === ZONA CENTRAL: Palco (Grid 12 colunas) === */}
-            <div className="grid grid-cols-12 gap-6 flex-1 items-center px-8">
+            <div className="grid grid-cols-12 gap-6 flex-1 items-center px-8 relative z-[1]">
               
               {/* Coluna Esquerda: Estatísticas */}
               <div className="col-span-3 flex flex-col gap-6">
-                <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-6">
+                <div className="border border-white/10 p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <TrendingUp className="w-5 h-5 text-[#22d3ee]" />
                     <span className="text-sm text-white/40 uppercase tracking-widest font-mono">Melhor Sessão</span>
@@ -209,7 +220,7 @@ export function GameScreen({
                     {dayPB ?? '--'}
                   </span>
                 </div>
-                <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-6">
+                <div className="border border-white/10 p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Zap className="w-5 h-5 text-[#facc15]" />
                     <span className="text-sm text-white/40 uppercase tracking-widest font-mono">Média</span>
@@ -227,7 +238,7 @@ export function GameScreen({
                   'font-black italic text-[#FFD700] leading-none transition-transform duration-100',
                   flashSide ? 'scale-110' : 'scale-100'
                 )} style={{ 
-                  fontSize: 'clamp(10rem, 15vw, 20rem)',
+                  fontSize: 'clamp(11.5rem, 17.25vw, 23rem)',
                   filter: 'drop-shadow(0 0 40px rgba(255,215,0,0.5))'
                 }}>
                   {totalKicks}
