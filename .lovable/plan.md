@@ -1,48 +1,109 @@
 
-# Polimento Industrial Cyber — Time Attack HUD
+
+# Redesign: Duo Time Attack HUD — Arena Battle
 
 ## Resumo
 
-Aplicar 4 refinamentos visuais ao HUD Arena Monitor do modo Time Attack individual em `GameScreen.tsx`, reforçando a estética "Industrial Cyber / HUD de vidro".
+Substituir o modo Duo atual (dois blocos solidos vermelho/azul com KickPanel e FighterMascot) por um HUD "Arena Battle" com estetica Industrial Cyber, simetrico, fundo escuro e metricas individuais de CPM.
 
-## Alterações
+## Estrutura do Layout
+
+```text
++------------------------------------------------------------+
+| ████████████████████  BARRA DE TEMPO  ████████████████████  |
+|                       01:23                                 |
++------------------------------------------------------------+
+|                                                              |
+|  ┌─────────────────┐         ┌─────────────────┐            |
+|  │▌RED         47  │   VS    │  39        BLUE▐│            |
+|  │▌HITS             │         │          HITS  ▐│            |
+|  │▌CPM: 142        │  ████   │      CPM: 118  ▐│            |
+|  └─────────────────┘  +8     └─────────────────┘            |
+|                                                              |
++------------------------------------------------------------+
+| Vermelho    ● Conectado    [P] Pausar    Azul               |
++------------------------------------------------------------+
+```
+
+## Alteracoes
 
 ### Arquivo: `src/components/game/GameScreen.tsx`
 
-#### 1. Cards da Esquerda — Estilo "HUD de vidro"
+#### 1. Novos calculos (antes do return)
 
-Remover `bg-white/5 backdrop-blur rounded-xl` dos dois cards de estatística. Manter apenas `border border-white/10 p-6` com texto alinhado à esquerda, para parecerem dados projetados em vidro transparente.
+Adicionar apos a linha 44 (onde `cpm` e calculado):
 
-#### 2. Barra de Tempo — Trilho + Glow Neon
+- `redCpm` e `blueCpm`: CPM individual por lado
+- `totalDuo`: total combinado para calculo de percentuais
+- `redPercent` / `bluePercent`: distribuicao proporcional
+- `scoreDiff`: diferenca absoluta de pontos
 
-Adicionar trilho visível `bg-white/8 rounded-full` como container da barra de progresso. Aplicar `box-shadow` neon na barra colorida com a mesma cor dinâmica (verde/amarelo/vermelho) para efeito luminoso.
+#### 2. Substituir bloco Duo (linhas 306-344)
 
-#### 3. Background — Imagem dos Modos com Opacidade
+Remover `KickPanel` e `FighterMascot`. Novo layout:
 
-Importar `bgMenuModos` (já disponível em `src/assets/menu-modos.jpg`) e adicioná-lo como imagem de fundo absoluta com `opacity-[0.07]` atrás de todo o conteúdo individual, substituindo o fundo sólido vazio.
+**Background**: `bgMenuModos` com `opacity-[0.05]`, absolute, pointer-events-none
 
-#### 4. Hero Counter — Aumentar 15%
+**Header (Barra de Tempo)**: Identico ao individual — barra `h-3` com trilho `bg-white/[0.08]`, glow neon dinamico (verde/amarelo/vermelho), timer `text-[6vh]` centralizado abaixo
 
-Escalar o `font-size` do número central de `clamp(10rem, 15vw, 20rem)` para `clamp(11.5rem, 17.25vw, 23rem)` (~15% maior).
+**Arena Grid**: `grid grid-cols-12 gap-4 flex-1 items-center px-4`
 
-### Detalhes Técnicos
+- **Red (col-span-5)**: `border-l-4 border-red-500 bg-gradient-to-r from-red-500/10 to-transparent p-6 rounded-r-xl`. Score `text-[12vw] font-black italic text-red-500` com `drop-shadow` vermelho. Labels "HITS" e "CPM: {redCpm}" alinhados a esquerda. Brilho quando `flashSide === 'red'`
 
-**Cards (linhas 203, 212):**
-- De: `bg-white/5 backdrop-blur border border-white/10 rounded-xl p-6`
-- Para: `border border-white/10 p-6`
+- **VS (col-span-2)**: "VS" em `text-4xl font-black text-white/20 italic`. Barra de cabo de guerra (`h-2 bg-white/10 rounded-full`) com indicador vermelho proporcional (`width: redPercent%`). Diferenca de pontos `+{diff}` colorida para quem lidera
 
-**Barra de tempo (linhas 178-186):**
-- Trilho: mudar `bg-white/10` para `bg-white/[0.08]`
-- Barra interna: adicionar `style` com `boxShadow` dinâmico baseado na cor atual (verde: `0 0 20px rgba(74,222,128,0.4)`, amarelo: `0 0 20px rgba(250,204,21,0.4)`, vermelho: `0 0 20px rgba(239,68,68,0.4)`)
+- **Blue (col-span-5)**: Espelhado do vermelho — `border-r-4 border-blue-500 bg-gradient-to-l from-blue-500/10 to-transparent text-right`. Score azul com `drop-shadow` azul. Labels alinhados a direita
 
-**Background (linha 173):**
-- Importar `bgMenuModos` (já importado na HomeScreen, mas precisa ser importado neste arquivo também)
-- Dentro do container individual, adicionar: `<img src={bgMenuModos} className="absolute inset-0 w-full h-full object-cover opacity-[0.07] z-0 pointer-events-none" />`
-- Todo o conteúdo existente receberá `relative z-[1]` para ficar acima
+#### 3. Substituir footer Duo (linhas 350-364)
 
-**Hero counter (linha 230):**
-- De: `fontSize: 'clamp(10rem, 15vw, 20rem)'`
-- Para: `fontSize: 'clamp(11.5rem, 17.25vw, 23rem)'`
+Nova barra tecnica: `bg-black/60 backdrop-blur border-t border-white/10 flex justify-between px-10 py-3`
+
+- Esquerda: "Vermelho" em `text-red-500`
+- Centro: indicador de conexao (bolinha verde + "Conectado")
+- Direita: "Azul" em `text-blue-500`
+- Atalhos: `[P] Pausar [ESC] Sair` em `text-white/30 font-mono text-xs`
+
+#### 4. Remocoes
+
+- Timer circular SVG do Duo (linhas 104-126) removido — substituido pela barra horizontal
+- `showPauseHint` do Duo (linhas 129-135) removido — atalhos agora no footer
+- Import de `KickPanel` e `FighterMascot` permanecem no arquivo (podem ser usados por outros modos), mas nao serao mais renderizados no Duo
+
+#### 5. Efeitos
+
+- Flash de impacto global: `inset box-shadow` branco quando `flashSide` ativo (mesmo do individual)
+- Painel atingido recebe `scale-105` momentaneo via `transition-transform duration-100`
+- Overlay de pausa do Duo permanece funcional com estilo `bg-[#0b1120]/90`
+
+### Detalhes Tecnicos
+
+**Calculos novos:**
+```
+const redCpm = elapsedSeconds > 0 ? Math.round((scores.red / elapsedSeconds) * 60) : 0;
+const blueCpm = elapsedSeconds > 0 ? Math.round((scores.blue / elapsedSeconds) * 60) : 0;
+const totalDuo = scores.red + scores.blue;
+const redPercent = totalDuo > 0 ? (scores.red / totalDuo) * 100 : 50;
+const bluePercent = totalDuo > 0 ? (scores.blue / totalDuo) * 100 : 50;
+const scoreDiff = Math.abs(scores.red - scores.blue);
+```
+
+**Barra de cabo de guerra:**
+```
+<div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+  <div className="h-full bg-red-500 rounded-full transition-all duration-300"
+       style={{ width: `${redPercent}%` }} />
+</div>
+```
+
+**Glow nos paineis (flash):**
+```
+className={cn(
+  "border-l-4 border-red-500 bg-gradient-to-r from-red-500/10 ...",
+  flashSide === 'red' && "from-red-500/25 shadow-[inset_0_0_30px_rgba(239,68,68,0.3)]"
+)}
+```
 
 ### Arquivos alterados
-- `src/components/game/GameScreen.tsx` — 4 refinamentos visuais no bloco individual
+
+- `src/components/game/GameScreen.tsx` — reescrita completa do bloco Duo + footer + remocao do timer circular
+
