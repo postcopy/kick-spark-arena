@@ -91,12 +91,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
 
       <div className="relative z-10 flex flex-col h-full w-full">
       {/* Header - translucent bar */}
-      <header className="flex-shrink-0 w-full flex items-center justify-between px-4 md:px-6 py-3 bg-white/5 backdrop-blur-sm border-b border-white/10">
-        <img
-          src={logoSfighter}
-          alt="S-Fighter"
-          className="h-9 md:h-11 w-auto"
-        />
+      <header className="flex-shrink-0 w-full flex items-center justify-end px-4 md:px-6 py-3 bg-white/5 backdrop-blur-sm border-b border-white/10">
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs text-white/50 hidden sm:block">
             {user?.email?.split('@')[0]}
