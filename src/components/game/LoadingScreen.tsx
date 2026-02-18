@@ -58,29 +58,16 @@ export function LoadingScreen({ onReady, skipBgMusic = false }: LoadingScreenPro
   }, [isComplete, isFadingOut, onReady]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full bg-[#0b1120] relative overflow-hidden">
-      {/* Logo with glow / fade-out */}
-      <div className={`flex flex-col items-center gap-6 transition-all duration-700 ${isFadingOut ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}>
-        <img
-          src={sfightLogo}
-          alt="S-FIGHT MODO"
-          className="w-full max-w-[500px] px-4"
-          style={!isComplete ? { animation: 'logo-glow 2s ease-in-out infinite' } : undefined}
-        />
-
-        {/* Thin progress bar */}
-        <div className="w-full max-w-[400px] px-4 space-y-2">
-          <Progress value={progress} className="h-1.5" />
-          <p className="text-xs text-center text-white/40 font-mono">
-            {isComplete
-              ? 'Pronto!'
-              : progress < 50
-                ? 'Baixando música de fundo...'
-                : progress < 75
-                  ? 'Finalizando download...'
-                  : 'Decodificando áudio...'}
-          </p>
-        </div>
+    <div className={`fixed inset-0 z-50 overflow-hidden transition-all duration-700 ${isFadingOut ? 'opacity-0 scale-105' : 'opacity-100'}`}>
+      <img src={sfightLogo} alt="S-FIGHT MODO" className="absolute inset-0 w-full h-full object-cover z-0" />
+      <div className="absolute inset-0 bg-black/60 z-10" />
+      <div className="absolute bottom-10 left-0 right-0 z-20 flex flex-col items-center px-6">
+        <Progress value={progress} className="h-2 max-w-[500px] w-full bg-white/10" />
+        <p className="text-sm text-white/60 font-mono mt-3 uppercase tracking-widest">
+          {isComplete
+            ? 'Sistema Pronto'
+            : `Carregando Sistema... ${Math.round(progress)}%`}
+        </p>
       </div>
     </div>
   );
