@@ -1,10 +1,9 @@
 import { cn } from '@/lib/utils';
-import { Zap, HardHat } from 'lucide-react';
+import { Shield, HardHat } from 'lucide-react';
 import type { UseArcadeStateReturn } from '@/hooks/useArcadeState';
 import logoSFight from '@/assets/logo-desafio-relampago.png';
-import { FighterMascot, type MascotState } from './FighterMascot';
 import { BatteryBadge } from './EquipmentStatus';
-import type { Side, HitType } from '@/types/game';
+import type { Side } from '@/types/game';
 import type { EquipmentSlot, EquipmentState } from '@/types/serial';
 
 interface ArcadeScreenTVProps {
@@ -20,7 +19,6 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
     blueState,
     flashSide,
     showCombo,
-    showSpecialUsed,
     showKO,
     lastDamage,
     config,
@@ -29,43 +27,16 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
     recoveryCountdown,
   } = arcadeState;
 
-  // Determine mascot state based on game state
-  const getMascotState = (side: Side): MascotState => {
-    // KO states
-    if (showKO) {
-      return showKO === side ? 'winner' : 'ko';
-    }
-    
-    // Round end (time up)
-    if (gameState === 'round_end') {
-      const redWon = redState.hp > blueState.hp;
-      const blueWon = blueState.hp > redState.hp;
-      if (side === 'red') return redWon ? 'winner' : blueWon ? 'loser' : 'idle';
-      return blueWon ? 'winner' : redWon ? 'loser' : 'idle';
-    }
-    
-    // Hit reaction - this side got hit
-    if (flashSide === side) return 'hit';
-    
-    // Attacking - the OTHER side got hit (lastDamage shows who received damage)
-    if (lastDamage && lastDamage.side !== side) {
-      return 'attacking';
-    }
-    
-    return 'idle';
-  };
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Calculate round wins
   const redWins = roundResults.filter(r => r.winner === 'red').length;
   const blueWins = roundResults.filter(r => r.winner === 'blue').length;
+  const roundsToWin = Math.ceil(config.bestOf / 2);
 
-  // Round stars component
   const RoundStars = ({ wins, maxWins, side }: { wins: number; maxWins: number; side: 'red' | 'blue' }) => (
     <div className={cn("flex gap-2", side === 'blue' && "flex-row-reverse")}>
       {Array.from({ length: maxWins }).map((_, i) => (
@@ -84,17 +55,16 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
     </div>
   );
 
-  const roundsToWin = Math.ceil(config.bestOf / 2);
+  const displayHP = (hp: number) => Math.round(hp);
 
   return (
-    <div className="relative flex flex-col h-full w-full bg-black overflow-hidden">
+    <div className="relative flex flex-col h-full w-full bg-[#0b1120] overflow-hidden">
       
-      {/* ============ TOP BAR - Names ============ */}
-      <div className="relative z-20 h-[8vh] min-h-[60px] bg-black flex items-center justify-between px-6">
-        {/* Red Player */}
+      {/* ============ TOP BAR ============ */}
+      <div className="relative z-20 h-[8vh] min-h-[60px] bg-[#0b1120] flex items-center justify-between px-6 border-b border-white/10">
         <div className="flex items-center gap-6">
           <span className={cn(
-            "font-black italic uppercase tracking-wide text-white",
+            "font-black italic uppercase tracking-wide text-white font-mono",
             "text-[clamp(36px,5vmin,72px)]",
             "drop-shadow-[0_2px_8px_hsl(var(--game-red-glow)/0.6)]"
           )}>
@@ -103,20 +73,17 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           <RoundStars wins={redWins} maxWins={roundsToWin} side="red" />
         </div>
 
-        {/* VS Central */}
         <div className={cn(
-          "font-black text-white",
-          "text-[clamp(48px,6vmin,96px)]",
-          "drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
+          "font-black text-white/40 font-mono",
+          "text-[clamp(32px,4vmin,64px)]"
         )}>
-          Vs
+          VS
         </div>
 
-        {/* Blue Player */}
         <div className="flex items-center gap-6">
           <RoundStars wins={blueWins} maxWins={roundsToWin} side="blue" />
           <span className={cn(
-            "font-black italic uppercase tracking-wide text-white",
+            "font-black italic uppercase tracking-wide text-white font-mono",
             "text-[clamp(36px,5vmin,72px)]",
             "drop-shadow-[0_2px_8px_hsl(var(--game-blue-glow)/0.6)]"
           )}>
@@ -125,64 +92,76 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
         </div>
       </div>
 
-      {/* ============ MAIN AREA - Split Screen HP ============ */}
+      {/* ============ MAIN AREA ============ */}
       <div className="flex-1 flex relative">
         
-        {/* Red Side - HP as background height */}
+        {/* Red Side */}
         <div className={cn(
-          "flex-1 relative bg-black overflow-hidden",
+          "flex-1 relative bg-[#0b1120] overflow-hidden",
           flashSide === 'red' && "animate-damage-shake-tv"
         )}>
-          {/* HP Fill - anchored to bottom, shrinks downward as HP decreases */}
           <div 
-            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-red-900 via-game-red to-red-700 transition-all duration-300 ease-out"
+            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-red-900/80 via-game-red/60 to-red-700/40 transition-all duration-300 ease-out"
             style={{ height: `${redState.hp}%` }}
           />
           
-          {/* Inner glow when full */}
-          {redState.hp > 75 && (
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-transparent to-red-500/20 pointer-events-none"
-                 style={{ height: `${redState.hp}%` }} />
-          )}
-          
-          {/* Critical pulse overlay */}
           {redState.hp <= 25 && redState.hp > 0 && (
             <div className="absolute inset-0 bg-red-900/30 animate-hp-critical" />
           )}
 
-          {/* Flash overlay on damage */}
           {flashSide === 'red' && (
             <div className="absolute inset-0 bg-white/30 animate-flash-side" />
           )}
 
-          {/* HP Number - Giant, centered */}
+          {/* META label */}
+          <div className="absolute top-[15%] left-1/2 -translate-x-1/2 z-10">
+            <span className="text-[clamp(12px,2vmin,24px)] font-bold uppercase tracking-[0.3em] text-white/30 font-mono">
+              META
+            </span>
+          </div>
+
+          {/* HP Number */}
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
-              "font-black text-white leading-none",
+              "font-black text-white leading-none font-mono",
               "text-[clamp(80px,14vmin,220px)]",
               "drop-shadow-[0_6px_16px_rgba(0,0,0,0.8)]",
               redState.hp <= 25 && "animate-hp-critical"
             )}
             style={{ textShadow: '0 0 40px hsl(var(--game-red-glow) / 0.4)' }}
             >
-              {redState.hp}
+              {displayHP(redState.hp)}
             </span>
+          </div>
+
+          {/* Shield icon */}
+          <div className={cn(
+            "absolute bottom-[12%] left-1/2 -translate-x-1/2 z-10 pointer-events-none transition-transform duration-100",
+            flashSide === 'red' && "animate-damage-shake"
+          )}>
+            <Shield 
+              className={cn(
+                "w-[clamp(48px,8vmin,96px)] h-[clamp(48px,8vmin,96px)] text-game-red/40",
+                flashSide === 'red' && "text-white/60"
+              )} 
+              strokeWidth={1.5}
+            />
           </div>
 
           {/* Damage popup */}
           {lastDamage?.side === 'red' && (
             <div className="absolute top-1/3 left-1/2 -translate-x-1/2 z-10">
               <span className={cn(
-                "font-black animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
+                "font-black font-mono animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
                 "text-[clamp(48px,6vmin,96px)]",
                 lastDamage.hitType === 'helmet' ? "text-game-yellow" : "text-white"
               )}>
-                -{lastDamage.amount}
+                -{lastDamage.amount % 1 === 0 ? lastDamage.amount : lastDamage.amount.toFixed(1)}
               </span>
               {lastDamage.hitType === 'helmet' && (
                 <div className="flex items-center justify-center gap-2 animate-combo-pop">
                   <HardHat className="w-6 h-6 text-game-yellow" />
-                  <span className="text-game-yellow text-xl font-black uppercase">
+                  <span className="text-game-yellow text-xl font-black uppercase font-mono">
                     CABEÇA!
                   </span>
                 </div>
@@ -190,15 +169,15 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             </div>
           )}
 
-          {/* Combo indicator */}
+          {/* Combo */}
           {showCombo?.side === 'red' && (
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
               <div className="text-center">
-                <span className="block text-game-yellow font-black text-[clamp(24px,3vmin,48px)] uppercase tracking-widest">
+                <span className="block text-game-yellow font-black text-[clamp(24px,3vmin,48px)] uppercase tracking-widest font-mono">
                   COMBO
                 </span>
                 <span className={cn(
-                  "block font-black leading-none text-game-yellow",
+                  "block font-black leading-none text-game-yellow font-mono",
                   "text-[clamp(72px,10vmin,140px)]",
                   "drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
                 )}
@@ -209,40 +188,12 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               </div>
             </div>
           )}
-
-          {/* Special Ready */}
-          {redState.specialReady && !showSpecialUsed && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
-              <div className={cn(
-                "px-6 py-3 rounded-lg font-black uppercase tracking-wide",
-                "text-[clamp(20px,2.5vmin,36px)]",
-                "bg-gradient-to-r from-yellow-600 to-game-yellow",
-                "text-black border-2 border-yellow-400",
-                "animate-special-glow flex items-center gap-2"
-              )}>
-                <Zap className="w-6 h-6 fill-current" />
-                ESPECIAL
-                <Zap className="w-6 h-6 fill-current" />
-              </div>
-            </div>
-          )}
-
-          {/* Red Mascot */}
-          <div className="absolute bottom-[12%] left-6 z-10 pointer-events-none">
-            <FighterMascot 
-              side="red" 
-              state={getMascotState('red')} 
-              size="md"
-            />
-          </div>
         </div>
 
-        {/* Center Divider + Logo + Timer */}
+        {/* Center Divider */}
         <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 flex flex-col items-center justify-center pointer-events-none">
-          {/* Vertical line */}
-          <div className="absolute inset-y-0 w-1 bg-gradient-to-b from-transparent via-white/30 to-transparent" />
+          <div className="absolute inset-y-0 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
           
-          {/* Logo */}
           <div className="relative mb-4">
             <img 
               src={logoSFight} 
@@ -251,9 +202,8 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             />
           </div>
 
-          {/* Timer */}
           <div className={cn(
-            "bg-black/90 px-8 py-4 rounded-xl border-2",
+            "bg-[#0b1120]/90 px-8 py-4 rounded-xl border-2",
             timeLeft <= 10 ? "border-destructive" : timeLeft <= 30 ? "border-yellow-500" : "border-white/20"
           )}>
             <div className={cn(
@@ -270,69 +220,78 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             </div>
           </div>
 
-          {/* Round indicator */}
-          <div className={cn(
-            "mt-4 text-[clamp(16px,2vmin,28px)] text-white/70 uppercase tracking-widest font-bold"
-          )}>
+          <div className="mt-4 text-[clamp(16px,2vmin,28px)] text-white/40 uppercase tracking-widest font-bold font-mono">
             ROUND {currentRound}/{config.bestOf}
           </div>
         </div>
 
-        {/* Blue Side - HP as background height */}
+        {/* Blue Side */}
         <div className={cn(
-          "flex-1 relative bg-black overflow-hidden",
+          "flex-1 relative bg-[#0b1120] overflow-hidden",
           flashSide === 'blue' && "animate-damage-shake-tv"
         )}>
-          {/* HP Fill - anchored to bottom, shrinks downward as HP decreases */}
           <div 
-            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-blue-900 via-game-blue to-blue-600 transition-all duration-300 ease-out"
+            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-blue-900/80 via-game-blue/60 to-blue-600/40 transition-all duration-300 ease-out"
             style={{ height: `${blueState.hp}%` }}
           />
           
-          {/* Inner glow when full */}
-          {blueState.hp > 75 && (
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-transparent to-blue-400/20 pointer-events-none"
-                 style={{ height: `${blueState.hp}%` }} />
-          )}
-          
-          {/* Critical pulse overlay */}
           {blueState.hp <= 25 && blueState.hp > 0 && (
             <div className="absolute inset-0 bg-blue-900/30 animate-hp-critical" />
           )}
 
-          {/* Flash overlay on damage */}
           {flashSide === 'blue' && (
             <div className="absolute inset-0 bg-white/30 animate-flash-side" />
           )}
 
-          {/* HP Number - Giant, centered */}
+          {/* META label */}
+          <div className="absolute top-[15%] left-1/2 -translate-x-1/2 z-10">
+            <span className="text-[clamp(12px,2vmin,24px)] font-bold uppercase tracking-[0.3em] text-white/30 font-mono">
+              META
+            </span>
+          </div>
+
+          {/* HP Number */}
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
-              "font-black text-white leading-none",
+              "font-black text-white leading-none font-mono",
               "text-[clamp(80px,14vmin,220px)]",
               "drop-shadow-[0_6px_16px_rgba(0,0,0,0.8)]",
               blueState.hp <= 25 && "animate-hp-critical"
             )}
             style={{ textShadow: '0 0 40px hsl(var(--game-blue-glow) / 0.4)' }}
             >
-              {blueState.hp}
+              {displayHP(blueState.hp)}
             </span>
+          </div>
+
+          {/* Shield icon */}
+          <div className={cn(
+            "absolute bottom-[12%] left-1/2 -translate-x-1/2 z-10 pointer-events-none transition-transform duration-100",
+            flashSide === 'blue' && "animate-damage-shake"
+          )}>
+            <Shield 
+              className={cn(
+                "w-[clamp(48px,8vmin,96px)] h-[clamp(48px,8vmin,96px)] text-game-blue/40",
+                flashSide === 'blue' && "text-white/60"
+              )} 
+              strokeWidth={1.5}
+            />
           </div>
 
           {/* Damage popup */}
           {lastDamage?.side === 'blue' && (
             <div className="absolute top-1/3 left-1/2 -translate-x-1/2 z-10">
               <span className={cn(
-                "font-black animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
+                "font-black font-mono animate-damage-popup drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]",
                 "text-[clamp(48px,6vmin,96px)]",
                 lastDamage.hitType === 'helmet' ? "text-game-yellow" : "text-white"
               )}>
-                -{lastDamage.amount}
+                -{lastDamage.amount % 1 === 0 ? lastDamage.amount : lastDamage.amount.toFixed(1)}
               </span>
               {lastDamage.hitType === 'helmet' && (
                 <div className="flex items-center justify-center gap-2 animate-combo-pop">
                   <HardHat className="w-6 h-6 text-game-yellow" />
-                  <span className="text-game-yellow text-xl font-black uppercase">
+                  <span className="text-game-yellow text-xl font-black uppercase font-mono">
                     CABEÇA!
                   </span>
                 </div>
@@ -340,15 +299,15 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             </div>
           )}
 
-          {/* Combo indicator */}
+          {/* Combo */}
           {showCombo?.side === 'blue' && (
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
               <div className="text-center">
-                <span className="block text-game-yellow font-black text-[clamp(24px,3vmin,48px)] uppercase tracking-widest">
+                <span className="block text-game-yellow font-black text-[clamp(24px,3vmin,48px)] uppercase tracking-widest font-mono">
                   COMBO
                 </span>
                 <span className={cn(
-                  "block font-black leading-none text-game-yellow",
+                  "block font-black leading-none text-game-yellow font-mono",
                   "text-[clamp(72px,10vmin,140px)]",
                   "drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
                 )}
@@ -359,75 +318,25 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
               </div>
             </div>
           )}
-
-          {/* Special Ready */}
-          {blueState.specialReady && !showSpecialUsed && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-combo-pop">
-              <div className={cn(
-                "px-6 py-3 rounded-lg font-black uppercase tracking-wide",
-                "text-[clamp(20px,2.5vmin,36px)]",
-                "bg-gradient-to-r from-yellow-600 to-game-yellow",
-                "text-black border-2 border-yellow-400",
-                "animate-special-glow flex items-center gap-2"
-              )}>
-                <Zap className="w-6 h-6 fill-current" />
-                ESPECIAL
-                <Zap className="w-6 h-6 fill-current" />
-              </div>
-            </div>
-          )}
-
-          {/* Blue Mascot */}
-          <div className="absolute bottom-[12%] right-6 z-10 pointer-events-none">
-            <FighterMascot 
-              side="blue" 
-              state={getMascotState('blue')} 
-              size="md"
-            />
-          </div>
         </div>
 
-        {/* Special Used overlay */}
-        {showSpecialUsed && (
-          <div className={cn(
-            "absolute z-30 animate-combo-pop",
-            showSpecialUsed === 'red' ? "left-1/4 top-1/3 -translate-x-1/2" : "right-1/4 top-1/3 translate-x-1/2"
-          )}>
-            <div className={cn(
-              "px-10 py-6 rounded-2xl font-black uppercase tracking-wide",
-              "text-[clamp(48px,5vmin,80px)]",
-              "bg-gradient-to-r from-yellow-600 to-game-yellow",
-              "text-black border-4 border-yellow-400",
-              "animate-special-glow"
-            )}>
-              <div className="flex items-center gap-4">
-                <Zap className="w-12 h-12 fill-current" />
-                <span>ESPECIAL!</span>
-                <Zap className="w-12 h-12 fill-current" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* KO Overlay - Giant and simple */}
+        {/* KO Overlay — winner zeroed their target */}
         {showKO && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/85 z-40">
             <div className="text-center animate-ko-tv">
               <div 
                 className={cn(
-                  "font-black leading-none",
-                  "text-[clamp(200px,28vmin,400px)]",
+                  "font-black leading-none font-mono",
+                  "text-[clamp(160px,22vmin,320px)]",
                   "text-game-yellow"
                 )}
-                style={{ 
-                  textShadow: '0 12px 0 rgba(0,0,0,0.4), 0 0 100px rgba(255,215,0,0.6)' 
-                }}
+                style={{ textShadow: '0 12px 0 rgba(0,0,0,0.4), 0 0 100px rgba(255,215,0,0.6)' }}
               >
-                K.O.
+                ZERO!
               </div>
               
               <div className={cn(
-                "font-black uppercase mt-6",
+                "font-black uppercase mt-6 font-mono",
                 "text-[clamp(48px,6vmin,96px)]",
                 showKO === 'red' ? "text-game-red" : "text-game-blue"
               )}
@@ -440,13 +349,12 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
                 {showKO === 'red' ? 'VERMELHO' : 'AZUL'} VENCE!
               </div>
               
-              {/* Recovery countdown */}
               {recoveryCountdown > 0 && (
                 <div className="mt-8">
-                  <span className="text-white/60 text-[clamp(18px,2vmin,28px)] uppercase tracking-wider">
+                  <span className="text-white/60 text-[clamp(18px,2vmin,28px)] uppercase tracking-wider font-mono">
                     Próximo round em
                   </span>
-                  <div className="text-[clamp(80px,10vmin,140px)] font-black text-green-500 animate-pulse">
+                  <div className="text-[clamp(80px,10vmin,140px)] font-black text-green-500 animate-pulse font-mono">
                     {recoveryCountdown}
                   </div>
                 </div>
@@ -455,41 +363,38 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           </div>
         )}
 
-        {/* Round End (time up, not KO) */}
+        {/* Round End (time up) — LOWER HP wins */}
         {gameState === 'round_end' && !showKO && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/85 z-40">
             <div className="text-center animate-ko-tv">
               <div 
                 className={cn(
-                  "font-black",
+                  "font-black font-mono",
                   "text-[clamp(140px,16vmin,260px)]",
                   "text-game-yellow"
                 )}
-                style={{ 
-                  textShadow: '0 8px 0 rgba(0,0,0,0.4), 0 0 80px rgba(255,215,0,0.5)' 
-                }}
+                style={{ textShadow: '0 8px 0 rgba(0,0,0,0.4), 0 0 80px rgba(255,215,0,0.5)' }}
               >
                 TEMPO!
               </div>
               <div className={cn(
-                "font-black uppercase mt-4",
+                "font-black uppercase mt-4 font-mono",
                 "text-[clamp(48px,6vmin,96px)]"
               )}>
-                {redState.hp > blueState.hp 
+                {redState.hp < blueState.hp 
                   ? <span className="text-game-red" style={{ textShadow: '0 0 40px hsl(var(--game-red-glow) / 0.6)' }}>VERMELHO VENCE!</span>
-                  : blueState.hp > redState.hp 
+                  : blueState.hp < redState.hp 
                     ? <span className="text-game-blue" style={{ textShadow: '0 0 40px hsl(var(--game-blue-glow) / 0.6)' }}>AZUL VENCE!</span>
                     : <span className="text-game-yellow" style={{ textShadow: '0 0 40px hsl(var(--game-yellow-glow) / 0.6)' }}>EMPATE!</span>
                 }
               </div>
               
-              {/* Recovery countdown */}
               {recoveryCountdown > 0 && (
                 <div className="mt-8">
-                  <span className="text-white/60 text-[clamp(18px,2vmin,28px)] uppercase tracking-wider">
+                  <span className="text-white/60 text-[clamp(18px,2vmin,28px)] uppercase tracking-wider font-mono">
                     Próximo round em
                   </span>
-                  <div className="text-[clamp(80px,10vmin,140px)] font-black text-green-500 animate-pulse">
+                  <div className="text-[clamp(80px,10vmin,140px)] font-black text-green-500 animate-pulse font-mono">
                     {recoveryCountdown}
                   </div>
                 </div>
@@ -499,62 +404,28 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
         )}
       </div>
 
-      {/* ============ BOTTOM BAR - Energy + Battery (minimal) ============ */}
-      <div className="relative z-20 h-[6vh] min-h-[48px] bg-black/80 flex items-center justify-between px-8 border-t border-white/10">
-        {/* Red Energy + Battery */}
-        <div className="flex items-center gap-4 flex-1">
-          <span className="text-[clamp(12px,1.5vmin,18px)] text-game-red/80 font-bold uppercase">Energia</span>
-          <div className="flex-1 max-w-[200px] h-3 bg-white/10 rounded-full overflow-hidden">
-            <div 
-              className={cn(
-                "h-full transition-all duration-150 rounded-full",
-                redState.specialReady 
-                  ? "bg-gradient-to-r from-yellow-500 to-game-yellow animate-pulse" 
-                  : "bg-game-red/70"
-              )}
-              style={{ width: `${(redState.energy / config.energyMax) * 100}%` }}
-            />
+      {/* ============ BOTTOM BAR ============ */}
+      <div className="relative z-20 h-[5vh] min-h-[40px] bg-[#0b1120]/80 flex items-center justify-between px-8 border-t border-white/10">
+        {equipment && (
+          <div className="flex items-center gap-2">
+            <BatteryBadge equipment={equipment.get(1)} compact />
+            <BatteryBadge equipment={equipment.get(3)} compact />
           </div>
-          {/* Red equipment battery */}
-          {equipment && (
-            <div className="flex items-center gap-2">
-              <BatteryBadge equipment={equipment.get(1)} compact />
-              <BatteryBadge equipment={equipment.get(3)} compact />
-            </div>
-          )}
-        </div>
+        )}
 
-        {/* Controls hint (very small) */}
-        <div className="text-[10px] text-white/30 flex gap-4">
+        <div className="text-[10px] text-white/30 flex gap-4 font-mono mx-auto">
           <span>A = Vermelho</span>
           <span>L = Azul</span>
           <span>ESC = Sair</span>
         </div>
 
-        {/* Blue Energy + Battery */}
-        <div className="flex items-center gap-4 flex-1 justify-end">
-          {/* Blue equipment battery */}
-          {equipment && (
-            <div className="flex items-center gap-2">
-              <BatteryBadge equipment={equipment.get(2)} compact />
-              <BatteryBadge equipment={equipment.get(4)} compact />
-            </div>
-          )}
-          <div className="flex-1 max-w-[200px] h-3 bg-white/10 rounded-full overflow-hidden">
-            <div 
-              className={cn(
-                "h-full transition-all duration-150 rounded-full ml-auto",
-                blueState.specialReady 
-                  ? "bg-gradient-to-r from-game-yellow to-yellow-500 animate-pulse" 
-                  : "bg-game-blue/70"
-              )}
-              style={{ width: `${(blueState.energy / config.energyMax) * 100}%` }}
-            />
+        {equipment && (
+          <div className="flex items-center gap-2">
+            <BatteryBadge equipment={equipment.get(2)} compact />
+            <BatteryBadge equipment={equipment.get(4)} compact />
           </div>
-          <span className="text-[clamp(12px,1.5vmin,18px)] text-game-blue/80 font-bold uppercase">Energia</span>
-        </div>
+        )}
       </div>
     </div>
   );
 }
-
