@@ -1,40 +1,54 @@
 
-# Refatorar SetupScreen (Contra o Tempo) para Layout Fullscreen
+# Redesign da LoadingScreen com Logo S-FIGHT MODO
 
-## Problema
+## Resumo
 
-A `SetupScreen` do modo "Contra o Tempo" usa um layout estreito (`max-w-lg`) com scroll, enquanto o modo "Duelo" (`ArcadeSetupScreen`) ocupa a tela inteira com `max-w-6xl`, `overflow-hidden` e fundo escuro `bg-[#0b1120]`. A experiencia visual fica inconsistente entre os dois modos.
+Substituir o layout atual (icone spinner + barra de progresso) por uma splash screen cinematografica centrada na logo "S-FIGHT MODO", com efeito de brilho pulsante durante o carregamento e transicao fade-out + scale-up ao finalizar.
 
 ## Alteracoes
 
-### Arquivo: `src/components/game/SetupScreen.tsx`
+### 1. Copiar imagem para o projeto
 
-Aplicar o mesmo padrao de layout do `ArcadeSetupScreen`:
+Copiar `user-uploads://S-FIGHT-MODO.jpg` para `src/assets/S-FIGHT-MODO.jpg` e importar como modulo ES6 no componente.
 
-1. **Container raiz**: trocar `bg-background` por `bg-[#0b1120]` e manter `overflow-hidden`
-2. **Area de conteudo**: trocar `max-w-lg` por `max-w-6xl` para ocupar a largura da tela
-3. **Cada step** sera redesenhado para usar o espaco horizontal disponivel:
+### 2. `src/components/game/LoadingScreen.tsx` -- Redesign completo
 
-**Step 1 (Quantos jogadores?):**
-- Layout horizontal em desktop: dois cards lado a lado (`grid-cols-2`) ao inves de empilhados
-- Cards maiores, com mais padding e icones maiores
-- Titulo e subtitulo centralizados acima
+**Layout:**
+- Fundo escuro `bg-[#0b1120]` em tela cheia
+- Logo centralizada (max-width ~500px, responsivo)
+- Barra de progresso fina e discreta abaixo da logo (mantida para feedback visual)
+- Texto de status pequeno abaixo da barra
 
-**Step 2 (Selecao de atleta):**
-- Grid de atletas expandido (`grid-cols-3 md:grid-cols-4 lg:grid-cols-6`) para usar a largura
-- Busca e botoes mais largos
+**Efeito de brilho pulsante (durante carregamento):**
+- Aplicar animacao CSS `animate-pulse` customizada na logo com `drop-shadow` cyan/azul brilhante, similar ao estilo da propria imagem
+- Usar classe com keyframes que alterna opacidade do glow (ex: `0% -> shadow forte`, `50% -> shadow suave`, `100% -> shadow forte`)
 
-**Step 3 (Duracao):**
-- Layout em duas colunas no desktop: opcoes de duracao a esquerda, preview + botao iniciar a direita
-- Cards de duracao mais compactos verticalmente para caber sem scroll
-- Botao de voltar no rodape, estilo tecnico como no Duelo (`text-white/30`)
+**Transicao ao completar (onReady):**
+- Quando `isComplete = true`, ao inves de chamar `onReady()` imediatamente, adicionar estado `isFadingOut`
+- Aplicar classes `opacity-0 scale-110` com `transition-all duration-700` na logo
+- Apos a transicao CSS terminar (~700ms), chamar `onReady()`
 
-4. **Botao Voltar**: mover do canto superior esquerdo (`absolute`) para o rodape, no estilo do Duelo (botao ghost pequeno com seta)
-5. **Progress dots**: manter no topo, estilo ajustado para fundo escuro (dots brancos/amarelos)
-6. **Cores de texto**: ajustar todos os textos para funcionar sobre fundo escuro (`text-white`, `text-white/60`, etc.) em vez de `text-foreground`/`text-muted-foreground`
+**Fluxo de estados:**
 
-### Arquivos nao alterados
+```text
+[Carregando]                    [Completo]                [Fade-out]
+Logo pulsando brilho     ->     setIsComplete(true)  ->   isFadingOut=true
+Barra de progresso               Progresso 100%           opacity-0 scale-110
+Texto "Carregando..."                                     Apos 700ms -> onReady()
+```
 
-- `ArcadeSetupScreen.tsx` -- ja esta no padrao correto
-- `LoadingScreen.tsx`, `FinishedScreen.tsx` -- fora do escopo (nao sao "menus de setup")
-- `Index.tsx` -- nenhuma alteracao de props necessaria
+### 3. `src/index.css` -- Keyframe de glow (opcional)
+
+Adicionar keyframe `logo-glow` para o efeito de brilho pulsante:
+
+```text
+@keyframes logo-glow {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(34,211,238,0.6)) drop-shadow(0 0 40px rgba(34,211,238,0.3)); }
+  50% { filter: drop-shadow(0 0 10px rgba(34,211,238,0.2)) drop-shadow(0 0 20px rgba(34,211,238,0.1)); }
+}
+```
+
+### Arquivos alterados
+- `src/components/game/LoadingScreen.tsx` -- redesign visual
+- `src/index.css` -- keyframe `logo-glow`
+- `src/assets/S-FIGHT-MODO.jpg` -- novo asset (copia)
