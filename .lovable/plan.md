@@ -1,161 +1,103 @@
 
-# Redesign Total: Modo Duelo ("Corrida de Demolicao" + Visual Pro)
 
-## Resumo da Transformacao
+# Redesign Visual: Transicoes e Final de Partida (Modo Duelo)
 
-O Modo Duelo vai mudar de um "jogo de luta" (atacar o adversario) para uma "Corrida de Demolicao" (destruir seu proprio alvo). A configuracao sera simplificada com presets de intensidade, e o visual adotara estetica E-Sports profissional sem mascotes.
+## Resumo
 
----
-
-## Arquivos Alterados (4 arquivos)
-
-| Arquivo | Tipo de Mudanca |
-|---------|-----------------|
-| `src/components/game/ArcadeSetupScreen.tsx` | Redesign completo dos controles |
-| `src/components/game/ArcadeScreenTV.tsx` | Redesign visual + inversao de logica |
-| `src/hooks/useArcadeState.ts` | Inversao de dano (proprio alvo) + remocao de energy/special + suporte a float |
-| `src/components/game/ArcadeFinishedScreen.tsx` | Remover mascotes, atualizar terminologia |
+Transformar os overlays de transicao entre rounds e a tela final de vitoria em paineis com estetica de transmissao E-Sports profissional, com blur, bordas neon, tipografia dramatica e feedback visual de alto impacto.
 
 ---
 
-## Parte 1: Setup (ArcadeSetupScreen.tsx)
+## Parte 1: Transicao entre Rounds (ArcadeScreenTV.tsx)
 
-### Remover
-- Sliders de `vestDamage` e `helmetDamage`
-- Presets antigos (Kids/Juvenil/Adulto)
-- Regras sobre "combos" e "especial"
+### Estado Atual
+- Overlays simples com `bg-black/85`, texto centralizado e countdown basico
+- Dois overlays separados: KO (ZERO!) e round_end (TEMPO!)
+- Visual "flat" sem profundidade
 
-### Adicionar: Cartoes de Intensidade
-Tres cartoes grandes selecionaveis em grid:
+### Novo Visual: Painel de Transicao Profissional
 
-**SPRINT** (Zap, amarelo/laranja)
-- Meta: ~50 chutes | vestDamage: 2.0 | helmetDamage: 2.0
-- "Explosao maxima. Quem termina 50 chutes primeiro?"
+Substituir os dois overlays (linhas 324-404) por um painel centralizado com estrutura dramatica:
 
-**RESISTENCIA** (Swords, azul/ciano)
-- Meta: ~100 chutes | vestDamage: 1.0 | helmetDamage: 1.0
-- "Volume de luta. 100 chutes de pura resistencia."
+**Overlay de fundo:**
+- `bg-black/80 backdrop-blur-md` em vez de `bg-black/85` simples
 
-**ELITE** (Trophy, roxo)
-- Meta: ~200 chutes | vestDamage: 0.5 | helmetDamage: 0.5
-- "Desafio Olimpico. 200 chutes para testar o limite."
+**Painel central:**
+- Container com `bg-[#0b1120]/95 rounded-2xl border-2` + borda neon (dourada para ZERO!, ciano para TEMPO!)
+- Padding generoso, max-width controlado com `max-w-[clamp(400px,60vmin,700px)]`
+- Shadow intenso: `shadow-[0_0_60px_rgba(255,215,0,0.3)]`
 
-### Manter
-- Slider de Tempo do Round
-- Selector de Formato (Rapido / Melhor de 3)
-- Slider de Intervalo de Recuperacao (quando Best of 3)
+**Estrutura do painel (de cima para baixo):**
 
-### Atualizar
-- Titulo: "DUELO ARCADE" -> "CORRIDA DE DEMOLICAO" ou "DUELO"
-- Subtitulo: "Destrua seu alvo primeiro!" 
-- Regras: "META: X chutes | Colete: X dano | Quem zerar primeiro vence!"
-- Visual: bg-[#0b1120], font-mono nos numeros
+1. **Cabecalho**: "FIM DO ROUND X" em `text-[clamp(14px,2vmin,22px)]` uppercase, tracking-widest, text-white/50
+2. **Separador**: Linha horizontal `border-b border-white/10`
+3. **Resultado do Round**:
+   - Para ZERO!: Titulo gigante "ZERO!" em `text-[clamp(80px,14vmin,180px)]` dourado + "VERMELHO ZEROU A META!" abaixo em cor do vencedor
+   - Para TEMPO!: Titulo "TEMPO ESGOTADO!" em `text-[clamp(40px,6vmin,80px)]` dourado + "VANTAGEM AZUL" em cor do vencedor
+   - Para empate: "EMPATE!" em amarelo
+4. **Placar da Partida** (somente se bestOf > 1):
+   - Dois numeros gigantes `text-[clamp(48px,8vmin,96px)]` separados por "X"
+   - Labels "VERMELHO" e "AZUL" abaixo em `text-[clamp(10px,1.5vmin,14px)]`
+   - Cores: numero do vencedor brilhante, perdedor opaco
+5. **Separador**: Outra linha horizontal
+6. **Countdown**: 
+   - Label "Proximo round em:" em text-white/50
+   - Timer `text-[clamp(64px,10vmin,120px)]` font-mono text-green-500
+   - Pulsar (`animate-pulse`) nos ultimos 2 segundos
 
-### Props
-- `vestDamage` e `helmetDamage` continuam sendo passados para Index.tsx mas sao definidos automaticamente pelo preset selecionado (nao por sliders manuais)
-
----
-
-## Parte 2: Logica (useArcadeState.ts)
-
-### Inversao de Dano
-- Antes: Vermelho chuta -> dano no Azul (`setBlueState`)
-- Depois: Vermelho chuta -> dano no PROPRIO Vermelho (`setRedState`)
-- O `registerKick` vai aplicar dano no `attackerState` em vez do `defenderState`
-
-### Remocao de Energy/Special
-- Remover campos `energy`, `specialReady` do `ArcadePlayerState` (manter no tipo para nao quebrar, mas setar sempre 0/false)
-- Remover logica de `energyPerKick`, `energyMax`, `specialDamageBonus` do `calculateDamage`
-- Manter combo bonus (chutes rapidos = +dano bonus)
-
-### Vitoria por Zeragem
-- KO: Quem chega a HP 0 primeiro VENCE (nao perde)
-- Antes: `if (redState.hp <= 0) endRound('blue', true)` (azul vence porque vermelho morreu)
-- Depois: `if (redState.hp <= 0) endRound('red', true)` (vermelho vence porque zerou seu alvo)
-
-### Empate por Tempo
-- Antes: Maior HP vence
-- Depois: MENOR HP vence (quem destruiu mais)
-- `const winner = redState.hp < blueState.hp ? 'red' : blueState.hp < redState.hp ? 'blue' : 'tie'`
-
-### Suporte a Float
-- O `vestDamage` e `helmetDamage` ja sao `number` no tipo, entao 0.5 funciona
-- O slider de setup vai ser removido, entao o step nao e problema
-- O HP exibido usara `Math.round()` ou `Math.ceil()` para evitar decimais na tela
-
-### Visual Feedback
-- `flashSide` agora indica o lado de quem CHUTOU (nao do defensor)
-- `lastDamage.side` agora mostra no lado de quem chutou (proprio)
+### Detalhes Tecnicos
+- Merge dos dois blocos condicionais (showKO e round_end sem showKO) em um unico overlay com logica interna
+- Manter todas as condicoes existentes (`showKO`, `gameState === 'round_end'`, `recoveryCountdown`)
+- Manter `z-40` e `absolute inset-0`
+- Todos os textos com `vmin` dentro de `clamp()` para responsividade
 
 ---
 
-## Parte 3: Tela do Jogo (ArcadeScreenTV.tsx)
+## Parte 2: Tela Final (ArcadeFinishedScreen.tsx)
 
-### Remover
-- `FighterMascot` (ambos os lados)
-- Import do `FighterMascot`
-- Funcao `getMascotState`
-- Barras de energia no footer
-- Indicadores "ESPECIAL" (special ready/used)
-- Import de `Zap`
+### Estado Atual
+- Trofeu pequeno (w-16 h-16 a w-20 h-20)
+- Gradiente radial com apenas 20% opacidade
+- Placar `text-5xl/6xl` com tamanhos fixos em rem
+- Tabela de detalhes com estilo basico
 
-### Adicionar
-- Import de `Shield` (lucide-react)
-- Icone grande de Shield no centro de cada lado, com animacao de shake quando recebe dano
-- Label "META" em vez de "VIDA"
+### Novo Visual
 
-### Redesign Visual
-- Background: `bg-[#0b1120]` (Slate 950) em vez de `bg-black`
-- Tipografia: `font-mono` nos numeros (timer, HP)
-- Top bar simplificada (nomes + round stars)
-- Footer simplificado: apenas controles hint + battery badges (sem energia)
+**Background dramatico:**
+- Aumentar opacidade do gradiente radial de `opacity-20` para `opacity-40`
+- Adicionar segundo layer de glow mais concentrado
 
-### HP Display
-- Manter a barra como background height (visual atual) - ja e bom
-- O numero gigante continua centralizado mas agora representa "quanto falta para zerar"
-- Adicionar label pequeno "META" ou "RESTANTE" acima do numero
+**Trofeu maior com glow:**
+- Aumentar de `w-16 h-16 md:w-20 md:h-20` para `w-[clamp(80px,15vmin,160px)] h-[clamp(80px,15vmin,160px)]`
+- Padding do container: `p-6` em vez de `p-4`
+- Drop-shadow colorido intenso no container (cor do vencedor)
 
-### Feedback de Hit
-- Manter popups de dano flutuante
-- Garantir que valores float (ex: -0.5) sejam exibidos corretamente
-- Popup aparece sobre o lado de quem CHUTOU (nao do adversario)
+**Tipografia dramatica:**
+- Nome do vencedor: De `text-5xl md:text-6xl` para `text-[clamp(3rem,10vmin,6rem)]`
+- Subtitulo: De "ZEROU A META!" para "CAMPEAO DO DUELO!" em `text-[clamp(1rem,3vmin,2rem)]`
+- Placar: De `text-5xl md:text-6xl` para `text-[clamp(3rem,8vmin,5rem)]` com separador "X" estilizado
 
----
+**Tabela de detalhes estilo "Data Grid":**
+- Container: `bg-[#0b1120]/80 border border-white/10 rounded-xl`
+- Titulo "DETALHES DOS ROUNDS": Manter
+- Linhas: Adicionar `border-b border-white/5` entre linhas em vez de `space-y-2`
+- Badge "ZERO!": Aumentar padding, adicionar `shadow-[0_0_12px_rgba(255,215,0,0.4)]` para efeito de "carimbo digital"
+- HP values: Usar `text-[clamp(1rem,2.5vmin,1.5rem)]` em vez de `text-lg` fixo
 
-## Parte 4: Tela Final (ArcadeFinishedScreen.tsx)
-
-### Remover
-- `FighterMascot` (ambos os mascotes)
-- Imports de `FighterMascot`
-
-### Atualizar
-- Badge: "ARCADE MODE" -> "CORRIDA DE DEMOLICAO"
-- Round details: HP restante agora significa "quanto faltou" (menor = melhor)
-- Manter confetti, trofeu, e botoes
+**Botoes:**
+- Manter estilos atuais (ja estao bons)
 
 ---
 
-## Fluxo de Dados (sem mudancas em Index.tsx)
+## Resumo de Arquivos
 
-O `Index.tsx` continua passando `vestDamage`, `helmetDamage`, `roundDuration`, `bestOf`, `recoveryInterval` para o setup e para o hook. A unica diferenca e que o setup agora define esses valores via presets em vez de sliders manuais. Nao e necessario alterar props ou estado em Index.tsx.
+| Arquivo | Alteracoes |
+|---------|-----------|
+| `src/components/game/ArcadeScreenTV.tsx` | Redesign dos 2 overlays de transicao (linhas 323-404) em painel profissional unificado |
+| `src/components/game/ArcadeFinishedScreen.tsx` | Trofeu maior, gradiente mais forte, tipografia responsiva, tabela estilo data grid |
 
----
-
-## Resumo Tecnico
-
-| Item | Antes | Depois |
-|------|-------|--------|
-| Dano aplicado em | Adversario | Proprio |
-| Vitoria | Adversario HP = 0 | Proprio HP = 0 |
-| Empate (tempo) | Maior HP vence | Menor HP vence |
-| Energy/Special | Ativo | Removido |
-| Combos | Ativo | Mantido |
-| Mascotes | FighterMascot | Shield icon |
-| Setup | 3 sliders + presets | 3 cartoes de intensidade |
-| Dano float | Nao usado | Suportado (0.5) |
-| Visual | Street Fighter / infantil | E-Sports / profissional |
-
-- 4 arquivos alterados
+- 2 arquivos alterados
 - 0 arquivos novos
-- Mudancas de logica + visual
-- Responsividade mantida (vmin/vh em todos os clamp)
+- Apenas CSS/layout, nenhuma mudanca de logica
+- Responsividade com vmin em todos os clamp()
+
