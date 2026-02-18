@@ -327,7 +327,7 @@ export function GameScreen({
                 }}>
                   {scores.red}
                 </span>
-                <div className="flex flex-col gap-1 items-center" style={{ marginTop: '-2vw' }}>
+                <div className="flex flex-col gap-1 items-center" style={{ marginTop: '-4vw' }}>
                   <span className="text-sm text-white/40 uppercase tracking-[0.3em] font-mono">HITS</span>
                   <span className="text-lg text-white/60 font-mono tabular-nums">CPM: {redCpm}</span>
                 </div>
@@ -366,7 +366,7 @@ export function GameScreen({
                 }}>
                   {scores.blue}
                 </span>
-                <div className="flex flex-col gap-1 items-center" style={{ marginTop: '-2vw' }}>
+                <div className="flex flex-col gap-1 items-center" style={{ marginTop: '-4vw' }}>
                   <span className="text-sm text-white/40 uppercase tracking-[0.3em] font-mono">HITS</span>
                   <span className="text-lg text-white/60 font-mono tabular-nums">CPM: {blueCpm}</span>
                 </div>
