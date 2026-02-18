@@ -23,15 +23,17 @@ export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = 
   const hasStartedMusicRef = useRef(false);
 
   useEffect(() => {
-    setAnimationKey(countdown);
-    
+    // Start music BEFORE visual update to eliminate perceived latency
     if (countdown === 6 && !hasStartedMusicRef.current && shouldStartMusic) {
       hasStartedMusicRef.current = true;
+      // Fire play synchronously before React commits the visual render
       const audio = playWithRef('fightModeBg', 0.6);
       if (audio && onMusicStarted) {
         onMusicStarted(audio);
       }
     }
+
+    setAnimationKey(countdown);
   }, [countdown, playWithRef, onMusicStarted, shouldStartMusic]);
 
   useEffect(() => {
