@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
+import { useChampionshipPersistence } from '@/hooks/useChampionshipPersistence';
 import { useSerialPortContext } from '@/contexts/SerialPortContext';
 import { useHardwareDiagnostics } from '@/hooks/useHardwareDiagnostics';
 import { useSound } from '@/contexts/SoundContext';
@@ -53,6 +54,7 @@ function ChampionshipMatInner() {
   const matId = 1;
   
   const sync = useChampionshipSync({ role: 'master', matId });
+  useChampionshipPersistence(sync.state);
   const { play, isMuted, toggleMute, unlockAudio, initFullPreload } = useSound();
   const prevStatusRef = useRef(sync.state.status);
   const [isTVOpen, setIsTVOpen] = useState(false);
