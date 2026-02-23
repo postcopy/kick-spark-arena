@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { 
   Menu, X, User, LogIn, LogOut, Crown, Settings, 
-  Trophy, Usb, Volume2, VolumeX, HelpCircle, Users 
+  Trophy, Usb, Volume2, VolumeX, HelpCircle, Users, BarChart3 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -121,6 +121,18 @@ export function MenuDrawer({
                     </p>
                   </div>
                 </button>
+              )}
+
+              {/* Dashboard */}
+              {user && (
+                <Link 
+                  to="/dashboard" 
+                  onClick={() => setIsOpen(false)}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-white/5 transition-colors"
+                >
+                  <BarChart3 className="w-6 h-6 text-blue-400" />
+                  <span className="text-lg text-foreground">Dashboard</span>
+                </Link>
               )}
 
               {/* Ranking */}
