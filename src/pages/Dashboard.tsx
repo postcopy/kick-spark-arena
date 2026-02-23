@@ -1,9 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Target, Zap, Activity, Trophy, Clock, Gamepad2, Loader2, TrendingUp, AlertTriangle, Award, Flame, Lock, Lightbulb } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2 } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -12,13 +9,11 @@ import {
 } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { StudentAvatar } from '@/components/game/StudentAvatar';
 
-const CHART_TOOLTIP_STYLE = {
-  background: 'hsl(var(--popover))',
-  border: '1px solid hsl(var(--border))',
-  borderRadius: '8px',
-  color: 'hsl(var(--foreground))',
+const TOOLTIP_STYLE = {
+  background: '#1e1b4b',
+  border: '1px solid #312e81',
+  borderRadius: 12,
   fontSize: 13,
 };
 
@@ -36,7 +31,26 @@ const MODE_LABELS: Record<string, string> = {
   cognitive: 'Cognitivo',
 };
 
+const MODE_ICONS: Record<string, string> = {
+  'Contra o Tempo': '⏱️',
+  'Duelo': '⚔️',
+  'Reação': '⚡',
+  'Cognitivo': '🧠',
+};
+
 const ATHLETE_COLORS = ['#ef4444', '#3b82f6', '#10b981'];
+
+const BELT_COLORS: Record<string, string> = {
+  preta: '#1a1a1a',
+  vermelha: '#dc2626',
+  azul: '#2563eb',
+  verde: '#16a34a',
+  amarela: '#eab308',
+  branca: '#f8fafc',
+  roxa: '#9333ea',
+  marrom: '#92400e',
+  laranja: '#ea580c',
+};
 
 interface DashboardData {
   totalAthletes: number;
@@ -67,6 +81,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
+  const [tab, setTab] = useState('visao_geral');
+  const [period, setPeriod] = useState('semana');
+  const [selectedAthlete, setSelectedAthlete] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -161,7 +178,6 @@ export default function Dashboard() {
         const d = s.details as Record<string, unknown>;
         if (typeof d.coleteHits === 'number') coleteCount += d.coleteHits;
         if (typeof d.capaceteHits === 'number') capaceteCount += d.capaceteHits;
-        // Also check alternate key names
         if (typeof d.bodyHits === 'number') coleteCount += d.bodyHits;
         if (typeof d.headHits === 'number') capaceteCount += d.headHits;
       }
@@ -222,12 +238,10 @@ export default function Dashboard() {
         if (!a.created_at) return false;
         return new Date(a.created_at) <= monthEnd && a.is_active !== false;
       }).length;
-      // Churn: athletes created before this month that are now inactive
       const inactiveThisMonth = athletes.filter(a => {
         if (!a.created_at) return false;
         return new Date(a.created_at) <= prevMonthEnd && a.is_active === false;
       }).length;
-      const inactivePrevMonth = i < 5 ? (monthlyGrowth.length > 0 ? 0 : 0) : 0; // simplified
       monthlyGrowth.push({ mes: mesLabel.charAt(0).toUpperCase() + mesLabel.slice(1), ativos, novos, churn: inactiveThisMonth });
     }
 
@@ -264,20 +278,18 @@ export default function Dashboard() {
       streak: calcStreak(athleteSessionDates[a.id] || new Set()),
     })).sort((a, b) => b.sessionCount - a.sessionCount);
 
-    // === DESEMPENHO: Reaction Evolution (top 3 athletes, last 60 days, grouped by week) ===
+    // === DESEMPENHO: Reaction Evolution ===
     const reactionByAthlete: Record<string, { created_at: string; avg_score: number }[]> = {};
     reactionSessions60d.forEach(s => {
       if (s.avg_score == null) return;
       if (!reactionByAthlete[s.athlete_id]) reactionByAthlete[s.athlete_id] = [];
       reactionByAthlete[s.athlete_id].push({ created_at: s.created_at, avg_score: s.avg_score });
     });
-    // Top 3 by session count
     const top3Reaction = Object.entries(reactionByAthlete)
       .sort(([, a], [, b]) => b.length - a.length)
       .slice(0, 3);
     const reactionAthleteNames = top3Reaction.map(([id]) => athleteMap.get(id)?.name?.split(' ')[0] || id.slice(0, 6));
 
-    // Group by week
     const weekStart = (dateStr: string) => {
       const d = new Date(dateStr);
       const day = d.getDay();
@@ -289,7 +301,7 @@ export default function Dashboard() {
     const sortedWeeks = Array.from(allWeeks).sort();
     const reactionEvolution = sortedWeeks.map((week, idx) => {
       const row: Record<string, unknown> = { semana: `Sem ${idx + 1}` };
-      top3Reaction.forEach(([id, sessions], ai) => {
+      top3Reaction.forEach(([, sessions], ai) => {
         const weekSessions = sessions.filter(s => weekStart(s.created_at) === week);
         if (weekSessions.length > 0) {
           const avg = Math.round(weekSessions.reduce((s, x) => s + x.avg_score, 0) / weekSessions.length);
@@ -300,14 +312,12 @@ export default function Dashboard() {
     });
 
     // === DESEMPENHO: Radar Comparativo ===
-    // Use top 3 athletes by total sessions (from allSessions)
     const top3Overall = Object.entries(athleteSessionCount)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 3)
       .map(([id]) => id);
     const radarAthleteNames = top3Overall.map(id => athleteMap.get(id)?.name?.split(' ')[0] || id.slice(0, 6));
 
-    // Calculate raw metrics per athlete
     const radarMetrics = top3Overall.map(id => {
       const soloForAthlete = allSoloResults.filter(r => r.athlete_id === id);
       const reactForAthlete = (reactionByAthlete[id] || []);
@@ -323,7 +333,6 @@ export default function Dashboard() {
         ? reactForAthlete.reduce((s, r) => s + r.avg_score, 0) / reactForAthlete.length
         : 999;
       const totalSessions = sessionsForAthlete.length;
-      // Consistency: inverse of std dev of reaction scores
       let consistency = 0;
       if (reactForAthlete.length > 1) {
         const mean = reactForAthlete.reduce((s, r) => s + r.avg_score, 0) / reactForAthlete.length;
@@ -335,7 +344,6 @@ export default function Dashboard() {
       return { speed: avgKps, power: bestKicks, reaction: avgReact, endurance: totalSessions, precision: 0, consistency };
     });
 
-    // Normalize to 0-100
     const metricKeys = ['speed', 'power', 'reaction', 'endurance', 'precision', 'consistency'] as const;
     const metricLabels = ['Velocidade', 'Potência', 'Reação', 'Resistência', 'Precisão', 'Consistência'];
     const maxes = metricKeys.map(k => Math.max(...radarMetrics.map(m => k === 'reaction' ? 1 / Math.max(m[k], 1) : m[k]), 0.001));
@@ -355,7 +363,6 @@ export default function Dashboard() {
     });
 
     // === DESEMPENHO: Insight Cards ===
-    // Best evolution: biggest drop in reaction time (first half avg vs second half avg)
     let insightBestEvolution: { name: string; detail: string } | null = null;
     let bestDrop = 0;
     top3Reaction.forEach(([id, sessions]) => {
@@ -373,7 +380,6 @@ export default function Dashboard() {
       }
     });
 
-    // Most consistent: most sessions in last 30 days
     let insightMostConsistent: { name: string; detail: string } | null = null;
     const sessions30dByAthlete: Record<string, number> = {};
     recentSessions30d.forEach(s => {
@@ -389,7 +395,6 @@ export default function Dashboard() {
       };
     }
 
-    // Needs attention: active athlete with no sessions in 14 days or worst evolution
     let insightNeedsAttention: { name: string; detail: string } | null = null;
     const sessions14d = recentSessions30d.filter(s => s.created_at >= fourteenDaysAgo);
     const athletesWith14d = new Set(sessions14d.map(s => s.athlete_id));
@@ -427,406 +432,437 @@ export default function Dashboard() {
 
   if (loading || !data) {
     return (
-      <div className="flex h-[100dvh] w-full items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div style={{ display: 'flex', height: '100vh', width: '100%', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(180deg, #0a0a1a 0%, #111827 50%, #0a0a1a 100%)' }}>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#ef4444' }} />
       </div>
     );
   }
 
+  const getInitials = (name: string) => name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+
   return (
-    <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-background">
-      {/* Header */}
-      <header className="flex-shrink-0 flex items-center gap-3 p-4 border-b border-border">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <Activity className="w-5 h-5 text-primary" />
-        <div>
-          <h1 className="text-lg font-bold text-foreground leading-tight">Dashboard</h1>
-          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Painel da Academia</p>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(180deg, #0a0a1a 0%, #111827 50%, #0a0a1a 100%)',
+      color: '#e2e8f0', fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    }}>
+      {/* ── Header ── */}
+      <header style={{
+        background: 'linear-gradient(90deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+        borderBottom: '1px solid #1e293b',
+        padding: '16px 32px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'sticky', top: 0, zIndex: 100,
+        backdropFilter: 'blur(12px)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button onClick={() => navigate('/')} style={{
+            width: 42, height: 42, borderRadius: 12,
+            background: 'linear-gradient(135deg, #ef4444, #f59e0b)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, fontWeight: 900, border: 'none', cursor: 'pointer', color: '#fff'
+          }}>S</button>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, color: '#e2e8f0' }}>S-FIGHT</div>
+            <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1 }}>DASHBOARD DA ACADEMIA</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 4, background: '#0f172a', borderRadius: 12, padding: 4 }}>
+          {[
+            { id: 'visao_geral', label: 'Visão Geral' },
+            { id: 'atletas', label: 'Atletas' },
+            { id: 'desempenho', label: 'Desempenho' },
+            { id: 'crescimento', label: 'Crescimento' },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
+              background: tab === t.id ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'transparent',
+              color: tab === t.id ? '#fff' : '#64748b'
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 4, background: '#0f172a', borderRadius: 10, padding: 3 }}>
+          {['semana', 'mês', 'ano'].map(p => (
+            <button key={p} onClick={() => setPeriod(p)} style={{
+              padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              fontSize: 12, fontWeight: 500,
+              background: period === p ? '#1e293b' : 'transparent',
+              color: period === p ? '#e2e8f0' : '#475569'
+            }}>{p.charAt(0).toUpperCase() + p.slice(1)}</button>
+          ))}
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
-          <Tabs defaultValue="visao_geral">
-            <TabsList className="w-full justify-start overflow-x-auto">
-              <TabsTrigger value="visao_geral">Visão Geral</TabsTrigger>
-              <TabsTrigger value="atletas">Atletas</TabsTrigger>
-              <TabsTrigger value="desempenho">Desempenho</TabsTrigger>
-              <TabsTrigger value="crescimento">Crescimento</TabsTrigger>
-            </TabsList>
+      <main style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px' }}>
+        {/* ═══════ VISÃO GERAL ═══════ */}
+        {tab === 'visao_geral' && (<>
+          {/* KPI Cards */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <StatCard label="Alunos Ativos" value={String(data.totalAthletes)} sub={`${data.athletesList.length} cadastrados`} color="#10b981" icon="👥" />
+            <StatCard label="Sessões (7d)" value={String(data.weekSessions)} sub="Esta semana" color="#3b82f6" icon="🎯" />
+            <StatCard label="Total de Chutes" value={data.totalKicks > 999 ? `${(data.totalKicks / 1000).toFixed(1)}k` : String(data.totalKicks)} sub="Esta semana" color="#f59e0b" icon="🦵" />
+            <StatCard label="Reação Média" value={data.avgReaction ? `${data.avgReaction}ms` : '--'} sub="Esta semana" color="#8b5cf6" icon="⚡" />
+          </div>
 
-            {/* ═══ VISÃO GERAL ═══ */}
-            <TabsContent value="visao_geral" className="space-y-6 mt-4">
-              {/* KPI Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <KPICard icon={<Users className="w-5 h-5" />} label="Alunos Ativos" value={String(data.totalAthletes)} color="text-green-400" />
-                <KPICard icon={<Target className="w-5 h-5" />} label="Sessões (7d)" value={String(data.weekSessions)} color="text-blue-400" />
-                <KPICard icon={<Activity className="w-5 h-5" />} label="Chutes (7d)" value={data.totalKicks > 999 ? `${(data.totalKicks / 1000).toFixed(1)}k` : String(data.totalKicks)} color="text-yellow-400" />
-                <KPICard icon={<Zap className="w-5 h-5" />} label="Reação Média" value={data.avgReaction ? `${data.avgReaction}ms` : '--'} color="text-purple-400" />
-              </div>
+          {/* Sessões da Semana + Atividade Recente */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginTop: 24 }}>
+            <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, border: '1px solid #1e293b' }}>
+              <SectionTitle icon="📊">Sessões da Semana</SectionTitle>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={data.sessionsByDay}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis dataKey="day" stroke="#475569" fontSize={12} />
+                  <YAxis stroke="#475569" fontSize={12} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Bar dataKey="sessoes" name="Sessões" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
 
-              {/* Sessions chart + Recent */}
-              <div className="grid lg:grid-cols-5 gap-4">
-                <Card className="lg:col-span-3 bg-card border-border">
-                  <CardContent className="p-4">
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                      <Clock className="w-4 h-4" /> Sessões da Semana
-                    </h3>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={data.sessionsByDay}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        <Bar dataKey="sessoes" name="Sessões" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:col-span-2 bg-card border-border">
-                  <CardContent className="p-4">
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                      <Clock className="w-4 h-4" /> Atividade Recente
-                    </h3>
-                    <div className="space-y-2">
-                      {data.recentSessions.length === 0 ? (
-                        <p className="text-sm text-muted-foreground/60">Nenhuma sessão recente.</p>
-                      ) : data.recentSessions.map((s, i) => (
-                        <div key={i} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-background border border-border">
-                          <StudentAvatar name={s.athlete} avatarUrl={s.avatarUrl} belt={s.belt} size="sm" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-foreground truncate">{s.athlete}</p>
-                            <p className="text-[10px] text-muted-foreground">{s.mode}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs font-bold text-primary">{s.result}</p>
-                            <p className="text-[10px] text-muted-foreground">{s.time}</p>
-                          </div>
-                        </div>
-                      ))}
+            <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, border: '1px solid #1e293b' }}>
+              <SectionTitle icon="🕐">Atividade Recente</SectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {data.recentSessions.length === 0 ? (
+                  <p style={{ fontSize: 13, color: '#475569' }}>Nenhuma sessão recente.</p>
+                ) : data.recentSessions.map((s, i) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 12px', borderRadius: 10,
+                    background: '#111827', border: '1px solid #1e293b'
+                  }}>
+                    <span>{MODE_ICONS[s.mode] || '🎮'}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{s.athlete}</div>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>{s.mode} • {s.result}</div>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Pie charts side by side */}
-              <div className="grid md:grid-cols-2 gap-4">
-                {data.kickDistribution.length > 0 && (
-                  <Card className="bg-card border-border">
-                    <CardContent className="p-4">
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                        <Target className="w-4 h-4" /> Distribuição de Golpes
-                      </h3>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <PieChart>
-                          <Pie data={data.kickDistribution} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                            {data.kickDistribution.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {data.modeUsage.length > 0 && (
-                  <Card className="bg-card border-border">
-                    <CardContent className="p-4">
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                        <Gamepad2 className="w-4 h-4" /> Uso por Modo
-                      </h3>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <PieChart>
-                          <Pie data={data.modeUsage} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                            {data.modeUsage.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* ═══ ATLETAS ═══ */}
-            <TabsContent value="atletas" className="space-y-6 mt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                <Users className="w-4 h-4" /> Atletas da Academia ({data.athletesList.length})
-              </h3>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {data.athletesList.map(a => (
-                  <button key={a.id} onClick={() => navigate(`/students/${a.id}`)}
-                    className={`flex items-center gap-3 p-4 rounded-xl bg-card border border-border hover:border-primary/50 transition-all text-left ${!a.active ? 'opacity-50' : ''}`}>
-                    <StudentAvatar name={a.name} avatarUrl={a.avatarUrl} belt={a.belt} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{a.name}</p>
-                      <p className="text-xs text-muted-foreground">{a.sessionCount} sessões</p>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b' }}>{s.result}</div>
+                      <div style={{ fontSize: 10, color: '#475569' }}>{s.time}</div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${a.active ? 'bg-green-500' : 'bg-zinc-500'}`} />
-                      {a.streak > 0 && (
-                        <span className="text-[11px] text-yellow-400 font-semibold flex items-center gap-0.5">
-                          <Flame className="w-3 h-3" /> {a.streak}d
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                  </div>
                 ))}
               </div>
+            </div>
+          </div>
 
-              {/* Top Kickers Ranking */}
-              {data.topKickers.length > 0 && (
-                <Card className="bg-card border-border">
-                  <CardContent className="p-4">
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                      <Trophy className="w-4 h-4" /> Ranking de Chutes
-                    </h3>
-                    <div className="space-y-3">
-                      {data.topKickers.map((a, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                            i === 0 ? 'bg-yellow-500 text-yellow-950' : i === 1 ? 'bg-zinc-400 text-zinc-900' : i === 2 ? 'bg-amber-700 text-white' : 'bg-muted text-muted-foreground'
-                          }`}>
-                            {i + 1}
-                          </div>
-                          <StudentAvatar name={a.name} avatarUrl={a.avatarUrl} belt={a.belt} size="sm" />
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm font-semibold text-foreground">{a.name}</span>
-                            <p className="text-[11px] text-muted-foreground">Média: {a.avg}/sessão • Melhor: {a.best}</p>
-                          </div>
-                          <span className="text-xl font-black text-yellow-400">{a.kicks}</span>
-                          <span className="text-xs text-muted-foreground">chutes</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Top athletes by sessions (keep existing) */}
-              {data.topAthletes.length > 0 && (
-                <Card className="bg-card border-border">
-                  <CardContent className="p-4">
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                      <Award className="w-4 h-4" /> Top Atletas por Sessões
-                    </h3>
-                    <div className="space-y-3">
-                      {data.topAthletes.map((a, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                            i === 0 ? 'bg-yellow-500 text-yellow-950' : i === 1 ? 'bg-zinc-400 text-zinc-900' : i === 2 ? 'bg-amber-700 text-white' : 'bg-muted text-muted-foreground'
-                          }`}>
-                            {i + 1}
-                          </div>
-                          <StudentAvatar name={a.name} avatarUrl={a.avatarUrl} belt={a.belt} size="sm" />
-                          <span className="flex-1 text-sm font-semibold text-foreground">{a.name}</span>
-                          <span className="text-lg font-black text-primary">{a.sessions}</span>
-                          <span className="text-xs text-muted-foreground">sessões</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            {/* ═══ DESEMPENHO ═══ */}
-            <TabsContent value="desempenho" className="space-y-6 mt-4">
-              {/* Reaction Evolution LineChart */}
-              <Card className="bg-card border-border">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                    <Zap className="w-4 h-4" /> Evolução do Tempo de Reação (ms)
-                  </h3>
-                  {data.reactionEvolution.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={data.reactionEvolution}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="semana" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        <Legend wrapperStyle={{ fontSize: 12 }} />
-                        {data.reactionAthleteNames.map((name, i) => (
-                          <Line key={name} type="monotone" dataKey={name} name={name} stroke={ATHLETE_COLORS[i]} strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="text-center py-8">
-                      <TrendingUp className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
-                      <p className="text-xs text-muted-foreground/60">Dados insuficientes. Acumule sessões de reação para visualizar a evolução.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Radar Comparativo */}
-              <Card className="bg-card border-border">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                    <Target className="w-4 h-4" /> Perfil Comparativo de Atletas
-                  </h3>
-                  {data.radarAthleteNames.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={350}>
-                      <RadarChart data={data.radarData}>
-                        <PolarGrid stroke="hsl(var(--border))" />
-                        <PolarAngleAxis dataKey="metric" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                        {data.radarAthleteNames.map((name, i) => (
-                          <Radar key={name} name={name} dataKey={name} stroke={ATHLETE_COLORS[i]} fill={ATHLETE_COLORS[i]} fillOpacity={0.15} strokeWidth={2} />
-                        ))}
-                        <Legend wrapperStyle={{ fontSize: 12 }} />
-                        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Target className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
-                      <p className="text-xs text-muted-foreground/60">Dados insuficientes para gerar o radar comparativo.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Insight Cards */}
-              <div className="grid md:grid-cols-3 gap-3">
-                <Card className="bg-indigo-950/50 border-indigo-800/50">
-                  <CardContent className="p-4">
-                    <p className="text-[11px] uppercase tracking-wider text-indigo-300 mb-1">Melhor Evolução</p>
-                    {data.insightBestEvolution ? (
-                      <>
-                        <p className="text-lg font-bold text-foreground">{data.insightBestEvolution.name}</p>
-                        <p className="text-xs text-indigo-400 mt-1">{data.insightBestEvolution.detail}</p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground/60 mt-2">Dados insuficientes</p>
-                    )}
-                    <span className="text-2xl mt-2 block">📈</span>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-green-950/50 border-green-800/50">
-                  <CardContent className="p-4">
-                    <p className="text-[11px] uppercase tracking-wider text-green-300 mb-1">Mais Consistente</p>
-                    {data.insightMostConsistent ? (
-                      <>
-                        <p className="text-lg font-bold text-foreground">{data.insightMostConsistent.name}</p>
-                        <p className="text-xs text-green-400 mt-1">{data.insightMostConsistent.detail}</p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground/60 mt-2">Dados insuficientes</p>
-                    )}
-                    <span className="text-2xl mt-2 block">🎯</span>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-red-950/50 border-red-800/50">
-                  <CardContent className="p-4">
-                    <p className="text-[11px] uppercase tracking-wider text-red-300 mb-1">Precisa de Atenção</p>
-                    {data.insightNeedsAttention ? (
-                      <>
-                        <p className="text-lg font-bold text-foreground">{data.insightNeedsAttention.name}</p>
-                        <p className="text-xs text-red-400 mt-1">{data.insightNeedsAttention.detail}</p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground/60 mt-2">Todos os atletas estão ativos! 🎉</p>
-                    )}
-                    <span className="text-2xl mt-2 block">⚠️</span>
-                  </CardContent>
-                </Card>
+          {/* Distribuição */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 24 }}>
+            {data.kickDistribution.length > 0 && (
+              <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, border: '1px solid #1e293b' }}>
+                <SectionTitle icon="🎯">Distribuição de Golpes</SectionTitle>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={data.kickDistribution} cx="50%" cy="50%" innerRadius={60} outerRadius={90}
+                      paddingAngle={4} dataKey="value" label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      {data.kickDistribution.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            </TabsContent>
+            )}
 
-            {/* ═══ CRESCIMENTO ═══ */}
-            <TabsContent value="crescimento" className="space-y-6 mt-4">
-              <Card className="bg-card border-border">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" /> Crescimento da Academia
-                  </h3>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={data.monthlyGrowth}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Area type="monotone" dataKey="ativos" name="Ativos" stroke="#10b981" fill="#10b981" fillOpacity={0.2} strokeWidth={2.5} />
-                      <Area type="monotone" dataKey="novos" name="Novos" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
-                      <Area type="monotone" dataKey="churn" name="Cancelamentos" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Growth KPIs */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <KPICard icon={<Users className="w-5 h-5" />} label="Total Ativos" value={String(data.totalAthletes)} color="text-green-400" />
-                <KPICard icon={<TrendingUp className="w-5 h-5" />} label="Novos (mês)" value={String(data.monthlyGrowth[data.monthlyGrowth.length - 1]?.novos || 0)} color="text-blue-400" />
-                <ComingSoonCard icon={<Lock className="w-5 h-5" />} label="Ticket Médio" />
-                <ComingSoonCard icon={<Lock className="w-5 h-5" />} label="NPS Score" />
+            {data.modeUsage.length > 0 && (
+              <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, border: '1px solid #1e293b' }}>
+                <SectionTitle icon="🎮">Uso por Modo</SectionTitle>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={data.modeUsage} cx="50%" cy="50%" innerRadius={60} outerRadius={90}
+                      paddingAngle={4} dataKey="value" label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      {data.modeUsage.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
+            )}
+          </div>
+        </>)}
 
-              {/* Insights para Captação */}
-              <Card className="bg-card border-border">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                    <Lightbulb className="w-4 h-4" /> Insights para Captação
-                  </h3>
-                  <div className="space-y-2">
-                    {[
-                      { icon: '🎮', text: 'Sábado é o dia com mais sessões — ideal para eventos de captação com modo Demo', color: 'bg-yellow-500' },
-                      { icon: '⚡', text: 'Modo Reação tem a melhor taxa de engajamento de novos alunos (78% voltam)', color: 'bg-purple-500' },
-                      { icon: '🏆', text: 'Alunos com badge de conquista têm 3x mais retenção — ativar sistema de badges', color: 'bg-green-500' },
-                      { icon: '📱', text: '65% dos acessos são mobile — priorizar responsividade da tela de jogo', color: 'bg-blue-500' },
-                    ].map((insight, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-background border border-border">
-                        <span className="text-xl">{insight.icon}</span>
-                        <span className="flex-1 text-sm text-muted-foreground">{insight.text}</span>
-                        <div className={`w-2 h-2 rounded-full ${insight.color}`} />
-                      </div>
-                    ))}
+        {/* ═══════ ATLETAS ═══════ */}
+        {tab === 'atletas' && (<>
+          <SectionTitle icon="👥">Atletas da Academia</SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {data.athletesList.map(a => (
+              <div key={a.id} onClick={() => setSelectedAthlete(a.id === selectedAthlete ? null : a.id)}
+                style={{
+                  background: selectedAthlete === a.id
+                    ? 'linear-gradient(135deg, #1e1b4b, #312e81)'
+                    : '#1a1a2e',
+                  borderRadius: 16, padding: 20, cursor: 'pointer',
+                  border: selectedAthlete === a.id ? '1px solid #6366f1' : '1px solid #1e293b',
+                  transition: 'all 0.2s'
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 14,
+                    background: a.active
+                      ? 'linear-gradient(135deg, #ef4444, #f59e0b)'
+                      : '#374151',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, fontWeight: 800, color: '#fff'
+                  }}>{getInitials(a.name)}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{a.name}</div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                      {a.belt && <BeltBadge belt={a.belt} />}
+                      <span style={{ fontSize: 12, color: '#64748b' }}>{a.sessionCount} sessões</span>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{
+                      width: 10, height: 10, borderRadius: '50%',
+                      background: a.active ? '#10b981' : '#475569',
+                      marginLeft: 'auto', marginBottom: 4
+                    }} />
+                    {a.streak > 0 && (
+                      <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>
+                        🔥 {a.streak} dias
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Top Chutadores */}
+          {data.topKickers.length > 0 && (<>
+            <SectionTitle icon="🏆">Ranking de Chutes</SectionTitle>
+            <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 20, border: '1px solid #1e293b' }}>
+              {data.topKickers.map((a, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  padding: '12px 0',
+                  borderBottom: i < data.topKickers.length - 1 ? '1px solid #1e293b' : 'none'
+                }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 10,
+                    background: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : '#1e293b',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 800, color: i < 3 ? '#0f172a' : '#64748b'
+                  }}>{i + 1}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{a.name}</div>
+                    <div style={{ fontSize: 11, color: '#64748b' }}>Média: {a.avg}/sessão • Melhor: {a.best}</div>
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#f59e0b' }}>{a.kicks}</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>chutes</div>
+                </div>
+              ))}
+            </div>
+          </>)}
+        </>)}
+
+        {/* ═══════ DESEMPENHO ═══════ */}
+        {tab === 'desempenho' && (<>
+          {/* Evolução Tempo de Reação */}
+          <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, border: '1px solid #1e293b' }}>
+            <SectionTitle icon="⚡">Evolução do Tempo de Reação (ms)</SectionTitle>
+            {data.reactionEvolution.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={data.reactionEvolution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis dataKey="semana" stroke="#475569" fontSize={12} />
+                  <YAxis stroke="#475569" fontSize={12} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  {data.reactionAthleteNames.map((name, i) => (
+                    <Line key={name} type="monotone" dataKey={name} name={name} stroke={ATHLETE_COLORS[i]} strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#475569', fontSize: 13 }}>
+                Dados insuficientes. Acumule sessões de reação para visualizar a evolução.
+              </div>
+            )}
+          </div>
+
+          {/* Radar Comparativo */}
+          <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, marginTop: 20, border: '1px solid #1e293b' }}>
+            <SectionTitle icon="📡">Perfil Comparativo de Atletas</SectionTitle>
+            {data.radarAthleteNames.length > 0 ? (
+              <ResponsiveContainer width="100%" height={350}>
+                <RadarChart data={data.radarData}>
+                  <PolarGrid stroke="#1e293b" />
+                  <PolarAngleAxis dataKey="metric" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#475569', fontSize: 10 }} />
+                  {data.radarAthleteNames.map((name, i) => (
+                    <Radar key={name} name={name} dataKey={name} stroke={ATHLETE_COLORS[i]} fill={ATHLETE_COLORS[i]} fillOpacity={0.15} strokeWidth={2} />
+                  ))}
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#475569', fontSize: 13 }}>
+                Dados insuficientes para gerar o radar comparativo.
+              </div>
+            )}
+          </div>
+
+          {/* Cards de Insight */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 20 }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #1e1b4b, #312e81)', borderRadius: 16, padding: 20,
+              border: '1px solid #4338ca'
+            }}>
+              <div style={{ fontSize: 13, color: '#a5b4fc', marginBottom: 8 }}>MELHOR EVOLUÇÃO</div>
+              {data.insightBestEvolution ? (
+                <>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>{data.insightBestEvolution.name}</div>
+                  <div style={{ fontSize: 13, color: '#818cf8', marginTop: 4 }}>{data.insightBestEvolution.detail}</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>Dados insuficientes</div>
+              )}
+              <div style={{ fontSize: 28, marginTop: 8 }}>📈</div>
+            </div>
+
+            <div style={{
+              background: 'linear-gradient(135deg, #1a2e1a, #14532d)', borderRadius: 16, padding: 20,
+              border: '1px solid #166534'
+            }}>
+              <div style={{ fontSize: 13, color: '#86efac', marginBottom: 8 }}>MAIS CONSISTENTE</div>
+              {data.insightMostConsistent ? (
+                <>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>{data.insightMostConsistent.name}</div>
+                  <div style={{ fontSize: 13, color: '#4ade80', marginTop: 4 }}>{data.insightMostConsistent.detail}</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>Dados insuficientes</div>
+              )}
+              <div style={{ fontSize: 28, marginTop: 8 }}>🎯</div>
+            </div>
+
+            <div style={{
+              background: 'linear-gradient(135deg, #2e1a1a, #7f1d1d)', borderRadius: 16, padding: 20,
+              border: '1px solid #991b1b'
+            }}>
+              <div style={{ fontSize: 13, color: '#fca5a5', marginBottom: 8 }}>PRECISA DE ATENÇÃO</div>
+              {data.insightNeedsAttention ? (
+                <>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>{data.insightNeedsAttention.name}</div>
+                  <div style={{ fontSize: 13, color: '#f87171', marginTop: 4 }}>{data.insightNeedsAttention.detail}</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>Todos os atletas estão ativos! 🎉</div>
+              )}
+              <div style={{ fontSize: 28, marginTop: 8 }}>⚠️</div>
+            </div>
+          </div>
+        </>)}
+
+        {/* ═══════ CRESCIMENTO ═══════ */}
+        {tab === 'crescimento' && (<>
+          <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, border: '1px solid #1e293b' }}>
+            <SectionTitle icon="📈">Crescimento da Academia</SectionTitle>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={data.monthlyGrowth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis dataKey="mes" stroke="#475569" fontSize={12} />
+                <YAxis stroke="#475569" fontSize={12} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Area type="monotone" dataKey="ativos" name="Alunos Ativos" stroke="#10b981" fill="#10b981" fillOpacity={0.2} strokeWidth={2.5} />
+                <Area type="monotone" dataKey="novos" name="Novos Alunos" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
+                <Area type="monotone" dataKey="churn" name="Cancelamentos" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* KPI de Crescimento */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 20 }}>
+            <StatCard label="Taxa de Retenção" value={`${data.totalAthletes > 0 ? Math.round((data.totalAthletes / data.athletesList.length) * 100) : 0}%`} sub="Ativos / Total" color="#10b981" icon="📌" />
+            <StatCard label="Novos este Mês" value={`+${data.monthlyGrowth[data.monthlyGrowth.length - 1]?.novos || 0}`} sub="Cadastros recentes" color="#3b82f6" icon="🆕" />
+            <StatCard label="Ticket Médio" value="Em breve" sub="Funcionalidade futura" color="#f59e0b" icon="💰" />
+            <StatCard label="NPS Score" value="Em breve" sub="Funcionalidade futura" color="#8b5cf6" icon="⭐" />
+          </div>
+
+          {/* Insights de Captação */}
+          <div style={{ background: '#1a1a2e', borderRadius: 16, padding: 24, marginTop: 20, border: '1px solid #1e293b' }}>
+            <SectionTitle icon="💡">Insights para Captação</SectionTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { icon: '🎮', text: 'Sábado é o dia com mais sessões — ideal para eventos de captação com modo Demo', color: '#f59e0b' },
+                { icon: '⚡', text: 'Modo Reação tem a melhor taxa de engajamento de novos alunos (78% voltam)', color: '#8b5cf6' },
+                { icon: '🏆', text: 'Alunos com badge de conquista têm 3x mais retenção — ativar sistema de badges', color: '#10b981' },
+                { icon: '📱', text: '65% dos acessos são mobile — priorizar responsividade da tela de jogo', color: '#3b82f6' },
+              ].map((insight, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 16px', borderRadius: 12,
+                  background: '#111827', border: '1px solid #1e293b'
+                }}>
+                  <span style={{ fontSize: 24 }}>{insight.icon}</span>
+                  <span style={{ fontSize: 14, color: '#cbd5e1', flex: 1 }}>{insight.text}</span>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: insight.color }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </>)}
       </main>
+
+      {/* Footer */}
+      <footer style={{
+        textAlign: 'center', padding: '24px 0', marginTop: 40,
+        borderTop: '1px solid #1e293b', color: '#374151', fontSize: 12
+      }}>
+        S-FIGHT Dashboard • Dados reais do Supabase
+      </footer>
     </div>
   );
 }
 
-function KPICard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+/* ── Sub-componentes ── */
+
+function StatCard({ label, value, sub, color, icon }: { label: string; value: string; sub: string; color: string; icon: string }) {
   return (
-    <Card className="bg-card border-border">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-1.5 mb-1">
-          <span className={color}>{icon}</span>
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
-        </div>
-        <span className="text-2xl font-black text-foreground">{value}</span>
-      </CardContent>
-    </Card>
+    <div style={{
+      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+      borderRadius: 16, padding: '20px 24px',
+      border: `1px solid ${color}33`,
+      flex: '1 1 200px', minWidth: 180,
+      position: 'relative', overflow: 'hidden'
+    }}>
+      <div style={{
+        position: 'absolute', top: -10, right: -10,
+        fontSize: 64, opacity: 0.07, color
+      }}>{icon}</div>
+      <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
+      <div style={{ color, fontSize: 36, fontWeight: 800, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>{sub}</div>
+    </div>
   );
 }
 
-function ComingSoonCard({ icon, label }: { icon: React.ReactNode; label: string }) {
+function SectionTitle({ children, icon }: { children: React.ReactNode; icon: string }) {
   return (
-    <Card className="bg-card border-border opacity-60">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-1.5 mb-1">
-          <span className="text-muted-foreground">{icon}</span>
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
-        </div>
-        <span className="text-sm font-semibold text-muted-foreground">Em breve</span>
-      </CardContent>
-    </Card>
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      marginBottom: 16, marginTop: 32
+    }}>
+      <span style={{ fontSize: 22 }}>{icon}</span>
+      <h2 style={{ color: '#e2e8f0', fontSize: 18, fontWeight: 700, margin: 0 }}>{children}</h2>
+    </div>
+  );
+}
+
+function BeltBadge({ belt }: { belt: string }) {
+  const bg = BELT_COLORS[belt.toLowerCase()] || '#475569';
+  const isLight = belt.toLowerCase() === 'branca' || belt.toLowerCase() === 'amarela';
+  return (
+    <span style={{
+      background: bg,
+      color: isLight ? '#1a1a2e' : '#fff',
+      padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+      border: belt.toLowerCase() === 'preta' ? '1px solid #444' : 'none'
+    }}>{belt}</span>
   );
 }
