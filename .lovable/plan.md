@@ -1,60 +1,19 @@
 
 
-# Redesign Visual do Dashboard — Fidelidade ao Prototipo
+# Adicionar Link do Dashboard no Menu
 
 ## Problema
-O Dashboard atual usa componentes genericos do shadcn/ui (Card, Tabs) com estilo minimalista. O prototipo tem um visual gaming/e-sports com gradientes escuros, cores vibrantes, bordas coloridas e tipografia impactante.
+A página `/dashboard` existe e está funcionando, mas não há nenhum botão ou link visível no app para navegar até ela. O único jeito de acessar é digitando a URL manualmente.
 
-## Solucao
-Reescrever **apenas a camada visual** (JSX/CSS) do `Dashboard.tsx`, mantendo toda a logica de dados (loadDashboard, queries ao banco, calculos de KPIs, radar, insights) intacta.
+## Solução
+Adicionar um link "Dashboard" no **MenuDrawer** (o menu lateral que abre ao clicar no botão de menu na tela inicial). Esse é o lugar natural, já que o menu já tem links para "Ranking", "Meus Alunos", "Meu Plano", etc.
 
-### Mudancas visuais principais
+## O que será feito
 
-**Header**:
-- Gradiente horizontal `#0f172a -> #1e1b4b -> #0f172a`
-- Logo S-FIGHT com gradiente vermelho/amarelo
-- Tabs customizadas com fundo vermelho quando ativa
-- Seletor de periodo (semana/mes/ano)
-- Sticky com backdrop-filter blur
+**Arquivo:** `src/components/game/MenuDrawer.tsx`
 
-**KPI Cards (StatCard)**:
-- Gradiente `#1a1a2e -> #16213e`
-- Borda colorida semi-transparente (`${color}33`)
-- Icone emoji gigante com opacidade 0.07 no canto
-- Valor com fonte 36px bold na cor do card
-- Subtitulo em cinza
+- Adicionar um item "Dashboard" com ícone de gráfico (BarChart3 do Lucide) no menu lateral
+- Posicionar logo acima de "Ranking" ou como primeiro item da lista de navegação
+- Usar o mesmo estilo visual dos outros links do menu
 
-**Secoes e graficos**:
-- Fundo `#1a1a2e` com borda `#1e293b` e border-radius 16px
-- Titulos com emoji + texto branco
-- Tooltips com fundo `#1e1b4b` e borda `#312e81`
-- Graficos com grid `#1e293b` e eixos `#475569`
-
-**Aba Atletas**:
-- Cards com avatar gradiente vermelho/amarelo (ativo) ou cinza (inativo)
-- BeltBadge com cores de faixa
-- Indicador de streak com emoji fogo
-- Selecao com gradiente indigo
-
-**Aba Desempenho**:
-- LineChart e RadarChart com mesmo estilo do prototipo
-- Insight cards com gradientes tematicos (indigo, verde, vermelho)
-
-**Aba Crescimento**:
-- AreaChart com 3 linhas (ativos, novos, churn)
-- StatCards para Taxa de Retencao, Novos, Ticket Medio, NPS
-- Secao Insights para Captacao com cards escuros
-
-**Footer**:
-- Texto discreto com borda superior
-
-### O que NAO muda
-- Toda a funcao `loadDashboard()` (linhas 76-426) permanece identica
-- Interface `DashboardData` permanece identica
-- Queries ao banco permanecem identicas
-- Calculos de radar, insights, streak permanecem identicos
-- Imports do Recharts permanecem identicos
-
-### Arquivo afetado
-- `src/pages/Dashboard.tsx` — reescrever apenas o JSX (return) e componentes auxiliares (KPICard, ComingSoonCard), substituindo por inline styles fieis ao prototipo
-
+Mudança simples, uma única linha de link a ser adicionada no componente existente.
