@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SoundProvider } from "@/contexts/SoundContext";
 import { SerialPortProvider } from "@/contexts/SerialPortContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -44,13 +45,13 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/pricing" element={<Pricing />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/admin/sounds" element={<AdminSounds />} />
-              <Route path="/ranking" element={<Ranking />} />
-              <Route path="/championship/mat" element={<ChampionshipMat />} />
-              <Route path="/championship/tv" element={<ChampionshipTV />} />
-              <Route path="/students" element={<Students />} />
-              <Route path="/students/:id" element={<StudentProfile />} />
+              <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
+              <Route path="/admin/sounds" element={<ProtectedRoute requireAdmin><AdminSounds /></ProtectedRoute>} />
+              <Route path="/ranking" element={<ProtectedRoute><Ranking /></ProtectedRoute>} />
+              <Route path="/championship/mat" element={<ProtectedRoute><ChampionshipMat /></ProtectedRoute>} />
+              <Route path="/championship/tv" element={<ProtectedRoute><ChampionshipTV /></ProtectedRoute>} />
+              <Route path="/students" element={<ProtectedRoute><Students /></ProtectedRoute>} />
+              <Route path="/students/:id" element={<ProtectedRoute><StudentProfile /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

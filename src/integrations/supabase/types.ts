@@ -67,6 +67,101 @@ export type Database = {
           },
         ]
       }
+      championship_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_type: string
+          id: string
+          match_id: string
+          points: number | null
+          round: number | null
+          side: string | null
+          ts: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_type: string
+          id?: string
+          match_id: string
+          points?: number | null
+          round?: number | null
+          side?: string | null
+          ts: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          id?: string
+          match_id?: string
+          points?: number | null
+          round?: number | null
+          side?: string | null
+          ts?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "championship_events_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "championship_matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      championship_matches: {
+        Row: {
+          academy_id: string
+          blue_athlete_name: string | null
+          blue_round_wins: number | null
+          config: Json | null
+          created_at: string
+          ended_at: string | null
+          id: string
+          mat_id: number | null
+          match_number: string | null
+          red_athlete_name: string | null
+          red_round_wins: number | null
+          started_at: string | null
+          status: string
+          winner_side: string | null
+        }
+        Insert: {
+          academy_id: string
+          blue_athlete_name?: string | null
+          blue_round_wins?: number | null
+          config?: Json | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          mat_id?: number | null
+          match_number?: string | null
+          red_athlete_name?: string | null
+          red_round_wins?: number | null
+          started_at?: string | null
+          status?: string
+          winner_side?: string | null
+        }
+        Update: {
+          academy_id?: string
+          blue_athlete_name?: string | null
+          blue_round_wins?: number | null
+          config?: Json | null
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          mat_id?: number | null
+          match_number?: string | null
+          red_athlete_name?: string | null
+          red_round_wins?: number | null
+          started_at?: string | null
+          status?: string
+          winner_side?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

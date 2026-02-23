@@ -60,23 +60,14 @@ export interface ArcadeConfig {
   roundDurationSec: number;
   startingHP: number;
   bestOf: 1 | 3;
-  comboWindowMs: number;
-  energyPerKick: number;
-  energyMax: number;
-  // Differentiated damage by hit type
-  vestDamage: number;     // Base damage for vest hits
-  helmetDamage: number;   // Base damage for helmet hits (higher)
-  specialDamageBonus: number;
+  vestDamage: number;
+  helmetDamage: number;
   minIntervalMs: number;
-  recoveryIntervalSec: number;  // Recovery time between rounds (Best of 3)
+  recoveryIntervalSec: number;
 }
 
 export interface ArcadePlayerState {
   hp: number;
-  energy: number;
-  comboCount: number;
-  lastKickAt: number;
-  specialReady: boolean;
 }
 
 export interface ArcadeRoundResult {

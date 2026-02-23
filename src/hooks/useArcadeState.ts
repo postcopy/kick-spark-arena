@@ -5,42 +5,28 @@ const DEFAULT_ARCADE_CONFIG: ArcadeConfig = {
   roundDurationSec: 60,
   startingHP: 100,
   bestOf: 3,
-  comboWindowMs: 700,
-  energyPerKick: 0,
-  energyMax: 100,
   vestDamage: 1,
   helmetDamage: 1,
-  specialDamageBonus: 0,
   minIntervalMs: 150,
   recoveryIntervalSec: 15,
 };
-
-// Player state without combo fields
-type InternalPlayerState = Omit<ArcadePlayerState, 'comboCount' | 'lastKickAt'> & { comboCount: number; lastKickAt: number };
 
 const COUNTDOWN_DURATION = 6;
 
 const createInitialPlayerState = (hp: number): ArcadePlayerState => ({
   hp,
-  energy: 0,
-  comboCount: 0,
-  lastKickAt: 0,
-  specialReady: false,
 });
 
 interface UseArcadeStateOptions extends Partial<ArcadeConfig> {
   onHit?: () => void;
   onHitHeavy?: () => void;
-  
-  onSpecialReady?: () => void;
-  onSpecialAttack?: () => void;
   onKO?: () => void;
   onTimeUp?: () => void;
   onRoundEnd?: () => void;
 }
 
 export function useArcadeState(options: UseArcadeStateOptions = {}) {
-  const { onHit, onHitHeavy, onSpecialReady, onSpecialAttack, onKO, onTimeUp, onRoundEnd, ...config } = options;
+  const { onHit, onHitHeavy, onKO, onTimeUp, onRoundEnd, ...config } = options;
   
   const fullConfig = { 
     ...DEFAULT_ARCADE_CONFIG, 
@@ -58,8 +44,6 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
   
   // Visual feedback states
   const [flashSide, setFlashSide] = useState<Side | null>(null);
-  
-  const [showSpecialUsed, setShowSpecialUsed] = useState<Side | null>(null);
   const [showKO, setShowKO] = useState<Side | null>(null);
   const [lastDamage, setLastDamage] = useState<{ side: Side; amount: number; hitType: HitType } | null>(null);
   
@@ -99,7 +83,6 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     setRoundResults([]);
     setLastResult(null);
     setFlashSide(null);
-    setShowSpecialUsed(null);
     setShowKO(null);
     setLastDamage(null);
     setRecoveryCountdown(0);
@@ -123,7 +106,6 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     setBlueState(createInitialPlayerState(fullConfig.startingHP));
     setTimeLeft(fullConfig.roundDurationSec);
     setFlashSide(null);
-    setShowSpecialUsed(null);
     setShowKO(null);
     setLastDamage(null);
     lastKickTime.current = { red: 0, blue: 0 };
@@ -363,7 +345,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     redState,
     blueState,
     flashSide,
-    showSpecialUsed,
+    
     showKO,
     lastDamage,
     recoveryCountdown,

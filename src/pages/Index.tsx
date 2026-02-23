@@ -70,20 +70,13 @@ const Index = () => {
   // === Latest Ref Pattern: garantir callbacks de som sempre atualizados ===
   const playHitRef = useRef(() => play('hit'));
   const playHitHeavyRef = useRef(() => play('hitHeavy'));
-  const playComboRef = useRef(() => play('combo'));
-  const playSpecialReadyRef = useRef(() => play('specialReady'));
-  const playSpecialAttackRef = useRef(() => play('specialAttack'));
   const playKORef = useRef(() => play('ko'));
   const playErrorRef = useRef(() => play('erro'));
   const playTimeUpRef = useRef(() => play('timeUp'));
 
-  // Manter refs sincronizadas com a versão mais recente de play
   useEffect(() => {
     playHitRef.current = () => play('hit');
     playHitHeavyRef.current = () => play('hitHeavy');
-    playComboRef.current = () => play('combo');
-    playSpecialReadyRef.current = () => play('specialReady');
-    playSpecialAttackRef.current = () => play('specialAttack');
     playKORef.current = () => play('ko');
     playErrorRef.current = () => play('erro');
     playTimeUpRef.current = () => play('timeUp');
@@ -123,8 +116,6 @@ const Index = () => {
     recoveryIntervalSec: recoveryInterval,
     onHit: () => playHitRef.current(),
     onHitHeavy: () => playHitHeavyRef.current(),
-    onSpecialReady: () => playSpecialReadyRef.current(),
-    onSpecialAttack: () => playSpecialAttackRef.current(),
     onKO: () => playKORef.current(),
     onTimeUp: () => playTimeUpRef.current(),
     onRoundEnd: () => {
