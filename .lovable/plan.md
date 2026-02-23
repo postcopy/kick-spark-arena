@@ -1,78 +1,60 @@
 
 
-# Alinhar Dashboard ao Prototipo
+# Redesign Visual do Dashboard — Fidelidade ao Prototipo
 
-O Dashboard atual ja tem a estrutura de 4 abas e dados reais, mas falta implementar varias secoes do prototipo.
+## Problema
+O Dashboard atual usa componentes genericos do shadcn/ui (Card, Tabs) com estilo minimalista. O prototipo tem um visual gaming/e-sports com gradientes escuros, cores vibrantes, bordas coloridas e tipografia impactante.
 
-## Gaps identificados
+## Solucao
+Reescrever **apenas a camada visual** (JSX/CSS) do `Dashboard.tsx`, mantendo toda a logica de dados (loadDashboard, queries ao banco, calculos de KPIs, radar, insights) intacta.
 
-### Aba "Visao Geral"
-- **Falta**: Grafico "Distribuicao de Golpes" (PieChart colete vs capacete) — o prototipo mostra dois PieCharts lado a lado, o atual so tem "Uso por Modo"
+### Mudancas visuais principais
 
-### Aba "Atletas"
-- **Falta**: Ranking "Top Chutadores" com total de chutes, media por sessao e melhor sessao (dados de `solo_results`)
-- **Falta**: Indicador de streak (dias seguidos) nos cards de atleta
+**Header**:
+- Gradiente horizontal `#0f172a -> #1e1b4b -> #0f172a`
+- Logo S-FIGHT com gradiente vermelho/amarelo
+- Tabs customizadas com fundo vermelho quando ativa
+- Seletor de periodo (semana/mes/ano)
+- Sticky com backdrop-filter blur
 
-### Aba "Desempenho" (COMPLETAMENTE VAZIA)
-- **Falta**: LineChart "Evolucao do Tempo de Reacao" com top 3 atletas
-- **Falta**: RadarChart "Perfil Comparativo de Atletas" com metricas (velocidade, potencia, reacao, resistencia, precisao, consistencia)
-- **Falta**: Cards de Insight (Melhor Evolucao, Mais Consistente, Precisa de Atencao)
+**KPI Cards (StatCard)**:
+- Gradiente `#1a1a2e -> #16213e`
+- Borda colorida semi-transparente (`${color}33`)
+- Icone emoji gigante com opacidade 0.07 no canto
+- Valor com fonte 36px bold na cor do card
+- Subtitulo em cinza
 
-### Aba "Crescimento"
-- **Falta**: Linha de "Cancelamentos/Churn" no AreaChart (atletas que ficaram inativos)
-- **Falta**: Cards de insight (Taxa de Retencao, Ticket Medio, NPS) — exibir como "Em breve" para os que nao tem dados reais
-- **Falta**: Secao "Insights para Captacao" com dicas estaticas
+**Secoes e graficos**:
+- Fundo `#1a1a2e` com borda `#1e293b` e border-radius 16px
+- Titulos com emoji + texto branco
+- Tooltips com fundo `#1e1b4b` e borda `#312e81`
+- Graficos com grid `#1e293b` e eixos `#475569`
 
----
+**Aba Atletas**:
+- Cards com avatar gradiente vermelho/amarelo (ativo) ou cinza (inativo)
+- BeltBadge com cores de faixa
+- Indicador de streak com emoji fogo
+- Selecao com gradiente indigo
 
-## Implementacao
+**Aba Desempenho**:
+- LineChart e RadarChart com mesmo estilo do prototipo
+- Insight cards com gradientes tematicos (indigo, verde, vermelho)
 
-### 1. Visao Geral — adicionar PieChart de golpes
-- Buscar dados de `training_sessions.details` para contar golpes no colete vs capacete
-- Exibir dois PieCharts lado a lado: "Distribuicao de Golpes" + "Uso por Modo" (este ja existe)
+**Aba Crescimento**:
+- AreaChart com 3 linhas (ativos, novos, churn)
+- StatCards para Taxa de Retencao, Novos, Ticket Medio, NPS
+- Secao Insights para Captacao com cards escuros
 
-### 2. Atletas — Top Chutadores
-- Query em `solo_results` agrupada por `athlete_id`: SUM(kicks), AVG(kicks), MAX(kicks)
-- Renderizar ranking com posicao, nome, total, media e melhor
+**Footer**:
+- Texto discreto com borda superior
 
-### 3. Desempenho — preencher com graficos reais
+### O que NAO muda
+- Toda a funcao `loadDashboard()` (linhas 76-426) permanece identica
+- Interface `DashboardData` permanece identica
+- Queries ao banco permanecem identicas
+- Calculos de radar, insights, streak permanecem identicos
+- Imports do Recharts permanecem identicos
 
-**Evolucao de Reacao (LineChart)**:
-- Buscar `training_sessions` mode=reaction dos ultimos 60 dias
-- Agrupar por semana para os top 3 atletas com mais sessoes
-- Cada atleta = uma Line com cor diferente
-
-**Radar Comparativo (RadarChart)**:
-- Calcular metricas para top 3 atletas:
-  - Velocidade: kicks_per_second medio (de solo_results)
-  - Potencia: melhor score de chutes
-  - Reacao: inverso do avg_score (menor = melhor)
-  - Resistencia: total de sessoes
-  - Precisao: cognitiveAccuracy (se houver)
-  - Consistencia: desvio padrao baixo = melhor
-- Normalizar valores para escala 0-100
-- Importar `RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis` do Recharts
-
-**Cards de Insight**:
-- "Melhor Evolucao": atleta com maior reducao percentual no tempo de reacao
-- "Mais Consistente": atleta com mais sessoes nos ultimos 30 dias
-- "Precisa de Atencao": atleta ativo sem sessoes nos ultimos 14 dias (ou com piora)
-
-### 4. Crescimento — completar
-- Calcular churn: atletas que ficaram inativos por mes
-- Adicionar Area de "Cancelamentos" no grafico
-- Adicionar cards estaticos "Em breve" para NPS/Ticket Medio
-- Adicionar secao "Insights para Captacao" com textos inspiracionais (estaticos, como no prototipo)
-
----
-
-## Arquivos afetados
-- `src/pages/Dashboard.tsx` — unico arquivo modificado
-
-## Dados necessarios (novas queries)
-- `solo_results` com athlete_id, kicks, kicks_per_second (para top chutadores e radar)
-- `training_sessions` mode=reaction de 60 dias (para evolucao por atleta)
-- Calculo de churn a partir de `athletes.is_active` e `created_at`
-
-Nenhuma migration ou tabela nova necessaria.
+### Arquivo afetado
+- `src/pages/Dashboard.tsx` — reescrever apenas o JSX (return) e componentes auxiliares (KPICard, ComingSoonCard), substituindo por inline styles fieis ao prototipo
 
