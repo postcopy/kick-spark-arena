@@ -19,6 +19,7 @@ import ChampionshipMat from "./pages/ChampionshipMat";
 import ChampionshipTV from "./pages/ChampionshipTV";
 import Students from "./pages/Students";
 import StudentProfile from "./pages/StudentProfile";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/ranking" element={<ProtectedRoute><Ranking /></ProtectedRoute>} />
               <Route path="/championship/mat" element={<ProtectedRoute><ChampionshipMat /></ProtectedRoute>} />
               <Route path="/championship/tv" element={<ProtectedRoute><ChampionshipTV /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/students" element={<ProtectedRoute><Students /></ProtectedRoute>} />
               <Route path="/students/:id" element={<ProtectedRoute><StudentProfile /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
