@@ -1,122 +1,78 @@
 
 
-# Fase 2: Dashboard da Academia + Perfil Completo + Filtros de Atletas
+# Alinhar Dashboard ao Prototipo
 
-## Visao Geral
+O Dashboard atual ja tem a estrutura de 4 abas e dados reais, mas falta implementar varias secoes do prototipo.
 
-Implementar 3 melhorias baseadas no prototipo enviado (`dashboard-prototype.jsx`), adaptando o design inline-style para Tailwind CSS e conectando aos dados reais do banco.
+## Gaps identificados
 
----
+### Aba "Visao Geral"
+- **Falta**: Grafico "Distribuicao de Golpes" (PieChart colete vs capacete) — o prototipo mostra dois PieCharts lado a lado, o atual so tem "Uso por Modo"
 
-## 1. Filtros e Busca de Atletas (`Students.tsx`)
+### Aba "Atletas"
+- **Falta**: Ranking "Top Chutadores" com total de chutes, media por sessao e melhor sessao (dados de `solo_results`)
+- **Falta**: Indicador de streak (dias seguidos) nos cards de atleta
 
-**Mudancas:**
-- Barra de pesquisa por nome/apelido (client-side, `useState` + `.filter()`)
-- Chips de filtro por faixa (branca, amarela, verde, etc.)
-- Toggle para mostrar inativos (query atual filtra `is_active = true`; mudar para buscar todos e filtrar client-side)
-- Contador dinamico que reflete filtros aplicados
+### Aba "Desempenho" (COMPLETAMENTE VAZIA)
+- **Falta**: LineChart "Evolucao do Tempo de Reacao" com top 3 atletas
+- **Falta**: RadarChart "Perfil Comparativo de Atletas" com metricas (velocidade, potencia, reacao, resistencia, precisao, consistencia)
+- **Falta**: Cards de Insight (Melhor Evolucao, Mais Consistente, Precisa de Atencao)
 
-**Arquivos:** `src/pages/Students.tsx`
-
----
-
-## 2. Dashboard da Academia (nova pagina)
-
-Baseado nas 4 tabs do prototipo: Visao Geral, Atletas, Desempenho, Crescimento.
-
-**Adaptacoes do prototipo para producao:**
-- Substituir inline styles por Tailwind CSS (classes do projeto)
-- Substituir mock data por queries reais ao banco (`athletes`, `training_sessions`, `solo_results`, `championship_matches`)
-- Usar componentes shadcn/ui existentes (`Card`, `Badge`, `Button`, `Tabs`)
-- Manter Recharts (ja instalado) para todos os graficos
-
-**Secoes com dados reais:**
-- **KPI Cards**: Total atletas ativos, sessoes na semana, total de chutes (via `solo_results`), media de reacao (via `training_sessions` mode=reaction)
-- **Sessoes da Semana**: `BarChart` agrupando `training_sessions` por dia da semana
-- **Atividade Recente**: Ultimas 5 sessoes com nome do atleta (join com `athletes`)
-- **Distribuicao de Golpes**: `PieChart` — dados de `training_sessions.details` (colete vs capacete)
-- **Uso por Modo**: `PieChart` — contagem de `training_sessions` agrupado por `mode`
-- **Top Chutadores**: Ranking por total de chutes (via `solo_results` ou `training_sessions` details)
-- **Evolucao de Reacao**: `LineChart` com top 3 atletas mais ativos
-- **Radar Comparativo**: Sera preenchido com metricas calculadas (velocidade = kicks/s, reacao = avg_score, etc.)
-- **Cards de Insight**: Calculados dinamicamente (melhor evolucao, mais consistente, precisa de atencao)
-- **Crescimento**: `AreaChart` com novos atletas por mes (via `athletes.created_at`)
-
-**Secoes simplificadas (sem dados reais disponiveis):**
-- Taxa de retencao, ticket medio, NPS — exibidos como "Em breve" ou omitidos (nao ha tabela de pagamentos/feedback)
-- Insights de captacao — texto estatico inspiracional (como no prototipo)
-
-**Arquivos:** 
-- `src/pages/Dashboard.tsx` (novo)
-- `src/App.tsx` (adicionar rota `/dashboard` com `ProtectedRoute`)
+### Aba "Crescimento"
+- **Falta**: Linha de "Cancelamentos/Churn" no AreaChart (atletas que ficaram inativos)
+- **Falta**: Cards de insight (Taxa de Retencao, Ticket Medio, NPS) — exibir como "Em breve" para os que nao tem dados reais
+- **Falta**: Secao "Insights para Captacao" com dicas estaticas
 
 ---
 
-## 3. Perfil do Atleta Completo (`StudentProfile.tsx`)
+## Implementacao
 
-**Problema atual:** So mostra KPIs e grafico de Reacao. Sessoes de Time Attack e Arcade aparecem no historico mas sem metricas proprias.
+### 1. Visao Geral — adicionar PieChart de golpes
+- Buscar dados de `training_sessions.details` para contar golpes no colete vs capacete
+- Exibir dois PieCharts lado a lado: "Distribuicao de Golpes" + "Uso por Modo" (este ja existe)
 
-**Melhorias:**
+### 2. Atletas — Top Chutadores
+- Query em `solo_results` agrupada por `athlete_id`: SUM(kicks), AVG(kicks), MAX(kicks)
+- Renderizar ranking com posicao, nome, total, media e melhor
 
-### KPIs adicionais (acima do grafico)
-- **Time Attack**: Melhor score (chutes), media de chutes — via `training_sessions` mode=time_attack ou `solo_results`
-- **Arcade**: Vitorias/Derrotas, total de lutas — via `training_sessions` mode=arcade, details contendo resultado
-- **Campeonato**: Lutas disputadas, vitorias — via `championship_matches` filtrando por `red_athlete_name` ou `blue_athlete_name` == athlete.name
+### 3. Desempenho — preencher com graficos reais
 
-### Historico multi-modo
-- Icones diferenciados para cada modo (ja existe para Reacao/Cognitivo, adicionar Time Attack e Arcade)
-- Metricas por modo no item do historico:
-  - Reacao: avg_score em ms
-  - Time Attack: total de chutes + duracao
-  - Arcade: resultado (W/L) + HP restante
+**Evolucao de Reacao (LineChart)**:
+- Buscar `training_sessions` mode=reaction dos ultimos 60 dias
+- Agrupar por semana para os top 3 atletas com mais sessoes
+- Cada atleta = uma Line com cor diferente
 
-### Grafico com tabs de modo
-- Tab "Reacao" (atual): AreaChart com avg_score
-- Tab "Time Attack": BarChart com chutes por sessao
-- Tab "Arcade": linha de vitorias acumuladas
+**Radar Comparativo (RadarChart)**:
+- Calcular metricas para top 3 atletas:
+  - Velocidade: kicks_per_second medio (de solo_results)
+  - Potencia: melhor score de chutes
+  - Reacao: inverso do avg_score (menor = melhor)
+  - Resistencia: total de sessoes
+  - Precisao: cognitiveAccuracy (se houver)
+  - Consistencia: desvio padrao baixo = melhor
+- Normalizar valores para escala 0-100
+- Importar `RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis` do Recharts
 
-**Arquivos:** `src/pages/StudentProfile.tsx`
+**Cards de Insight**:
+- "Melhor Evolucao": atleta com maior reducao percentual no tempo de reacao
+- "Mais Consistente": atleta com mais sessoes nos ultimos 30 dias
+- "Precisa de Atencao": atleta ativo sem sessoes nos ultimos 14 dias (ou com piora)
+
+### 4. Crescimento — completar
+- Calcular churn: atletas que ficaram inativos por mes
+- Adicionar Area de "Cancelamentos" no grafico
+- Adicionar cards estaticos "Em breve" para NPS/Ticket Medio
+- Adicionar secao "Insights para Captacao" com textos inspiracionais (estaticos, como no prototipo)
 
 ---
 
-## Detalhes Tecnicos
+## Arquivos afetados
+- `src/pages/Dashboard.tsx` — unico arquivo modificado
 
-### Queries do Dashboard
+## Dados necessarios (novas queries)
+- `solo_results` com athlete_id, kicks, kicks_per_second (para top chutadores e radar)
+- `training_sessions` mode=reaction de 60 dias (para evolucao por atleta)
+- Calculo de churn a partir de `athletes.is_active` e `created_at`
 
-```text
--- Atletas ativos
-SELECT count(*) FROM athletes WHERE academy_id = uid AND is_active = true
-
--- Sessoes ultimos 7 dias
-SELECT count(*) FROM training_sessions WHERE academy_id = uid AND created_at >= now() - 7 days
-
--- Sessoes por dia (ultimos 7 dias)
-SELECT date_trunc('day', created_at) as day, count(*) 
-FROM training_sessions WHERE academy_id = uid AND created_at >= now() - 7 days
-GROUP BY day
-
--- Ultimas 5 sessoes com athlete_id para join
-SELECT ts.*, a.name FROM training_sessions ts
-JOIN athletes a ON a.id = ts.athlete_id
-WHERE ts.academy_id = uid ORDER BY ts.created_at DESC LIMIT 5
-
--- Uso por modo
-SELECT mode, count(*) FROM training_sessions WHERE academy_id = uid GROUP BY mode
-
--- Top 5 atletas por sessoes
-SELECT athlete_id, count(*) as total FROM training_sessions 
-WHERE academy_id = uid GROUP BY athlete_id ORDER BY total DESC LIMIT 5
-```
-
-Todas executadas client-side via Supabase JS SDK. Nao requerem novas tabelas ou migrations.
-
-### Estrutura do Dashboard
-
-O componente `Dashboard.tsx` usara `Tabs` do shadcn/ui para as 4 abas. Cada aba sera um componente inline (nao extraido para arquivo separado) para simplicidade inicial. Os dados serao carregados em um unico `useEffect` no mount.
-
-### Ordem de Execucao
-
-1. **Filtros em Students.tsx** — mais rapido, independente
-2. **Dashboard.tsx + rota** — nova pagina com dados reais
-3. **StudentProfile.tsx expandido** — refatoracao do perfil existente
+Nenhuma migration ou tabela nova necessaria.
 
