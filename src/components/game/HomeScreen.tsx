@@ -8,6 +8,7 @@ import { EquipmentStatus } from './EquipmentStatus';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSound } from '@/contexts/SoundContext';
 import type { GameMode } from '@/types/game';
+import { cn } from '@/lib/utils';
 
 interface HomeScreenProps {
   onSelectMode: (mode: GameMode) => void;
@@ -91,7 +92,19 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
 
       <div className="relative z-10 flex flex-col h-full w-full">
       {/* Header - translucent bar */}
-      <header className="flex-shrink-0 w-full flex items-center justify-end px-4 md:px-6 py-3 bg-white/5 backdrop-blur-sm border-b border-white/10">
+      <header className="flex-shrink-0 w-full flex items-center justify-between px-4 md:px-6 py-3 bg-white/5 backdrop-blur-sm border-b border-white/10">
+        {/* USB Status Indicator */}
+        <div className="flex items-center gap-2">
+          <div className={cn(
+            "w-2.5 h-2.5 rounded-full",
+            serialPort?.isConnected 
+              ? "bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" 
+              : "bg-red-500/60"
+          )} />
+          <span className="font-mono text-xs text-white/40">
+            {serialPort?.isConnected ? 'USB' : 'Offline'}
+          </span>
+        </div>
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs text-white/50 hidden sm:block">
             {user?.email?.split('@')[0]}
@@ -129,24 +142,34 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
                 onClick={() => handleClick(mode.id)}
                 className={`group relative cyber-card flex flex-col items-center text-center border p-4 md:p-6 lg:p-8
                   ${mode.borderColor}
-                  hover:scale-[1.02] active:scale-[0.97]
+                  hover:scale-[1.03] active:scale-[0.97]
                   transition-all duration-300 ease-out
                   min-h-[140px] md:min-h-[200px] lg:min-h-[280px]`}
                 style={{
                   background: `linear-gradient(180deg, #0f172a 0%, #0b1120 60%, ${mode.color}08 100%)`,
+                  '--mode-glow': mode.color,
+                } as React.CSSProperties}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = `0 0 30px ${mode.color}30, inset 0 0 30px ${mode.color}08`;
+                  e.currentTarget.style.background = `linear-gradient(180deg, #0f172a 0%, #0b1120 40%, ${mode.color}15 100%)`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '';
+                  e.currentTarget.style.background = `linear-gradient(180deg, #0f172a 0%, #0b1120 60%, ${mode.color}08 100%)`;
                 }}
               >
                 {/* LED icon */}
                 <div
-                  className="led-glow w-14 h-14 md:w-18 md:h-18 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-3 md:mb-5"
+                  className="led-glow w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 rounded-full flex items-center justify-center mb-3 md:mb-5 transition-transform duration-300 group-hover:scale-110"
                   style={{
                     '--led-color': mode.ledColor,
                     background: `radial-gradient(circle, ${mode.color}18 0%, transparent 70%)`,
                   } as React.CSSProperties}
                 >
                   <Icon
-                    className={`w-7 h-7 md:w-9 md:h-9 lg:w-10 lg:h-10 ${mode.textColor} drop-shadow-[0_0_8px_${mode.color}]`}
+                    className={`w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 ${mode.textColor} transition-all duration-300 group-hover:drop-shadow-[0_0_16px_${mode.color}]`}
                     strokeWidth={2.5}
+                    style={{ filter: `drop-shadow(0 0 8px ${mode.color})` }}
                   />
                 </div>
 

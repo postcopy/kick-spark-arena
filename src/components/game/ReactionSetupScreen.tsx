@@ -4,7 +4,8 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { useSound } from '@/contexts/SoundContext';
-import { ChevronRight, HelpCircle } from 'lucide-react';
+import { ChevronRight, HelpCircle, Settings2 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ReactionLevel, ReactionConfig } from '@/types/reaction';
 import { REACTION_PRESETS, LEVEL_LABELS } from '@/types/reaction';
 import { AthletePickerDialog } from './AthletePickerDialog';
@@ -168,68 +169,70 @@ export function ReactionSetupScreen({
           <MissionBriefing text={activePreset !== 'custom' ? LEVEL_BRIEFINGS[activePreset as ReactionLevel] || '' : 'CONFIGURAÇÃO PERSONALIZADA: Parâmetros ajustados manualmente.'} />
         </div>
 
-        {/* Row 2: Training Parameters */}
-        <div className="bg-black/20 p-3 md:p-4 rounded-xl border border-white/10 flex-shrink-0">
-          <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-white/40 mb-3">
-            PARÂMETROS DO TREINO
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">
-                Trabalho (s)
-              </label>
-              <Input
-                type="number" min={5} max={120} value={config.workSec}
-                onChange={(e) => updateField('workSec', Number(e.target.value))}
-                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
-              />
+        {/* Row 2: Training Parameters - Collapsible */}
+        <Collapsible className="flex-shrink-0">
+          <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 bg-black/20 border border-white/10 rounded-xl hover:bg-white/5 transition-colors">
+            <div className="flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-white/40" />
+              <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">
+                {activePreset === 'custom' ? 'PARÂMETROS PERSONALIZADOS' : 'Personalizar parâmetros'}
+              </span>
             </div>
-            <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">
-                Descanso (s)
-              </label>
-              <Input
-                type="number" min={5} max={120} value={config.restSec}
-                onChange={(e) => updateField('restSec', Number(e.target.value))}
-                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
-              />
+            <ChevronRight className="w-4 h-4 text-white/30 transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 bg-black/20 p-3 md:p-4 rounded-xl border border-white/10 data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Trabalho (s)</label>
+                <Input
+                  type="number" min={5} max={120} value={config.workSec}
+                  onChange={(e) => updateField('workSec', Number(e.target.value))}
+                  className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Descanso (s)</label>
+                <Input
+                  type="number" min={5} max={120} value={config.restSec}
+                  onChange={(e) => updateField('restSec', Number(e.target.value))}
+                  className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Rounds</label>
+                <Input
+                  type="number" min={1} max={20} value={config.rounds}
+                  onChange={(e) => updateField('rounds', Number(e.target.value))}
+                  className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Tempo do alvo (ms)</label>
+                <Input
+                  type="number" min={200} max={3000} step={100} value={config.flashMs}
+                  onChange={(e) => updateField('flashMs', Number(e.target.value))}
+                  className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Intervalo mín (ms)</label>
+                <Input
+                  type="number" min={100} max={5000} step={100} value={config.gapMs.min}
+                  onChange={(e) => updateField('gapMin', Number(e.target.value))}
+                  className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Intervalo máx (ms)</label>
+                <Input
+                  type="number" min={100} max={5000} step={100} value={config.gapMs.max}
+                  onChange={(e) => updateField('gapMax', Number(e.target.value))}
+                  className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">
-                Rounds
-              </label>
-              <Input
-                type="number" min={1} max={20} value={config.rounds}
-                onChange={(e) => updateField('rounds', Number(e.target.value))}
-                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Tempo do alvo (ms)</label>
-              <Input
-                type="number" min={200} max={3000} step={100} value={config.flashMs}
-                onChange={(e) => updateField('flashMs', Number(e.target.value))}
-                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Intervalo mín (ms)</label>
-              <Input
-                type="number" min={100} max={5000} step={100} value={config.gapMs.min}
-                onChange={(e) => updateField('gapMin', Number(e.target.value))}
-                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Intervalo máx (ms)</label>
-              <Input
-                type="number" min={100} max={5000} step={100} value={config.gapMs.max}
-                onChange={(e) => updateField('gapMax', Number(e.target.value))}
-                className="h-8 bg-white/10 border-white/10 text-white font-mono text-sm rounded-none"
-              />
-            </div>
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Row 3: Cognitive + Rules */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">

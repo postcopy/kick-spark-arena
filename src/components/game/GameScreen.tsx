@@ -209,13 +209,17 @@ export function GameScreen({
 
               {/* Coluna Central: Hero Counter */}
               <div className="col-span-6 flex flex-col items-center justify-center">
-                <span className={cn(
-                  'font-black italic text-[#FFD700] leading-none transition-transform duration-100',
-                  flashSide ? 'scale-110' : 'scale-100'
-                )} style={{ 
-                  fontSize: 'clamp(11.5rem, 17.25vw, 23rem)',
-                  filter: 'drop-shadow(0 0 40px rgba(255,215,0,0.5))'
-                }}>
+                <span 
+                  key={totalKicks}
+                  className={cn(
+                    'font-black italic text-[#FFD700] leading-none',
+                    flashSide ? 'animate-[hit-pulse_150ms_ease-out]' : ''
+                  )} 
+                  style={{ 
+                    fontSize: 'clamp(11.5rem, 17.25vw, 23rem)',
+                    filter: 'drop-shadow(0 0 40px rgba(255,215,0,0.5))'
+                  }}
+                >
                   {totalKicks}
                 </span>
                 <span className="text-2xl text-white/40 uppercase tracking-[0.5em] mt-2">
@@ -225,7 +229,7 @@ export function GameScreen({
 
               {/* Coluna Direita: Gauge CPM */}
               <div className="col-span-3 flex flex-col items-center justify-center">
-                <div className="relative" style={{ width: 'clamp(10rem, 15vw, 16rem)', height: 'clamp(10rem, 15vw, 16rem)' }}>
+                <div className="relative" style={{ width: 'clamp(7rem, 12vw, 12rem)', height: 'clamp(7rem, 12vw, 12rem)' }}>
                   <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
                     {/* Background arc */}
                     <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="10" 
@@ -337,20 +341,34 @@ export function GameScreen({
               <div className="col-span-2 flex flex-col items-center justify-center gap-4">
                 <span className="text-4xl font-black text-white/20 italic">VS</span>
                 {/* Tug-of-war bar */}
-                <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 rounded-full transition-all duration-300"
-                    style={{ width: `${redPercent}%` }} />
+                <div className="h-4 w-full bg-white/10 rounded-full overflow-hidden relative">
+                  <div 
+                    className="absolute inset-y-0 left-0 rounded-l-full transition-all duration-300"
+                    style={{ 
+                      width: `${redPercent}%`,
+                      background: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)',
+                      boxShadow: scores.red >= scores.blue ? '0 0 12px rgba(239,68,68,0.5)' : 'none'
+                    }} 
+                  />
+                  <div 
+                    className="absolute inset-y-0 right-0 rounded-r-full transition-all duration-300"
+                    style={{ 
+                      width: `${100 - redPercent}%`,
+                      background: 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 100%)',
+                      boxShadow: scores.blue > scores.red ? '0 0 12px rgba(59,130,246,0.5)' : 'none'
+                    }} 
+                  />
                 </div>
                 {/* Score diff */}
                 {scoreDiff > 0 && (
                   <span className={cn(
-                    "text-2xl font-bold tabular-nums",
+                    "text-4xl font-black tabular-nums",
                     scores.red > scores.blue ? "text-red-400" : "text-blue-400"
-                  )}>
+                  )} style={{ filter: `drop-shadow(0 0 10px ${scores.red > scores.blue ? 'rgba(239,68,68,0.4)' : 'rgba(59,130,246,0.4)'})` }}>
                     +{scoreDiff}
                   </span>
                 )}
-                <span className="text-sm text-white/30 font-mono tabular-nums">
+                <span className="text-base text-white/40 font-mono tabular-nums font-bold">
                   Total: {totalDuo}
                 </span>
               </div>

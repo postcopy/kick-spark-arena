@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { useSound } from '@/contexts/SoundContext';
-import { ChevronRight, HelpCircle } from 'lucide-react';
+import { ChevronRight, HelpCircle, Settings2 } from 'lucide-react';
 import { MissionBriefing } from './MissionBriefing';
 import { SetupTutorialDialog } from './SetupTutorialDialog';
 import { useIdleAttention } from '@/hooks/useIdleAttention';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import bgMenuModos from '@/assets/menu-modos.jpg';
 
 interface ArcadeSetupScreenProps {
@@ -138,82 +139,91 @@ export function ArcadeSetupScreen({
           <MissionBriefing text={BRIEFING_TEXTS[selectedPreset] || ''} />
         </div>
 
-        {/* Controls Panel */}
-        <div className="flex-shrink-0 bg-black/20 p-4 md:p-6 rounded-xl border border-white/10 mb-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            {/* Left Column: Round Duration Slider */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">TEMPO DO ROUND</span>
-                <span className="font-mono text-white/70 text-xl md:text-2xl font-black">{roundDuration}s</span>
-              </div>
-              <Slider
-                value={[roundDuration]}
-                onValueChange={(values) => onRoundDurationChange(values[0])}
-                min={15}
-                max={120}
-                step={5}
-                className="w-full"
-                trackClassName="h-1 bg-white/10 rounded-none"
-                rangeClassName="bg-[#FFD700]"
-                thumbClassName="w-3 h-3 rounded-none bg-[#FFD700] border-none"
-              />
-              <div className="flex justify-between font-mono text-xs text-white/30 mt-1">
-                <span>15s</span>
-                <span>120s</span>
-              </div>
+        {/* Controls Panel - Collapsible */}
+        <Collapsible className="flex-shrink-0 mb-3">
+          <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 bg-black/20 border border-white/10 rounded-xl hover:bg-white/5 transition-colors">
+            <div className="flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-white/40" />
+              <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">Ajustes avançados</span>
             </div>
-
-            {/* Right Column: Format + Interval stacked */}
-            <div className="space-y-3">
-              {/* Best Of - Segmented Control */}
+            <ChevronRight className="w-4 h-4 text-white/30 transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 bg-black/20 p-4 md:p-6 rounded-xl border border-white/10 data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              {/* Left Column: Round Duration Slider */}
               <div>
-                <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/40 block mb-2">FORMATO</span>
-                <div className="flex bg-black/40 rounded-lg p-1 gap-1">
-                  {BEST_OF_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => onBestOfChange(option.value)}
-                      className={cn(
-                        "flex-1 py-2 px-4 rounded-md font-bold text-base font-mono transition-all",
-                        bestOf === option.value
-                          ? "bg-white/10 text-white shadow-sm"
-                          : "text-white/40 bg-transparent hover:text-white/60"
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">TEMPO DO ROUND</span>
+                  <span className="font-mono text-white/70 text-xl md:text-2xl font-black">{roundDuration}s</span>
+                </div>
+                <Slider
+                  value={[roundDuration]}
+                  onValueChange={(values) => onRoundDurationChange(values[0])}
+                  min={15}
+                  max={120}
+                  step={5}
+                  className="w-full"
+                  trackClassName="h-1 bg-white/10 rounded-none"
+                  rangeClassName="bg-[#FFD700]"
+                  thumbClassName="w-3 h-3 rounded-none bg-[#FFD700] border-none"
+                />
+                <div className="flex justify-between font-mono text-xs text-white/30 mt-1">
+                  <span>15s</span>
+                  <span>120s</span>
                 </div>
               </div>
 
-              {/* Recovery Interval - Only visible when Best of 3 */}
-              {bestOf === 3 && (
+              {/* Right Column: Format + Interval stacked */}
+              <div className="space-y-3">
+                {/* Best Of - Segmented Control */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">INTERVALO</span>
-                    <span className="font-mono text-white/70 text-xl md:text-2xl font-black">{recoveryInterval}s</span>
-                  </div>
-                  <Slider
-                    value={[recoveryInterval]}
-                    onValueChange={(values) => onRecoveryIntervalChange(values[0])}
-                    min={5}
-                    max={60}
-                    step={5}
-                    className="w-full"
-                    trackClassName="h-1 bg-white/10 rounded-none"
-                    rangeClassName="bg-[#FFD700]"
-                    thumbClassName="w-3 h-3 rounded-none bg-[#FFD700] border-none"
-                  />
-                  <div className="flex justify-between font-mono text-xs text-white/30 mt-1">
-                    <span>5s</span>
-                    <span>60s</span>
+                  <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/40 block mb-2">FORMATO</span>
+                  <div className="flex bg-black/40 rounded-lg p-1 gap-1">
+                    {BEST_OF_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => onBestOfChange(option.value)}
+                        className={cn(
+                          "flex-1 py-2 px-4 rounded-md font-bold text-base font-mono transition-all",
+                          bestOf === option.value
+                            ? "bg-white/10 text-white shadow-sm"
+                            : "text-white/40 bg-transparent hover:text-white/60"
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
+
+                {/* Recovery Interval - Only visible when Best of 3 */}
+                {bestOf === 3 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">INTERVALO</span>
+                      <span className="font-mono text-white/70 text-xl md:text-2xl font-black">{recoveryInterval}s</span>
+                    </div>
+                    <Slider
+                      value={[recoveryInterval]}
+                      onValueChange={(values) => onRecoveryIntervalChange(values[0])}
+                      min={5}
+                      max={60}
+                      step={5}
+                      className="w-full"
+                      trackClassName="h-1 bg-white/10 rounded-none"
+                      rangeClassName="bg-[#FFD700]"
+                      thumbClassName="w-3 h-3 rounded-none bg-[#FFD700] border-none"
+                    />
+                    <div className="flex justify-between font-mono text-xs text-white/30 mt-1">
+                      <span>5s</span>
+                      <span>60s</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Footer: Rules + Action Buttons */}
         <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-end">
