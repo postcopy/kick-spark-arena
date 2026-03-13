@@ -1,0 +1,835 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type {
+  HardwareRawPacket,
+  HardwareStats,
+  HardwareSample,
+  HardwareThresholds,
+  DeviceLabels,
+  DiagnosticsStorage,
+  DiagnosticsStorageV1,
+  SampleCategory,
+  UseHardwareDiagnosticsOptions,
+  UseHardwareDiagnosticsReturn,
+  ImpactEvent,
+  NoiseFloor,
+  ObservedScale,
+  DiagnosticsViewMode,
+  CalibrationWizardState,
+  CalibrationWizardStep,
+} from '@/types/hardwareDiagnostics';
+import { ImpactDetector } from '@/lib/impactDetector';
+
+// Portable timeout type (works in browser without NodeJS types)
+type TimeoutHandle = ReturnType<typeof setTimeout>;
+
+// Constants
+const MAX_MEMORY_EVENTS = 2000;
+const MAX_PERSISTED_EVENTS = 300;
+const MAX_IMPACTS = 500;
+const SAVE_DEBOUNCE_MS = 2000;
+const PEAK_HOLD_MS = 2000;
+const UI_THROTTLE_MS = 100;
+const DEFAULT_SAMPLE_DURATION_MS = 12000;
+const CALIBRATION_DURATION_MS = 3000;
+const WIZARD_STEP_DURATION_MS = 8000; // 8 seconds per wizard step
+
+const DEFAULT_DEVICE_LABELS: DeviceLabels = {
+  '1': 'Colete Azul',
+  '2': 'Colete Vermelho',
+  '3': 'Capacete Azul',
+  '4': 'Capacete Vermelho',
+};
+
+const DEFAULT_THRESHOLDS: HardwareThresholds = {
+  vestHitMin: 150,
+  vestPointMin: 400,
+  helmetHitMin: 100,
+  helmetPointMin: 300,
+};
+
+const DEFAULT_OBSERVED_SCALE: ObservedScale = {
+  globalMin: Infinity,
+  globalMax: 0,
+  observedSince: Date.now(),
+};
+
+const DEFAULT_WIZARD_STATE: CalibrationWizardState = {
+  step: 'idle',
+  stepStartedAt: null,
+  stepDurationMs: WIZARD_STEP_DURATION_MS,
+  raspagem: { impacts: [], stats: null },
+  toque: { impacts: [], stats: null },
+  ponto: { impacts: [], stats: null },
+  suggestedThresholds: null,
+};
+
+// Active impact state removed -- now using shared ImpactDetector
+
+// Calculate stats with correct percentiles
+function calculateStats(intensities: number[]): HardwareStats {
+  if (intensities.length === 0) {
+    return { count: 0, min: 0, max: 0, avg: 0, p90: 0, p95: 0 };
+  }
+  
+  const n = intensities.length;
+  const sorted = [...intensities].sort((a, b) => a - b);
+  
+  const sum = intensities.reduce((a, b) => a + b, 0);
+  const avg = Math.round(sum / n);
+  
+  const p90Index = Math.floor(0.90 * (n - 1));
+  const p95Index = Math.floor(0.95 * (n - 1));
+  
+  return {
+    count: n,
+    min: sorted[0],
+    max: sorted[n - 1],
+    avg,
+    p90: sorted[p90Index],
+    p95: sorted[p95Index],
+  };
+}
+
+function calculateAllStats(events: HardwareRawPacket[]): Record<string, HardwareStats> {
+  const byDevice: Record<string, number[]> = {};
+  
+  for (const evt of events) {
+    const key = String(evt.deviceId);
+    if (!byDevice[key]) byDevice[key] = [];
+    byDevice[key].push(evt.intensity);
+  }
+  
+  const result: Record<string, HardwareStats> = {};
+  for (const [deviceId, intensities] of Object.entries(byDevice)) {
+    result[deviceId] = calculateStats(intensities);
+  }
+  
+  return result;
+}
+
+function calculateImpactStats(impacts: ImpactEvent[]): Record<string, HardwareStats> {
+  const byDevice: Record<string, number[]> = {};
+  
+  for (const impact of impacts) {
+    const key = String(impact.deviceId);
+    if (!byDevice[key]) byDevice[key] = [];
+    byDevice[key].push(impact.peakIntensity);
+  }
+  
+  const result: Record<string, HardwareStats> = {};
+  for (const [deviceId, peaks] of Object.entries(byDevice)) {
+    result[deviceId] = calculateStats(peaks);
+  }
+  
+  return result;
+}
+
+// CSV escaping
+function escapeCSV(value: string | number): string {
+  const str = String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function generateEventsCSV(events: HardwareRawPacket[]): string {
+  const header = 'ts_iso,deviceId,intensity,battery';
+  const rows = events.map(e => [
+    new Date(e.ts).toISOString(),
+    e.deviceId,
+    e.intensity,
+    e.battery ?? ''
+  ].map(escapeCSV).join(','));
+  return [header, ...rows].join('\n');
+}
+
+function generateImpactsCSV(impacts: ImpactEvent[]): string {
+  const header = 'id,deviceId,startedAt_iso,endedAt_iso,durationMs,peakIntensity,avgIntensity,packetCount';
+  const rows = impacts.map(i => [
+    i.id,
+    i.deviceId,
+    new Date(i.startedAt).toISOString(),
+    new Date(i.endedAt).toISOString(),
+    i.durationMs,
+    i.peakIntensity,
+    i.avgIntensity,
+    i.packetCount,
+  ].map(escapeCSV).join(','));
+  return [header, ...rows].join('\n');
+}
+
+function generateSamplesCSV(samples: HardwareSample[]): string {
+  const header = 'sampleId,label,category,deviceId,count,min,max,avg,p90,p95';
+  const rows: string[] = [];
+  
+  samples.forEach(sample => {
+    Object.entries(sample.statsByDevice).forEach(([deviceId, stats]) => {
+      rows.push([
+        sample.id,
+        escapeCSV(sample.label),
+        sample.category,
+        deviceId,
+        stats.count,
+        stats.min,
+        stats.max,
+        stats.avg,
+        stats.p90,
+        stats.p95
+      ].join(','));
+    });
+  });
+  
+  return [header, ...rows].join('\n');
+}
+
+function downloadFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOptions): UseHardwareDiagnosticsReturn {
+  // === REFS (no re-render per packet) ===
+  const eventsRef = useRef<HardwareRawPacket[]>([]);
+  const impactsRef = useRef<ImpactEvent[]>([]);
+  const detectorRef = useRef<ImpactDetector>(new ImpactDetector());
+  const lastPacketRef = useRef<HardwareRawPacket | null>(null);
+  const peakRef = useRef<{ value: number; timeout: TimeoutHandle | null }>({ value: 0, timeout: null });
+  const dirtyRef = useRef(false);
+  const lastUiTsRef = useRef<number | null>(null);
+  const uiDirtyTickRef = useRef(0);
+  const createdAtRef = useRef<number>(Date.now());
+  const saveTimeoutRef = useRef<TimeoutHandle | null>(null);
+  
+  // Noise floor and observed scale refs
+  const noiseFloorRef = useRef<NoiseFloor>({});
+  const observedScaleRef = useRef<ObservedScale>({ ...DEFAULT_OBSERVED_SCALE });
+  
+  // Calibration refs
+  const calibrationBufferRef = useRef<Map<number, number[]>>(new Map());
+  const isCalibrationActiveRef = useRef(false);
+  const calibrationStartRef = useRef<number>(0);
+  
+  // View mode ref (synced with state)
+  const viewModeRef = useRef<DiagnosticsViewMode>('impacts');
+  
+  // Recording refs
+  const recordingRef = useRef(false);
+  const sampleBufferRef = useRef<HardwareRawPacket[]>([]);
+  const recordingStartRef = useRef<number>(0);
+  const recordingDurationRef = useRef<number>(DEFAULT_SAMPLE_DURATION_MS);
+  const recordingLabelRef = useRef<string>('');
+  const recordingCategoryRef = useRef<SampleCategory>('OUTRO');
+  const recordingIntervalRef = useRef<TimeoutHandle | null>(null);
+  
+  // Wizard refs
+  const wizardImpactsRef = useRef<ImpactEvent[]>([]);
+  const wizardActiveRef = useRef<CalibrationWizardStep>('idle');
+  const wizardModeRef = useRef(false);  // Relaxes anti-noise criteria during wizard
+  const wizardRawCountRef = useRef(0);  // Raw packet counter for wizard
+  const wizardLastImpactRef = useRef<ImpactEvent | null>(null);
+  
+  // === UI STATES (throttled) ===
+  const [uiLastPacket, setUiLastPacket] = useState<HardwareRawPacket | null>(null);
+  const [peakIntensity, setPeakIntensity] = useState(0);
+  const [uiRecentEvents, setUiRecentEvents] = useState<HardwareRawPacket[]>([]);
+  const [uiStatsByDevice, setUiStatsByDevice] = useState<Record<string, HardwareStats>>({});
+  const [uiRecentImpacts, setUiRecentImpacts] = useState<ImpactEvent[]>([]);
+  const [uiImpactStatsByDevice, setUiImpactStatsByDevice] = useState<Record<string, HardwareStats>>({});
+  const [observedScale, setObservedScale] = useState<ObservedScale>({ ...DEFAULT_OBSERVED_SCALE });
+  
+  // View mode state (synced with ref)
+  const [viewMode, setViewModeState] = useState<DiagnosticsViewMode>('impacts');
+  
+  // Noise floor state
+  const [noiseFloor, setNoiseFloorState] = useState<NoiseFloor>({});
+  const [isCalibrating, setIsCalibrating] = useState(false);
+  
+  // === PERSISTED STATES ===
+  const [samples, setSamples] = useState<HardwareSample[]>([]);
+  const [thresholds, setThresholds] = useState<HardwareThresholds>(DEFAULT_THRESHOLDS);
+  const [deviceLabels, setDeviceLabelsState] = useState<DeviceLabels>(DEFAULT_DEVICE_LABELS);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingProgress, setRecordingProgress] = useState(0);
+  
+  // Wizard state
+  const [calibrationWizard, setCalibrationWizard] = useState<CalibrationWizardState>({ ...DEFAULT_WIZARD_STATE });
+  const [wizardImpactCount, setWizardImpactCount] = useState(0);
+  const [wizardRawPacketCount, setWizardRawPacketCount] = useState(0);
+  const [wizardLastImpact, setWizardLastImpact] = useState<ImpactEvent | null>(null);
+  
+  // Set view mode (syncs state + ref + triggers UI refresh)
+  const setViewMode = useCallback((mode: DiagnosticsViewMode) => {
+    viewModeRef.current = mode;
+    setViewModeState(mode);
+    uiDirtyTickRef.current++;
+  }, []);
+  
+  // Set noise floor (syncs state + ref + detector)
+  const setNoiseFloor = useCallback((nf: NoiseFloor) => {
+    noiseFloorRef.current = nf;
+    setNoiseFloorState(nf);
+    detectorRef.current.updateConfig({ noiseFloor: nf });
+  }, []);
+  
+  // Load from storage on mount (with v1 -> v2 migration)
+  useEffect(() => {
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      try {
+        const raw = JSON.parse(stored);
+        
+        if (raw.version === 1 || !raw.version) {
+          // Migrate v1 -> v2
+          const v1 = raw as DiagnosticsStorageV1;
+          eventsRef.current = v1.events || [];
+          impactsRef.current = [];
+          setSamples(v1.samples || []);
+          setThresholds(v1.thresholds || DEFAULT_THRESHOLDS);
+          setDeviceLabelsState(v1.deviceLabels || DEFAULT_DEVICE_LABELS);
+          setNoiseFloor({});
+          observedScaleRef.current = { ...DEFAULT_OBSERVED_SCALE, observedSince: Date.now() };
+          setObservedScale({ ...observedScaleRef.current });
+          createdAtRef.current = v1.createdAt || Date.now();
+          dirtyRef.current = true; // Force save as v2
+        } else {
+          // v2
+          const v2 = raw as DiagnosticsStorage;
+          eventsRef.current = v2.events || [];
+          impactsRef.current = v2.impacts || [];
+          setSamples(v2.samples || []);
+          setThresholds(v2.thresholds || DEFAULT_THRESHOLDS);
+          setDeviceLabelsState(v2.deviceLabels || DEFAULT_DEVICE_LABELS);
+          setNoiseFloor(v2.noiseFloor || {});
+          observedScaleRef.current = v2.observedScale || { ...DEFAULT_OBSERVED_SCALE };
+          setObservedScale({ ...observedScaleRef.current });
+          createdAtRef.current = v2.createdAt || Date.now();
+        }
+      } catch (e) {
+        console.error('Failed to load diagnostics:', e);
+      }
+    } else {
+      // First run: use defaults
+      setDeviceLabelsState(DEFAULT_DEVICE_LABELS);
+      setThresholds(DEFAULT_THRESHOLDS);
+      createdAtRef.current = Date.now();
+    }
+  }, [storageKey, setNoiseFloor]);
+  
+  // Save to storage with debounce (v2 format)
+  const saveToStorage = useCallback(() => {
+    const data: DiagnosticsStorage = {
+      version: 2,
+      createdAt: createdAtRef.current,
+      updatedAt: Date.now(),
+      deviceLabels,
+      thresholds,
+      noiseFloor: noiseFloorRef.current,
+      observedScale: observedScaleRef.current,
+      events: eventsRef.current.slice(-MAX_PERSISTED_EVENTS),
+      impacts: impactsRef.current.slice(-MAX_IMPACTS),
+      samples,
+    };
+    localStorage.setItem(storageKey, JSON.stringify(data));
+    dirtyRef.current = false;
+  }, [deviceLabels, thresholds, samples, storageKey]);
+  
+  // Debounced save effect
+  useEffect(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveToStorage();
+    }, SAVE_DEBOUNCE_MS);
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [samples, thresholds, deviceLabels, noiseFloor, saveToStorage]);
+  
+  // Finish calibration
+  const finishCalibration = useCallback(() => {
+    const newNoiseFloor: NoiseFloor = { ...noiseFloorRef.current };
+    
+    calibrationBufferRef.current.forEach((values, deviceId) => {
+      if (values.length > 0) {
+        const sorted = [...values].sort((a, b) => a - b);
+        const p95Index = Math.floor(0.95 * (sorted.length - 1));
+        newNoiseFloor[String(deviceId)] = sorted[p95Index] + 1; // +1 margin
+      }
+    });
+    
+    // Sync state + ref + detector
+    noiseFloorRef.current = newNoiseFloor;
+    setNoiseFloorState(newNoiseFloor);
+    detectorRef.current.updateConfig({ noiseFloor: newNoiseFloor });
+    
+    isCalibrationActiveRef.current = false;
+    calibrationBufferRef.current = new Map();
+    setIsCalibrating(false);
+    dirtyRef.current = true;
+    
+    // Force UI refresh
+    uiDirtyTickRef.current++;
+  }, []);
+  
+  // Throttle UI updates (100ms) - finalizes impacts and calculates stats
+  useEffect(() => {
+    let lastTick = uiDirtyTickRef.current;
+    
+    const interval = setInterval(() => {
+      const now = Date.now();
+      
+      // === FINALIZE INACTIVE IMPACTS via shared ImpactDetector ===
+      const finalized = detectorRef.current.flush(now);
+      for (const fin of finalized) {
+        const impact: ImpactEvent = {
+          id: `impact_${fin.startTs}_${fin.deviceId}`,
+          deviceId: fin.deviceId,
+          startedAt: fin.startTs,
+          endedAt: fin.endTs,
+          durationMs: fin.durationMs,
+          peakIntensity: fin.peakIntensity,
+          avgIntensity: fin.avgIntensity,
+          packetCount: fin.packetCount,
+        };
+        
+        impactsRef.current.push(impact);
+        if (impactsRef.current.length > MAX_IMPACTS) {
+          impactsRef.current = impactsRef.current.slice(-MAX_IMPACTS);
+        }
+        dirtyRef.current = true;
+        
+        // === WIZARD: Collect impact if wizard is active ===
+        const wizardStep = wizardActiveRef.current;
+        if (wizardStep !== 'idle' && wizardStep !== 'result') {
+          wizardImpactsRef.current.push(impact);
+          wizardLastImpactRef.current = impact;
+        }
+        
+        uiDirtyTickRef.current++;
+      }
+      
+      // === CHECK CALIBRATION ===
+      if (isCalibrationActiveRef.current && now - calibrationStartRef.current >= CALIBRATION_DURATION_MS) {
+        finishCalibration();
+      }
+      
+      // === UPDATE UI (if changed) ===
+      const currentTs = lastPacketRef.current?.ts ?? null;
+      const currentTick = uiDirtyTickRef.current;
+      
+      if (currentTs !== lastUiTsRef.current || currentTick !== lastTick) {
+        lastUiTsRef.current = currentTs;
+        lastTick = currentTick;
+        
+        setUiLastPacket(lastPacketRef.current);
+        setUiRecentEvents(eventsRef.current.slice(-30).reverse());
+        setPeakIntensity(peakRef.current.value);
+        setObservedScale({ ...observedScaleRef.current });
+        
+        // OPTIMIZED STATS: calculate only for active mode
+        if (viewModeRef.current === 'impacts') {
+          setUiImpactStatsByDevice(calculateImpactStats(impactsRef.current));
+        } else {
+          setUiStatsByDevice(calculateAllStats(eventsRef.current));
+        }
+        
+        setUiRecentImpacts(impactsRef.current.slice(-30).reverse());
+        
+        // Wizard UI updates
+        if (wizardModeRef.current) {
+          setWizardImpactCount(wizardImpactsRef.current.length);
+          setWizardLastImpact(wizardLastImpactRef.current);
+          setWizardRawPacketCount(wizardRawCountRef.current);
+        }
+      }
+    }, UI_THROTTLE_MS);
+    
+    return () => clearInterval(interval);
+  }, [finishCalibration]);
+  
+  // Callback for serial (no setState per packet)
+  const onRawPacket = useCallback((pkt: HardwareRawPacket) => {
+    // 1. Ring buffer RAW
+    eventsRef.current.push(pkt);
+    if (eventsRef.current.length > MAX_MEMORY_EVENTS) {
+      eventsRef.current = eventsRef.current.slice(-MAX_MEMORY_EVENTS);
+    }
+    lastPacketRef.current = pkt;
+    dirtyRef.current = true;
+    
+    // 2. Update observed scale
+    if (pkt.intensity < observedScaleRef.current.globalMin) {
+      observedScaleRef.current.globalMin = pkt.intensity;
+    }
+    if (pkt.intensity > observedScaleRef.current.globalMax) {
+      observedScaleRef.current.globalMax = pkt.intensity;
+    }
+    
+    // 3. Calibration (if active)
+    if (isCalibrationActiveRef.current) {
+      const buffer = calibrationBufferRef.current.get(pkt.deviceId) || [];
+      buffer.push(pkt.intensity);
+      calibrationBufferRef.current.set(pkt.deviceId, buffer);
+    }
+    
+    // 3b. Wizard raw packet counting
+    if (wizardModeRef.current) {
+      wizardRawCountRef.current++;
+    }
+    
+    // 4. Peak hold 2s
+    if (pkt.intensity > peakRef.current.value) {
+      peakRef.current.value = pkt.intensity;
+    }
+    if (peakRef.current.timeout) {
+      clearTimeout(peakRef.current.timeout);
+    }
+    peakRef.current.timeout = setTimeout(() => {
+      peakRef.current.value = 0;
+      uiDirtyTickRef.current++;
+    }, PEAK_HOLD_MS);
+    
+    // 5. Impact detection via shared ImpactDetector (feed packet)
+    detectorRef.current.feed(pkt.deviceId, pkt.intensity, pkt.ts);
+    
+    // 6. Recording (samples)
+    if (recordingRef.current) {
+      sampleBufferRef.current.push(pkt);
+    }
+  }, []);
+  
+  // Start noise floor calibration
+  const calibrateNoiseFloor = useCallback(() => {
+    if (isCalibrationActiveRef.current) return;
+    
+    isCalibrationActiveRef.current = true;
+    calibrationStartRef.current = Date.now();
+    calibrationBufferRef.current = new Map();
+    setIsCalibrating(true);
+  }, []);
+  
+  // Start sample recording
+  const startSample = useCallback((label: string, category: SampleCategory, durationMs = DEFAULT_SAMPLE_DURATION_MS) => {
+    if (recordingRef.current) return;
+    
+    recordingRef.current = true;
+    sampleBufferRef.current = [];
+    recordingStartRef.current = Date.now();
+    recordingDurationRef.current = durationMs;
+    recordingLabelRef.current = label;
+    recordingCategoryRef.current = category;
+    
+    setIsRecording(true);
+    setRecordingProgress(0);
+    
+    recordingIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - recordingStartRef.current;
+      const progress = Math.min(100, (elapsed / recordingDurationRef.current) * 100);
+      setRecordingProgress(progress);
+      
+      if (elapsed >= recordingDurationRef.current) {
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current);
+          recordingIntervalRef.current = null;
+        }
+        
+        recordingRef.current = false;
+        
+        const newSample: HardwareSample = {
+          id: `sample_${Date.now()}`,
+          label: recordingLabelRef.current,
+          category: recordingCategoryRef.current,
+          startedAt: recordingStartRef.current,
+          durationMs: recordingDurationRef.current,
+          events: [...sampleBufferRef.current],
+          statsByDevice: calculateAllStats(sampleBufferRef.current),
+        };
+        
+        setSamples(prev => [...prev, newSample]);
+        sampleBufferRef.current = [];
+        setIsRecording(false);
+        setRecordingProgress(0);
+      }
+    }, 100);
+  }, []);
+  
+  // Delete sample
+  const deleteSample = useCallback((id: string) => {
+    setSamples(prev => prev.filter(s => s.id !== id));
+  }, []);
+  
+  // Set device label
+  const setDeviceLabel = useCallback((id: string, label: string) => {
+    setDeviceLabelsState(prev => ({ ...prev, [id]: label }));
+  }, []);
+  
+  // Clear events
+  const clearEvents = useCallback(() => {
+    eventsRef.current = [];
+    lastPacketRef.current = null;
+    peakRef.current.value = 0;
+    if (peakRef.current.timeout) {
+      clearTimeout(peakRef.current.timeout);
+      peakRef.current.timeout = null;
+    }
+    uiDirtyTickRef.current++;
+    setUiLastPacket(null);
+    setUiRecentEvents([]);
+    setUiStatsByDevice({});
+    setPeakIntensity(0);
+    dirtyRef.current = true;
+  }, []);
+  
+  // Clear impacts
+  const clearImpacts = useCallback(() => {
+    impactsRef.current = [];
+    detectorRef.current.reset();
+    uiDirtyTickRef.current++;
+    setUiRecentImpacts([]);
+    setUiImpactStatsByDevice({});
+    dirtyRef.current = true;
+  }, []);
+  
+  // Clear all
+  const clearAll = useCallback(() => {
+    clearEvents();
+    clearImpacts();
+    setSamples([]);
+    setThresholds(DEFAULT_THRESHOLDS);
+    setDeviceLabelsState(DEFAULT_DEVICE_LABELS);
+    setNoiseFloor({});
+    observedScaleRef.current = { ...DEFAULT_OBSERVED_SCALE, observedSince: Date.now() };
+    setObservedScale({ ...observedScaleRef.current });
+    createdAtRef.current = Date.now();
+    localStorage.removeItem(storageKey);
+  }, [clearEvents, clearImpacts, storageKey, setNoiseFloor]);
+  
+  // Export JSON (v2 format)
+  const exportJSON = useCallback(() => {
+    const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+    const data: DiagnosticsStorage = {
+      version: 2,
+      createdAt: createdAtRef.current,
+      updatedAt: Date.now(),
+      deviceLabels,
+      thresholds,
+      noiseFloor: noiseFloorRef.current,
+      observedScale: observedScaleRef.current,
+      events: eventsRef.current,
+      impacts: impactsRef.current,
+      samples,
+    };
+    downloadFile(`diagnostics_${timestamp}.json`, JSON.stringify(data, null, 2), 'application/json');
+  }, [deviceLabels, thresholds, samples]);
+  
+  // Export CSV (3 files: events, impacts, samples)
+  const exportCSV = useCallback(() => {
+    const timestamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+    
+    if (eventsRef.current.length > 0) {
+      downloadFile(`events_${timestamp}.csv`, generateEventsCSV(eventsRef.current), 'text/csv');
+    }
+    
+    if (impactsRef.current.length > 0) {
+      downloadFile(`impacts_${timestamp}.csv`, generateImpactsCSV(impactsRef.current), 'text/csv');
+    }
+    
+    if (samples.length > 0) {
+      downloadFile(`samples_${timestamp}.csv`, generateSamplesCSV(samples), 'text/csv');
+    }
+  }, [samples]);
+  
+  // === WIZARD FUNCTIONS ===
+  
+  // Calculate suggested thresholds from wizard data
+  const calculateSuggestedThresholds = useCallback((
+    raspagem: { count: number; min: number; max: number; avg: number; p90: number; p95: number } | null,
+    toque: { count: number; min: number; max: number; avg: number; p90: number; p95: number } | null,
+    ponto: { count: number; min: number; max: number; avg: number; p90: number; p95: number } | null
+  ): HardwareThresholds => {
+    const raspagemP95 = raspagem?.p95 ?? 0;
+    const toqueP95 = toque?.p95 ?? 0;
+    const pontoP95 = ponto?.p95 ?? 0;
+    
+    // HIT threshold: midpoint between RASPAGEM and TOQUE
+    const hitThreshold = Math.round((raspagemP95 + toqueP95) / 2);
+    
+    // PONTO threshold: midpoint between TOQUE and PONTO
+    const pointThreshold = Math.round((toqueP95 + pontoP95) / 2);
+    
+    // Helmet factor (usually 20% lower)
+    const helmetFactor = 0.8;
+    
+    return {
+      vestHitMin: Math.max(1, hitThreshold),
+      vestPointMin: Math.max(hitThreshold + 1, pointThreshold),
+      helmetHitMin: Math.max(1, Math.round(hitThreshold * helmetFactor)),
+      helmetPointMin: Math.max(Math.round(hitThreshold * helmetFactor) + 1, Math.round(pointThreshold * helmetFactor)),
+    };
+  }, []);
+  
+  const startCalibrationWizard = useCallback(() => {
+    wizardImpactsRef.current = [];
+    wizardLastImpactRef.current = null;
+    wizardActiveRef.current = 'raspagem';
+    wizardModeRef.current = true;
+    detectorRef.current.setWizardMode(true);
+    wizardRawCountRef.current = 0;
+    setWizardImpactCount(0);
+    setWizardLastImpact(null);
+    setWizardRawPacketCount(0);
+    setCalibrationWizard({
+      step: 'raspagem',
+      stepStartedAt: Date.now(),
+      stepDurationMs: WIZARD_STEP_DURATION_MS,
+      raspagem: { impacts: [], stats: null },
+      toque: { impacts: [], stats: null },
+      ponto: { impacts: [], stats: null },
+      suggestedThresholds: null,
+    });
+    uiDirtyTickRef.current++;
+  }, []);
+  
+  const advanceWizardStep = useCallback(() => {
+    const currentStep = wizardActiveRef.current;
+    const collectedImpacts = [...wizardImpactsRef.current];
+    wizardImpactsRef.current = [];
+    wizardLastImpactRef.current = null;
+    
+    // Calculate stats from peakIntensity
+    const peaks = collectedImpacts.map(i => i.peakIntensity);
+    const stats = peaks.length > 0 ? calculateStats(peaks) : null;
+    
+    setCalibrationWizard(prev => {
+      const updated = { ...prev };
+      
+      // Save current step data
+      if (currentStep === 'raspagem') {
+        updated.raspagem = { impacts: collectedImpacts, stats };
+      } else if (currentStep === 'toque') {
+        updated.toque = { impacts: collectedImpacts, stats };
+      } else if (currentStep === 'ponto') {
+        updated.ponto = { impacts: collectedImpacts, stats };
+      }
+      
+      // Advance to next step
+      if (currentStep === 'raspagem') {
+        updated.step = 'toque';
+        updated.stepStartedAt = Date.now();
+        wizardActiveRef.current = 'toque';
+      } else if (currentStep === 'toque') {
+        updated.step = 'ponto';
+        updated.stepStartedAt = Date.now();
+        wizardActiveRef.current = 'ponto';
+      } else if (currentStep === 'ponto') {
+        updated.step = 'result';
+        updated.stepStartedAt = null;
+        wizardActiveRef.current = 'result';
+        updated.suggestedThresholds = calculateSuggestedThresholds(
+          updated.raspagem.stats,
+          updated.toque.stats,
+          updated.ponto.stats
+        );
+      }
+      
+      return updated;
+    });
+    
+    setWizardImpactCount(0);
+    setWizardLastImpact(null);
+    uiDirtyTickRef.current++;
+  }, [calculateSuggestedThresholds]);
+  
+  const cancelWizard = useCallback(() => {
+    wizardImpactsRef.current = [];
+    wizardLastImpactRef.current = null;
+    wizardActiveRef.current = 'idle';
+    wizardModeRef.current = false;
+    detectorRef.current.setWizardMode(false);
+    wizardRawCountRef.current = 0;
+    setWizardImpactCount(0);
+    setWizardLastImpact(null);
+    setWizardRawPacketCount(0);
+    setCalibrationWizard({ ...DEFAULT_WIZARD_STATE });
+    uiDirtyTickRef.current++;
+  }, []);
+  
+  const applyWizardThresholds = useCallback(() => {
+    setCalibrationWizard(prev => {
+      if (prev.suggestedThresholds) {
+        setThresholds(prev.suggestedThresholds);
+      }
+      return prev;
+    });
+    cancelWizard();
+  }, [cancelWizard]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+      if (peakRef.current.timeout) {
+        clearTimeout(peakRef.current.timeout);
+      }
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  return {
+    onRawPacket,
+    uiLastPacket,
+    peakIntensity,
+    uiRecentEvents,
+    uiStatsByDevice,
+    uiRecentImpacts,
+    uiImpactStatsByDevice,
+    impactCount: impactsRef.current.length,
+    viewMode,
+    setViewMode,
+    noiseFloor,
+    isCalibrating,
+    calibrateNoiseFloor,
+    observedScale,
+    samples,
+    isRecording,
+    recordingProgress,
+    startSample,
+    deleteSample,
+    thresholds,
+    setThresholds,
+    deviceLabels,
+    setDeviceLabel,
+    clearEvents,
+    clearImpacts,
+    clearAll,
+    exportJSON,
+    exportCSV,
+    eventCount: eventsRef.current.length,
+    sampleCount: samples.length,
+    // Wizard
+    calibrationWizard,
+    wizardImpactCount,
+    wizardLastImpact,
+    wizardRawPacketCount,
+    startCalibrationWizard,
+    advanceWizardStep,
+    cancelWizard,
+    applyWizardThresholds,
+  };
+}

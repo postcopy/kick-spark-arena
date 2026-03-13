@@ -1,0 +1,40 @@
+appId: com.sfight.pro
+productName: S-FIGHT PRO
+copyright: Copyright © 2026 S-Fight
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - public/favicon.ico
+
+extraMetadata:
+  main: dist-electron/main.js
+
+extraResources:
+  - from: CP210_Drivers/
+    to: CP210_Drivers/
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: public/favicon.ico
+  artifactName: S-FIGHT-PRO-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: S-FIGHT PRO
+  installerIcon: public/favicon.ico
+  uninstallerIcon: public/favicon.ico
+  installerHeaderIcon: public/favicon.ico
+  include: build/installer.nsh

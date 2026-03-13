@@ -1,0 +1,19 @@
+appId: com.sulsport.spe
+productName: SPE Sulsport
+directories:
+  output: release-championship
+  buildResources: build
+files:
+  - dist-championship/**/*
+  - dist-electron/**/*
+  - package.json
+extraMetadata:
+  main: dist-electron/main-championship.js
+win:
+  target: nsis
+  icon: public/favicon.ico
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  artifactName: "SPE-Sulsport-Setup-${version}.exe"
