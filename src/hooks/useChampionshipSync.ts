@@ -13,6 +13,8 @@ import {
   getScoreValue,
 } from '@/types/championship';
 import type { ChampionshipSyncMessage } from '@/types/championship';
+import { useRealtimeSync } from './useRealtimeSync';
+import { supabase } from '@/integrations/supabase/client';
 
 // Maximum events to keep in history
 const MAX_EVENTS = 500;
@@ -20,37 +22,40 @@ const MAX_EVENTS = 500;
 interface UseChampionshipSyncOptions {
   role: 'master' | 'listener';
   matId?: number;
+  academyId?: string; // user.id from AuthContext — unique per academy, used for live_scores
+  onCommand?: (event: string, payload: unknown) => void;
 }
 
 interface UseChampionshipSyncReturn {
   state: MatchState;
   isConnected: boolean;
-  
+  connectedDevices: number;
+
   // Timer controls (master only)
   startTimer: () => void;
   pauseTimer: () => void;
   resetTime: () => void;
   startMedicalTime: () => void;
   endMedicalTime: () => void;
-  
+
   // Match controls (master only)
   endRound: () => void;
   nextRound: () => void;
   endMatch: () => void;
   declareRoundWinner: (side: MatchSide) => void;
   resetMatch: () => void;
-  
+
   // Scoring (master only)
   addScore: (side: MatchSide, type: ScoreType) => void;
   addHit: (side: MatchSide) => void;
   addGamjeom: (side: MatchSide) => void;
   removeGamjeom: (side: MatchSide) => void;
   adjustScore: (side: MatchSide, roundScore: number, gamjeom: number) => void;
-  
+
   // Undo (master only)
   undoLast: () => void;
   canUndo: boolean;
-  
+
   // Config
   saveConfig: (config: MatchConfig) => void;
   updateConfigInPlace: (updater: (config: MatchConfig) => MatchConfig) => void;
@@ -77,7 +82,11 @@ function createEvent(
 export function useChampionshipSync({
   role,
   matId = 1,
+  academyId,
+  onCommand,
 }: UseChampionshipSyncOptions): UseChampionshipSyncReturn {
+  const onCommandRef = useRef(onCommand);
+  useEffect(() => { onCommandRef.current = onCommand; }, [onCommand]);
   const [state, setState] = useState<MatchState>(() => {
     // Try to load from localStorage on init
     if (typeof window !== 'undefined') {
@@ -93,7 +102,7 @@ export function useChampionshipSync({
   
   const [history, setHistory] = useState<MatchState[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  
+
   // stateRef: always points to latest state, used inside stable callbacks
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
@@ -101,40 +110,172 @@ export function useChampionshipSync({
   const channel = useRef<BroadcastChannel | null>(null);
   const lastSyncedSecond = useRef<number>(-1);
   const lastSyncTime = useRef<number>(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Initialize BroadcastChannel
+  const lastBcTime = useRef<number>(0);  // throttle BroadcastChannel to avoid flooding TV with renders
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerStartRef = useRef<number>(0);        // Date.now() when timer last started/resumed
+  const timerStartValueRef = useRef<number>(0);    // timeLeftMs snapshot at that moment
+  const lastDbSyncRef = useRef<number>(0);          // throttle live_scores upserts to every 2s
+
+  // Callback for Realtime messages (listener only)
+  // Skip if BroadcastChannel is active (same device — BC is faster and more complete)
+  const handleRealtimeMessage = useCallback((event: string, payload: unknown) => {
+    if (role !== 'listener') return;
+    if (event === 'match-state' && payload) {
+      // If BroadcastChannel received data recently, skip Realtime to avoid double-setState
+      if (Date.now() - bcLastReceived.current < 3000) return;
+      setState(payload as MatchState);
+      setIsConnected(true);
+    } else {
+      // Forward command messages (show-bracket, show-scoreboard) to consumer
+      onCommandRef.current?.(event, payload);
+    }
+  }, [role]);
+
+  // Supabase Realtime sync (cross-device)
+  const {
+    send: realtimeSend,
+    isConnected: realtimeConnected,
+    connectedDevices,
+  } = useRealtimeSync({
+    matId,
+    role,
+    onMessage: handleRealtimeMessage,
+  });
+
+  // Track connection from either source.
+  // For listeners: isConnected = true as soon as the Realtime channel subscribes.
+  // This means the LiveScore page shows the initial IDLE state immediately
+  // instead of "SEM SINAL" while waiting for the first match-state message.
+  // "SEM SINAL" now only appears when the channel truly cannot connect.
+  useEffect(() => {
+    if (realtimeConnected) {
+      setIsConnected(true);
+    } else if (role === 'listener') {
+      // Channel disconnected — show "SEM SINAL" again for listeners
+      setIsConnected(false);
+    }
+  }, [realtimeConnected, role]);
+
+  // When a new listener connects (connectedDevices increases), force-broadcast current state
+  // This ensures late-joining devices (mobile live score) get the current match state immediately
+  const prevDeviceCountRef = useRef(connectedDevices);
+  useEffect(() => {
+    if (role !== 'master') return;
+    if (connectedDevices > prevDeviceCountRef.current && connectedDevices > 1) {
+      // New device joined — send current state immediately
+      const stateToSync = { ...stateRef.current, lastUpdate: Date.now() };
+      const networkPayload = { ...stateToSync, events: stateToSync.events.slice(0, 100) };
+      realtimeSendRef.current('match-state', networkPayload);
+      console.log('[Sync] New device joined, force-broadcast state');
+    }
+    prevDeviceCountRef.current = connectedDevices;
+  }, [connectedDevices, role]);
+
+  // Heartbeat: master sends state every 5s to keep remote listeners in sync.
+  // Always broadcasts regardless of connectedDevices count to avoid the race
+  // condition where a listener has subscribed but Presence hasn't synced yet
+  // on the master side, leaving the listener stuck without data.
+  useEffect(() => {
+    if (role !== 'master') return;
+    const heartbeat = setInterval(() => {
+      const stateToSync = { ...stateRef.current, lastUpdate: Date.now() };
+      const networkPayload = { ...stateToSync, events: stateToSync.events.slice(0, 100) };
+      realtimeSendRef.current('match-state', networkPayload);
+    }, 5000);
+    return () => clearInterval(heartbeat);
+  }, [role]);
+
+  // HTTP polling fallback: master pushes initial state on mount, cleans up on unmount
+  useEffect(() => {
+    if (role !== 'master' || !academyId) return;
+    // Initial state push
+    supabase.from('live_scores').upsert({
+      academy_id: academyId,
+      mat_id: matId,
+      state: stateRef.current,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'academy_id,mat_id' });
+
+    return () => {
+      // Clean up on unmount
+      supabase.from('live_scores').delete().eq('academy_id', academyId).eq('mat_id', matId);
+    };
+  }, [role, matId, academyId]);
+
+  // Track if BroadcastChannel is actively receiving data (same-device sync)
+  const bcActiveRef = useRef(false);
+  const bcLastReceived = useRef(0);
+
+  // HTTP polling fallback for listeners (ONLY when both Realtime AND BroadcastChannel are not working)
+  useEffect(() => {
+    if (role !== 'listener') return;
+    if (!academyId) return;
+    // Skip polling if Realtime is connected
+    if (realtimeConnected) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      // Skip if BroadcastChannel received data in the last 3 seconds (same-device sync working)
+      if (Date.now() - bcLastReceived.current < 3000) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('live_scores')
+          .select('state, updated_at')
+          .eq('academy_id', academyId)
+          .eq('mat_id', matId)
+          .single();
+
+        if (!cancelled && data?.state && !error) {
+          setState(data.state as MatchState);
+          setIsConnected(true);
+        }
+      } catch { /* ignore */ }
+    };
+
+    // Poll immediately, then every 500ms for near-realtime updates
+    poll();
+    const interval = setInterval(poll, 500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [role, matId, academyId, realtimeConnected]);
+
+  // Initialize BroadcastChannel (same-device sync, lower latency)
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return;
-    
+
     channel.current = new BroadcastChannel(getChannelName(matId));
-    
+
     if (role === 'listener') {
       channel.current.onmessage = (event) => {
         const msg = event.data;
-        // Support both old format (raw state) and new typed format
-        if (msg && msg.type === 'MATCH_STATE') {
-          setState(msg.payload);
+        const payload = msg?.type === 'MATCH_STATE' ? msg.payload : (msg?.status !== undefined ? msg : null);
+        if (payload) {
+          // Only update if something meaningful changed (avoid redundant renders)
+          setState(prev => {
+            if (prev.timeLeftMs === payload.timeLeftMs &&
+                prev.roundScoreRed === payload.roundScoreRed &&
+                prev.roundScoreBlue === payload.roundScoreBlue &&
+                prev.status === payload.status &&
+                prev.round === payload.round &&
+                prev.gamjeomRed === payload.gamjeomRed &&
+                prev.gamjeomBlue === payload.gamjeomBlue) {
+              return prev; // No change — skip render
+            }
+            return payload;
+          });
           setIsConnected(true);
-        } else if (msg && msg.status !== undefined) {
-          // Legacy: raw MatchState
-          setState(msg);
-          setIsConnected(true);
+          bcActiveRef.current = true;
+          bcLastReceived.current = Date.now();
         }
       };
-      
-      // Also listen to storage events as fallback
-      const handleStorage = (e: StorageEvent) => {
-        if (e.key === getStorageKey(matId) && e.newValue) {
-          try {
-            setState(JSON.parse(e.newValue));
-            setIsConnected(true);
-          } catch { /* ignore */ }
-        }
-      };
-      window.addEventListener('storage', handleStorage);
-      
-      // Try to load initial state from storage
+
+      // StorageEvent disabled — BroadcastChannel is the primary same-device sync.
+      // Having both caused double setState calls and score flickering.
+
       const stored = localStorage.getItem(getStorageKey(matId));
       if (stored) {
         try {
@@ -142,41 +283,94 @@ export function useChampionshipSync({
           setIsConnected(true);
         } catch { /* ignore */ }
       }
-      
+
       return () => {
-        window.removeEventListener('storage', handleStorage);
         channel.current?.close();
       };
     }
-    
+
     return () => {
       channel.current?.close();
     };
   }, [matId, role]);
-  
-  // Broadcast state with throttle
+
+  // Stable ref for realtimeSend to avoid broadcast identity changing
+  const realtimeSendRef = useRef(realtimeSend);
+  useEffect(() => { realtimeSendRef.current = realtimeSend; }, [realtimeSend]);
+
+  // Broadcast state with throttle — dual: BroadcastChannel + Supabase Realtime
+  // IMPORTANT: deps are [role, matId] only — realtimeSend is read via ref to avoid
+  // re-creating broadcast (which would restart the timer interval).
   const broadcast = useCallback((newState: MatchState, forceSync = false) => {
     if (role !== 'master') return;
-    
+
     const currentSecond = Math.floor(newState.timeLeftMs / 1000);
     const now = Date.now();
-    
+
     const secondChanged = currentSecond !== lastSyncedSecond.current;
     const timePassed = now - lastSyncTime.current > 300;
-    
-    if (secondChanged || timePassed || forceSync) {
-      const stateToSync = { ...newState, lastUpdate: now };
+
+    const stateToSync = { ...newState, lastUpdate: now };
+
+    // BroadcastChannel: throttle to max ~5 updates/sec (200ms) to avoid flooding
+    // the TV with renders that cause timer flicker.  Force-syncs (score changes,
+    // round transitions) always send immediately.
+    const bcElapsed = now - lastBcTime.current;
+    if (forceSync || bcElapsed >= 200) {
       channel.current?.postMessage({ type: 'MATCH_STATE', payload: stateToSync });
-      localStorage.setItem(getStorageKey(matId), JSON.stringify(stateToSync));
+      lastBcTime.current = now;
+    }
+    localStorage.setItem(getStorageKey(matId), JSON.stringify(stateToSync));
+
+    if (secondChanged || timePassed || forceSync) {
+      // Network: Supabase Realtime (cross-device, ~100-200ms)
+      // Keep enough events for TV stats to work correctly
+      const networkPayload = { ...stateToSync, events: stateToSync.events.slice(0, 100) };
+      realtimeSendRef.current('match-state', networkPayload);
       lastSyncedSecond.current = currentSecond;
       lastSyncTime.current = now;
+
     }
   }, [role, matId]);
+
+  // HTTP polling fallback: independent 500ms upsert to live_scores (always runs, not tied to broadcast throttle)
+  useEffect(() => {
+    if (role !== 'master' || !academyId) return;
+    const interval = setInterval(() => {
+      const current = stateRef.current;
+      const payload = { ...current, events: current.events.slice(0, 100), lastUpdate: Date.now() };
+      supabase.from('live_scores').upsert({
+        academy_id: academyId,
+        mat_id: matId,
+        state: payload,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'academy_id,mat_id' }).then(({ error }) => {
+        if (error) console.warn('[Sync] live_scores upsert failed:', error.message);
+      });
+    }, 500);
+    return () => clearInterval(interval);
+  }, [role, matId, academyId]);
   
   // Handle round end (time up)
   const handleRoundEnd = useCallback((prev: MatchState): MatchState => {
     const { roundScoreRed, roundScoreBlue, hitsRed, hitsBlue, config } = prev;
-    
+
+    // Golden round ended by time with no score — tie / referee decision
+    if (prev.isGoldenRound) {
+      if (roundScoreRed > roundScoreBlue) {
+        return handleRoundEndWithWinner(prev, 'RED', 'GOLDEN_ROUND', 'Golden Round! Vermelho vence');
+      } else if (roundScoreBlue > roundScoreRed) {
+        return handleRoundEndWithWinner(prev, 'BLUE', 'GOLDEN_ROUND', 'Golden Round! Azul vence');
+      }
+      // No score in golden round — go to MATCH_END (referee decision)
+      return {
+        ...prev,
+        timeLeftMs: 0,
+        status: 'MATCH_END',
+        events: [createEvent('MATCH_END', 'Golden Round sem pontuação — decisão do árbitro'), ...prev.events].slice(0, MAX_EVENTS),
+      };
+    }
+
     if (roundScoreRed > roundScoreBlue) {
       return handleRoundEndWithWinner(prev, 'RED', 'ROUND_END', 'Tempo! Vermelho vence o round');
     } else if (roundScoreBlue > roundScoreRed) {
@@ -195,6 +389,8 @@ export function useChampionshipSync({
         ...prev,
         timeLeftMs: 0,
         status: 'ROUND_END',
+        isBreakTime: true,
+        breakTimeLeftMs: prev.config.breakTimeMs,
         events: [createEvent('ROUND_END', 'Empate! Aguardando decisão'), ...prev.events].slice(0, MAX_EVENTS),
       };
     }
@@ -202,36 +398,74 @@ export function useChampionshipSync({
   
   // Handle round end with winner
   const handleRoundEndWithWinner = useCallback((
-    prev: MatchState, 
-    winner: MatchSide, 
+    prev: MatchState,
+    winner: MatchSide,
     eventType: MatchEvent['type'],
     description: string
   ): MatchState => {
     const newWinsRed = winner === 'RED' ? prev.roundWinsRed + 1 : prev.roundWinsRed;
     const newWinsBlue = winner === 'BLUE' ? prev.roundWinsBlue + 1 : prev.roundWinsBlue;
     const winsNeeded = prev.config.maxRounds === 1 ? 1 : 2;
-    const isMatchEnd = newWinsRed >= winsNeeded || newWinsBlue >= winsNeeded;
-    
+
+    // Golden round win -> always MATCH_END
+    if (prev.isGoldenRound) {
+      return {
+        ...prev,
+        timeLeftMs: 0,
+        status: 'MATCH_END',
+        isGoldenRound: false,
+        roundWinsRed: newWinsRed,
+        roundWinsBlue: newWinsBlue,
+        events: [createEvent(eventType, description, winner), ...prev.events].slice(0, MAX_EVENTS),
+      };
+    }
+
+    const someoneWon = newWinsRed >= winsNeeded || newWinsBlue >= winsNeeded;
+
+    // Check if this is the last configured round and round wins are tied -> golden round needed
+    if (!someoneWon && prev.round >= prev.config.maxRounds && newWinsRed === newWinsBlue) {
+      // Tied after all configured rounds — will need golden round
+      // Go to ROUND_END first, then nextRound will set up golden round
+    }
+
+    const isMatchOver = someoneWon;
+
+    // Start break timer if there are more rounds to play
+    const hasMoreRounds = !isMatchOver;
+
     return {
       ...prev,
       timeLeftMs: 0,
-      status: isMatchEnd ? 'MATCH_END' : 'ROUND_END',
+      status: isMatchOver ? 'MATCH_END' : 'ROUND_END',
       roundWinsRed: newWinsRed,
       roundWinsBlue: newWinsBlue,
+      isBreakTime: hasMoreRounds ? true : undefined,
+      breakTimeLeftMs: hasMoreRounds ? prev.config.breakTimeMs : undefined,
       events: [createEvent(eventType, description, winner), ...prev.events].slice(0, MAX_EVENTS),
     };
   }, []);
   
-  // Timer logic
+  // Timer logic — uses Date.now() delta to avoid setInterval drift
   useEffect(() => {
     if (role !== 'master') return;
     if (state.status !== 'RUNNING' && state.status !== 'MEDICAL') return;
-    
+
+    // Anchor the timer refs each time the timer (re)starts
+    timerStartRef.current = Date.now();
+    timerStartValueRef.current = state.timeLeftMs;
+
     timerRef.current = setInterval(() => {
-      setState(prev => {
-        const newTime = prev.timeLeftMs - 100;
-        
-        if (newTime <= 0) {
+      const elapsed = Date.now() - timerStartRef.current;
+      const newTime = Math.max(0, timerStartValueRef.current - elapsed);
+      const current = stateRef.current;
+
+      // Guard: stop if status changed externally
+      if (current.status !== 'RUNNING' && current.status !== 'MEDICAL') return;
+
+      if (newTime <= 0) {
+        // Time's up — handle round end or medical end
+        setState(prev => {
+          if (prev.status !== 'RUNNING' && prev.status !== 'MEDICAL') return prev;
           if (prev.isMedicalTime) {
             const restoredState: MatchState = {
               ...prev,
@@ -248,29 +482,111 @@ export function useChampionshipSync({
             broadcast(newState, true);
             return newState;
           }
-        }
-        
-        const newState = { ...prev, timeLeftMs: newTime };
-        broadcast(newState);
-        return newState;
-      });
+        });
+      } else {
+        // Normal tick — only update timeLeftMs, broadcast from stateRef (always fresh)
+        setState(prev => {
+          if (prev.status !== 'RUNNING' && prev.status !== 'MEDICAL') return prev;
+          return { ...prev, timeLeftMs: newTime };
+        });
+        // Broadcast using stateRef (has latest scores) with updated time
+        const toBroadcast = { ...stateRef.current, timeLeftMs: newTime };
+        broadcast(toBroadcast);
+      }
     }, 100);
-    
+
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
+  // NOTE: state.timeLeftMs is intentionally excluded — we only re-anchor when
+  // status changes (RUNNING/MEDICAL ↔ PAUSED), not on every tick.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status, role, broadcast, handleRoundEnd]);
-  
-  // Check point gap and gamjeom limit
+
+  // Break timer countdown — uses Date.now() delta pattern (same as main timer)
+  const breakTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const breakTimerStartRef = useRef<number>(0);
+  const breakTimerStartValueRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (role !== 'master') return;
+    if (!state.isBreakTime || state.status !== 'ROUND_END') return;
+
+    breakTimerStartRef.current = Date.now();
+    breakTimerStartValueRef.current = state.breakTimeLeftMs || 0;
+
+    breakTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - breakTimerStartRef.current;
+      const newTime = Math.max(0, breakTimerStartValueRef.current - elapsed);
+
+      setState(prev => {
+        if (!prev.isBreakTime) return prev;
+        if (prev.status === 'MATCH_END') return prev;
+
+        if (newTime <= 0) {
+          // Break is over — auto-advance to next round
+          const isGolden = prev.round >= prev.config.maxRounds && prev.roundWinsRed === prev.roundWinsBlue;
+          const nextRoundNum = (prev.round + 1) as 1 | 2 | 3 | 4;
+          const newState: MatchState = {
+            ...prev,
+            status: 'IDLE',
+            round: nextRoundNum,
+            timeLeftMs: prev.config.roundTimeMs,
+            roundScoreRed: 0,
+            roundScoreBlue: 0,
+            hitsRed: 0,
+            hitsBlue: 0,
+            gamjeomRed: prev.gamjeomRed,
+            gamjeomBlue: prev.gamjeomBlue,
+            isMedicalTime: false,
+            savedTimeMs: undefined,
+            isBreakTime: false,
+            breakTimeLeftMs: undefined,
+            isGoldenRound: isGolden || undefined,
+            events: [createEvent(isGolden ? 'GOLDEN_ROUND' : 'BREAK_TIME', isGolden ? 'GOLDEN ROUND — Morte Súbita!' : `Intervalo encerrado — Round ${nextRoundNum}`), ...prev.events].slice(0, MAX_EVENTS),
+          };
+          broadcast(newState, true);
+          return newState;
+        }
+
+        const newState = { ...prev, breakTimeLeftMs: newTime };
+        broadcast(newState);
+        return newState;
+      });
+    }, 100);
+
+    return () => {
+      if (breakTimerRef.current) {
+        clearInterval(breakTimerRef.current);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.isBreakTime, state.status, role, broadcast]);
+
+  // Check point gap, golden round sudden death, and gamjeom limit
   useEffect(() => {
     if (role !== 'master') return;
     if (state.status !== 'RUNNING') return;
-    
+
     const { roundScoreRed, roundScoreBlue, gamjeomRed, gamjeomBlue, config } = state;
     const scoreDiff = Math.abs(roundScoreRed - roundScoreBlue);
-    
+
+    // Golden round: first to score wins immediately
+    if (state.isGoldenRound && (roundScoreRed > 0 || roundScoreBlue > 0)) {
+      const winner: MatchSide = roundScoreRed > roundScoreBlue ? 'RED' : 'BLUE';
+      const winnerLabel = winner === 'RED' ? 'Vermelho' : 'Azul';
+
+      setState(prev => {
+        const newState = handleRoundEndWithWinner(prev, winner, 'GOLDEN_ROUND',
+          `Golden Round! ${winnerLabel} marca primeiro e vence!`);
+        broadcast(newState, true);
+        return newState;
+      });
+      return;
+    }
+
     // Point gap check
     if (scoreDiff >= config.pointGap) {
       const winner: MatchSide = roundScoreRed > roundScoreBlue ? 'RED' : 'BLUE';
@@ -304,7 +620,7 @@ export function useChampionshipSync({
         return newState;
       });
     }
-  }, [state.roundScoreRed, state.roundScoreBlue, state.gamjeomRed, state.gamjeomBlue, state.status, state.config, role, broadcast, handleRoundEndWithWinner]);
+  }, [state.roundScoreRed, state.roundScoreBlue, state.gamjeomRed, state.gamjeomBlue, state.status, state.config, state.isGoldenRound, role, broadcast, handleRoundEndWithWinner]);
   
   // Save to history before state change
   const saveToHistory = useCallback((currentState: MatchState) => {
@@ -329,8 +645,10 @@ export function useChampionshipSync({
       const newState: MatchState = {
         ...prev,
         status: 'RUNNING',
+        isBreakTime: false,
+        breakTimeLeftMs: undefined,
         events: [
-          createEvent('TIMER_START', prev.isMedicalTime ? 'Tempo médico iniciado' : 'Round iniciado'),
+          createEvent('TIMER_START', prev.isGoldenRound ? 'GOLDEN ROUND iniciado' : prev.isMedicalTime ? 'Tempo médico iniciado' : 'Round iniciado'),
           ...prev.events
         ].slice(0, MAX_EVENTS),
       };
@@ -428,25 +746,62 @@ export function useChampionshipSync({
   const nextRound = useCallback(() => {
     if (role !== 'master') return;
     if (state.status !== 'ROUND_END') return;
-    if (state.round >= state.config.maxRounds) return;
-    
+
+    // Allow advancing if: more configured rounds remain, OR round wins are tied (golden round)
+    const canAdvance = state.round < state.config.maxRounds ||
+      (state.round >= state.config.maxRounds && state.roundWinsRed === state.roundWinsBlue);
+    if (!canAdvance) return;
+
     saveToHistory(state);
-    
+
     setState(prev => {
+      // If currently in break time, skip it
+      if (prev.isBreakTime) {
+        const nextRoundNum = (prev.round + 1) as 1 | 2 | 3 | 4;
+        const isGolden = prev.round >= prev.config.maxRounds && prev.roundWinsRed === prev.roundWinsBlue;
+        const newState: MatchState = {
+          ...prev,
+          status: 'IDLE',
+          round: nextRoundNum,
+          timeLeftMs: prev.config.roundTimeMs,
+          roundScoreRed: 0,
+          roundScoreBlue: 0,
+          hitsRed: 0,
+          hitsBlue: 0,
+          gamjeomRed: prev.gamjeomRed,
+          gamjeomBlue: prev.gamjeomBlue,
+          isMedicalTime: false,
+          savedTimeMs: undefined,
+          isBreakTime: false,
+          breakTimeLeftMs: undefined,
+          isGoldenRound: isGolden || undefined,
+          events: [createEvent(isGolden ? 'GOLDEN_ROUND' : 'ROUND_END', isGolden ? 'GOLDEN ROUND — Morte Súbita!' : `Round ${nextRoundNum} preparado`), ...prev.events].slice(0, MAX_EVENTS),
+        };
+        broadcast(newState, true);
+        return newState;
+      }
+
+      // Determine if next round is golden
+      const isGolden = prev.round >= prev.config.maxRounds && prev.roundWinsRed === prev.roundWinsBlue;
+      const nextRoundNum = (prev.round + 1) as 1 | 2 | 3 | 4;
+
       const newState: MatchState = {
         ...prev,
         status: 'IDLE',
-        round: (prev.round + 1) as 1 | 2 | 3,
+        round: nextRoundNum,
         timeLeftMs: prev.config.roundTimeMs,
         roundScoreRed: 0,
         roundScoreBlue: 0,
         hitsRed: 0,
         hitsBlue: 0,
-        gamjeomRed: 0,
-        gamjeomBlue: 0,
+        gamjeomRed: prev.gamjeomRed,
+        gamjeomBlue: prev.gamjeomBlue,
         isMedicalTime: false,
         savedTimeMs: undefined,
-        events: [createEvent('ROUND_END', `Round ${prev.round + 1} preparado`), ...prev.events].slice(0, MAX_EVENTS),
+        isBreakTime: false,
+        breakTimeLeftMs: undefined,
+        isGoldenRound: isGolden || undefined,
+        events: [createEvent(isGolden ? 'GOLDEN_ROUND' : 'ROUND_END', isGolden ? 'GOLDEN ROUND — Morte Súbita!' : `Round ${nextRoundNum} preparado`), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -676,6 +1031,7 @@ export function useChampionshipSync({
   return {
     state,
     isConnected,
+    connectedDevices,
     startTimer,
     pauseTimer,
     resetTime,
@@ -697,7 +1053,20 @@ export function useChampionshipSync({
     updateConfigInPlace,
     hasConfig: state.hasConfig,
     broadcastRaw: (msg: ChampionshipSyncMessage) => {
+      // Local
       channel.current?.postMessage(msg);
+      // Network
+      if (msg.type === 'SHOW_BRACKET') {
+        realtimeSendRef.current('show-bracket', msg.payload);
+      } else if (msg.type === 'SHOW_SCOREBOARD') {
+        realtimeSendRef.current('show-scoreboard', null);
+      } else if (msg.type === 'SHOW_HARDWARE_TEST') {
+        realtimeSendRef.current('show-hardware-test', msg.payload);
+      } else if (msg.type === 'HIDE_HARDWARE_TEST') {
+        realtimeSendRef.current('hide-hardware-test', null);
+      } else if (msg.type === 'HARDWARE_TEST_HIT') {
+        realtimeSendRef.current('hardware-test-hit', msg.payload);
+      }
     },
   };
 }

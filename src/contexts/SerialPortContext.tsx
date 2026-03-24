@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useRef, useCallback, useMemo } from 'react';
 import { useSerialPort } from '@/hooks/useSerialPort';
 import type { Side, HitType } from '@/types/game';
-import type { UseSerialPortReturn, ImpactCallbackData } from '@/types/serial';
+import type { UseSerialPortReturn, ImpactCallbackData, JudgeEvent } from '@/types/serial';
 
 // ─── Types ───
 
 type KickHandler = (side: Side, hitType: HitType) => void;
 type RawPacketHandler = (pkt: { intensity: number; deviceId: number; battery?: number; ts: number }) => void;
 type ImpactHandler = (impact: ImpactCallbackData) => void;
+type JudgeHandler = (event: JudgeEvent) => void;
 
 interface ImpactDetectorConfig {
   enabled: boolean;
@@ -23,6 +24,8 @@ interface SerialPortContextValue {
   unregisterRawPacketHandler: () => void;
   registerImpactHandler: (fn: ImpactHandler) => void;
   unregisterImpactHandler: () => void;
+  registerJudgeHandler: (fn: JudgeHandler) => void;
+  unregisterJudgeHandler: () => void;
   setImpactDetectorConfig: (config: ImpactDetectorConfig | null) => void;
 }
 
@@ -37,6 +40,7 @@ export function SerialPortProvider({ children }: { children: React.ReactNode }) 
   const kickHandlerRef = useRef<KickHandler | null>(null);
   const rawPacketHandlerRef = useRef<RawPacketHandler | null>(null);
   const impactHandlerRef = useRef<ImpactHandler | null>(null);
+  const judgeHandlerRef = useRef<JudgeHandler | null>(null);
   
   // Impact detector config state (ref to avoid re-renders of the hook)
   const [impactDetectorConfig, setImpactDetectorConfigState] = React.useState<ImpactDetectorConfig | null>(null);
@@ -54,19 +58,36 @@ export function SerialPortProvider({ children }: { children: React.ReactNode }) 
     impactHandlerRef.current?.(impact);
   }, []);
 
-  // Build the impactDetectorConfig for useSerialPort
-  const impactDetectorConfigMemo = useMemo(() => {
-    if (!impactDetectorConfig || !impactDetectorConfig.enabled) return undefined;
-    return impactDetectorConfig;
-  }, [impactDetectorConfig]);
+  const onJudgeEvent = useCallback((event: JudgeEvent) => {
+    judgeHandlerRef.current?.(event);
+  }, []);
 
-  const serialPort = useSerialPort({
+  // Pass config directly to useSerialPort (detector is always active, config just updates thresholds)
+  const serialPortRaw = useSerialPort({
     onKick,
     onRawPacket,
     onImpact,
+    onJudgeEvent,
     debounceMs: 150,
-    impactDetectorConfig: impactDetectorConfigMemo,
+    impactDetectorConfig: impactDetectorConfig ?? undefined,
   });
+
+  // Destructure individual properties so useMemo depends on stable primitives/refs
+  const {
+    isConnected, isConnecting, isAutoConnecting, error, isSupported,
+    connect, disconnect, equipment, equipmentVersion, rawPacketCount, lastRawLine,
+    getDetectorDiag, setPassThroughMode,
+  } = serialPortRaw;
+
+  const serialPort = useMemo<UseSerialPortReturn>(() => ({
+    isConnected, isConnecting, isAutoConnecting, error, isSupported,
+    connect, disconnect, equipment, equipmentVersion, rawPacketCount, lastRawLine,
+    getDetectorDiag, setPassThroughMode,
+  }), [
+    isConnected, isConnecting, isAutoConnecting, error, isSupported,
+    connect, disconnect, equipment, equipmentVersion, rawPacketCount, lastRawLine,
+    getDetectorDiag, setPassThroughMode,
+  ]);
 
   // Registration functions
   const registerKickHandler = useCallback((fn: KickHandler) => {
@@ -90,6 +111,13 @@ export function SerialPortProvider({ children }: { children: React.ReactNode }) 
     impactHandlerRef.current = null;
   }, []);
 
+  const registerJudgeHandler = useCallback((fn: JudgeHandler) => {
+    judgeHandlerRef.current = fn;
+  }, []);
+  const unregisterJudgeHandler = useCallback(() => {
+    judgeHandlerRef.current = null;
+  }, []);
+
   const setImpactDetectorConfig = useCallback((config: ImpactDetectorConfig | null) => {
     setImpactDetectorConfigState(config);
   }, []);
@@ -102,12 +130,15 @@ export function SerialPortProvider({ children }: { children: React.ReactNode }) 
     unregisterRawPacketHandler,
     registerImpactHandler,
     unregisterImpactHandler,
+    registerJudgeHandler,
+    unregisterJudgeHandler,
     setImpactDetectorConfig,
   }), [
     serialPort,
     registerKickHandler, unregisterKickHandler,
     registerRawPacketHandler, unregisterRawPacketHandler,
     registerImpactHandler, unregisterImpactHandler,
+    registerJudgeHandler, unregisterJudgeHandler,
     setImpactDetectorConfig,
   ]);
 

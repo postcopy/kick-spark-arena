@@ -9,16 +9,16 @@ export interface ScoreConfig {
   punch: number;      // Soco (tronco) - default 1
   body: number;       // Chute corpo - default 2
   head: number;       // Chute cabeça - default 3
-  spinBody: number;   // Giro corpo - default 4
-  spinHead: number;   // Giro cabeça - default 6
+  spinBody: number;   // Giro corpo - WT: 3 (2+1 bonus)
+  spinHead: number;   // Giro cabeça - WT: 4 (3+1 bonus)
 }
 
 export const DEFAULT_SCORE_CONFIG: ScoreConfig = {
   punch: 1,
   body: 2,
   head: 3,
-  spinBody: 4,
-  spinHead: 6,
+  spinBody: 3,   // WT: chute giratório tronco = 2 + 1 bonus = 3
+  spinHead: 4,   // WT: chute giratório cabeça = 3 + 1 bonus = 4
 };
 
 export const SCORE_LABELS: Record<keyof ScoreConfig, string> = {
@@ -38,8 +38,8 @@ export interface MatchConfig {
   
   // Rules
   maxRounds: 1 | 3;
-  maxGamjeom: number;       // 10 default - opponent wins when reached
-  pointGap: number;         // 20 default - auto-ends round when difference reached
+  maxGamjeom: number;       // WT: 10 - desclassificação por penalidades
+  pointGap: number;         // WT: 12 - vitória automática por gap de pontos
   tiebreakByHits?: boolean; // default true - use hits as tiebreaker when round score is tied
   
   // Scoring values (configurable)
@@ -84,8 +84,8 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   medicalTimeMs: 60000,    // 1:00
   breakTimeMs: 60000,      // 1:00
   maxRounds: 3,
-  maxGamjeom: 5,
-  pointGap: 20,
+  maxGamjeom: 10,  // WT: 10 gam-jeom = desclassificação
+  pointGap: 12,    // WT: gap de 12 pontos = vitória automática
   scoring: DEFAULT_SCORE_CONFIG,
   matId: 1,
   scoringInput: 'impacts',
@@ -102,8 +102,8 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
 export interface MatchEvent {
   id: string;
   type: ScoreType | 'UNDO' | 'TIMER_START' | 'TIMER_PAUSE' | 'TIMER_RESET' |
-        'MEDICAL_START' | 'MEDICAL_END' | 'ROUND_END' | 'ROUND_WIN' | 
-        'MATCH_END' | 'POINT_GAP' | 'GAMJEOM_LIMIT' | 'ADJUST';
+        'MEDICAL_START' | 'MEDICAL_END' | 'ROUND_END' | 'ROUND_WIN' |
+        'MATCH_END' | 'POINT_GAP' | 'GAMJEOM_LIMIT' | 'ADJUST' | 'GOLDEN_ROUND' | 'BREAK_TIME';
   side?: MatchSide;
   points?: number;
   ts: number;
@@ -113,36 +113,43 @@ export interface MatchEvent {
 // Main match state
 export interface MatchState {
   status: MatchStatus;
-  round: 1 | 2 | 3;
+  round: 1 | 2 | 3 | 4;
   timeLeftMs: number;
-  
+
   // Round scores (reset each round)
   roundScoreRed: number;
   roundScoreBlue: number;
-  
+
   // Hit counters (reset each round) - for statistics and tiebreak
   hitsRed: number;
   hitsBlue: number;
-  
+
   // Round wins (Best of 3)
   roundWinsRed: number;
   roundWinsBlue: number;
-  
+
   // Gam-jeom (penalties) - accumulated in round
   gamjeomRed: number;
   gamjeomBlue: number;
-  
+
   // Events log
   events: MatchEvent[];
   lastEvent?: MatchEvent;
-  
+
   // Sync timestamp
   lastUpdate: number;
-  
+
   // Medical time tracking
   isMedicalTime: boolean;
   savedTimeMs?: number; // Time saved before medical
-  
+
+  // Golden Round (sudden death when rounds are tied after maxRounds)
+  isGoldenRound?: boolean;
+
+  // Break timer between rounds
+  isBreakTime?: boolean;
+  breakTimeLeftMs?: number;
+
   // Configuration
   config: MatchConfig;
   hasConfig: boolean; // Blocks "Iniciar" until setup is done
@@ -188,12 +195,22 @@ export function getScoreValue(type: ScoreType, config: ScoreConfig): number {
   }
 }
 
+// Hardware test hit data broadcast to TV
+export interface HardwareTestHit {
+  deviceId: number; // 1=vest blue, 2=vest red, 3=helmet blue, 4=helmet red
+  intensity: number;
+  ts: number;
+}
+
 // Typed sync message for BroadcastChannel
 export type ChampionshipSyncMessage =
   | { type: 'MATCH_STATE'; payload: MatchState }
   | { type: 'TOURNAMENT_UPDATE'; payload: unknown }
   | { type: 'SHOW_BRACKET'; payload: { categoryId: string } }
-  | { type: 'SHOW_SCOREBOARD' };
+  | { type: 'SHOW_SCOREBOARD' }
+  | { type: 'SHOW_HARDWARE_TEST'; payload: { athleteBlue?: string; athleteRed?: string } }
+  | { type: 'HIDE_HARDWARE_TEST' }
+  | { type: 'HARDWARE_TEST_HIT'; payload: HardwareTestHit };
 
 // Helper to format time
 export function formatTime(ms: number): string {

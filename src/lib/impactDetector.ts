@@ -2,7 +2,7 @@
 // Used by both useHardwareDiagnostics and useSerialPort (championship scoring)
 
 // ─── Constants (shared between diagnostics and scoring) ───
-export const NOISE_INTENSITY_MIN = 15; // Hardcoded noise floor: intensity < 15 = NOISE (ignored)
+export const NOISE_INTENSITY_MIN = 1; // Absolute floor: only reject intensity=0 (real filtering via startThreshold + hitMin)
 export const SILENCE_GAP_MS = 200;
 export const MIN_IMPACT_PKTS = 1;
 export const MIN_IMPACT_DURATION_MS = 0;
@@ -19,6 +19,7 @@ export interface ImpactDetectorConfig {
   minPackets: number;
   minDurationMs: number;
   maxDurationMs: number;
+  passThroughMode: boolean;
 }
 
 export interface FinalizedImpact {
@@ -46,6 +47,9 @@ export class ImpactDetector {
   private pendingFinalized: FinalizedImpact[] = [];
   private config: ImpactDetectorConfig;
   private wizardMode = false;
+  private rejectedCount = 0;
+  private lastFedIntensity = 0;
+  private lastFedDeviceId = 0;
 
   constructor(config?: Partial<ImpactDetectorConfig>) {
     this.config = {
@@ -57,6 +61,7 @@ export class ImpactDetector {
       minPackets: MIN_IMPACT_PKTS,
       minDurationMs: MIN_IMPACT_DURATION_MS,
       maxDurationMs: 2000,
+      passThroughMode: false,
       ...config,
     };
   }
@@ -83,8 +88,23 @@ export class ImpactDetector {
 
   /** Feed a raw packet into the detector */
   feed(deviceId: number, intensity: number, ts: number): void {
+    this.lastFedIntensity = intensity;
+    this.lastFedDeviceId = deviceId;
+
+    // Pass-through mode: skip ALL filters, create immediate finalized impact
+    if (this.config.passThroughMode) {
+      this.pendingFinalized.push({
+        deviceId, startTs: ts, endTs: ts, durationMs: 0,
+        peakIntensity: intensity, avgIntensity: intensity, packetCount: 1,
+      });
+      return;
+    }
+
     // Configurable noise floor: discard before any threshold logic
-    if (intensity < this.config.noiseIntensityMin) return;
+    if (intensity < this.config.noiseIntensityMin) {
+      this.rejectedCount++;
+      return;
+    }
     
     const floor = this.config.noiseFloor[String(deviceId)] ?? 0;
     const startThreshold = floor + this.config.deltaStart;
@@ -174,5 +194,20 @@ export class ImpactDetector {
   /** Reset all active impacts (e.g. on disconnect) */
   reset(): void {
     this.activeImpacts.clear();
+  }
+
+  // ─── Diagnostics ───
+
+  getRejectedCount(): number { return this.rejectedCount; }
+  getLastFedIntensity(): number { return this.lastFedIntensity; }
+  getLastFedDeviceId(): number { return this.lastFedDeviceId; }
+
+  getConfigSnapshot(): { noiseIntensityMin: number; deltaStart: number; passThroughMode: boolean; noiseFloorKeys: string[] } {
+    return {
+      noiseIntensityMin: this.config.noiseIntensityMin,
+      deltaStart: this.config.deltaStart,
+      passThroughMode: this.config.passThroughMode,
+      noiseFloorKeys: Object.keys(this.config.noiseFloor),
+    };
   }
 }

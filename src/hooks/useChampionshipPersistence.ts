@@ -13,15 +13,7 @@ export function useChampionshipPersistence(state: MatchState) {
   const lastPersistedEventsCount = useRef(0);
   const prevStatusRef = useRef(state.status);
   const prevHasConfigRef = useRef(state.hasConfig);
-
-  // Create match record when config is saved (hasConfig transitions to true)
-  useEffect(() => {
-    if (!user) return;
-    if (state.hasConfig && !prevHasConfigRef.current) {
-      createMatch();
-    }
-    prevHasConfigRef.current = state.hasConfig;
-  }, [state.hasConfig, user]);
+  const matchStartedRef = useRef(false); // tracks if RUNNING was ever reached
 
   const createMatch = useCallback(async () => {
     if (!user) return;
@@ -52,13 +44,34 @@ export function useChampionshipPersistence(state: MatchState) {
     }
   }, [user, state.config, state.status]);
 
-  // Persist new events as they appear
+  // Create match record when config is saved (hasConfig transitions to true)
+  useEffect(() => {
+    if (!user) return;
+    if (state.hasConfig && !prevHasConfigRef.current) {
+      createMatch().catch(err => console.error('[ChampPersist] Unhandled error in createMatch:', err));
+    }
+    prevHasConfigRef.current = state.hasConfig;
+  }, [state.hasConfig, user, createMatch]);
+
+  // Persist new events as they appear (events are prepended — newest first)
+  // Also handle undo: if events shrink, reset counter to match
   useEffect(() => {
     if (!matchDbIdRef.current) return;
-    const newEvents = state.events.slice(lastPersistedEventsCount.current);
-    if (newEvents.length === 0) return;
+    const totalEvents = state.events.length;
+    const prevCount = lastPersistedEventsCount.current;
 
-    lastPersistedEventsCount.current = state.events.length;
+    // Events shrunk (undo happened) — sync counter down
+    if (totalEvents < prevCount) {
+      lastPersistedEventsCount.current = totalEvents;
+      return;
+    }
+
+    const newCount = totalEvents - prevCount;
+    if (newCount <= 0) return;
+
+    // New events are at the START of the array (prepended)
+    const newEvents = state.events.slice(0, newCount);
+    lastPersistedEventsCount.current = totalEvents;
     persistEvents(matchDbIdRef.current, newEvents);
   }, [state.events.length]);
 
@@ -98,7 +111,8 @@ export function useChampionshipPersistence(state: MatchState) {
       blue_round_wins: state.roundWinsBlue,
     };
 
-    if (state.status === 'RUNNING' && !updates.started_at) {
+    if (state.status === 'RUNNING' && !matchStartedRef.current) {
+      matchStartedRef.current = true;
       updates.started_at = new Date().toISOString();
     }
 
@@ -125,6 +139,7 @@ export function useChampionshipPersistence(state: MatchState) {
     if (!state.hasConfig && prevHasConfigRef.current) {
       matchDbIdRef.current = null;
       lastPersistedEventsCount.current = 0;
+      matchStartedRef.current = false;
     }
   }, [state.hasConfig]);
 
