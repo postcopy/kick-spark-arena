@@ -148,7 +148,7 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
             {restTimeLeft}
           </div>
           <p className="text-cyan-400/60 text-sm font-mono tracking-wider">
-            Pr\u00f3ximo: Round {currentRound}/{totalRounds}
+            Próximo: Round {currentRound}/{totalRounds}
           </p>
         </div>
       </div>
@@ -203,7 +203,7 @@ export function ReactionScreen({ reactionState, onBack, athleteName }: ReactionS
         {/* Left Panel: Telemetry */}
         <div className="absolute left-5 md:left-8 top-1/2 -translate-y-1/2 flex flex-col gap-5 z-10">
           <div>
-            <div className="font-mono text-[10px] text-white/20 uppercase tracking-[0.2em]">M\u00e9dia</div>
+            <div className="font-mono text-[10px] text-white/20 uppercase tracking-[0.2em]">Média</div>
             <div className="font-mono font-black text-white/80 text-2xl tabular-nums">
               {avgTime !== null ? `${avgTime}ms` : '--'}
             </div>

@@ -23,14 +23,14 @@ function Section({ title, icon, color, children, defaultOpen = false }: SectionP
         className="w-full flex items-center gap-4 p-5 text-left hover:bg-white/[0.02] transition-colors"
       >
         <div className={`flex-shrink-0 ${color}`}>{icon}</div>
-        <h3 className="flex-1 font-black text-white/90 tracking-wide text-base">{title}</h3>
+        <h3 className="flex-1 font-black text-white/90 tracking-wide text-lg">{title}</h3>
         <ChevronDown
           className={`h-5 w-5 text-zinc-600 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
         />
       </button>
       {open && (
         <div className="px-5 pb-5 pt-0 border-t border-white/[0.03]">
-          <div className="pt-4 text-zinc-400 text-sm leading-relaxed space-y-3">
+          <div className="pt-4 text-zinc-400 text-base leading-relaxed space-y-3">
             {children}
           </div>
         </div>
@@ -62,7 +62,7 @@ export default function HelpPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#07070C] text-white relative overflow-hidden">
+    <div className="min-h-screen bg-[#07070C] text-white relative overflow-y-auto">
       {/* Background */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,80,40,0.08),transparent)]" />
 
@@ -70,33 +70,33 @@ export default function HelpPage() {
         {/* Header */}
         <div className="flex items-center gap-4 mb-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/professional')}
             className="p-2 rounded-lg text-zinc-600 hover:text-white hover:bg-white/5 transition-all"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <img src={logoSpe} alt="SPE" className="h-8 object-contain" />
           <div className="w-px h-6 bg-zinc-800" />
-          <h1 className="font-black text-lg tracking-[0.15em]">MANUAL</h1>
+          <h1 className="font-black text-2xl tracking-[0.15em]">MANUAL</h1>
         </div>
 
         {/* Intro */}
         <div className="mb-8 p-6 border border-white/[0.04] rounded-xl bg-[#0c0c12]">
-          <h2 className="text-xl font-black tracking-wide mb-3 text-white/90">
+          <h2 className="text-2xl font-black tracking-wide mb-3 text-white/90">
             SPE Sulsport — Sistema Profissional de Eventos
           </h2>
-          <p className="text-zinc-400 text-sm leading-relaxed mb-4">
+          <p className="text-zinc-400 text-base leading-relaxed mb-4">
             O sistema opera torneios de Taekwondo em tempo real com sincronização entre
             múltiplas estações. Dois modos disponíveis:
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-              <h4 className="font-bold text-red-400 text-sm mb-1">BÁSICO</h4>
-              <p className="text-zinc-500 text-xs">Luta a luta, sem chaves. Ideal para treinos e eventos simples.</p>
+              <h4 className="font-bold text-red-400 text-base mb-1">BÁSICO</h4>
+              <p className="text-zinc-400 text-sm">Luta a luta, sem chaves. Ideal para treinos e eventos simples.</p>
             </div>
             <div className="p-3 rounded-lg bg-[hsl(45,93%,47%)]/5 border border-[hsl(45,93%,47%)]/10">
-              <h4 className="font-bold text-[hsl(45,93%,60%)] text-sm mb-1">PROFISSIONAL</h4>
-              <p className="text-zinc-500 text-xs">Torneio completo com categorias, chaves, múltiplas quadras.</p>
+              <h4 className="font-bold text-[hsl(45,93%,60%)] text-base mb-1">PROFISSIONAL</h4>
+              <p className="text-zinc-400 text-sm">Torneio completo com categorias, chaves, múltiplas quadras.</p>
             </div>
           </div>
         </div>
@@ -117,20 +117,20 @@ export default function HelpPage() {
             </p>
             <div className="grid grid-cols-2 gap-3 mt-2">
               <div className="p-3 rounded-lg bg-[hsl(45,93%,47%)]/5 border border-[hsl(45,93%,47%)]/10">
-                <h4 className="font-bold text-[hsl(45,93%,60%)] text-xs tracking-wide mb-1">CENTRAL</h4>
-                <p className="text-zinc-500 text-xs">Cria o torneio, gerencia categorias, gera chaves, atribui quadras.</p>
+                <h4 className="font-bold text-[hsl(45,93%,60%)] text-sm tracking-wide mb-1">CENTRAL</h4>
+                <p className="text-zinc-400 text-sm">Cria o torneio, gerencia categorias, gera chaves, atribui quadras.</p>
               </div>
               <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-                <h4 className="font-bold text-red-400 text-xs tracking-wide mb-1">MAT (QUADRA)</h4>
-                <p className="text-zinc-500 text-xs">Opera as lutas na quadra — placar, pontuação, cronômetro.</p>
+                <h4 className="font-bold text-red-400 text-sm tracking-wide mb-1">MAT (QUADRA)</h4>
+                <p className="text-zinc-400 text-sm">Opera as lutas na quadra — placar, pontuação, cronômetro.</p>
               </div>
               <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-                <h4 className="font-bold text-blue-400 text-xs tracking-wide mb-1">TV (TELÃO)</h4>
-                <p className="text-zinc-500 text-xs">Exibe o placar e as chaves no telão para o público.</p>
+                <h4 className="font-bold text-blue-400 text-sm tracking-wide mb-1">TV (TELÃO)</h4>
+                <p className="text-zinc-400 text-sm">Exibe o placar e as chaves no telão para o público.</p>
               </div>
               <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                <h4 className="font-bold text-emerald-400 text-xs tracking-wide mb-1">CHAMADA</h4>
-                <p className="text-zinc-500 text-xs">Mostra as próximas lutas na área de aquecimento.</p>
+                <h4 className="font-bold text-emerald-400 text-sm tracking-wide mb-1">CHAMADA</h4>
+                <p className="text-zinc-400 text-sm">Mostra as próximas lutas na área de aquecimento.</p>
               </div>
             </div>
           </Section>
@@ -151,7 +151,7 @@ export default function HelpPage() {
             <Step n={7}>Clique em <strong className="text-white/60">Iniciar Torneio</strong></Step>
 
             <div className="mt-3 p-3 bg-yellow-500/5 border border-yellow-500/10 rounded-lg">
-              <p className="text-yellow-400/80 text-xs">
+              <p className="text-yellow-400/80 text-sm">
                 <strong>Dica:</strong> Use o botão "Importar CSV" para cadastrar atletas em massa.
                 Formato: nome, academia (um por linha).
               </p>
@@ -173,29 +173,29 @@ export default function HelpPage() {
             <Step n={6}>Ao final, marque o <strong className="text-white/60">vencedor</strong> e confirme o resultado</Step>
 
             <p className="font-bold text-white/60 mt-4 mb-2">Controles do teclado:</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
-                <KeyBadge>Espaço</KeyBadge> <span className="text-xs">Iniciar/Pausar timer</span>
+                <KeyBadge>Espaço</KeyBadge> <span className="text-sm">Iniciar/Pausar timer</span>
               </div>
               <div className="flex items-center gap-2">
-                <KeyBadge>Q / P</KeyBadge> <span className="text-xs">+1 pt Vermelho / Azul</span>
+                <KeyBadge>Q / P</KeyBadge> <span className="text-sm">+1 pt Vermelho / Azul</span>
               </div>
               <div className="flex items-center gap-2">
-                <KeyBadge>W / O</KeyBadge> <span className="text-xs">+2 pts Vermelho / Azul</span>
+                <KeyBadge>W / O</KeyBadge> <span className="text-sm">+2 pts Vermelho / Azul</span>
               </div>
               <div className="flex items-center gap-2">
-                <KeyBadge>E / I</KeyBadge> <span className="text-xs">+3 pts Vermelho / Azul</span>
+                <KeyBadge>E / I</KeyBadge> <span className="text-sm">+3 pts Vermelho / Azul</span>
               </div>
               <div className="flex items-center gap-2">
-                <KeyBadge>A / L</KeyBadge> <span className="text-xs">Gam-jeom Verm. / Azul</span>
+                <KeyBadge>A / L</KeyBadge> <span className="text-sm">Gam-jeom Verm. / Azul</span>
               </div>
               <div className="flex items-center gap-2">
-                <KeyBadge>R</KeyBadge> <span className="text-xs">Resetar round</span>
+                <KeyBadge>R</KeyBadge> <span className="text-sm">Resetar round</span>
               </div>
             </div>
 
             <div className="mt-3 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
-              <p className="text-blue-400/80 text-xs">
+              <p className="text-blue-400/80 text-sm">
                 <strong>Placar TV:</strong> Use o botão "ABRIR PLACAR TV" para projetar o
                 placar em tempo real no telão. A TV sincroniza automaticamente.
               </p>
@@ -218,7 +218,7 @@ export default function HelpPage() {
             </p>
 
             <div className="mt-3 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
-              <p className="text-blue-400/80 text-xs">
+              <p className="text-blue-400/80 text-sm">
                 <strong>Múltiplos telões:</strong> Abra várias janelas de TV, cada uma em
                 uma quadra diferente, para monitorar todas as áreas simultaneamente.
               </p>
@@ -253,7 +253,7 @@ export default function HelpPage() {
               Mudanças são propagadas instantaneamente via <strong className="text-white/60">BroadcastChannel</strong>.
             </p>
 
-            <div className="mt-3 font-mono text-xs text-zinc-500 bg-black/30 rounded-lg p-4 leading-loose">
+            <div className="mt-3 font-mono text-sm text-zinc-500 bg-black/30 rounded-lg p-4 leading-loose">
               <div className="text-[hsl(45,93%,60%)]">CENTRAL</div>
               <div className="pl-4">↓ cria torneio, gera chaves, atribui quadras</div>
               <div className="text-zinc-600 pl-4">↓ localStorage + BroadcastChannel</div>
@@ -274,7 +274,7 @@ export default function HelpPage() {
             </div>
 
             <div className="mt-3 p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
-              <p className="text-emerald-400/80 text-xs">
+              <p className="text-emerald-400/80 text-sm">
                 <strong>Mesmo computador:</strong> Abra múltiplas janelas/abas do navegador.
                 Cada uma em uma estação diferente. A sincronização é instantânea.
               </p>
@@ -289,37 +289,37 @@ export default function HelpPage() {
           >
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <span className="w-20 text-right text-xs text-zinc-600 font-mono">ANTES</span>
+                <span className="w-20 text-right text-sm text-zinc-500 font-mono">ANTES</span>
                 <div className="w-2 h-2 rounded-full bg-[hsl(45,93%,47%)]" />
                 <span className="text-sm">Central: Criar torneio, categorias, atletas, chaves</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-20 text-right text-xs text-zinc-600 font-mono">ANTES</span>
+                <span className="w-20 text-right text-sm text-zinc-500 font-mono">ANTES</span>
                 <div className="w-2 h-2 rounded-full bg-[hsl(45,93%,47%)]" />
                 <span className="text-sm">Central: Atribuir categorias às quadras</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-20 text-right text-xs text-zinc-600 font-mono">INÍCIO</span>
+                <span className="w-20 text-right text-sm text-zinc-500 font-mono">INÍCIO</span>
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span className="text-sm">Central: Iniciar torneio</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-20 text-right text-xs text-zinc-600 font-mono">EVENTO</span>
+                <span className="w-20 text-right text-sm text-zinc-500 font-mono">EVENTO</span>
                 <div className="w-2 h-2 rounded-full bg-red-500" />
                 <span className="text-sm">Mat: Operar lutas, registrar placar</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-20 text-right text-xs text-zinc-600 font-mono">EVENTO</span>
+                <span className="w-20 text-right text-sm text-zinc-500 font-mono">EVENTO</span>
                 <div className="w-2 h-2 rounded-full bg-blue-500" />
                 <span className="text-sm">TV: Exibir placar e chaves no telão</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-20 text-right text-xs text-zinc-600 font-mono">EVENTO</span>
+                <span className="w-20 text-right text-sm text-zinc-500 font-mono">EVENTO</span>
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span className="text-sm">Chamada: Chamar próximos atletas</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-20 text-right text-xs text-zinc-600 font-mono">FIM</span>
+                <span className="w-20 text-right text-sm text-zinc-500 font-mono">FIM</span>
                 <div className="w-2 h-2 rounded-full bg-zinc-600" />
                 <span className="text-sm">Central: Encerrar torneio, consultar resultados</span>
               </div>
@@ -330,7 +330,7 @@ export default function HelpPage() {
 
         {/* Footer */}
         <div className="mt-12 text-center">
-          <p className="text-zinc-700 text-[10px] tracking-[0.3em]">
+          <p className="text-zinc-600 text-xs tracking-[0.3em]">
             SPE SULSPORT — SISTEMA PROFISSIONAL DE EVENTOS v1.0.0
           </p>
         </div>

@@ -148,7 +148,7 @@ export default function TournamentSetup() {
       <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/championship/mat')}
+            onClick={() => navigate('/central')}
             className="text-zinc-500 hover:text-zinc-300 transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />

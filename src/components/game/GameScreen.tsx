@@ -15,6 +15,7 @@ interface GameScreenProps {
   totalDuration?: number;
   onPause?: () => void;
   equipment?: Map<EquipmentSlot, EquipmentState>;
+  isFrenzy?: boolean;
 }
 
 export function GameScreen({
@@ -26,7 +27,8 @@ export function GameScreen({
   athlete,
   totalDuration = 60,
   onPause,
-  equipment
+  equipment,
+  isFrenzy = false,
 }: GameScreenProps) {
   const [showPauseHint, setShowPauseHint] = useState(true);
 
@@ -98,9 +100,28 @@ export function GameScreen({
 
   return (
     <div
-      className="flex flex-col h-full w-full overflow-hidden relative select-none bg-[#0A0A0F]"
+      className={cn(
+        "flex flex-col h-full w-full overflow-hidden relative select-none bg-[#0A0A0F]",
+        isFrenzy && "frenzy-zone-active"
+      )}
       onClick={handleTapPause}
     >
+      {/* Frenzy Zone overlay */}
+      {isFrenzy && (
+        <div className="absolute inset-0 z-30 pointer-events-none">
+          {/* Pulsing border glow */}
+          <div className="absolute inset-0 border-4 border-yellow-400/40 rounded-lg animate-frenzy-border" />
+          {/* Frenzy badge */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 animate-frenzy-enter">
+            <div className="px-6 py-2 bg-yellow-500/20 backdrop-blur-sm border border-yellow-400/50 rounded-full">
+              <span className="font-display font-black text-yellow-400 text-lg tracking-wider" style={{ textShadow: '0 0 20px rgba(245,158,11,0.6)' }}>
+                FRENZY ZONE x2
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Low Battery Alert */}
       {equipment && <LowBatteryAlert equipment={equipment} />}
 
@@ -117,7 +138,7 @@ export function GameScreen({
                   <Gauge className="w-8 h-8 text-orange-400" />
                 </div>
                 <h2 className="text-xl font-display font-bold text-white/80 mb-3">
-                  Corrida Pausada
+                  Luta Pausada
                 </h2>
                 <p className="text-sm text-white/30 border border-white/10 rounded-lg px-6 py-2.5 cursor-pointer hover:bg-white/5 transition-colors">
                   Toque para retomar
@@ -212,7 +233,7 @@ export function GameScreen({
                 <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <Zap className="w-4 h-4 text-orange-400/60" />
-                    <span className="text-[10px] text-white/25 uppercase tracking-[0.2em] font-mono">M\u00e9dia</span>
+                    <span className="text-[10px] text-white/25 uppercase tracking-[0.2em] font-mono">Média</span>
                   </div>
                   <span className="text-4xl font-bold text-white/80 font-mono tabular-nums">
                     {elapsedSeconds > 5 ? Math.round(totalKicks / (elapsedSeconds / 60)) : '--'}

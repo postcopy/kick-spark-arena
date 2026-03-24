@@ -1,8 +1,10 @@
+import { useEffect, useRef } from "react";
 import { OctagonBackground } from "./OctagonBackground";
 import { UseSerialPortReturn } from "@/types/serial";
 import logoImage from "@/assets/logo-desafio-relampago.png";
 import { Cpu, ArrowLeft, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { useSound } from "@/contexts/SoundContext";
 
 export interface EquipmentSetupScreenProps {
   serialPort: UseSerialPortReturn;
@@ -22,7 +24,7 @@ function CheckItem({ label, status }: { label: string; status: CheckStatus }) {
   const colorClass =
     status === "ok" ? "text-emerald-400" :
     status === "error" ? "text-red-400" :
-    "text-slate-500";
+    "text-slate-400";
 
   return (
     <div className={`font-mono text-sm flex gap-2 ${status === "loading" ? "animate-pulse" : ""}`}>
@@ -39,6 +41,17 @@ export function EquipmentSetupScreen({
   onBack,
 }: EquipmentSetupScreenProps) {
   const { isSupported, isConnected, isConnecting, isAutoConnecting, error } = serialPort;
+  const { play } = useSound();
+
+  // Play sound on USB connect/disconnect transition
+  const prevConnected = useRef(isConnected);
+  useEffect(() => {
+    if (prevConnected.current !== isConnected) {
+      if (isConnected) play('usbConnected');
+      else if (prevConnected.current) play('usbDisconnected');
+      prevConnected.current = isConnected;
+    }
+  }, [isConnected, play]);
 
   // Determine visual state
   const browserStatus: CheckStatus = isSupported ? "ok" : "error";
@@ -55,7 +68,7 @@ export function EquipmentSetupScreen({
     : "text-slate-600";
 
   return (
-    <div className="relative h-full w-full overflow-auto bg-background text-white">
+    <div role="main" aria-label="Configuração de equipamento" className="relative h-full w-full overflow-auto bg-background text-white">
       <OctagonBackground />
 
       <div className="relative z-10 mx-auto flex min-h-full max-w-lg flex-col items-center justify-center px-4 py-10">
@@ -116,7 +129,7 @@ export function EquipmentSetupScreen({
                 <h2 className="font-mono text-xl font-bold tracking-wider text-cyan-400">
                   AGUARDANDO CONEXÃO
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-2 text-sm text-slate-400">
                   Conecte o USB para iniciar o protocolo.
                 </p>
               </>
@@ -145,8 +158,23 @@ export function EquipmentSetupScreen({
 
               {/* Error display */}
               {error && (
-                <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 mb-4 font-mono text-xs text-red-300">
-                  [ERRO] {error}
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 mb-4 space-y-2" role="alert">
+                  <p className="font-mono text-sm font-bold text-red-400 flex items-center gap-2">
+                    <AlertTriangle size={16} />
+                    Falha na conexão
+                  </p>
+                  <p className="text-xs text-red-300">{error}</p>
+                  <p className="text-xs text-slate-400">
+                    Verifique se o cabo USB está conectado e o driver está instalado.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => serialPort.connect()}
+                    disabled={isConnecting}
+                    className="mt-1 px-4 py-2 rounded-lg bg-red-500/20 text-red-300 text-xs font-bold hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                  >
+                    Tentar novamente
+                  </button>
                 </div>
               )}
 
@@ -191,7 +219,7 @@ export function EquipmentSetupScreen({
               <button
                 type="button"
                 onClick={onSkip}
-                className="text-xs text-slate-600 hover:text-slate-400 transition-colors"
+                className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
               >
                 Pular e usar teclado (modo teste)
               </button>

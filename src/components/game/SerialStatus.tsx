@@ -35,15 +35,15 @@ export function SerialStatus({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" role="status" aria-label={isConnected ? 'Sensor ativo' : 'Modo demo (teclado)'}>
         {isConnected ? (
           <>
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-green-500">Plaquinha ativa</span>
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" aria-hidden="true" />
+            <span className="text-xs text-green-500">Sensor ativo</span>
           </>
         ) : (
           <>
-            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+            <div className="w-2 h-2 rounded-full bg-muted-foreground" aria-hidden="true" />
             <span className="text-xs text-muted-foreground">Modo demo (teclado)</span>
           </>
         )}
@@ -52,12 +52,12 @@ export function SerialStatus({
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-2" role="status" aria-label={isConnecting ? 'Conectando' : isConnected ? 'Conectado' : 'Desconectado'}>
       <div className={cn(
         "flex items-center gap-3 px-4 py-2 rounded-lg border",
-        isConnected 
-          ? "border-green-500/50 bg-green-500/10" 
-          : error 
+        isConnected
+          ? "border-green-500/50 bg-green-500/10"
+          : error
             ? "border-red-500/50 bg-red-500/10"
             : "border-border bg-card"
       )}>
@@ -89,7 +89,7 @@ export function SerialStatus({
               onClick={onConnect}
               className="ml-2 h-7 px-3 text-xs"
             >
-              Habilitar Plaquinha
+              Habilitar Sensor
             </Button>
           </>
         )}

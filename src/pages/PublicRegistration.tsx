@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ArrowRight,
 } from 'lucide-react';
+import logoSpe from '@/assets/logo-spe-branca.png';
 
 // ─── Selected Athlete Interface ──────────────────────────────────────────────
 
@@ -37,10 +38,10 @@ interface NewAthleteForm {
 const BELT_OPTIONS = ['branca', 'amarela', 'verde', 'azul', 'vermelha', 'preta'];
 
 const STEPS: { key: RegistrationStep; label: string; icon: React.ReactNode }[] = [
-  { key: 'identification', label: 'Identificacao', icon: <UserCircle className="w-5 h-5" /> },
+  { key: 'identification', label: 'Identificação', icon: <UserCircle className="w-5 h-5" /> },
   { key: 'athletes', label: 'Atletas', icon: <Users className="w-5 h-5" /> },
-  { key: 'review', label: 'Revisao', icon: <ClipboardCheck className="w-5 h-5" /> },
-  { key: 'confirmation', label: 'Confirmacao', icon: <CheckCircle2 className="w-5 h-5" /> },
+  { key: 'review', label: 'Revisão', icon: <ClipboardCheck className="w-5 h-5" /> },
+  { key: 'confirmation', label: 'Confirmação', icon: <CheckCircle2 className="w-5 h-5" /> },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ export default function PublicRegistration() {
 
   // Step 2 state
   const [selectedAthletes, setSelectedAthletes] = useState<SelectedAthlete[]>([]);
+  const [weightInput, setWeightInput] = useState<{ athleteId: string; value: string } | null>(null);
   const [showNewAthleteModal, setShowNewAthleteModal] = useState(false);
   const [newAthleteForm, setNewAthleteForm] = useState<NewAthleteForm>({
     name: '',
@@ -102,9 +104,9 @@ export default function PublicRegistration() {
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
         <div className="bg-[#141420] border border-[#1E1E2E] rounded-2xl p-8 max-w-md w-full text-center">
           <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Link Invalido</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Link Inválido</h1>
           <p className="text-gray-400">
-            Este link de inscricao nao possui um torneio associado. Verifique o link e tente novamente.
+            Este link de inscrição não possui um torneio associado. Verifique o link e tente novamente.
           </p>
         </div>
       </div>
@@ -128,9 +130,9 @@ export default function PublicRegistration() {
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
         <div className="bg-[#141420] border border-[#1E1E2E] rounded-2xl p-8 max-w-md w-full text-center">
           <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Torneio nao encontrado</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Torneio não encontrado</h1>
           <p className="text-gray-400">
-            {error || 'O torneio nao existe ou as inscricoes estao encerradas.'}
+            {error || 'O torneio não existe ou as inscrições estão encerradas.'}
           </p>
         </div>
       </div>
@@ -159,25 +161,32 @@ export default function PublicRegistration() {
     const exists = selectedAthletes.find((s) => s.athlete.id === athlete.id);
     if (exists) {
       setSelectedAthletes((prev) => prev.filter((s) => s.athlete.id !== athlete.id));
+      // Clear weight input if it was open for this athlete
+      if (weightInput?.athleteId === athlete.id) setWeightInput(null);
     } else {
-      const weightStr = prompt(`Peso (kg) de ${athlete.name}:`);
-      if (!weightStr) return;
-      const weight = parseFloat(weightStr);
-      if (isNaN(weight) || weight <= 0) return;
-
-      const category = calculateCategory(
-        athlete.birth_date,
-        athlete.gender,
-        athlete.belt,
-        weight,
-        tournament.date,
-      );
-
-      setSelectedAthletes((prev) => [
-        ...prev,
-        { athlete, weight, belt: athlete.belt, category, reviewed: false },
-      ]);
+      // Show inline weight input instead of prompt()
+      setWeightInput({ athleteId: athlete.id, value: '' });
     }
+  };
+
+  const handleConfirmWeight = (athlete: AcademyAthlete) => {
+    if (!weightInput) return;
+    const weight = parseFloat(weightInput.value);
+    if (isNaN(weight) || weight <= 0) return;
+
+    const category = calculateCategory(
+      athlete.birth_date,
+      athlete.gender,
+      athlete.belt,
+      weight,
+      tournament.date,
+    );
+
+    setSelectedAthletes((prev) => [
+      ...prev,
+      { athlete, weight, belt: athlete.belt, category, reviewed: false },
+    ]);
+    setWeightInput(null);
   };
 
   const handleAddNewAthlete = async () => {
@@ -256,7 +265,7 @@ export default function PublicRegistration() {
       {/* Header */}
       <header className="border-b border-[#1E1E2E] bg-[#141420]">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <img src="/logo-sfighter.png" alt="S-FIGHT" className="h-8" />
+          <img src={logoSpe} alt="SPE" className="h-8" />
           <div className="text-right">
             <p className="text-sm text-gray-400">{tournament.name}</p>
             <p className="text-xs text-gray-500">{tournament.date} &middot; {tournament.location}</p>
@@ -306,7 +315,7 @@ export default function PublicRegistration() {
         {/* ─── Step 1: Identification ─────────────────────────────────────────── */}
         {step === 'identification' && (
           <div className="bg-[#141420] border border-[#1E1E2E] rounded-2xl p-6">
-            <h2 className="text-xl font-bold mb-1">Identificacao</h2>
+            <h2 className="text-xl font-bold mb-1">Identificação</h2>
             <p className="text-gray-400 text-sm mb-6">Informe os dados da academia e treinador.</p>
 
             <form onSubmit={handleIdentify} className="space-y-4">
@@ -395,32 +404,68 @@ export default function PublicRegistration() {
                 {savedAthletes.map((athlete) => {
                   const isSelected = selectedAthletes.some((s) => s.athlete.id === athlete.id);
                   const sel = selectedAthletes.find((s) => s.athlete.id === athlete.id);
+                  const isEnteringWeight = weightInput?.athleteId === athlete.id;
                   return (
-                    <div
-                      key={athlete.id}
-                      onClick={() => handleToggleAthlete(athlete)}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors border ${
-                        isSelected
-                          ? 'bg-[#E11D48]/10 border-[#E11D48]/40'
-                          : 'bg-[#0A0A0F] border-[#1E1E2E] hover:border-[#E11D48]/30'
-                      }`}
-                    >
+                    <div key={athlete.id}>
                       <div
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? 'bg-[#E11D48] border-[#E11D48]' : 'border-gray-600'
+                        onClick={() => !isEnteringWeight && handleToggleAthlete(athlete)}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors border ${
+                          isSelected
+                            ? 'bg-[#E11D48]/10 border-[#E11D48]/40'
+                            : isEnteringWeight
+                              ? 'bg-[#0A0A0F] border-[#E11D48]/30'
+                              : 'bg-[#0A0A0F] border-[#1E1E2E] hover:border-[#E11D48]/30'
                         }`}
                       >
-                        {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                            isSelected ? 'bg-[#E11D48] border-[#E11D48]' : 'border-gray-600'
+                          }`}
+                        >
+                          {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium truncate">{athlete.name}</p>
+                          <p className="text-gray-400 text-xs">
+                            {athlete.gender === 'M' ? 'Masculino' : 'Feminino'} &middot;{' '}
+                            <span className="capitalize">{athlete.belt}</span>
+                            {sel && <span className="text-[#E11D48]"> &middot; {sel.weight}kg</span>}
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">{athlete.name}</p>
-                        <p className="text-gray-400 text-xs">
-                          {athlete.gender === 'M' ? 'Masculino' : 'Feminino'} &middot;{' '}
-                          <span className="capitalize">{athlete.belt}</span>
-                          {sel && <span className="text-[#E11D48]"> &middot; {sel.weight}kg</span>}
-                        </p>
-                      </div>
+                      {/* Inline weight input */}
+                      {isEnteringWeight && (
+                        <div className="flex items-center gap-2 mt-1 ml-8">
+                          <input
+                            type="number"
+                            autoFocus
+                            placeholder="Peso (kg)"
+                            min="1"
+                            step="0.1"
+                            value={weightInput.value}
+                            onChange={(e) => setWeightInput({ athleteId: athlete.id, value: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleConfirmWeight(athlete);
+                              if (e.key === 'Escape') setWeightInput(null);
+                            }}
+                            className="w-28 px-3 py-1.5 rounded-lg bg-[#0A0A0F] border border-[#E11D48]/40 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-[#E11D48] transition-colors"
+                          />
+                          <button
+                            onClick={() => handleConfirmWeight(athlete)}
+                            className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#E11D48] to-[#9F1239] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                          >
+                            OK
+                          </button>
+                          <button
+                            onClick={() => setWeightInput(null)}
+                            className="px-3 py-1.5 rounded-lg border border-[#1E1E2E] text-gray-400 text-sm hover:bg-[#141420] transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -571,7 +616,7 @@ export default function PublicRegistration() {
             </div>
 
             <div className="bg-[#141420] border border-[#1E1E2E] rounded-2xl p-6">
-              <h2 className="text-xl font-bold mb-1">Revisao</h2>
+              <h2 className="text-xl font-bold mb-1">Revisão</h2>
               <p className="text-gray-400 text-sm mb-4">
                 Marque cada atleta como revisado para confirmar os dados.
               </p>
@@ -632,7 +677,7 @@ export default function PublicRegistration() {
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  'Enviar Inscricao'
+                  'Enviar Inscrição'
                 )}
               </button>
             </div>
@@ -644,7 +689,7 @@ export default function PublicRegistration() {
           <div className="bg-[#141420] border border-[#1E1E2E] rounded-2xl p-8 text-center">
             <CheckCircle2 className="w-20 h-20 text-green-500 mx-auto mb-4" />
 
-            <h2 className="text-2xl font-bold text-white mb-2">Inscricao Enviada!</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Inscrição Enviada!</h2>
 
             <p className="text-gray-400 mb-6">
               <span className="text-white font-semibold">{academyName}</span> &middot;{' '}
@@ -665,7 +710,7 @@ export default function PublicRegistration() {
             {tournament.fee_amount > 0 && (
               <div className="mt-4 p-4 rounded-lg bg-yellow-900/20 border border-yellow-700/40 text-left">
                 <p className="text-yellow-300 font-semibold text-sm mb-1">
-                  Taxa de Inscricao: R$ {tournament.fee_amount.toFixed(2)}
+                  Taxa de Inscrição: R$ {tournament.fee_amount.toFixed(2)}
                 </p>
                 {tournament.fee_instructions && (
                   <p className="text-yellow-200/70 text-sm whitespace-pre-wrap">

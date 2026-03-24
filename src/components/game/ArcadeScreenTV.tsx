@@ -91,35 +91,35 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
   return (
     <div className="relative flex flex-col h-full w-full bg-[#0A0A0F] overflow-hidden">
 
-      {/* Ambient arena glow */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[400px] bg-red-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute top-0 right-1/4 w-[600px] h-[400px] bg-blue-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
+      {/* Ambient arena glow — Blue left, Red right (mirrored so each athlete sees opponent) */}
+      <div className="absolute top-0 left-1/4 w-[600px] h-[400px] bg-blue-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 right-1/4 w-[600px] h-[400px] bg-red-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
 
       {/* ============ TOP HUD — HP BARS + TIMER ============ */}
       <div className="relative z-20 flex-shrink-0 px-4 md:px-6 pt-3 pb-2">
         <div className="flex items-center gap-3 md:gap-4">
-          {/* Red Side HP Section */}
+          {/* LEFT: Blue HP (so Red athlete on left sees opponent's HP) */}
           <div className="flex-1 flex flex-col">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
                 <span className={cn(
                   "font-display font-black uppercase text-[clamp(18px,3vmin,36px)] tracking-tight",
-                  "text-red-400",
+                  "text-blue-400",
                 )}
-                style={{ textShadow: '0 0 20px rgba(239,68,68,0.4)' }}
+                style={{ textShadow: '0 0 20px rgba(59,130,246,0.4)' }}
                 >
-                  VERMELHO
+                  AZUL
                 </span>
-                <RoundStars wins={redWins} maxWins={roundsToWin} side="red" />
+                <RoundStars wins={blueWins} maxWins={roundsToWin} side="blue" />
               </div>
               <span className={cn(
                 "font-mono font-black text-[clamp(20px,3vmin,40px)] tabular-nums",
-                redState.hp <= 25 ? "text-red-300 animate-hp-critical" : "text-white/80"
+                blueState.hp <= 25 ? "text-blue-300 animate-hp-critical" : "text-white/80"
               )}>
-                {displayHP(redState.hp)}
+                {displayHP(blueState.hp)}
               </span>
             </div>
-            <HPBar hp={redState.hp} side="red" />
+            <HPBar hp={blueState.hp} side="blue" />
           </div>
 
           {/* Center — Timer + Round */}
@@ -149,28 +149,28 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
             </div>
           </div>
 
-          {/* Blue Side HP Section */}
+          {/* RIGHT: Red HP (so Blue athlete on right sees opponent's HP) */}
           <div className="flex-1 flex flex-col">
             <div className="flex items-center justify-between mb-1.5">
               <span className={cn(
                 "font-mono font-black text-[clamp(20px,3vmin,40px)] tabular-nums",
-                blueState.hp <= 25 ? "text-blue-300 animate-hp-critical" : "text-white/80"
+                redState.hp <= 25 ? "text-red-300 animate-hp-critical" : "text-white/80"
               )}>
-                {displayHP(blueState.hp)}
+                {displayHP(redState.hp)}
               </span>
               <div className="flex items-center gap-2">
-                <RoundStars wins={blueWins} maxWins={roundsToWin} side="blue" />
+                <RoundStars wins={redWins} maxWins={roundsToWin} side="red" />
                 <span className={cn(
                   "font-display font-black uppercase text-[clamp(18px,3vmin,36px)] tracking-tight",
-                  "text-blue-400",
+                  "text-red-400",
                 )}
-                style={{ textShadow: '0 0 20px rgba(59,130,246,0.4)' }}
+                style={{ textShadow: '0 0 20px rgba(239,68,68,0.4)' }}
                 >
-                  AZUL
+                  VERMELHO
                 </span>
               </div>
             </div>
-            <HPBar hp={blueState.hp} side="blue" />
+            <HPBar hp={redState.hp} side="red" />
           </div>
         </div>
       </div>
@@ -178,95 +178,7 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
       {/* ============ MAIN ARENA ============ */}
       <div className="flex-1 flex relative overflow-hidden">
 
-        {/* Red Side Arena */}
-        <div className={cn(
-          "flex-1 relative overflow-hidden",
-          flashSide === 'red' && "animate-damage-shake-tv"
-        )}>
-          {/* Background fill based on HP */}
-          <div
-            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-red-900/40 via-red-500/20 to-transparent transition-all duration-300 ease-out"
-            style={{ height: `${redState.hp}%` }}
-          />
-
-          {redState.hp <= 25 && redState.hp > 0 && (
-            <div className="absolute inset-0 bg-red-900/20 animate-hp-critical" />
-          )}
-
-          {flashSide === 'red' && (
-            <>
-              <div className="absolute inset-0 bg-white/20 animate-flash-side" />
-              <div className="impact-ripple z-[3]" style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.3) 0%, transparent 70%)' }} />
-            </>
-          )}
-
-          {/* HP Number — Hero display */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className={cn(
-              "font-black text-white/90 leading-none font-mono tabular-nums",
-              "text-[clamp(100px,18vmin,280px)]",
-              redState.hp <= 25 && "animate-hp-critical"
-            )}
-            style={{ textShadow: '0 0 60px rgba(239,68,68,0.3), 0 8px 20px rgba(0,0,0,0.6)' }}
-            >
-              {displayHP(redState.hp)}
-            </span>
-          </div>
-
-          {/* Shield icon */}
-          <div className={cn(
-            "absolute bottom-[10%] left-1/2 -translate-x-1/2 z-10 pointer-events-none transition-transform duration-100",
-            flashSide === 'red' && "animate-damage-shake"
-          )}>
-            <Shield
-              className={cn(
-                "w-[clamp(40px,6vmin,80px)] h-[clamp(40px,6vmin,80px)]",
-                flashSide === 'red' ? "text-white/40" : "text-red-500/20"
-              )}
-              strokeWidth={1.5}
-            />
-          </div>
-
-          {/* Damage popup */}
-          {lastDamage?.side === 'red' && (
-            <div className="absolute top-[30%] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
-              <span className={cn(
-                "font-black font-mono animate-damage-popup",
-                "text-[clamp(48px,7vmin,110px)]",
-                lastDamage.hitType === 'helmet'
-                  ? "text-yellow-400"
-                  : "text-white",
-              )}
-              style={{ textShadow: '0 4px 16px rgba(0,0,0,0.9)' }}
-              >
-                -{lastDamage.amount % 1 === 0 ? lastDamage.amount : lastDamage.amount.toFixed(1)}
-              </span>
-              {lastDamage.hitType === 'helmet' && (
-                <div className="flex items-center justify-center gap-2 animate-combo-pop">
-                  <HardHat className="w-5 h-5 text-yellow-400" />
-                  <span className="text-yellow-400 text-lg font-black uppercase font-mono tracking-wider">
-                    CABEÇA!
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Center Divider */}
-        <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 flex flex-col items-center justify-center pointer-events-none">
-          <div className="absolute inset-y-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-
-          <div className="relative">
-            <img
-              src={logoSFight}
-              alt="S-Fight"
-              className="h-[clamp(50px,7vh,100px)] w-auto opacity-60 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
-            />
-          </div>
-        </div>
-
-        {/* Blue Side Arena */}
+        {/* LEFT Arena — Blue HP (opponent of Red athlete) */}
         <div className={cn(
           "flex-1 relative overflow-hidden",
           flashSide === 'blue' && "animate-damage-shake-tv"
@@ -341,6 +253,94 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
           )}
         </div>
 
+        {/* Center Divider */}
+        <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 z-20 flex flex-col items-center justify-center pointer-events-none">
+          <div className="absolute inset-y-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+
+          <div className="relative">
+            <img
+              src={logoSFight}
+              alt="S-Fight"
+              className="h-[clamp(50px,7vh,100px)] w-auto opacity-60 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]"
+            />
+          </div>
+        </div>
+
+        {/* RIGHT Arena — Red HP (opponent of Blue athlete) */}
+        <div className={cn(
+          "flex-1 relative overflow-hidden",
+          flashSide === 'red' && "animate-damage-shake-tv"
+        )}>
+          {/* Background fill based on HP */}
+          <div
+            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-red-900/40 via-red-500/20 to-transparent transition-all duration-300 ease-out"
+            style={{ height: `${redState.hp}%` }}
+          />
+
+          {redState.hp <= 25 && redState.hp > 0 && (
+            <div className="absolute inset-0 bg-red-900/20 animate-hp-critical" />
+          )}
+
+          {flashSide === 'red' && (
+            <>
+              <div className="absolute inset-0 bg-white/20 animate-flash-side" />
+              <div className="impact-ripple z-[3]" style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.3) 0%, transparent 70%)' }} />
+            </>
+          )}
+
+          {/* HP Number — Hero display */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className={cn(
+              "font-black text-white/90 leading-none font-mono tabular-nums",
+              "text-[clamp(100px,18vmin,280px)]",
+              redState.hp <= 25 && "animate-hp-critical"
+            )}
+            style={{ textShadow: '0 0 60px rgba(239,68,68,0.3), 0 8px 20px rgba(0,0,0,0.6)' }}
+            >
+              {displayHP(redState.hp)}
+            </span>
+          </div>
+
+          {/* Shield icon */}
+          <div className={cn(
+            "absolute bottom-[10%] left-1/2 -translate-x-1/2 z-10 pointer-events-none transition-transform duration-100",
+            flashSide === 'red' && "animate-damage-shake"
+          )}>
+            <Shield
+              className={cn(
+                "w-[clamp(40px,6vmin,80px)] h-[clamp(40px,6vmin,80px)]",
+                flashSide === 'red' ? "text-white/40" : "text-red-500/20"
+              )}
+              strokeWidth={1.5}
+            />
+          </div>
+
+          {/* Damage popup */}
+          {lastDamage?.side === 'red' && (
+            <div className="absolute top-[30%] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
+              <span className={cn(
+                "font-black font-mono animate-damage-popup",
+                "text-[clamp(48px,7vmin,110px)]",
+                lastDamage.hitType === 'helmet'
+                  ? "text-yellow-400"
+                  : "text-white",
+              )}
+              style={{ textShadow: '0 4px 16px rgba(0,0,0,0.9)' }}
+              >
+                -{lastDamage.amount % 1 === 0 ? lastDamage.amount : lastDamage.amount.toFixed(1)}
+              </span>
+              {lastDamage.hitType === 'helmet' && (
+                <div className="flex items-center justify-center gap-2 animate-combo-pop">
+                  <HardHat className="w-5 h-5 text-yellow-400" />
+                  <span className="text-yellow-400 text-lg font-black uppercase font-mono tracking-wider">
+                    CABEÇA!
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* ============ ROUND END / K.O. OVERLAY ============ */}
         {(showKO || (gameState === 'round_end' && !showKO)) && (
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center">
@@ -390,9 +390,9 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
                     TEMPO!
                   </div>
                   <div className="font-display font-black uppercase mt-3 text-[clamp(16px,2.5vmin,32px)]">
-                    {redState.hp < blueState.hp
+                    {redState.hp > blueState.hp
                       ? <span className="text-red-400" style={{ textShadow: '0 0 20px rgba(239,68,68,0.4)' }}>VANTAGEM VERMELHO</span>
-                      : blueState.hp < redState.hp
+                      : blueState.hp > redState.hp
                         ? <span className="text-blue-400" style={{ textShadow: '0 0 20px rgba(59,130,246,0.4)' }}>VANTAGEM AZUL</span>
                         : <span className="text-yellow-400" style={{ textShadow: '0 0 20px rgba(245,158,11,0.4)' }}>EMPATE!</span>
                     }
@@ -408,24 +408,24 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
                     <div className="text-center">
                       <div className={cn(
                         "font-black font-mono text-[clamp(40px,7vmin,88px)] leading-none tabular-nums",
-                        (showKO === 'red' || (!showKO && redState.hp < blueState.hp)) ? "text-red-400" : "text-red-400/30"
-                      )}>
-                        {redWins}
-                      </div>
-                      <div className="text-[clamp(9px,1.2vmin,13px)] font-bold uppercase tracking-wider text-white/25 font-mono mt-1">
-                        VERMELHO
-                      </div>
-                    </div>
-                    <span className="text-[clamp(24px,4vmin,52px)] font-black text-white/15 font-mono">&times;</span>
-                    <div className="text-center">
-                      <div className={cn(
-                        "font-black font-mono text-[clamp(40px,7vmin,88px)] leading-none tabular-nums",
                         (showKO === 'blue' || (!showKO && blueState.hp < redState.hp)) ? "text-blue-400" : "text-blue-400/30"
                       )}>
                         {blueWins}
                       </div>
                       <div className="text-[clamp(9px,1.2vmin,13px)] font-bold uppercase tracking-wider text-white/25 font-mono mt-1">
                         AZUL
+                      </div>
+                    </div>
+                    <span className="text-[clamp(24px,4vmin,52px)] font-black text-white/15 font-mono">&times;</span>
+                    <div className="text-center">
+                      <div className={cn(
+                        "font-black font-mono text-[clamp(40px,7vmin,88px)] leading-none tabular-nums",
+                        (showKO === 'red' || (!showKO && redState.hp < blueState.hp)) ? "text-red-400" : "text-red-400/30"
+                      )}>
+                        {redWins}
+                      </div>
+                      <div className="text-[clamp(9px,1.2vmin,13px)] font-bold uppercase tracking-wider text-white/25 font-mono mt-1">
+                        VERMELHO
                       </div>
                     </div>
                   </div>
@@ -458,8 +458,8 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
       <div className="relative z-20 flex-shrink-0 h-[4vh] min-h-[32px] flex items-center justify-between px-6 border-t border-white/[0.06] bg-[#0A0A0F]/80">
         {equipment && (
           <div className="flex items-center gap-2">
-            <BatteryBadge equipment={equipment.get(1)} compact />
-            <BatteryBadge equipment={equipment.get(3)} compact />
+            <BatteryBadge equipment={equipment.get(2)} compact />
+            <BatteryBadge equipment={equipment.get(4)} compact />
           </div>
         )}
 
@@ -471,8 +471,8 @@ export function ArcadeScreenTV({ arcadeState, equipment }: ArcadeScreenTVProps) 
 
         {equipment && (
           <div className="flex items-center gap-2">
-            <BatteryBadge equipment={equipment.get(2)} compact />
-            <BatteryBadge equipment={equipment.get(4)} compact />
+            <BatteryBadge equipment={equipment.get(1)} compact />
+            <BatteryBadge equipment={equipment.get(3)} compact />
           </div>
         )}
       </div>

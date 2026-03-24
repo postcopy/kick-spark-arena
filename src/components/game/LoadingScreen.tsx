@@ -42,9 +42,8 @@ export function LoadingScreen({ onReady, skipBgMusic = false, bgMusicName = 'fig
     unlockAudio();
     initFullPreload();
 
-    const requiredSounds = skipBgMusic
-      ? ['hit', 'hitHeavy', 'countdown3'] as const
-      : [bgMusicName, 'hit', 'hitHeavy', 'countdown3'] as const;
+    // Background music disabled — only preload SFX
+    const requiredSounds = ['hit', 'hitHeavy', 'countdown3'] as const;
 
     const MIN_DURATION = 4000;
     const TICK_INTERVAL = 100;

@@ -109,7 +109,7 @@ export default function Ranking() {
         </div>
         <div className="text-center space-y-2">
           <h2 className="font-display font-bold text-xl text-white">Ranking de Chutes</h2>
-          <p className="text-[#94A3B8]">Faca login para ver o ranking da sua academia</p>
+          <p className="text-[#94A3B8]">Faça login para ver o ranking da sua academia</p>
         </div>
         <Link to="/login">
           <Button className="h-12 px-8 text-base font-bold rounded-xl bg-gradient-to-r from-[#E11D48] to-[#9F1239] text-white hover:from-[#C81840] hover:to-[#8F1035]">

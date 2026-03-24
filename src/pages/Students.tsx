@@ -82,17 +82,18 @@ export default function Students() {
       <div className="flex-shrink-0 p-4 md:p-6 pb-0 space-y-1">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display font-bold text-2xl md:text-3xl text-white">Meus Alunos</h1>
+            <h1 className="font-display font-bold text-2xl md:text-3xl text-white">Meus Atletas</h1>
             <p className="text-sm text-[#94A3B8]">
               {filtered.length}{hasFilters ? ` / ${athletes.filter(a => showInactive || a.isActive).length}` : ''} atletas
             </p>
           </div>
           <Button
             onClick={() => setShowAdd(true)}
+            aria-label="Novo Atleta"
             className="h-10 px-4 gap-2 text-sm font-bold rounded-xl bg-gradient-to-r from-[#E11D48] to-[#9F1239] text-white hover:from-[#C81840] hover:to-[#8F1035] shadow-lg shadow-[#E11D48]/20"
           >
             <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Novo Aluno</span>
+            <span className="hidden sm:inline">Novo Atleta</span>
           </Button>
         </div>
       </div>
@@ -104,12 +105,13 @@ export default function Students() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" />
           <Input
             placeholder="Buscar por nome ou apelido..."
+            aria-label="Buscar atletas por nome ou apelido"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 pr-9 h-11 bg-[#1E1E2E] border-[#2D2D3F] text-white placeholder:text-[#4A4A5A] rounded-xl focus:border-[#E11D48] focus:ring-1 focus:ring-[#E11D48]/30"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 min-h-0">
+            <button onClick={() => setSearch('')} aria-label="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 min-h-0">
               <X className="w-4 h-4 text-[#64748B] hover:text-white" />
             </button>
           )}
@@ -149,7 +151,7 @@ export default function Students() {
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
             <Users className="w-16 h-16 text-[#2D2D3F]" />
             <p className="text-lg text-[#94A3B8] font-medium">
-              {hasFilters ? 'Nenhum aluno encontrado com esses filtros' : 'Nenhum aluno cadastrado'}
+              {hasFilters ? 'Nenhum atleta encontrado com esses filtros' : 'Nenhum atleta cadastrado'}
             </p>
             {!hasFilters && (
               <Button
@@ -157,7 +159,7 @@ export default function Students() {
                 className="gap-2 bg-gradient-to-r from-[#E11D48] to-[#9F1239] text-white font-bold rounded-xl"
               >
                 <Plus className="w-4 h-4" />
-                Cadastrar Primeiro Aluno
+                Cadastrar Primeiro Atleta
               </Button>
             )}
           </div>

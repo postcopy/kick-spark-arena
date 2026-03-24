@@ -41,13 +41,14 @@ export function CountdownScreen({ countdown, onMusicStarted, shouldStartMusic = 
 
   useEffect(() => {
     // Start music BEFORE visual update to eliminate perceived latency
-    if (countdown === 6 && !hasStartedMusicRef.current && shouldStartMusic) {
-      hasStartedMusicRef.current = true;
-      const audio = playWithRef(bgMusicName, 0.6);
-      if (audio && onMusicStarted) {
-        onMusicStarted(audio);
-      }
-    }
+    // Background music disabled — using SFX-only identity
+    // if (countdown === 6 && !hasStartedMusicRef.current && shouldStartMusic) {
+    //   hasStartedMusicRef.current = true;
+    //   const audio = playWithRef(bgMusicName, 0.6);
+    //   if (audio && onMusicStarted) {
+    //     onMusicStarted(audio);
+    //   }
+    // }
 
     // Trigger flash on FIGHT!
     if (countdown === 0) {

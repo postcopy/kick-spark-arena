@@ -6,6 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, UserPlus, ArrowLeft, Gift } from 'lucide-react';
 
+const ERROR_MESSAGES: Record<string, string> = {
+  'User already registered': 'Este email já está cadastrado. Tente fazer login.',
+  'Password should be at least 6 characters': 'A senha precisa ter no mínimo 6 caracteres.',
+  'Unable to validate email address: invalid format': 'Formato de email inválido.',
+  'Signup requires a valid password': 'Digite uma senha válida.',
+};
+
 export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +30,7 @@ export default function Signup() {
     const { error } = await signUp(email, password, fullName);
 
     if (error) {
-      setError(error.message);
+      setError(ERROR_MESSAGES[error.message] || error.message);
       setIsLoading(false);
     } else {
       navigate('/');
@@ -83,7 +90,7 @@ export default function Signup() {
               <Gift className="w-5 h-5 text-[#F59E0B]" />
             </div>
             <div>
-              <p className="font-bold text-sm text-white">3 dias gratis!</p>
+              <p className="font-bold text-sm text-white">3 dias grátis!</p>
               <p className="text-xs text-[#94A3B8]">Acesso completo, sem compromisso</p>
             </div>
           </div>
@@ -98,7 +105,8 @@ export default function Signup() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Como voce quer ser chamado?"
+                  placeholder="Como você quer ser chamado?"
+                  required
                   className="h-12 text-base px-4 rounded-xl bg-[#1E1E2E] border-[#2D2D3F] text-white placeholder:text-[#4A4A5A] focus:border-[#E11D48] focus:ring-1 focus:ring-[#E11D48]/30 transition-all"
                 />
               </div>
@@ -123,7 +131,7 @@ export default function Signup() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimo 6 caracteres"
+                  placeholder="Mínimo 6 caracteres"
                   required
                   minLength={6}
                   className="h-12 text-base px-4 rounded-xl bg-[#1E1E2E] border-[#2D2D3F] text-white placeholder:text-[#4A4A5A] focus:border-[#E11D48] focus:ring-1 focus:ring-[#E11D48]/30 transition-all"
@@ -149,7 +157,7 @@ export default function Signup() {
                 ) : (
                   <>
                     <UserPlus className="w-5 h-5 mr-2" />
-                    Criar Conta Gratis
+                    Criar Conta Grátis
                   </>
                 )}
               </Button>
@@ -158,13 +166,13 @@ export default function Signup() {
 
           <div className="text-center space-y-2">
             <p className="text-sm text-[#94A3B8]">
-              Ja tem conta?{' '}
+              Já tem conta?{' '}
               <Link to="/login" className="text-[#E11D48] hover:text-[#F43F5E] hover:underline font-bold transition-colors">
                 Entre aqui
               </Link>
             </p>
             <p className="text-xs text-[#64748B]">
-              Apos o trial: R$ 20/mes
+              Após o trial: R$ 20/mês
             </p>
           </div>
         </div>

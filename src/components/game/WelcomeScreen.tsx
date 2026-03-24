@@ -28,7 +28,7 @@ export function WelcomeScreen() {
 
           {/* Description */}
           <p className="text-base text-white/80 text-center md:text-2xl">
-            Conecte seus equipamentos e dispute com amigos em batalhas epicas!
+            Conecte seus equipamentos e dispute com amigos em batalhas épicas!
           </p>
 
           {/* Buttons */}
@@ -50,7 +50,7 @@ export function WelcomeScreen() {
                 className="w-full h-14 md:h-16 text-lg font-bold rounded-xl bg-white/10 border-white/30 text-white hover:bg-white/20"
               >
                 <UserPlus className="w-5 h-5 mr-2" />
-                Criar Conta Gratis
+                Criar Conta Grátis
               </Button>
             </Link>
           </div>
@@ -58,7 +58,7 @@ export function WelcomeScreen() {
           {/* Trial badge */}
           <div className="flex items-center gap-2 text-[#F59E0B] text-sm font-medium">
             <Zap className="w-4 h-4" />
-            <span>3 dias gratis para testar!</span>
+            <span>3 dias grátis para testar!</span>
           </div>
         </div>
       </div>

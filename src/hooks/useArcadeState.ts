@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { GameState, Side, ArcadeConfig, ArcadePlayerState, ArcadeRoundResult, ArcadeResult, HitType } from '@/types/game';
 
 const DEFAULT_ARCADE_CONFIG: ArcadeConfig = {
@@ -28,10 +28,10 @@ interface UseArcadeStateOptions extends Partial<ArcadeConfig> {
 export function useArcadeState(options: UseArcadeStateOptions = {}) {
   const { onHit, onHitHeavy, onKO, onTimeUp, onRoundEnd, ...config } = options;
   
-  const fullConfig = { 
-    ...DEFAULT_ARCADE_CONFIG, 
-    ...config 
-  };
+  const fullConfig = useMemo(() => ({
+    ...DEFAULT_ARCADE_CONFIG,
+    ...config
+  }), [config.roundDurationSec, config.startingHP, config.bestOf, config.vestDamage, config.helmetDamage, config.minIntervalMs, config.recoveryIntervalSec]);
   
   const [gameState, setGameState] = useState<GameState>('idle');
   const [currentRound, setCurrentRound] = useState(1);
@@ -54,6 +54,17 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
   const countdownRef = useRef<number | null>(null);
   const recoveryTimerRef = useRef<number | null>(null);
   const lastKickTime = useRef<{ red: number; blue: number }>({ red: 0, blue: 0 });
+
+  // Refs to avoid stale closures in endRound
+  const redHPRef = useRef(redState.hp);
+  const blueHPRef = useRef(blueState.hp);
+  const roundResultsRef = useRef(roundResults);
+  const currentRoundRef = useRef(currentRound);
+
+  redHPRef.current = redState.hp;
+  blueHPRef.current = blueState.hp;
+  roundResultsRef.current = roundResults;
+  currentRoundRef.current = currentRound;
 
   // Clear all timers
   const clearTimers = useCallback(() => {
@@ -157,7 +168,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     return hitType === 'helmet' ? fullConfig.helmetDamage : fullConfig.vestDamage;
   }, [fullConfig.vestDamage, fullConfig.helmetDamage]);
 
-  // Register kick — DEMOLITION RACE: damage applies to OWN HP
+  // Register kick — damage applies to OPPONENT HP (I kick → opponent loses HP)
   const registerKick = useCallback((side: Side, hitType: HitType = 'vest') => {
     if (gameState !== 'running') return false;
 
@@ -171,12 +182,14 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
 
     lastKickTime.current[side] = now;
 
-    const setAttackerState = side === 'red' ? setRedState : setBlueState;
+    // Opponent takes the damage (red kicks → blue loses HP, and vice-versa)
+    const setOpponentState = side === 'red' ? setBlueState : setRedState;
+    const opponentSide: Side = side === 'red' ? 'blue' : 'red';
 
     const damage = calculateDamage(hitType);
 
-    // Apply damage to OWN HP (demolition race)
-    setAttackerState(prev => ({
+    // Apply damage to OPPONENT HP
+    setOpponentState(prev => ({
       ...prev,
       hp: Math.max(0, prev.hp - damage),
     }));
@@ -188,30 +201,30 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
       onHit?.();
     }
 
-    // Visual feedback — flash on OWN side (attacker side)
-    setFlashSide(side);
+    // Visual feedback — flash on OPPONENT side (they got hit)
+    setFlashSide(opponentSide);
     setTimeout(() => setFlashSide(null), 150);
 
-    // Show damage on OWN side
-    setLastDamage({ side, amount: damage, hitType });
+    // Show damage on OPPONENT side
+    setLastDamage({ side: opponentSide, amount: damage, hitType });
     setTimeout(() => setLastDamage(null), 400);
 
     return true;
   }, [gameState, fullConfig, calculateDamage, onHit, onHitHeavy]);
 
-  // End round
+  // End round — reads from refs to avoid stale closures
   const endRound = useCallback((winner: Side | 'tie', isKO: boolean) => {
     clearTimers();
     onRoundEnd?.();
-    
+
     const roundResult: ArcadeRoundResult = {
       winner,
-      redHP: Math.round(redState.hp),
-      blueHP: Math.round(blueState.hp),
+      redHP: Math.round(redHPRef.current),
+      blueHP: Math.round(blueHPRef.current),
       isKO,
     };
 
-    const newRoundResults = [...roundResults, roundResult];
+    const newRoundResults = [...roundResultsRef.current, roundResult];
     setRoundResults(newRoundResults);
 
     if (isKO) {
@@ -227,9 +240,9 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
     const winsNeeded = Math.ceil(fullConfig.bestOf / 2);
 
     // Check if match is over
-    if (redWins >= winsNeeded || blueWins >= winsNeeded || currentRound >= fullConfig.bestOf) {
+    if (redWins >= winsNeeded || blueWins >= winsNeeded || currentRoundRef.current >= fullConfig.bestOf) {
       const matchWinner: Side | 'tie' = redWins > blueWins ? 'red' : blueWins > redWins ? 'blue' : 'tie';
-      
+
       const result: ArcadeResult = {
         mode: 'arcade',
         rounds: newRoundResults,
@@ -252,7 +265,7 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
       // More rounds to play
       setGameState('round_end');
       setRecoveryCountdown(fullConfig.recoveryIntervalSec);
-      
+
       recoveryTimerRef.current = window.setInterval(() => {
         setRecoveryCountdown(prev => {
           if (prev <= 1) {
@@ -267,27 +280,31 @@ export function useArcadeState(options: UseArcadeStateOptions = {}) {
         });
       }, 1000);
     }
-  }, [clearTimers, redState.hp, blueState.hp, roundResults, currentRound, fullConfig.bestOf, fullConfig.recoveryIntervalSec, startCountdown, onKO, onTimeUp, onRoundEnd]);
+  }, [clearTimers, fullConfig.bestOf, fullConfig.recoveryIntervalSec, startCountdown, onKO, onTimeUp, onRoundEnd]);
 
-  // Check for KO or time up — DEMOLITION RACE: reaching 0 HP = WIN
+  // Check for KO or time up — reaching 0 HP = LOSE (opponent wins)
   useEffect(() => {
     if (gameState !== 'running') return;
 
-    // KO: whoever reaches 0 first WINS
+    // KO: whoever reaches 0 HP first LOSES — opponent wins
+    if (redState.hp <= 0 && blueState.hp <= 0) {
+      endRound('tie', true); // Both KO at same time = tie
+      return;
+    }
     if (redState.hp <= 0) {
-      endRound('red', true);
+      endRound('blue', true); // Red KO → Blue wins
       return;
     }
     if (blueState.hp <= 0) {
-      endRound('blue', true);
+      endRound('red', true); // Blue KO → Red wins
       return;
     }
 
-    // Time up: LOWER HP wins (destroyed more)
+    // Time up: HIGHER HP wins (survived more damage)
     if (timeLeft === 0) {
-      const winner: Side | 'tie' = 
-        redState.hp < blueState.hp ? 'red' : 
-        blueState.hp < redState.hp ? 'blue' : 'tie';
+      const winner: Side | 'tie' =
+        redState.hp > blueState.hp ? 'red' :
+        blueState.hp > redState.hp ? 'blue' : 'tie';
       endRound(winner, false);
     }
   }, [gameState, redState.hp, blueState.hp, timeLeft, endRound]);

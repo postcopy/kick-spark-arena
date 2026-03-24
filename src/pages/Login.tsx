@@ -1,18 +1,30 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, LogIn, ArrowLeft } from 'lucide-react';
+
+const ERROR_MESSAGES: Record<string, string> = {
+  'Invalid login credentials': 'Email ou senha incorretos. Tente novamente.',
+  'Email not confirmed': 'Email ainda não confirmado. Verifique sua caixa de entrada.',
+  'User not found': 'Nenhuma conta encontrada com este email.',
+  'Too many requests': 'Muitas tentativas. Aguarde um momento e tente novamente.',
+};
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+
+  const translateError = (message: string) => ERROR_MESSAGES[message] || message;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,10 +34,33 @@ export default function Login() {
     const { error } = await signIn(email, password);
 
     if (error) {
-      setError(error.message);
+      setError(translateError(error.message));
       setIsLoading(false);
     } else {
       navigate('/');
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Digite seu email acima para recuperar a senha.');
+      return;
+    }
+    setIsResetting(true);
+    setError(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) {
+        setError(translateError(error.message));
+      } else {
+        setResetSent(true);
+      }
+    } catch {
+      setError('Erro ao enviar email de recuperação.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -98,7 +133,17 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-[#94A3B8] text-sm font-semibold">Senha</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-[#94A3B8] text-sm font-semibold">Senha</Label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={isResetting}
+                    className="text-xs text-[#E11D48] hover:text-[#F43F5E] hover:underline font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {isResetting ? 'Enviando...' : 'Esqueci minha senha'}
+                  </button>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -109,6 +154,12 @@ export default function Login() {
                   className="h-12 text-base px-4 rounded-xl bg-[#1E1E2E] border-[#2D2D3F] text-white placeholder:text-[#4A4A5A] focus:border-[#E11D48] focus:ring-1 focus:ring-[#E11D48]/30 transition-all"
                 />
               </div>
+
+              {resetSent && (
+                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-sm font-medium">
+                  Email de recuperação enviado! Verifique sua caixa de entrada.
+                </div>
+              )}
 
               {error && (
                 <div className="p-3 bg-[#E11D48]/10 border border-[#E11D48]/30 rounded-xl text-[#E11D48] text-sm font-medium">
@@ -137,9 +188,9 @@ export default function Login() {
           </div>
 
           <p className="text-center text-sm text-[#94A3B8]">
-            Nao tem conta?{' '}
+            Não tem conta?{' '}
             <Link to="/signup" className="text-[#E11D48] hover:text-[#F43F5E] hover:underline font-bold transition-colors">
-              Cadastre-se gratis
+              Cadastre-se grátis
             </Link>
           </p>
         </div>

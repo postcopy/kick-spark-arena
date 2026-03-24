@@ -17,18 +17,24 @@ export function Paywall() {
           Seu acesso expirou
         </h2>
 
-        <p className="text-[#94A3B8] mb-8">
+        <p className="text-[#94A3B8] mb-2">
           {user
-            ? 'Seu periodo de trial terminou. Assine para continuar jogando!'
-            : 'Faca login ou cadastre-se para ter acesso ao sistema.'}
+            ? 'Seu período de teste gratuito de 3 dias terminou. Assine para continuar usando o S-FIGHT PRO!'
+            : 'Faça login ou cadastre-se para ter acesso ao sistema.'}
         </p>
+        {user && (
+          <p className="text-[#64748B] text-sm mb-8">
+            Todos os seus dados e configurações estão salvos e prontos para quando você assinar.
+          </p>
+        )}
+        {!user && <div className="mb-8" />}
 
         <div className="space-y-3">
           {user ? (
             <Link to="/pricing">
               <Button className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#E11D48] to-[#9F1239] text-white hover:from-[#C81840] hover:to-[#8F1035] shadow-lg shadow-[#E11D48]/20">
                 <Crown className="w-4 h-4 mr-2" />
-                Assinar por R$ 20/mes
+                Assinar por R$ 20/mês
               </Button>
             </Link>
           ) : (
@@ -36,12 +42,12 @@ export function Paywall() {
               <Link to="/signup">
                 <Button className="w-full h-12 text-base font-bold rounded-xl bg-gradient-to-r from-[#E11D48] to-[#9F1239] text-white hover:from-[#C81840] hover:to-[#8F1035] shadow-lg shadow-[#E11D48]/20">
                   <Zap className="w-4 h-4 mr-2" />
-                  Comecar Trial de 3 Dias
+                  Começar Trial de 3 Dias
                 </Button>
               </Link>
               <Link to="/login">
                 <Button variant="ghost" className="w-full h-12 text-base text-[#94A3B8] hover:text-white hover:bg-white/5">
-                  Ja tenho conta
+                  Já tenho conta
                 </Button>
               </Link>
             </>

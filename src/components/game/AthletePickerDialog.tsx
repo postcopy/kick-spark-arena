@@ -35,7 +35,11 @@ export function AthletePickerDialog({ open, onOpenChange, onSelect }: AthletePic
         .eq('academy_id', user.id)
         .eq('is_active', true)
         .order('name')
-        .then(({ data }) => {
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error fetching athletes:', error);
+            import('sonner').then(({ toast }) => toast.error('Erro ao carregar atletas: ' + error.message));
+          }
           setAthletes(
             (data || []).map((a) => ({
               id: a.id,
@@ -47,6 +51,10 @@ export function AthletePickerDialog({ open, onOpenChange, onSelect }: AthletePic
               isActive: a.is_active ?? true,
             })),
           );
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error('Error fetching athletes:', err);
           setLoading(false);
         });
     }

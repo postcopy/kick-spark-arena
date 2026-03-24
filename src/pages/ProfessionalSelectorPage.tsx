@@ -130,7 +130,7 @@ export default function ProfessionalSelectorPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="w-8 h-px bg-gradient-to-r from-transparent to-zinc-700" />
-            <span className="text-[10px] text-zinc-600 tracking-[0.4em] uppercase font-medium">
+            <span className="text-xs text-zinc-500 tracking-[0.4em] uppercase font-medium">
               Modo Profissional
             </span>
             <div className="w-8 h-px bg-gradient-to-l from-transparent to-zinc-700" />
@@ -159,11 +159,11 @@ export default function ProfessionalSelectorPage() {
                 <div className={`h-[2px] bg-gradient-to-r ${role.accentFrom} ${role.accentVia} ${role.accentTo} opacity-60 group-hover:opacity-100 transition-opacity duration-500`} />
 
                 <div className="px-8 pt-10 pb-12 flex flex-col items-center">
-                  <h2 className="text-[22px] font-black text-white/90 tracking-[0.2em] mb-3 group-hover:text-white transition-colors duration-500">
+                  <h2 className="text-2xl font-black text-white/90 tracking-[0.2em] mb-3 group-hover:text-white transition-colors duration-500">
                     {role.title}
                   </h2>
                   <div className={`w-8 h-[1px] ${role.separatorBg} group-hover:w-14 ${role.separatorHover} transition-all duration-500 mb-3`} />
-                  <p className="text-zinc-600 text-[12px] tracking-wide group-hover:text-zinc-500 transition-colors duration-500">
+                  <p className="text-zinc-500 text-sm tracking-wide group-hover:text-zinc-400 transition-colors duration-500">
                     {role.description}
                   </p>
                 </div>
@@ -179,14 +179,14 @@ export default function ProfessionalSelectorPage() {
         <div className="flex gap-6 mt-12">
           <button
             onClick={() => navigate('/demo')}
-            className="text-[10px] text-zinc-700 tracking-[0.3em] uppercase hover:text-[hsl(var(--sulsport-yellow))] transition-colors duration-300"
+            className="text-sm text-zinc-500 tracking-[0.2em] uppercase hover:text-[hsl(var(--sulsport-yellow))] transition-colors duration-300 font-medium"
           >
             Demo & Teste
           </button>
-          <div className="w-px bg-zinc-800" />
+          <div className="w-px h-4 bg-zinc-700" />
           <button
             onClick={() => navigate('/help')}
-            className="text-[10px] text-zinc-700 tracking-[0.3em] uppercase hover:text-white transition-colors duration-300"
+            className="text-sm text-zinc-500 tracking-[0.2em] uppercase hover:text-white transition-colors duration-300 font-medium"
           >
             Manual
           </button>
@@ -195,7 +195,7 @@ export default function ProfessionalSelectorPage() {
 
       {/* Footer */}
       <div className="relative z-10 flex justify-center pb-6">
-        <span className="text-zinc-800 text-[10px] tracking-[0.3em]">v1.0.0</span>
+        <span className="text-zinc-600 text-xs tracking-[0.3em]">v1.0.0</span>
       </div>
 
       {/* Mat Number Dialog */}

@@ -77,7 +77,7 @@ export function ReactionFinishedScreen({
       },
     }).then((saved) => {
       if (saved) {
-        toast({ title: 'Sess\u00e3o salva!', description: `Resultado registrado para ${selectedAthlete.name}` });
+        toast({ title: 'Sessão salva!', description: `Resultado registrado para ${selectedAthlete.name}` });
       }
     });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
@@ -99,12 +99,12 @@ export function ReactionFinishedScreen({
       <header className="flex-shrink-0 pt-5 pb-3 text-center relative z-10">
         <div className="flex items-center justify-center gap-2 mb-1">
           <Crosshair className="w-5 h-5 text-green-400/60" />
-          <span className="font-mono text-[10px] text-green-400/40 uppercase tracking-[0.3em]">Miss\u00e3o Completa</span>
+          <span className="font-mono text-[10px] text-green-400/40 uppercase tracking-[0.3em]">Missão Completa</span>
           <Crosshair className="w-5 h-5 text-green-400/60" />
         </div>
         <h1 className="font-display font-black text-white text-3xl md:text-4xl tracking-tight">TREINO COMPLETO!</h1>
         <p className="font-mono text-xs text-white/30 mt-1">
-          N\u00edvel: <span className="text-green-400 font-bold">{LEVEL_LABELS[result.level]}</span>
+          Nível: <span className="text-green-400 font-bold">{LEVEL_LABELS[result.level]}</span>
           {isCognitive && <span className="text-cyan-400 ml-2 font-bold">Cognitivo</span>}
         </p>
       </header>
@@ -146,14 +146,14 @@ export function ReactionFinishedScreen({
                     fontSize: 12,
                   }}
                   formatter={(value: number) => [`${value}ms`, 'Tempo']}
-                  labelFormatter={(label) => `Est\u00edmulo #${label}`}
+                  labelFormatter={(label) => `Estímulo #${label}`}
                 />
                 <ReferenceLine
                   y={avgTime!}
                   stroke="rgba(255,255,255,0.15)"
                   strokeDasharray="4 4"
                   label={{
-                    value: `M\u00e9dia ${avgTime}ms`,
+                    value: `Média ${avgTime}ms`,
                     position: 'insideTopRight',
                     fill: 'rgba(255,255,255,0.3)',
                     fontSize: 10,
@@ -170,6 +170,14 @@ export function ReactionFinishedScreen({
                 />
               </AreaChart>
             </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* No reaction data message */}
+        {!hasReactionData && (
+          <div className="w-full max-w-3xl px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center">
+            <p className="text-sm text-yellow-400 font-semibold">Nenhuma reação registrada.</p>
+            <p className="text-xs text-white/40 mt-1">Verifique se o equipamento está conectado ou toque/clique na tela quando o estímulo aparecer.</p>
           </div>
         )}
 
@@ -269,10 +277,10 @@ function CognitiveStatsGrid({
 }) {
   return (
     <>
-      <StatCard icon={ShieldCheck} label="Inibi\u00e7\u00f5es" value={`${correctInhibitions}/${totalNoGoStimuli}`} valueColor="text-green-400" />
+      <StatCard icon={ShieldCheck} label="Inibições" value={`${correctInhibitions}/${totalNoGoStimuli}`} valueColor="text-green-400" />
       <StatCard icon={AlertTriangle} label="Faltas" value={String(commissionErrors)} valueColor="text-red-400" />
-      <StatCard icon={Clock} label="Omiss\u00f5es" value={String(omissionErrors)} valueColor="text-yellow-400" />
-      <StatCard icon={TrendingDown} label="M\u00e9dia GO" value={avgTime !== null ? `${avgTime}ms` : '--'} valueColor="text-cyan-400" />
+      <StatCard icon={Clock} label="Omissões" value={String(omissionErrors)} valueColor="text-yellow-400" />
+      <StatCard icon={TrendingDown} label="Média GO" value={avgTime !== null ? `${avgTime}ms` : '--'} valueColor="text-cyan-400" />
     </>
   );
 }
@@ -293,9 +301,9 @@ function StandardStatsGrid({
   return (
     <>
       <StatCard icon={Trophy} label="Melhor (PB)" value={`${bestTime}ms`} valueColor="text-yellow-400" />
-      <StatCard icon={TrendingDown} label="M\u00e9dia" value={`${avgTime}ms`} valueColor="text-green-400" />
+      <StatCard icon={TrendingDown} label="Média" value={`${avgTime}ms`} valueColor="text-green-400" />
       <StatCard icon={Zap} label="Total Hits" value={`${hits}/${totalStimuli}`} valueColor="text-cyan-400" />
-      <StatCard icon={Target} label="Estabilidade" value={`\u00b1${stdDev}ms`} valueColor="text-green-400" />
+      <StatCard icon={Target} label="Estabilidade" value={`±${stdDev}ms`} valueColor="text-green-400" />
     </>
   );
 }
@@ -310,7 +318,7 @@ function NoHardwareStatsGrid({
   return (
     <>
       <StatCard icon={Target} label="Rounds" value={String(roundsCompleted)} />
-      <StatCard icon={Zap} label="Est\u00edmulos" value={String(totalStimuli)} />
+      <StatCard icon={Zap} label="Estímulos" value={String(totalStimuli)} />
     </>
   );
 }

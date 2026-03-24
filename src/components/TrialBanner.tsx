@@ -13,6 +13,11 @@ export function TrialBanner() {
     (subscription.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   );
 
+  // Não mostrar banner para trials vitalícios (mais de 365 dias)
+  if (daysLeft > 365) {
+    return null;
+  }
+
   return (
     <div className="fixed top-0 left-0 right-0 z-40 bg-[#E11D48]/10 border-b border-[#E11D48]/20">
       <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">

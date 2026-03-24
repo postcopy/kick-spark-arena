@@ -283,18 +283,18 @@ export default function DemoSetupPage() {
           </button>
           <img src={logoSpe} alt="SPE" className="h-8 object-contain" />
           <div className="w-px h-6 bg-zinc-800" />
-          <h1 className="font-black text-lg tracking-[0.15em]">DEMO & TESTE</h1>
+          <h1 className="font-black text-2xl tracking-[0.15em]">DEMO & TESTE</h1>
         </div>
 
         {/* Status */}
         {existing && !generated && (
           <div className="mb-8 p-4 border border-yellow-500/20 bg-yellow-500/5 rounded-lg flex items-center justify-between">
-            <p className="text-yellow-400/80 text-sm">
+            <p className="text-yellow-400/80 text-base">
               Já existe um torneio carregado. Gerar um novo vai substituí-lo.
             </p>
             <button
               onClick={handleClear}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-base bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all"
             >
               <Trash2 className="h-4 w-4" /> Limpar
             </button>
@@ -305,9 +305,9 @@ export default function DemoSetupPage() {
           <div className="mb-8 p-4 border border-emerald-500/20 bg-emerald-500/5 rounded-lg">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-              <p className="text-emerald-400 font-bold text-sm">Torneio gerado com sucesso!</p>
+              <p className="text-emerald-400 font-bold text-base">Torneio gerado com sucesso!</p>
             </div>
-            <p className="text-zinc-400 text-sm mb-4">
+            <p className="text-zinc-400 text-base mb-4">
               <strong>{DEMO_CONFIGS[selectedConfig].name}</strong> — {DEMO_CONFIGS[selectedConfig].categories.length} categorias,{' '}
               {DEMO_CONFIGS[selectedConfig].categories.reduce((s, c) => s + c.athleteCount, 0)} atletas, 3 quadras
             </p>
@@ -341,7 +341,7 @@ export default function DemoSetupPage() {
         )}
 
         {/* Tournament Presets */}
-        <h2 className="text-zinc-400 text-xs tracking-[0.3em] uppercase font-bold mb-6">
+        <h2 className="text-zinc-400 text-sm tracking-[0.2em] uppercase font-bold mb-6">
           Selecione um torneio de demonstração
         </h2>
 
@@ -354,23 +354,23 @@ export default function DemoSetupPage() {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-black tracking-wide text-white/90 group-hover:text-white mb-2">
+                  <h3 className="text-xl font-black tracking-wide text-white/90 group-hover:text-white mb-2">
                     {config.name}
                   </h3>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    <span className="px-2 py-0.5 bg-[hsl(45,93%,47%)]/10 text-[hsl(45,93%,60%)] text-xs rounded font-bold">
+                    <span className="px-3 py-1 bg-[hsl(45,93%,47%)]/10 text-[hsl(45,93%,60%)] text-sm rounded font-bold">
                       {config.categories.length} categorias
                     </span>
-                    <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs rounded font-bold">
+                    <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-sm rounded font-bold">
                       {config.categories.reduce((s, c) => s + c.athleteCount, 0)} atletas
                     </span>
-                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-xs rounded font-bold">
+                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-sm rounded font-bold">
                       3 quadras
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1">
                     {config.categories.map((cat, j) => (
-                      <span key={j} className="text-zinc-600 text-xs">
+                      <span key={j} className="text-zinc-500 text-sm">
                         {cat.ageGroup} {cat.belt} {cat.weightClass} {cat.gender === 'M' ? '♂' : '♀'} ({cat.athleteCount})
                       </span>
                     ))}

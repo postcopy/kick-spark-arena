@@ -389,7 +389,19 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
     
     const interval = setInterval(() => {
       const now = Date.now();
-      
+
+      // === IDLE CHECK: skip work when no diagnostic activity ===
+      // If nothing has changed (no new packets, no tick bump) and no calibration
+      // or wizard is active, return early to avoid unnecessary CPU work.
+      const currentTick = uiDirtyTickRef.current;
+      const currentTs = lastPacketRef.current?.ts ?? null;
+      const isIdle = currentTick === lastTick
+        && currentTs === lastUiTsRef.current
+        && !isCalibrationActiveRef.current
+        && !wizardModeRef.current
+        && !recordingRef.current;
+      if (isIdle) return;
+
       // === FINALIZE INACTIVE IMPACTS via shared ImpactDetector ===
       const finalized = detectorRef.current.flush(now);
       for (const fin of finalized) {
@@ -426,12 +438,13 @@ export function useHardwareDiagnostics({ storageKey }: UseHardwareDiagnosticsOpt
       }
       
       // === UPDATE UI (if changed) ===
-      const currentTs = lastPacketRef.current?.ts ?? null;
-      const currentTick = uiDirtyTickRef.current;
-      
-      if (currentTs !== lastUiTsRef.current || currentTick !== lastTick) {
-        lastUiTsRef.current = currentTs;
-        lastTick = currentTick;
+      // Re-read tick/ts after impact finalization (which may have bumped tick)
+      const latestTick = uiDirtyTickRef.current;
+      const latestTs = lastPacketRef.current?.ts ?? null;
+
+      if (latestTs !== lastUiTsRef.current || latestTick !== lastTick) {
+        lastUiTsRef.current = latestTs;
+        lastTick = latestTick;
         
         setUiLastPacket(lastPacketRef.current);
         setUiRecentEvents(eventsRef.current.slice(-30).reverse());

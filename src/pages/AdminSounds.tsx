@@ -83,7 +83,7 @@ const SOUND_CONFIGS: SoundConfig[] = [
     filename: 'countdown-go.wav',
     prompt: 'Fight start sound, arcade game round begin, gong bell hit, dramatic start signal',
     duration: 1.0,
-    description: 'Inicio - GO!',
+    description: 'Início - GO!',
   },
   {
     name: 'Time Up',
@@ -97,7 +97,7 @@ const SOUND_CONFIGS: SoundConfig[] = [
     filename: 'victory.wav',
     prompt: 'Victory fanfare, arcade fighting game win, triumphant celebration melody, 16-bit style jingle',
     duration: 2.5,
-    description: 'Vitoria',
+    description: 'Vitória',
   },
 ];
 

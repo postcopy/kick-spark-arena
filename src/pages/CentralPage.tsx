@@ -111,8 +111,19 @@ export default function CentralPage() {
             recordResult={tournamentHook.recordMatchResult}
           />
         )}
-        {activeTab === 'inscricoes' && user && (
-          <RegistrationsPanel userId={user.id} />
+        {activeTab === 'inscricoes' && (
+          user ? (
+            <RegistrationsPanel userId={user.id} />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
+              <ClipboardList className="h-12 w-12 mb-4 opacity-50" />
+              <p className="text-lg font-bold text-zinc-400">Faça login para gerenciar inscrições</p>
+              <p className="text-sm text-zinc-600 mt-1">Você precisa estar logado para criar torneios e gerenciar inscrições</p>
+              <Button onClick={() => navigate('/login')} className="mt-4 bg-gradient-to-r from-[#E11D48] to-[#9F1239] text-white font-bold">
+                Entrar
+              </Button>
+            </div>
+          )
         )}
       </div>
     </div>

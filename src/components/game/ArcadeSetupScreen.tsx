@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { useSound } from '@/contexts/SoundContext';
 import { ChevronRight, HelpCircle, Settings2, Swords, Shield, Flame } from 'lucide-react';
 import { MissionBriefing } from './MissionBriefing';
+import { CategorySelector } from './CategorySelector';
+import type { CategoryId } from '@/config/categoryPresets';
 import { SetupTutorialDialog } from './SetupTutorialDialog';
 import { useIdleAttention } from '@/hooks/useIdleAttention';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -21,23 +23,25 @@ interface ArcadeSetupScreenProps {
   onBestOfChange: (bestOf: 1 | 3) => void;
   recoveryInterval: number;
   onRecoveryIntervalChange: (interval: number) => void;
+  selectedCategory?: CategoryId | null;
+  onCategorySelect?: (id: CategoryId) => void;
 }
 
 const BEST_OF_OPTIONS: Array<{ value: 1 | 3; label: string }> = [
-  { value: 1, label: 'R\u00c1PIDO' },
+  { value: 1, label: 'RÁPIDO' },
   { value: 3, label: 'MELHOR DE 3' },
 ];
 
 const INTENSITY_PRESETS = [
-  { id: 'sprint', label: 'LEVE', meta: '50 HP', damage: 2.0, icon: Shield, desc: 'Combate r\u00e1pido' },
-  { id: 'resistance', label: 'M\u00c9DIO', meta: '100 HP', damage: 1.0, icon: Swords, desc: 'Luta padr\u00e3o' },
-  { id: 'elite', label: 'PESADO', meta: '200 HP', damage: 0.5, icon: Flame, desc: 'Resist\u00eancia total' },
+  { id: 'sprint', label: 'LEVE', meta: '50 HP', damage: 2.0, icon: Shield, desc: 'Combate rápido' },
+  { id: 'resistance', label: 'MÉDIO', meta: '100 HP', damage: 1.0, icon: Swords, desc: 'Luta padrão' },
+  { id: 'elite', label: 'PESADO', meta: '200 HP', damage: 0.5, icon: Flame, desc: 'Resistência total' },
 ];
 
 const BRIEFING_TEXTS: Record<string, string> = {
-  sprint: 'COMBATE R\u00c1PIDO: Pouca vida, muito dano. Foco em explos\u00e3o e precis\u00e3o.',
-  resistance: 'LUTA PADR\u00c3O: Equil\u00edbrio entre ataque e defesa. O formato cl\u00e1ssico.',
-  elite: 'RESIST\u00caNCIA TOTAL: Muita vida, pouco dano. Maratona de combate.',
+  sprint: 'COMBATE RÁPIDO: Pouca vida, muito dano. Foco em explosão e precisão.',
+  resistance: 'LUTA PADRÃO: Equilíbrio entre ataque e defesa. O formato clássico.',
+  elite: 'RESISTÊNCIA TOTAL: Muita vida, pouco dano. Maratona de combate.',
 };
 
 export function ArcadeSetupScreen({
@@ -53,6 +57,8 @@ export function ArcadeSetupScreen({
   onBestOfChange,
   recoveryInterval,
   onRecoveryIntervalChange,
+  selectedCategory,
+  onCategorySelect,
 }: ArcadeSetupScreenProps) {
   const { unlockAudio, initFullPreload } = useSound();
   const [selectedPreset, setSelectedPreset] = useState<string>('resistance');
@@ -86,7 +92,7 @@ export function ArcadeSetupScreen({
             <span className="font-mono text-[10px] text-red-400/40 uppercase tracking-[0.3em]">Duelo</span>
           </div>
           <h1 className="font-display font-black text-white text-2xl md:text-3xl tracking-tight">
-            Corrida de Demoli\u00e7\u00e3o
+            Arena de Combate
           </h1>
         </div>
         <button
@@ -99,6 +105,12 @@ export function ArcadeSetupScreen({
 
       {/* Main content */}
       <main className="flex-1 min-h-0 w-full max-w-5xl mx-auto flex flex-col overflow-hidden relative z-10">
+        {onCategorySelect && (
+          <div className="mb-6">
+            <CategorySelector selected={selectedCategory ?? null} onSelect={onCategorySelect} />
+          </div>
+        )}
+
         {/* Intensity Presets - Weight Classes */}
         <div className="flex-shrink-0 mb-4">
           <p className="text-white/20 text-xs mb-3">Classe de combate</p>
@@ -151,7 +163,7 @@ export function ArcadeSetupScreen({
           <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.04] transition-colors">
             <div className="flex items-center gap-2">
               <Settings2 className="w-4 h-4 text-white/25" />
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/25">Ajustes avan\u00e7ados</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/25">Ajustes avançados</span>
             </div>
             <ChevronRight className="w-4 h-4 text-white/15 transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
           </CollapsibleTrigger>

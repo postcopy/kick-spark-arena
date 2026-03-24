@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  LayoutDashboard, Gamepad2, Trophy, Users, Swords, Settings,
+  LayoutDashboard, Gamepad2, Trophy, Users, Settings,
   LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,8 +11,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/', icon: Gamepad2, label: 'Modos de Jogo' },
   { to: '/ranking', icon: Trophy, label: 'Ranking' },
-  { to: '/students', icon: Users, label: 'Alunos' },
-  { to: '/championship/mat', icon: Swords, label: 'Campeonato' },
+  { to: '/students', icon: Users, label: 'Atletas' },
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ];
 
@@ -42,12 +41,13 @@ export function Sidebar() {
       </div>
 
       {/* Nav items */}
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+      <nav role="navigation" aria-label="Menu principal" className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            aria-label={collapsed ? item.label : undefined}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 relative group min-h-0',
@@ -74,6 +74,7 @@ export function Sidebar() {
       <div className="border-t border-border p-2 space-y-1 shrink-0">
         <button
           onClick={() => { signOut(); navigate('/login'); }}
+          aria-label={collapsed ? 'Sair' : undefined}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#1E1E2E] w-full transition-colors min-h-0"
         >
           <LogOut className="w-5 h-5 shrink-0" />
@@ -83,6 +84,7 @@ export function Sidebar() {
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center justify-center w-full py-2 text-[#94A3B8] hover:text-[#F8FAFC] transition-colors min-h-0"
           title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>

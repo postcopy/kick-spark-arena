@@ -49,6 +49,22 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
   // Result
   const [lastResult, setLastResult] = useState<ReactionResult | null>(null);
 
+  // Refs to keep state values fresh for async/effect reads (avoids stale closures)
+  const totalStimuliRef = useRef(totalStimuli);
+  const reactionTimesRef = useRef(reactionTimes);
+  const correctInhibitionsRef = useRef(correctInhibitions);
+  const commissionErrorsRef = useRef(commissionErrors);
+  const omissionErrorsRef = useRef(omissionErrors);
+  const totalGoStimuliRef = useRef(totalGoStimuli);
+  const totalNoGoStimuliRef = useRef(totalNoGoStimuli);
+  totalStimuliRef.current = totalStimuli;
+  reactionTimesRef.current = reactionTimes;
+  correctInhibitionsRef.current = correctInhibitions;
+  commissionErrorsRef.current = commissionErrors;
+  omissionErrorsRef.current = omissionErrors;
+  totalGoStimuliRef.current = totalGoStimuli;
+  totalNoGoStimuliRef.current = totalNoGoStimuli;
+
   // Refs for timers and internal state
   const workTimerRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
@@ -272,17 +288,16 @@ export function useReactionState({ config, onRoundEnd, onSessionEnd, onStimulus,
     if (gameState === 'finished' && lastResult) {
       setLastResult(prev => prev ? {
         ...prev,
-        totalStimuli,
-        reactionTimes,
-        correctInhibitions,
-        commissionErrors,
-        omissionErrors,
-        totalGoStimuli,
-        totalNoGoStimuli,
+        totalStimuli: totalStimuliRef.current,
+        reactionTimes: reactionTimesRef.current,
+        correctInhibitions: correctInhibitionsRef.current,
+        commissionErrors: commissionErrorsRef.current,
+        omissionErrors: omissionErrorsRef.current,
+        totalGoStimuli: totalGoStimuliRef.current,
+        totalNoGoStimuli: totalNoGoStimuliRef.current,
       } : prev);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState]);
+  }, [gameState, lastResult]);
 
   // --- Countdown ---
   const startCountdown = useCallback(() => {

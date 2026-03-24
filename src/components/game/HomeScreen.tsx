@@ -1,4 +1,4 @@
-import { Timer, Swords, Zap, Eye, Trophy, Wifi, WifiOff } from 'lucide-react';
+import { Timer, Swords, Zap, Eye, Wifi, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import logoSfighter from '@/assets/logo-sfighter.png';
@@ -22,6 +22,7 @@ const gameModes = [
     title: 'CONTRA O TEMPO',
     subtitle: 'Quem chuta mais?',
     info: '1-2 JOGADORES',
+    hardware: 'Requer sensor',
     icon: Timer,
     color: '#F97316',
     colorRgb: '249,115,22',
@@ -29,13 +30,14 @@ const gameModes = [
     borderHover: 'hover:border-orange-500/50',
     textColor: 'text-orange-400',
     bgAccent: 'bg-orange-500',
-    description: 'Chute o m\u00e1ximo poss\u00edvel antes do tempo acabar. Solo ou em dupla!',
+    description: 'Chute o máximo possível antes do tempo acabar. Solo ou em dupla!',
   },
   {
     id: 'arcade' as GameMode,
     title: 'DUELO',
-    subtitle: 'Luta at\u00e9 o K.O.!',
+    subtitle: 'Luta até o K.O.!',
     info: '2 JOGADORES',
+    hardware: 'Requer sensor',
     icon: Swords,
     color: '#E11D48',
     colorRgb: '225,29,72',
@@ -47,9 +49,10 @@ const gameModes = [
   },
   {
     id: 'reaction' as GameMode,
-    title: 'REA\u00c7\u00c3O',
+    title: 'REAÇÃO',
     subtitle: 'Reflexo e controle',
     info: 'TURMA INTEIRA',
+    hardware: 'Tela touch / Teclado',
     icon: Eye,
     color: '#22C55E',
     colorRgb: '34,197,94',
@@ -57,13 +60,13 @@ const gameModes = [
     borderHover: 'hover:border-green-500/50',
     textColor: 'text-green-400',
     bgAccent: 'bg-green-500',
-    description: 'Treine reflexos e tempo de rea\u00e7\u00e3o com est\u00edmulos visuais.',
+    description: 'Treine reflexos e tempo de reação com estímulos visuais.',
   },
 ] as const;
 
 export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   const { user } = useAuth();
-  const { unlockAudio, initFullPreload } = useSound();
+  const { unlockAudio, initFullPreload, play } = useSound();
   const navigate = useNavigate();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -74,11 +77,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
   };
 
   const handleClick = (id: string) => {
-    if (id === 'championship') {
-      navigate('/championship/mat');
-    } else {
-      handleSelectMode(id as GameMode);
-    }
+    handleSelectMode(id as GameMode);
   };
 
   return (
@@ -96,11 +95,11 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
             <img src={logoSfighter} alt="S-Fight" className="h-7 md:h-8 w-auto opacity-80" />
             <div className="flex items-center gap-1.5">
               {serialPort?.isConnected ? (
-                <Wifi className="w-3.5 h-3.5 text-green-500" />
+                <Wifi className="w-3.5 h-3.5 text-green-500" aria-hidden="true" />
               ) : (
-                <WifiOff className="w-3.5 h-3.5 text-white/20" />
+                <WifiOff className="w-3.5 h-3.5 text-white/50" aria-hidden="true" />
               )}
-              <span className="font-mono text-[10px] text-white/30">
+              <span className="font-mono text-[10px] text-white/50">
                 {serialPort?.isConnected ? 'ONLINE' : 'OFFLINE'}
               </span>
             </div>
@@ -109,7 +108,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
             {serialPort?.isConnected && (
               <EquipmentStatus equipment={serialPort.equipment} compact />
             )}
-            <span className="font-mono text-[10px] text-white/30 hidden sm:block">
+            <span className="font-mono text-[10px] text-white/50 hidden sm:block">
               {user?.email?.split('@')[0]}
             </span>
             <MenuDrawer
@@ -125,7 +124,7 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
         <main className="flex-1 min-h-0 flex flex-col">
           {/* Title */}
           <div className="text-center py-3 md:py-4">
-            <p className="font-mono text-[10px] md:text-xs text-white/25 tracking-[0.5em] uppercase">
+            <p className="font-mono text-[10px] md:text-xs text-white/50 tracking-[0.5em] uppercase">
               Selecione o modo
             </p>
           </div>
@@ -235,30 +234,24 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
                     "relative z-10 mt-3 md:mt-4 px-3 py-1 rounded-full border transition-all duration-300",
                     isHovered ? "border-white/15 bg-white/5" : "border-white/5 bg-transparent"
                   )}>
-                    <span className="font-mono text-[9px] md:text-[10px] tracking-[0.2em] text-white/35">
+                    <span className="font-mono text-[9px] md:text-[10px] tracking-[0.2em] text-white/50">
                       {mode.info}
                     </span>
                   </div>
+
+                  {/* Hardware requirement */}
+                  <span className={cn(
+                    "relative z-10 mt-1.5 font-mono text-[9px] tracking-wider transition-all duration-300",
+                    mode.hardware === 'Tela touch / Teclado' ? "text-green-400/40" : "text-white/25",
+                    isHovered ? "opacity-100" : "opacity-60"
+                  )}>
+                    {mode.hardware}
+                  </span>
                 </button>
               );
             })}
           </div>
 
-          {/* Championship - Compact Secondary Button */}
-          <div className="px-3 md:px-4 pb-2">
-            <button
-              onClick={() => handleClick('championship')}
-              className="w-full flex items-center justify-center gap-3 py-2.5 rounded-lg border border-white/[0.06] hover:border-yellow-500/20 bg-white/[0.02] hover:bg-yellow-500/5 transition-all duration-300 group"
-            >
-              <Trophy className="w-4 h-4 text-yellow-500/50 group-hover:text-yellow-500/80 transition-colors" />
-              <span className="font-display font-bold text-sm text-white/40 group-hover:text-white/60 uppercase tracking-wider transition-colors">
-                Campeonato
-              </span>
-              <span className="font-mono text-[9px] text-white/20 tracking-widest">
-                2 TELAS
-              </span>
-            </button>
-          </div>
         </main>
 
         {/* Minimal Footer */}
@@ -267,23 +260,23 @@ export function HomeScreen({ onSelectMode, serialPort }: HomeScreenProps) {
             {!serialPort?.isConnected && (
               <>
                 <div className="flex items-center gap-1.5">
-                  <kbd className="bg-white/5 border border-white/10 rounded px-1.5 py-0.5 font-mono text-[10px] text-white/40">A</kbd>
-                  <span className="font-mono text-[10px] text-white/20">Verm</span>
+                  <kbd className="bg-white/8 border border-white/15 rounded px-1.5 py-0.5 font-mono text-[10px] text-white/60">A</kbd>
+                  <span className="font-mono text-[10px] text-white/50">Verm</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <kbd className="bg-white/5 border border-white/10 rounded px-1.5 py-0.5 font-mono text-[10px] text-white/40">L</kbd>
-                  <span className="font-mono text-[10px] text-white/20">Azul</span>
+                  <kbd className="bg-white/8 border border-white/15 rounded px-1.5 py-0.5 font-mono text-[10px] text-white/60">L</kbd>
+                  <span className="font-mono text-[10px] text-white/50">Azul</span>
                 </div>
                 <div className="flex items-center gap-1.5 hidden sm:flex">
-                  <kbd className="bg-white/5 border border-white/10 rounded px-1.5 py-0.5 font-mono text-[10px] text-white/40">ESC</kbd>
-                  <span className="font-mono text-[10px] text-white/20">Menu</span>
+                  <kbd className="bg-white/8 border border-white/15 rounded px-1.5 py-0.5 font-mono text-[10px] text-white/60">ESC</kbd>
+                  <span className="font-mono text-[10px] text-white/50">Menu</span>
                 </div>
               </>
             )}
             {serialPort?.isConnected && (
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="font-mono text-[10px] text-white/30">Hardware conectado</span>
+              <div className="flex items-center gap-2" role="status">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" aria-hidden="true" />
+                <span className="font-mono text-[10px] text-white/50">Hardware conectado</span>
               </div>
             )}
           </div>

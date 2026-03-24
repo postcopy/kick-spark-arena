@@ -64,7 +64,7 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
           <div className="flex items-center gap-2 mb-5">
             <Flame className="w-4 h-4 text-white/20" />
             <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/25">
-              Corrida de Demolição
+              Arena de Combate
             </span>
             <Flame className="w-4 h-4 text-white/20" />
           </div>
@@ -238,6 +238,14 @@ export function ArcadeFinishedScreen({ result, onPlayAgain, onBackToMenu }: Arca
             </div>
           ))}
         </div>
+
+        {/* Zero damage feedback */}
+        {redWins === 0 && blueWins === 0 && (
+          <div className="mb-4 px-4 py-2.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-center">
+            <p className="text-sm text-yellow-400 font-semibold">Nenhum dano registrado no duelo.</p>
+            <p className="text-xs text-white/40 mt-1">Verifique se o equipamento está conectado ou use as teclas <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">A</kbd> e <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">L</kbd>.</p>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="mt-auto space-y-2.5">

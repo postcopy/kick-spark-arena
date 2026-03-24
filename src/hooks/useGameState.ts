@@ -11,6 +11,8 @@ const COUNTDOWN_DURATION = 6; // 3s intro + 3s contagem sincronizada
 
 interface UseGameStateOptions extends GameConfig {
   onHit?: () => void;
+  onHitFrenzy?: () => void;
+  onFrenzyActivate?: () => void;
   onGameEnd?: () => void;
   isIndividual?: boolean;
   selectedAthlete?: Athlete | null;
@@ -23,6 +25,9 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
   const [countdown, setCountdown] = useState(COUNTDOWN_DURATION);
   const [lastResult, setLastResult] = useState<GameResult | null>(null);
   const [flashSide, setFlashSide] = useState<Side | null>(null);
+  const [isFrenzy, setIsFrenzy] = useState(false);
+  const [frenzyPoints, setFrenzyPoints] = useState(0);
+  const isFrenzyRef = useRef(false); // ref for use inside registerKick (avoids stale closure)
 
   const lastKickTime = useRef<{ red: number; blue: number }>({ red: 0, blue: 0 });
   const timerRef = useRef<number | null>(null);
@@ -49,6 +54,9 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
     setTimeLeft(config.duration);
     setCountdown(COUNTDOWN_DURATION);
     setFlashSide(null);
+    setIsFrenzy(false);
+    setFrenzyPoints(0);
+    isFrenzyRef.current = false;
     lastKickTime.current = { red: 0, blue: 0 };
     kickSideToggle.current = 'red';
   }, [clearTimers, config.duration]);
@@ -85,6 +93,9 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
   const startGame = useCallback(() => {
     setGameState('running');
     setTimeLeft(config.duration);
+    setIsFrenzy(false);
+    setFrenzyPoints(0);
+    isFrenzyRef.current = false;
 
     timerRef.current = window.setInterval(() => {
       setTimeLeft((prev) => {
@@ -104,6 +115,17 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
       startGame();
     }
   }, [gameState, countdown, startGame]);
+
+  // Frenzy Zone activation — dynamic threshold based on duration
+  const frenzyThreshold = config.duration <= 15 ? 5 : 10;
+  useEffect(() => {
+    if (gameState === 'running' && timeLeft <= frenzyThreshold && timeLeft > 0 && !isFrenzy) {
+      setIsFrenzy(true);
+      isFrenzyRef.current = true;
+      config.onFrenzyActivate?.();
+      console.log(`[FRENZY] Activated! ${timeLeft}s remaining, threshold=${frenzyThreshold}`);
+    }
+  }, [gameState, timeLeft, frenzyThreshold, isFrenzy]);
 
   // Handle game end
   useEffect(() => {
@@ -129,7 +151,8 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
         config.onGameEnd?.();
 
         // Save to Supabase
-        saveSoloResult(config.selectedAthlete.id, totalKicks, config.duration);
+        saveSoloResult(config.selectedAthlete.id, totalKicks, config.duration)
+          .catch(err => console.error('Failed to save solo result:', err));
       } else {
         // Duo mode - existing logic
         const winner: Side | 'tie' = 
@@ -202,6 +225,9 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
 
     const now = Date.now();
     
+    // Frenzy Zone: x2 points during frenzy
+    const points = isFrenzyRef.current ? 2 : 1;
+
     if (config.isIndividual) {
       // Individual mode: both sides count as one, alternate for visual effect
       const lastKick = Math.max(lastKickTime.current.red, lastKickTime.current.blue);
@@ -211,20 +237,25 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
 
       lastKickTime.current.red = now;
       lastKickTime.current.blue = now;
-      
+
       // Alternate which side shows the kick for visual balance
       const targetSide = kickSideToggle.current;
       kickSideToggle.current = targetSide === 'red' ? 'blue' : 'red';
-      
+
       setScores((prev) => ({
-        red: targetSide === 'red' ? prev.red + 1 : prev.red,
-        blue: targetSide === 'blue' ? prev.blue + 1 : prev.blue,
+        red: targetSide === 'red' ? prev.red + points : prev.red,
+        blue: targetSide === 'blue' ? prev.blue + points : prev.blue,
       }));
+
+      // Track frenzy bonus points
+      if (isFrenzyRef.current) {
+        setFrenzyPoints(prev => prev + points);
+      }
 
       // Trigger flash effect
       setFlashSide(targetSide);
     } else {
-      // Duo mode: existing logic
+      // Duo mode
       const lastKick = lastKickTime.current[side];
       if (now - lastKick < config.minIntervalMs) {
         return false; // Debounced
@@ -233,15 +264,24 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
       lastKickTime.current[side] = now;
       setScores((prev) => ({
         ...prev,
-        [side]: prev[side] + 1,
+        [side]: prev[side] + points,
       }));
+
+      // Track frenzy bonus points
+      if (isFrenzyRef.current) {
+        setFrenzyPoints(prev => prev + points);
+      }
 
       // Trigger flash effect
       setFlashSide(side);
     }
 
-    // Play hit sound
-    config.onHit?.();
+    // Play hit sound (frenzy uses different sound)
+    if (isFrenzyRef.current && config.onHitFrenzy) {
+      config.onHitFrenzy();
+    } else {
+      config.onHit?.();
+    }
 
     setTimeout(() => setFlashSide(null), 150);
 
@@ -322,6 +362,9 @@ export function useGameState(config: UseGameStateOptions = DEFAULT_CONFIG) {
     countdown,
     lastResult,
     flashSide,
+    isFrenzy,
+    frenzyPoints,
+    frenzyThreshold,
     config,
     goToSetup,
     goToLoading,

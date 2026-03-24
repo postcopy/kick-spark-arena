@@ -25,7 +25,9 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
   useEffect(() => {
     if (!hasPlayedRef.current) {
       hasPlayedRef.current = true;
-      if (isIndividual) {
+      if (isTie) {
+        play('tie');
+      } else if (isIndividual) {
         play('victory');
       } else if (winner === 'red') {
         play('victoryRed');
@@ -35,7 +37,12 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
         play('victory');
       }
     }
-  }, [play, winner, isIndividual]);
+  }, [play, winner, isIndividual, isTie]);
+
+  // Play new record sound when detected
+  useEffect(() => {
+    if (isNewRecord) play('newRecord');
+  }, [isNewRecord, play]);
 
   // Fetch rank for individual mode
   useEffect(() => {
@@ -128,8 +135,24 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
             </div>
           </div>
 
+          {/* Zero score message */}
+          {(totalKicks === 0 || totalKicks == null) && (
+            <div className="mb-4 px-4 py-2.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-center animate-fade-in max-w-sm">
+              <p className="text-sm text-yellow-400 font-semibold">Nenhum chute registrado.</p>
+              <p className="text-xs text-white/40 mt-1">Verifique se o equipamento está conectado ou use as teclas <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">A</kbd> e <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">L</kbd>.</p>
+            </div>
+          )}
+
+          {/* Low score encouragement */}
+          {totalKicks != null && totalKicks > 0 && totalKicks <= 5 && (
+            <div className="mb-4 px-4 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-2 animate-fade-in">
+              <Zap className="w-4 h-4 text-green-400" />
+              <span className="text-sm font-semibold text-green-400">Bom começo! Continue praticando!</span>
+            </div>
+          )}
+
           {/* New Record Badge */}
-          {isNewRecord && (
+          {isNewRecord && totalKicks != null && totalKicks > 0 && (
             <div className="mb-4 px-4 py-1.5 bg-orange-500/10 border border-orange-500/30 rounded-lg flex items-center gap-2 animate-fade-in">
               <Zap className="w-4 h-4 text-orange-400" />
               <span className="text-sm font-bold text-orange-400 uppercase tracking-wider">
@@ -142,7 +165,7 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
           {rank && rank <= 3 && (
             <div className="mb-4 flex items-center gap-2 font-mono text-xs text-white/30 uppercase tracking-wider animate-fade-in">
               <Medal className="w-4 h-4 text-orange-400/60" />
-              <span>POSI\u00c7\u00c3O #{rank}</span>
+              <span>POSIÇÃO #{rank}</span>
             </div>
           )}
 
@@ -242,6 +265,19 @@ export function FinishedScreen({ result, onPlayAgain, onBackToMenu }: FinishedSc
           <span className="font-mono text-white/15 text-xs mt-1">{blueCpmFinal} cpm</span>
         </div>
       </div>
+
+      {/* Zero score feedback */}
+      {scores.red === 0 && scores.blue === 0 && (
+        <div className="relative z-20 mt-4 mx-6 px-4 py-2.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-center max-w-lg">
+          <p className="text-sm text-yellow-400 font-semibold">Nenhum chute registrado.</p>
+          <p className="text-xs text-white/40 mt-1">Verifique se o equipamento está conectado ou use as teclas <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">A</kbd> e <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">L</kbd>.</p>
+        </div>
+      )}
+      {(scores.red + scores.blue > 0) && (scores.red + scores.blue <= 5) && (
+        <div className="relative z-20 mt-4 mx-6 px-4 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg text-center max-w-lg">
+          <p className="text-sm font-semibold text-green-400">Bom começo! Continue praticando!</p>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex gap-3 mt-auto pb-8 relative z-20">

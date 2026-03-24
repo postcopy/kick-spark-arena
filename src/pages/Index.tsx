@@ -20,10 +20,15 @@ import { ReactionScreen } from '@/components/game/ReactionScreen';
 import { ReactionFinishedScreen } from '@/components/game/ReactionFinishedScreen';
 import { EquipmentSetupScreen } from '@/components/game/EquipmentSetupScreen';
 import { Paywall } from '@/components/Paywall';
+import { AppShell } from '@/components/layout/AppShell';
+import { IntroScreen } from '@/components/IntroScreen';
 import { Loader2 } from 'lucide-react';
+import { deviceIdToKickingSide, deviceIdToHitType } from '@/lib/deviceMapping';
+import type { ImpactCallbackData } from '@/types/serial';
 import type { Side, GameMode, Athlete, HitType } from '@/types/game';
 import type { ReactionLevel, ReactionConfig } from '@/types/reaction';
 import { REACTION_PRESETS } from '@/types/reaction';
+import { type CategoryId, getCategoryPreset, DEFAULT_DEBOUNCE_MS } from '@/config/categoryPresets';
 
 type TimeAttackVariant = 'duo' | 'individual';
 
@@ -41,6 +46,9 @@ function Frame({ children }: { children: React.ReactNode }) {
 const Index = () => {
   const { user, subscription, isLoading: authLoading, isAdmin } = useAuth();
   const { play } = useSound();
+  const [showIntro, setShowIntro] = useState(() => {
+    try { return sessionStorage.getItem('sfight_intro_done') !== '1'; } catch { return true; }
+  });
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
   const [duration, setDuration] = useState(60);
   const [roundDuration, setRoundDuration] = useState(45);
@@ -57,7 +65,34 @@ const Index = () => {
   const [timeAttackVariant, setTimeAttackVariant] = useState<TimeAttackVariant>('duo');
   const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
   const [isGuest, setIsGuest] = useState(false);
-  
+
+  // Category preset state
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
+  const currentDebounce = selectedCategory ? (getCategoryPreset(selectedCategory)?.debounceMs ?? DEFAULT_DEBOUNCE_MS) : DEFAULT_DEBOUNCE_MS;
+
+  // Handle category selection — update ALL game parameters from preset
+  const handleCategorySelect = useCallback((categoryId: CategoryId) => {
+    const preset = getCategoryPreset(categoryId);
+    if (!preset) return;
+    setSelectedCategory(categoryId);
+    // Time Attack params
+    setDuration(preset.timeAttack.duration);
+    // Duel params
+    setRoundDuration(preset.duel.roundTime);
+    setVestDamage(preset.duel.vestDamage);
+    setHelmetDamage(preset.duel.helmetDamage);
+    setBestOf(preset.duel.bestOf);
+    setRecoveryInterval(preset.duel.recovery);
+  }, []);
+
+  // Deselect category when any individual param changes manually
+  const handleDurationChange = useCallback((d: number) => { setDuration(d); setSelectedCategory(null); }, []);
+  const handleRoundDurationChange = useCallback((d: number) => { setRoundDuration(d); setSelectedCategory(null); }, []);
+  const handleVestDamageChange = useCallback((d: number) => { setVestDamage(d); setSelectedCategory(null); }, []);
+  const handleHelmetDamageChange = useCallback((d: number) => { setHelmetDamage(d); setSelectedCategory(null); }, []);
+  const handleBestOfChange = useCallback((d: 1 | 3) => { setBestOf(d); setSelectedCategory(null); }, []);
+  const handleRecoveryChange = useCallback((d: number) => { setRecoveryInterval(d); setSelectedCategory(null); }, []);
+
   // Equipment setup flow state
   const [showEquipmentSetup, setShowEquipmentSetup] = useState(false);
   const [pendingMode, setPendingMode] = useState<GameMode | null>(null);
@@ -83,9 +118,11 @@ const Index = () => {
   }, [play]);
 
   const timeAttackState = useGameState({
-    duration, 
-    minIntervalMs: 120,
+    duration,
+    minIntervalMs: currentDebounce,
     onHit: () => playHitRef.current(),
+    onHitFrenzy: () => play('frenzyPoint'),
+    onFrenzyActivate: () => play('frenzyActivate'),
     onGameEnd: () => playTimeUpRef.current(),
     isIndividual: timeAttackVariant === 'individual',
     selectedAthlete: timeAttackVariant === 'individual' ? selectedAthlete : null,
@@ -96,6 +133,7 @@ const Index = () => {
     if (bgMusicRef.current) {
       const audio = bgMusicRef.current;
       bgMusicRef.current = null; // Prevent double-fade
+      isNewRoundRef.current = true; // Allow music restart on next game
       const startVol = audio.volume;
       const FADE_OUT_MS = 1200;
       const FADE_STEP = 30;
@@ -103,7 +141,6 @@ const Index = () => {
       let step = 0;
       const fadeInterval = window.setInterval(() => {
         step++;
-        // Exponential ease-out for smooth professional fade
         const t = Math.min(step / steps, 1);
         audio.volume = Math.max(0, startVol * (1 - t) * (1 - t));
         if (step >= steps) {
@@ -116,17 +153,19 @@ const Index = () => {
     }
   }, []);
 
-  const arcadeState = useArcadeState({ 
-    roundDurationSec: roundDuration, 
+  const arcadeState = useArcadeState({
+    roundDurationSec: roundDuration,
     bestOf,
     vestDamage,
     helmetDamage,
     recoveryIntervalSec: recoveryInterval,
+    minIntervalMs: currentDebounce,
     onHit: () => playHitRef.current(),
     onHitHeavy: () => playHitHeavyRef.current(),
     onKO: () => playKORef.current(),
     onTimeUp: () => playTimeUpRef.current(),
     onRoundEnd: () => {
+      play('roundEnd');
       stopBgMusic();
       isNewRoundRef.current = true;
     },
@@ -135,15 +174,15 @@ const Index = () => {
   // Reaction mode state
   const reactionState = useReactionState({
     config: reactionConfig,
-    onRoundEnd: () => playTimeUpRef.current(),
+    onRoundEnd: () => play('timeWarning'),
     onSessionEnd: () => play('victory'),
-    onStimulus: () => play('scoreBeep'),
-    onHit: () => playHitRef.current(),
-    onNoGoSuccess: () => play('scoreBeep'),
-    onCommissionError: () => playErrorRef.current(),
+    onStimulus: () => play('stimulus'),
+    onHit: () => play('correct'),
+    onNoGoSuccess: () => play('correct'),
+    onCommissionError: () => play('fault'),
   });
 
-  // Serial port kick handler with hit type
+  // Serial port kick handler with hit type (legacy fallback — used when ImpactDetector is disabled)
   const handleSerialKick = useCallback((side: Side, hitType: HitType = 'vest') => {
     if (gameMode === 'time_attack') {
       timeAttackState.registerKick(side);
@@ -154,13 +193,56 @@ const Index = () => {
     }
   }, [gameMode, timeAttackState, arcadeState, reactionState]);
 
-  const { serialPort, registerKickHandler, unregisterKickHandler } = useSerialPortContext();
+  const {
+    serialPort,
+    registerKickHandler, unregisterKickHandler,
+    registerImpactHandler, unregisterImpactHandler,
+    setImpactDetectorConfig,
+  } = useSerialPortContext();
 
-  // Register kick handler on mount and when it changes
+  // Impact handler — converts ImpactDetector impacts into game kicks
+  const handleImpactRef = useRef<((impact: ImpactCallbackData) => void) | null>(null);
+  handleImpactRef.current = useCallback((impact: ImpactCallbackData) => {
+    const { deviceId, peakIntensity } = impact;
+    const kickingSide = deviceIdToKickingSide(deviceId);
+    const hitType = deviceIdToHitType(deviceId);
+    if (!kickingSide) return;
+
+    // Minimum intensity thresholds for S Fighter game modes
+    const MIN_VEST = 15;
+    const MIN_HELMET = 5;
+    const threshold = hitType === 'helmet' ? MIN_HELMET : MIN_VEST;
+    if (peakIntensity < threshold) return;
+
+    console.log(`[SFighter] Impact → kick: ${kickingSide} ${hitType} (peak=${peakIntensity})`);
+
+    if (gameMode === 'time_attack') {
+      timeAttackState.registerKick(kickingSide);
+    } else if (gameMode === 'arcade') {
+      arcadeState.registerKick(kickingSide, hitType);
+    } else if (gameMode === 'reaction') {
+      reactionState.registerImpact();
+    }
+  }, [gameMode, timeAttackState, arcadeState, reactionState]);
+
+  // Register handlers and enable ImpactDetector on mount
   useEffect(() => {
     registerKickHandler(handleSerialKick);
-    return () => unregisterKickHandler();
-  }, [handleSerialKick, registerKickHandler, unregisterKickHandler]);
+    registerImpactHandler((impact) => handleImpactRef.current?.(impact));
+
+    // Enable ImpactDetector with default config for S Fighter
+    setImpactDetectorConfig({
+      enabled: true,
+      noiseFloor: {},
+      noiseIntensityMin: 1, // Minimal filter — let all real signals through, game modes don't need strict filtering
+    });
+
+    return () => {
+      unregisterKickHandler();
+      unregisterImpactHandler();
+      setImpactDetectorConfig(null);
+    };
+  }, [handleSerialKick, registerKickHandler, unregisterKickHandler, registerImpactHandler, unregisterImpactHandler, setImpactDetectorConfig]);
 
   // Determine if user can play
   // Admin always can play, subscribed users can play, users in trial can play
@@ -255,6 +337,23 @@ const Index = () => {
     setIsGuest(false);
   }, [stopAllGameProcesses]);
 
+  // ─── AUTO-PAUSE on USB disconnect during active game ───
+  const prevConnectedRef = useRef(serialPort.isConnected);
+  useEffect(() => {
+    const wasConnected = prevConnectedRef.current;
+    prevConnectedRef.current = serialPort.isConnected;
+
+    // Only act on disconnect transition (was connected → now disconnected)
+    if (wasConnected && !serialPort.isConnected && gameMode) {
+      console.log('[SFighter] USB disconnected during game — auto-pausing');
+      // Time Attack has pause support
+      if (gameMode === 'time_attack' && timeAttackState.gameState === 'running') {
+        timeAttackState.togglePause();
+      }
+      // Arcade & Reaction: no pause — just log warning (scoring stops naturally since no data arrives)
+    }
+  }, [serialPort.isConnected, gameMode, timeAttackState]);
+
   // Global ESC handler to exit game modes
   useEffect(() => {
     const handleGlobalEscape = (e: KeyboardEvent) => {
@@ -271,12 +370,32 @@ const Index = () => {
   // Handle music started from countdown
   const handleMusicStarted = useCallback((audio: HTMLAudioElement) => {
     // Stop previous music if exists
-    if (bgMusicRef.current) {
+    if (bgMusicRef.current && bgMusicRef.current !== audio) {
       bgMusicRef.current.pause();
+      try { bgMusicRef.current.currentTime = 0; } catch {}
     }
     bgMusicRef.current = audio;
-    isNewRoundRef.current = false; // Mark that music has started for this round
+    isNewRoundRef.current = false;
   }, []);
+
+
+  // Derive current game state across all modes
+  const currentGameState = gameMode === 'time_attack' ? timeAttackState.gameState
+    : gameMode === 'arcade' ? arcadeState.gameState
+    : gameMode === 'reaction' ? reactionState.gameState : 'idle';
+
+  const isInGameplay = gameMode !== null &&
+    ['loading', 'countdown', 'running', 'paused', 'round_end'].includes(currentGameState);
+
+  // Hide cursor during gameplay (for TV/festival use)
+  useEffect(() => {
+    if (isInGameplay) {
+      document.body.style.cursor = 'none';
+    } else {
+      document.body.style.cursor = '';
+    }
+    return () => { document.body.style.cursor = ''; };
+  }, [isInGameplay]);
 
 
   // Build content based on state
@@ -323,7 +442,7 @@ const Index = () => {
     );
   } else if (gameMode === 'time_attack') {
     // Time Attack Mode
-    const { gameState, scores, timeLeft, countdown, lastResult, flashSide, goToSetup, goToLoading, startCountdown } = timeAttackState;
+    const { gameState, scores, timeLeft, countdown, lastResult, flashSide, isFrenzy, frenzyPoints, goToSetup, goToLoading, startCountdown } = timeAttackState;
 
     // Check if can start (for individual mode, need athlete selected)
     const canStart = timeAttackVariant === 'duo' || (timeAttackVariant === 'individual' && selectedAthlete !== null);
@@ -336,11 +455,13 @@ const Index = () => {
             onStart={() => canStart && goToLoading()}
             onBack={handleBackToMenu}
             duration={duration}
-            onDurationChange={setDuration}
+            onDurationChange={handleDurationChange}
             variant={timeAttackVariant}
             onVariantChange={setTimeAttackVariant}
             selectedAthlete={selectedAthlete}
             onAthleteChange={setSelectedAthlete}
+            selectedCategory={selectedCategory}
+            onCategorySelect={handleCategorySelect}
           />
         );
         break;
@@ -366,6 +487,7 @@ const Index = () => {
             isIndividual={timeAttackVariant === 'individual'}
             athlete={selectedAthlete}
             equipment={serialPort.equipment}
+            isFrenzy={isFrenzy}
           />
         );
         break;
@@ -390,15 +512,17 @@ const Index = () => {
             onStart={goToLoading}
             onBack={handleBackToMenu}
             roundDuration={roundDuration}
-            onRoundDurationChange={setRoundDuration}
+            onRoundDurationChange={handleRoundDurationChange}
             vestDamage={vestDamage}
-            onVestDamageChange={setVestDamage}
+            onVestDamageChange={handleVestDamageChange}
             helmetDamage={helmetDamage}
-            onHelmetDamageChange={setHelmetDamage}
+            onHelmetDamageChange={handleHelmetDamageChange}
             bestOf={bestOf}
-            onBestOfChange={setBestOf}
+            onBestOfChange={handleBestOfChange}
             recoveryInterval={recoveryInterval}
-            onRecoveryIntervalChange={setRecoveryInterval}
+            onRecoveryIntervalChange={handleRecoveryChange}
+            selectedCategory={selectedCategory}
+            onCategorySelect={handleCategorySelect}
           />
         );
         break;
@@ -487,6 +611,16 @@ const Index = () => {
     content = <HomeScreen onSelectMode={handleSelectMode} serialPort={serialPort} />;
   }
 
+  // ─── Cleanup on unmount only (sidebar navigation away from game) ───
+  const stopAllRef = useRef(stopAllGameProcesses);
+  stopAllRef.current = stopAllGameProcesses;
+  useEffect(() => {
+    return () => {
+      stopAllRef.current();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps = only on TRUE unmount, not on state transitions
+
   // Derive a key for screen transitions
   const screenKey = !user ? 'welcome'
     : showEquipmentSetup ? 'equip'
@@ -496,12 +630,36 @@ const Index = () => {
     : gameMode === 'reaction' ? `rx-${reactionState.gameState}`
     : 'home';
 
-  return (
+  // Wrap in AppShell (with sidebar) only when user is logged in
+  const inner = (
     <Frame>
       <div key={screenKey} className="h-full w-full animate-screen-enter">
         {content}
       </div>
     </Frame>
+  );
+
+  // No sidebar for welcome/login screens
+  if (!user) return inner;
+
+  if (showIntro) {
+    return (
+      <IntroScreen
+        onComplete={() => {
+          try { sessionStorage.setItem('sfight_intro_done', '1'); } catch {}
+          setShowIntro(false);
+        }}
+        onUnlockAudio={() => {
+          try { play('ready'); } catch {}
+        }}
+      />
+    );
+  }
+
+  return (
+    <AppShell hideSidebar={isInGameplay}>
+      {inner}
+    </AppShell>
   );
 };
 

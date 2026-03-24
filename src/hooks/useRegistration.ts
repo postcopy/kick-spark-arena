@@ -24,14 +24,14 @@ export function useRegistration() {
       setError(null);
 
       const { data, error: dbError } = await supabase
-        .from('open_tournaments' as any)
+        .from('open_tournaments')
         .select('*')
         .eq('id', tournamentId)
         .eq('status', 'open')
         .single();
 
       if (dbError) {
-        setError('Torneio nao encontrado ou inscricoes encerradas.');
+        setError('Torneio não encontrado ou inscrições encerradas.');
         return false;
       }
 
@@ -59,7 +59,7 @@ export function useRegistration() {
 
         // Try to find existing coach by phone
         const { data: existing, error: findError } = await supabase
-          .from('academy_coaches' as any)
+          .from('academy_coaches')
           .select('*')
           .eq('phone', phone)
           .single();
@@ -72,12 +72,12 @@ export function useRegistration() {
 
         // Create new coach
         const { data: created, error: createError } = await supabase
-          .from('academy_coaches' as any)
+          .from('academy_coaches')
           .insert({
             phone,
             academy_name: academyName,
             coach_name: coachName,
-          } as any)
+          })
           .select()
           .single();
 
@@ -107,7 +107,7 @@ export function useRegistration() {
       setError(null);
 
       const { data, error: dbError } = await supabase
-        .from('academy_athletes' as any)
+        .from('academy_athletes')
         .select('*')
         .eq('coach_id', coachId)
         .order('name');
@@ -137,14 +137,14 @@ export function useRegistration() {
         setError(null);
 
         const { data, error: dbError } = await supabase
-          .from('academy_athletes' as any)
+          .from('academy_athletes')
           .insert({
             coach_id: coachId,
             name: athlete.name,
             birth_date: athlete.birth_date,
             gender: athlete.gender,
             belt: athlete.belt,
-          } as any)
+          })
           .select()
           .single();
 
@@ -178,8 +178,8 @@ export function useRegistration() {
         setError(null);
 
         const { error: dbError } = await supabase
-          .from('academy_athletes' as any)
-          .update(updates as any)
+          .from('academy_athletes')
+          .update(updates)
           .eq('id', athleteId);
 
         if (dbError) {
@@ -221,23 +221,23 @@ export function useRegistration() {
 
         // 1. Create the registration header
         const { data: registration, error: regError } = await supabase
-          .from('tournament_registrations' as any)
+          .from('tournament_registrations')
           .insert({
             tournament_id: tournamentId,
             coach_id: coachId,
             status: 'pending',
             payment_status: 'pending',
-          } as any)
+          })
           .select()
           .single();
 
         if (regError) {
           // Handle unique constraint violation (duplicate registration)
           if (regError.code === '23505') {
-            setError('Voce ja possui uma inscricao para este torneio.');
+            setError('Você já possui uma inscrição para este torneio.');
             return null;
           }
-          setError('Erro ao criar inscricao. Tente novamente.');
+          setError('Erro ao criar inscrição. Tente novamente.');
           return null;
         }
 
@@ -256,17 +256,19 @@ export function useRegistration() {
         }));
 
         const { error: athError } = await supabase
-          .from('registration_athletes' as any)
-          .insert(athleteRows as any);
+          .from('registration_athletes')
+          .insert(athleteRows);
 
         if (athError) {
+          // Rollback: delete the registration header since athlete insert failed
+          await supabase.from('tournament_registrations').delete().eq('id', reg.id);
           setError('Erro ao registrar atletas. Tente novamente.');
           return null;
         }
 
         return reg.id;
       } catch (err) {
-        setError('Erro ao enviar inscricao. Tente novamente.');
+        setError('Erro ao enviar inscrição. Tente novamente.');
         return null;
       } finally {
         setIsLoading(false);

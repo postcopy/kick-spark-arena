@@ -41,13 +41,13 @@ const LEVEL_ICONS: Record<ReactionLevel, typeof Shield> = {
 
 const LEVEL_DESC: Record<ReactionLevel, string> = {
   beginner: 'Aquecimento',
-  intermediate: 'Padr\u00e3o',
+  intermediate: 'Padrão',
   elite: 'Limite',
 };
 
 const LEVEL_BRIEFINGS: Record<ReactionLevel, string> = {
-  beginner: 'MODO INICIANTE: Reflexos b\u00e1sicos com tempos generosos. Ideal para aquecimento.',
-  intermediate: 'MODO INTERMEDI\u00c1RIO: Velocidade e consist\u00eancia. Prepare-se para reagir r\u00e1pido.',
+  beginner: 'MODO INICIANTE: Reflexos básicos com tempos generosos. Ideal para aquecimento.',
+  intermediate: 'MODO INTERMEDIÁRIO: Velocidade e consistência. Prepare-se para reagir rápido.',
   elite: 'MODO ELITE: Reflexos no limite. Cada milissegundo conta.',
 };
 
@@ -102,7 +102,7 @@ export function ReactionSetupScreen({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Crosshair className="w-5 h-5 text-green-400/60" />
-            <span className="font-mono text-[10px] text-green-400/40 uppercase tracking-[0.3em]">Miss\u00e3o</span>
+            <span className="font-mono text-[10px] text-green-400/40 uppercase tracking-[0.3em]">Missão</span>
           </div>
           <h1 className="font-display font-black text-white text-2xl md:text-3xl tracking-tight">
             Centro de Treinamento
@@ -149,7 +149,7 @@ export function ReactionSetupScreen({
 
         {/* Difficulty Levels */}
         <div className="flex-shrink-0 mb-3">
-          <p className="text-white/20 text-xs mb-3">N\u00edvel de dificuldade</p>
+          <p className="text-white/20 text-xs mb-3">Nível de dificuldade</p>
           <div className="flex flex-col gap-2">
             {LEVELS.map((lvl) => {
               const isActive = activePreset === lvl;
@@ -190,12 +190,12 @@ export function ReactionSetupScreen({
               );
             })}
             {activePreset === 'custom' && (
-              <p className="text-[10px] text-white/20 font-mono ml-1">PAR\u00c2METROS PERSONALIZADOS</p>
+              <p className="text-[10px] text-white/20 font-mono ml-1">PARÂMETROS PERSONALIZADOS</p>
             )}
           </div>
         </div>
 
-        <MissionBriefing text={activePreset !== 'custom' ? LEVEL_BRIEFINGS[activePreset as ReactionLevel] || '' : 'CONFIGURA\u00c7\u00c3O PERSONALIZADA: Par\u00e2metros ajustados manualmente.'} />
+        <MissionBriefing text={activePreset !== 'custom' ? LEVEL_BRIEFINGS[activePreset as ReactionLevel] || '' : 'CONFIGURAÇÃO PERSONALIZADA: Parâmetros ajustados manualmente.'} />
 
         {/* Advanced Controls - Collapsible */}
         <Collapsible className="flex-shrink-0 my-3">
@@ -203,7 +203,7 @@ export function ReactionSetupScreen({
             <div className="flex items-center gap-2">
               <Settings2 className="w-4 h-4 text-white/25" />
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/25">
-                {activePreset === 'custom' ? 'Par\u00e2metros personalizados' : 'Personalizar par\u00e2metros'}
+                {activePreset === 'custom' ? 'Parâmetros personalizados' : 'Personalizar parâmetros'}
               </span>
             </div>
             <ChevronRight className="w-4 h-4 text-white/15 transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
@@ -243,7 +243,7 @@ export function ReactionSetupScreen({
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/25">Gap m\u00edn (ms)</label>
+                <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/25">Gap mín (ms)</label>
                 <Input
                   type="number" min={100} max={5000} step={100} value={config.gapMs.min}
                   onChange={(e) => updateField('gapMin', Number(e.target.value))}
@@ -251,7 +251,7 @@ export function ReactionSetupScreen({
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/25">Gap m\u00e1x (ms)</label>
+                <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/25">Gap máx (ms)</label>
                 <Input
                   type="number" min={100} max={5000} step={100} value={config.gapMs.max}
                   onChange={(e) => updateField('gapMax', Number(e.target.value))}
@@ -268,7 +268,7 @@ export function ReactionSetupScreen({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-mono text-xs font-bold text-white/60 uppercase tracking-[0.15em]">Modo Cognitivo (Go/No-Go)</h3>
-                <p className="font-mono text-[10px] text-white/25 mt-0.5">Treina inibi\u00e7\u00e3o de impulso</p>
+                <p className="font-mono text-[10px] text-white/25 mt-0.5">Treina inibição de impulso</p>
               </div>
               <Switch
                 checked={config.cognitiveMode}
@@ -304,11 +304,11 @@ export function ReactionSetupScreen({
             <div className="font-mono text-[10px] text-white/25 space-y-1">
               {config.cognitiveMode ? (
                 <>
-                  <p>Verde = Chute r\u00e1pido</p>
+                  <p>Verde = Chute rápido</p>
                   <p>Vermelho = Segure!</p>
                 </>
               ) : (
-                <p>Luz acende = Reaja r\u00e1pido!</p>
+                <p>Luz acende = Reaja rápido!</p>
               )}
             </div>
           </div>
@@ -324,7 +324,7 @@ export function ReactionSetupScreen({
             {config.cognitiveMode && ` | Go/No-Go ${config.goProbability}%`}
           </p>
           <p className="text-white/20 text-[10px] mt-1">
-            Sensor detecta apenas impactos limpos. Aguarde o reset entre est\u00edmulos.
+            Sensor detecta apenas impactos limpos. Aguarde o reset entre estímulos.
           </p>
         </div>
 
@@ -341,7 +341,7 @@ export function ReactionSetupScreen({
             )}
           >
             <Crosshair className="w-5 h-5" />
-            {canStart ? 'INICIAR MISS\u00c3O' : 'SELECIONE ATLETA'}
+            {canStart ? 'INICIAR MISSÃO' : 'SELECIONE ATLETA'}
           </button>
           <div className="flex items-center justify-between">
             <button onClick={onBack} className="text-white/20 hover:text-white/40 transition-colors text-[10px] font-mono tracking-wider">

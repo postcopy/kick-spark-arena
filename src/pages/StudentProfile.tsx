@@ -93,21 +93,28 @@ export default function StudentProfile() {
         .eq('athlete_id', id).eq('academy_id', user.id).order('created_at', { ascending: true }),
       supabase.from('solo_results').select('id, kicks, duration_seconds, kicks_per_second, created_at')
         .eq('athlete_id', id).eq('academy_id', user.id).order('created_at', { ascending: true }),
-      supabase.from('championship_matches').select('id, red_athlete_name, blue_athlete_name, winner_side, status, created_at')
-        .eq('academy_id', user.id).in('status', ['FINISHED', 'finished']),
-    ]).then(([athleteRes, sessionsRes, soloRes, matchesRes]) => {
+    ]).then(([athleteRes, sessionsRes, soloRes]) => {
       const ath = (athleteRes.data as AthleteRow) || null;
       setAthlete(ath);
       setSessions((sessionsRes.data as SessionRow[]) || []);
       setSoloResults((soloRes.data as SoloRow[]) || []);
-      const allMatches = (matchesRes.data as MatchRow[]) || [];
-      if (ath) {
-        const name = ath.name.toLowerCase();
-        setMatches(allMatches.filter(m =>
-          m.red_athlete_name?.toLowerCase() === name || m.blue_athlete_name?.toLowerCase() === name
-        ));
+
+      // Fetch championship matches filtered at database level by athlete name
+      const athleteName = ath?.name;
+      if (athleteName) {
+        supabase.from('championship_matches')
+          .select('id, red_athlete_name, blue_athlete_name, winner_side, status, created_at')
+          .eq('academy_id', user!.id)
+          .in('status', ['FINISHED', 'finished'])
+          .or(`red_athlete_name.eq.${athleteName},blue_athlete_name.eq.${athleteName}`)
+          .then(({ data }) => {
+            setMatches((data as MatchRow[]) || []);
+            setLoading(false);
+          });
+      } else {
+        setMatches([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
   }, [user, id]);
 
@@ -201,7 +208,7 @@ export default function StudentProfile() {
   if (!athlete) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-4">
-        <p className="text-[#94A3B8]">Atleta nao encontrado</p>
+        <p className="text-[#94A3B8]">Atleta não encontrado</p>
         <Button variant="outline" onClick={() => navigate('/students')} className="border-[#2D2D3F] text-[#94A3B8]">Voltar</Button>
       </div>
     );
@@ -259,7 +266,7 @@ export default function StudentProfile() {
                   : 'bg-[#1E1E2E] text-[#94A3B8] hover:text-white hover:bg-[#2D2D3F]'
               )}
             >
-              {{ week: 'Semana', month: 'Mes', year: 'Ano', all: 'Tudo' }[f]}
+              {{ week: 'Semana', month: 'Mês', year: 'Ano', all: 'Tudo' }[f]}
             </button>
           ))}
         </div>
@@ -267,13 +274,13 @@ export default function StudentProfile() {
         {/* KPI Grid */}
         <div className="grid grid-cols-2 gap-3">
           <KPI icon={<Trophy className="w-4 h-4 text-[#F59E0B]" />} label="Recorde" value={absolutePB != null ? `${absolutePB}ms` : '--'} />
-          <KPI icon={<TrendingDown className="w-4 h-4 text-[#10B981]" />} label="Media Reacao" value={reactionAvg != null ? `${reactionAvg}ms` : '--'} />
-          <KPI icon={<Brain className="w-4 h-4 text-[#8B5CF6]" />} label="Precisao Cogn." value={cognitiveAccuracy != null ? `${cognitiveAccuracy}%` : '--'} />
+          <KPI icon={<TrendingDown className="w-4 h-4 text-[#10B981]" />} label="Média Reação" value={reactionAvg != null ? `${reactionAvg}ms` : '--'} />
+          <KPI icon={<Brain className="w-4 h-4 text-[#8B5CF6]" />} label="Precisão Cogn." value={cognitiveAccuracy != null ? `${cognitiveAccuracy}%` : '--'} />
           <KPI icon={<Flame className="w-4 h-4 text-[#F59E0B]" />} label="Assiduidade" value={`${filteredSessions.length}`} sub="treinos" />
           <KPI icon={<Timer className="w-4 h-4 text-[#F59E0B]" />} label="Melhor Chutes" value={bestKicks != null ? String(bestKicks) : '--'} />
-          <KPI icon={<Target className="w-4 h-4 text-[#3B82F6]" />} label="Media Chutes" value={avgKicks != null ? String(avgKicks) : '--'} />
-          <KPI icon={<Gamepad2 className="w-4 h-4 text-[#E11D48]" />} label="Duelos" value={`${arcadeWins}/${arcadeSessions.length}`} sub="V/T" />
-          <KPI icon={<Swords className="w-4 h-4 text-[#E11D48]" />} label="Campeonato" value={`${champWins}/${matches.length}`} sub="V/T" />
+          <KPI icon={<Target className="w-4 h-4 text-[#3B82F6]" />} label="Média Chutes" value={avgKicks != null ? String(avgKicks) : '--'} />
+          <KPI icon={<Gamepad2 className="w-4 h-4 text-[#E11D48]" />} label="Duelos" value={`${arcadeWins}/${arcadeSessions.length}`} sub="Vitórias/Total" />
+          <KPI icon={<Swords className="w-4 h-4 text-[#E11D48]" />} label="Campeonato" value={`${champWins}/${matches.length}`} sub="Vitórias/Total" />
         </div>
 
         {/* Evolution Charts - Custom Tabs */}
@@ -288,7 +295,7 @@ export default function StudentProfile() {
                   : 'text-[#94A3B8] hover:text-white'
               )}
             >
-              Reacao
+              Reação
             </button>
             <button
               onClick={() => setActiveTab('kicks')}
@@ -316,7 +323,7 @@ export default function StudentProfile() {
                     </defs>
                     <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} unit="ms" width={50} />
-                    <Tooltip contentStyle={CHART_TOOLTIP} formatter={(v: number) => [`${v}ms`, 'Media']} />
+                    <Tooltip contentStyle={CHART_TOOLTIP} formatter={(v: number) => [`${v}ms`, 'Média']} />
                     {reactionAvg && <ReferenceLine y={reactionAvg} stroke="#64748B" strokeDasharray="4 4" />}
                     <ReferenceLine y={450} stroke="#F59E0B" strokeDasharray="6 3" />
                     <Area type="linear" dataKey="avg" stroke="#10B981" strokeWidth={2} fill="url(#evoGrad)" dot={{ r: 4, fill: '#10B981' }} activeDot={{ r: 6 }} />
@@ -324,7 +331,7 @@ export default function StudentProfile() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <EmptyChart text={reactionSessions.length === 0 ? 'Nenhuma sessao de reacao neste periodo' : 'Precisa de 2+ sessoes para o grafico'} />
+              <EmptyChart text={reactionSessions.length === 0 ? 'Nenhuma sessão de reação neste período' : 'Precisa de 2+ sessões para o gráfico'} />
             )
           )}
 
@@ -341,7 +348,7 @@ export default function StudentProfile() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <EmptyChart text={filteredSolo.length === 0 ? 'Nenhuma sessao de chutes neste periodo' : 'Precisa de 2+ sessoes para o grafico'} />
+              <EmptyChart text={filteredSolo.length === 0 ? 'Nenhuma sessão de chutes neste período' : 'Precisa de 2+ sessões para o gráfico'} />
             )
           )}
         </div>
@@ -349,10 +356,10 @@ export default function StudentProfile() {
         {/* Recent History */}
         <div>
           <h3 className="text-sm font-bold text-[#94A3B8] mb-3">
-            Historico Recente ({filteredSessions.length + filteredSolo.length})
+            Histórico Recente ({filteredSessions.length + filteredSolo.length})
           </h3>
           {filteredSessions.length === 0 && filteredSolo.length === 0 ? (
-            <p className="text-sm text-[#64748B]">Nenhuma sessao encontrada.</p>
+            <p className="text-sm text-[#64748B]">Nenhuma sessão encontrada.</p>
           ) : (
             <div className="space-y-2">
               {buildHistory(filteredSessions, filteredSolo, matches, athlete.name, runningAverages)}
@@ -395,7 +402,7 @@ function buildHistory(sessions: SessionRow[], soloResults: SoloRow[], matches: M
 
   sessions.forEach(s => {
     const isCognitive = (s.details as any)?.cognitiveMode === true;
-    let label = s.mode === 'reaction' ? (isCognitive ? 'Cognitivo' : 'Reacao') : s.mode === 'arcade' ? 'Duelo' : s.mode === 'time_attack' ? 'Contra o Tempo' : s.mode;
+    let label = s.mode === 'reaction' ? (isCognitive ? 'Cognitivo' : 'Reação') : s.mode === 'arcade' ? 'Duelo' : s.mode === 'time_attack' ? 'Contra o Tempo' : s.mode;
     let detail = '';
     let icon: React.ReactNode;
 
@@ -408,7 +415,7 @@ function buildHistory(sessions: SessionRow[], soloResults: SoloRow[], matches: M
     } else if (s.mode === 'arcade') {
       icon = <Gamepad2 className="w-4 h-4 text-[#E11D48]" />;
       const d = s.details as any;
-      detail = d?.result === 'win' ? 'Vitoria' : d?.result === 'loss' ? 'Derrota' : 'Duelo';
+      detail = d?.result === 'win' ? 'Vitória' : d?.result === 'loss' ? 'Derrota' : 'Duelo';
     } else if (s.mode === 'time_attack') {
       icon = <Timer className="w-4 h-4 text-[#F59E0B]" />;
       detail = '';
@@ -451,7 +458,7 @@ function buildHistory(sessions: SessionRow[], soloResults: SoloRow[], matches: M
       date: new Date(m.created_at),
       type: 'match',
       label: 'Campeonato',
-      detail: `${won ? 'Vitoria' : 'Derrota'} vs ${opponent || '?'}`,
+      detail: `${won ? 'Vitória' : 'Derrota'} vs ${opponent || '?'}`,
       icon: <Swords className="w-4 h-4 text-[#E11D48]" />,
     });
   });

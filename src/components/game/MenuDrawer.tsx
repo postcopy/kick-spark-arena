@@ -115,7 +115,7 @@ export function MenuDrawer({
                 >
                   <Usb className={serialConnected ? 'w-5 h-5 text-green-400' : 'w-5 h-5 text-[#64748B]'} />
                   <div className="flex-1">
-                    <span className="text-base text-white">Plaquinha</span>
+                    <span className="text-base text-white">Sensor</span>
                     <p className="text-xs text-[#64748B]">
                       {serialConnected ? 'Conectada' : 'Nao conectada'}
                     </p>

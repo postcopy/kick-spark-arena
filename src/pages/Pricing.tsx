@@ -1,16 +1,19 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, Zap, Crown } from 'lucide-react';
+import { Check, Loader2, Zap, Crown, ArrowLeft } from 'lucide-react';
 
 export default function Pricing() {
   const { user, session, subscription } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubscribe = async () => {
     if (!session?.access_token) {
-      window.location.href = '/signup';
+      navigate('/signup');
       return;
     }
 
@@ -28,6 +31,7 @@ export default function Pricing() {
       }
     } catch (err) {
       console.error('Error creating checkout:', err);
+      toast.error('Erro ao iniciar checkout. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -50,6 +54,7 @@ export default function Pricing() {
       }
     } catch (err) {
       console.error('Error opening customer portal:', err);
+      toast.error('Erro ao abrir portal de assinatura.');
     } finally {
       setIsLoading(false);
     }
@@ -58,19 +63,30 @@ export default function Pricing() {
   const features = [
     'Jogar sem limites',
     'Todos os modos de jogo',
-    'Conectar a plaquinha',
-    'Ver estatisticas',
+    'Conectar o sensor',
+    'Ver estatísticas',
   ];
 
   const isSubscribed = subscription.isSubscribed && !subscription.isTrialing;
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#0A0A0F] min-h-[100dvh]">
+      {/* Back button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate(-1)}
+        className="h-12 w-12 rounded-xl text-[#94A3B8] hover:text-white hover:bg-white/5 mb-4"
+        aria-label="Voltar"
+      >
+        <ArrowLeft className="h-6 w-6" />
+      </Button>
+
       <div className="max-w-lg mx-auto space-y-6">
         {/* Page Header */}
         <div className="space-y-1">
           <h1 className="font-display font-bold text-2xl md:text-3xl text-white">Plano Pro</h1>
-          <p className="text-sm text-[#94A3B8]">Acesso completo a plataforma</p>
+          <p className="text-sm text-[#94A3B8]">Acesso completo à plataforma</p>
         </div>
 
         {/* Plan Card */}
@@ -101,10 +117,10 @@ export default function Pricing() {
           <div className="text-center py-4">
             <div className="flex items-baseline justify-center gap-1">
               <span className="font-mono text-5xl font-bold text-white">R$ 20</span>
-              <span className="text-lg text-[#64748B]">/mes</span>
+              <span className="text-lg text-[#64748B]">/mês</span>
             </div>
             <p className="text-sm text-[#94A3B8] mt-2">
-              3 dias gratis para novos usuarios
+              3 dias grátis para novos usuários
             </p>
           </div>
 
@@ -151,7 +167,7 @@ export default function Pricing() {
                 ) : (
                   <>
                     <Zap className="w-5 h-5 mr-2" />
-                    {user ? 'Assinar Agora' : 'Comecar Gratis'}
+                    {user ? 'Assinar Agora' : 'Começar Grátis'}
                   </>
                 )}
               </Button>

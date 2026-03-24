@@ -47,7 +47,8 @@ export function useTrainingSessions() {
         .select('*')
         .eq('athlete_id', athleteId)
         .eq('academy_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (since) {
         query = query.gte('created_at', since.toISOString());

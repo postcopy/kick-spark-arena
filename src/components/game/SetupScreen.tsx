@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +9,8 @@ import { ChevronRight, HelpCircle, Timer, Users, User, Flag, Gauge } from 'lucid
 import { AddAthleteDialog } from './AddAthleteDialog';
 import { RankingPreview, AthleteStats } from './RankingPreview';
 import { MissionBriefing } from './MissionBriefing';
+import { CategorySelector } from './CategorySelector';
+import type { CategoryId } from '@/config/categoryPresets';
 import { SetupTutorialDialog } from './SetupTutorialDialog';
 import { useIdleAttention } from '@/hooks/useIdleAttention';
 import type { Athlete } from '@/types/game';
@@ -23,6 +26,8 @@ interface SetupScreenProps {
   onVariantChange?: (variant: TimeAttackVariant) => void;
   selectedAthlete?: Athlete | null;
   onAthleteChange?: (athlete: Athlete | null) => void;
+  selectedCategory?: CategoryId | null;
+  onCategorySelect?: (id: CategoryId) => void;
 }
 
 const DURATION_OPTIONS = [
@@ -30,20 +35,20 @@ const DURATION_OPTIONS = [
   { value: 30, label: '30s', sublabel: 'Kids 7-9', ageGroup: 'kids', icon: '2' },
   { value: 45, label: '45s', sublabel: 'Juvenil', ageGroup: 'youth', icon: '3' },
   { value: 60, label: '1 min', sublabel: 'Adulto', recommended: true, ageGroup: 'adult', icon: '4' },
-  { value: 90, label: '1:30', sublabel: 'Avan\u00e7ado', ageGroup: 'adult', icon: '5' },
+  { value: 90, label: '1:30', sublabel: 'Avançado', ageGroup: 'adult', icon: '5' },
 ];
 
 const VARIANT_BRIEFINGS: Record<TimeAttackVariant, string> = {
-  duo: 'CORRIDA EM DUPLA: Dois pilotos na pista. Quem marcar mais chutes vence a corrida.',
-  individual: 'CONTRA-REL\u00d3GIO: Corra sozinho e registre seu melhor tempo no ranking.',
+  duo: 'DUELO EM DUPLA: Dois atletas no tatame. Quem marcar mais chutes vence o round.',
+  individual: 'CONTRA O TEMPO: Treine sozinho e registre seu melhor resultado no ranking.',
 };
 
 const DURATION_BRIEFINGS: Record<number, string> = {
-  15: 'SPRINT KIDS: Largada rel\u00e2mpago para os pequenos pilotos. Velocidade pura!',
-  30: 'KIDS AVAN\u00c7ADO: Dist\u00e2ncia ideal para crian\u00e7as de 7 a 9 anos acelerarem.',
-  45: 'JUVENIL: Meia-dist\u00e2ncia. Equil\u00edbrio entre velocidade e resist\u00eancia.',
-  60: 'DIST\u00c2NCIA PADR\u00c3O: A corrida cl\u00e1ssica. Recomendado para todos os pilotos.',
-  90: 'ENDURANCE: Prova de resist\u00eancia. S\u00f3 para os mais preparados.',
+  15: 'SPRINT KIDS: Round relâmpago para os pequenos atletas. Velocidade pura!',
+  30: 'KIDS AVANÇADO: Duração ideal para crianças de 7 a 9 anos treinarem.',
+  45: 'JUVENIL: Duração intermediária. Equilíbrio entre velocidade e resistência.',
+  60: 'DURAÇÃO PADRÃO: O treino clássico. Recomendado para todos os atletas.',
+  90: 'ENDURANCE: Prova de resistência. Só para os mais preparados.',
 };
 
 export function SetupScreen({
@@ -55,8 +60,11 @@ export function SetupScreen({
   onVariantChange,
   selectedAthlete,
   onAthleteChange,
+  selectedCategory,
+  onCategorySelect,
 }: SetupScreenProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { unlockAudio, initFullPreload } = useSound();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,8 +109,11 @@ export function SetupScreen({
         avatarUrl: a.avatar_url || undefined,
         isActive: a.is_active ?? true,
       })));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching athletes:', err);
+      // Show error to user instead of silent failure
+      const msg = err?.message || 'Erro desconhecido ao buscar atletas';
+      import('sonner').then(({ toast }) => toast.error('Erro ao carregar atletas: ' + msg));
     } finally {
       setIsLoading(false);
     }
@@ -201,7 +212,7 @@ export function SetupScreen({
           {step === 'players' && (
             <div className="animate-fade-in">
               <h1 className="font-display font-black text-white text-3xl md:text-4xl mb-1 tracking-tight">
-                Modo de Corrida
+                Modo de Jogo
               </h1>
               <p className="text-white/25 text-sm mb-6">Escolha como quer competir</p>
 
@@ -227,7 +238,7 @@ export function SetupScreen({
                       "block font-display font-bold text-xl",
                       variant === 'duo' ? "text-orange-400" : "text-white/60"
                     )}>DUPLA</span>
-                    <span className="block text-xs text-white/30">Dois pilotos na pista</span>
+                    <span className="block text-xs text-white/30">Dois atletas no tatame</span>
                   </div>
                   <ChevronRight className={cn(
                     "w-5 h-5 transition-all",
@@ -256,7 +267,7 @@ export function SetupScreen({
                       "block font-display font-bold text-xl",
                       variant === 'individual' ? "text-orange-400" : "text-white/60"
                     )}>SOLO</span>
-                    <span className="block text-xs text-white/30">Contra-rel\u00f3gio + Ranking</span>
+                    <span className="block text-xs text-white/30">Contra-relógio + Ranking</span>
                   </div>
                   <ChevronRight className={cn(
                     "w-5 h-5 transition-all",
@@ -277,9 +288,9 @@ export function SetupScreen({
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h1 className="font-display font-black text-white text-3xl md:text-4xl tracking-tight">
-                    Selecionar Piloto
+                    Selecionar Atleta
                   </h1>
-                  <p className="text-white/25 text-sm mt-1">Escolha quem vai correr</p>
+                  <p className="text-white/25 text-sm mt-1">Escolha quem vai treinar</p>
                 </div>
                 <button
                   onClick={() => setShowRanking(true)}
@@ -303,8 +314,21 @@ export function SetupScreen({
                       Carregando...
                     </div>
                   ) : filteredAthletes.length === 0 ? (
-                    <div className="col-span-full text-center py-8 text-white/30 font-mono text-sm">
-                      {athletes.length === 0 ? 'Nenhum atleta cadastrado' : 'Nenhum resultado'}
+                    <div className="col-span-full text-center py-8">
+                      <p className="text-white/30 font-mono text-sm">
+                        {athletes.length === 0 ? 'Nenhum atleta cadastrado' : 'Nenhum resultado'}
+                      </p>
+                      {athletes.length === 0 && (
+                        <>
+                          <p className="text-white/20 text-xs mt-1">Cadastre atletas para selecionar quem vai treinar.</p>
+                          <button
+                            onClick={() => navigate('/students')}
+                            className="mt-3 px-4 py-2 rounded-lg text-xs font-bold bg-orange-500 text-white hover:bg-orange-400 transition-colors"
+                          >
+                            Cadastrar atleta
+                          </button>
+                        </>
+                      )}
                     </div>
                   ) : (
                     filteredAthletes.map((athlete) => (
@@ -354,13 +378,18 @@ export function SetupScreen({
           {step === 'duration' && (
             <div className="animate-fade-in">
               <h1 className="font-display font-black text-white text-3xl md:text-4xl mb-1 tracking-tight">
-                Dist\u00e2ncia
+                Duração
               </h1>
-              <p className="text-white/25 text-sm mb-6">Escolha o tempo da corrida</p>
+              <p className="text-white/25 text-sm mb-6">Escolha o tempo do treino</p>
 
               <div className="flex flex-col lg:flex-row gap-6">
                 {/* Duration options */}
                 <div className="flex-1 flex flex-col gap-2">
+                  {onCategorySelect && (
+                    <div className="mb-4">
+                      <CategorySelector selected={selectedCategory ?? null} onSelect={onCategorySelect} />
+                    </div>
+                  )}
                   {DURATION_OPTIONS.map((option) => (
                     <button
                       key={option.value}
@@ -435,7 +464,7 @@ export function SetupScreen({
                       <div className="flex items-center justify-center h-20 bg-orange-500/5 border-l-2 border-orange-500/40">
                         <Gauge className="w-5 h-5 text-orange-400/50 mr-2" />
                         <span className="text-lg font-bold text-orange-400/70 font-mono">
-                          {selectedAthlete?.name || 'PILOTO'}
+                          {selectedAthlete?.name || 'ATLETA'}
                         </span>
                       </div>
                     )}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Users, Target, Flame, Zap, TrendingUp, TrendingDown, Award, AlertTriangle, Lightbulb, BarChart3, Activity } from 'lucide-react';
+import { Loader2, Users, Target, Flame, Zap, TrendingUp, TrendingDown, Award, AlertTriangle, BarChart3, Activity } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -29,7 +29,7 @@ const MODE_COLORS: Record<string, string> = {
 const MODE_LABELS: Record<string, string> = {
   time_attack: 'Contra o Tempo',
   arcade: 'Duelo',
-  reaction: 'Reacao',
+  reaction: 'Reação',
   cognitive: 'Cognitivo',
 };
 
@@ -72,7 +72,7 @@ interface DashboardData {
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
 
 const TABS = [
-  { id: 'visao_geral', label: 'Visao Geral' },
+  { id: 'visao_geral', label: 'Visão Geral' },
   { id: 'atletas', label: 'Atletas' },
   { id: 'desempenho', label: 'Desempenho' },
   { id: 'crescimento', label: 'Crescimento' },
@@ -90,14 +90,15 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
     loadDashboard(user.id);
-  }, [user]);
+  }, [user, period]);
 
   async function loadDashboard(uid: string) {
     setLoading(true);
 
     const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const weekAgoISO = weekAgo.toISOString();
+    const periodDays = period === 'ano' ? 365 : period === 'mes' ? 30 : 7;
+    const periodAgo = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+    const weekAgoISO = periodAgo.toISOString();
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -108,9 +109,26 @@ export default function Dashboard() {
       supabase.from('solo_results').select('id, athlete_id, kicks, created_at').eq('academy_id', uid).gte('created_at', weekAgoISO),
       supabase.from('training_sessions').select('id, athlete_id, mode, avg_score, created_at').eq('academy_id', uid).order('created_at', { ascending: false }).limit(500),
       supabase.from('training_sessions').select('id, athlete_id, mode, avg_score, created_at').eq('academy_id', uid).eq('mode', 'reaction').gte('created_at', sixtyDaysAgo).order('created_at', { ascending: true }),
-      supabase.from('solo_results').select('id, athlete_id, kicks, kicks_per_second, created_at').eq('academy_id', uid),
+      supabase.from('solo_results').select('id, athlete_id, kicks, kicks_per_second, created_at').eq('academy_id', uid).gte('created_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()),
       supabase.from('training_sessions').select('id, athlete_id, mode, avg_score, created_at').eq('academy_id', uid).gte('created_at', thirtyDaysAgo),
     ]);
+
+    // Error handling for all queries
+    const queryErrors = [
+      { res: athletesRes, label: 'atletas' },
+      { res: sessionsRes, label: 'sessões' },
+      { res: soloRes, label: 'resultados solo' },
+      { res: allSessionsRes, label: 'todas sessões' },
+      { res: reactionRes, label: 'sessões de reação' },
+      { res: allSoloRes, label: 'todos resultados solo' },
+      { res: recentSessionsAllRes, label: 'sessões recentes' },
+    ];
+    for (const { res, label } of queryErrors) {
+      if (res.error) {
+        console.error(`Dashboard query error (${label}):`, res.error);
+        import('sonner').then(({ toast }) => toast.error(`Erro ao carregar ${label}`));
+      }
+    }
 
     const athletes = athletesRes.data || [];
     const sessions = sessionsRes.data || [];
@@ -142,9 +160,9 @@ export default function Dashboard() {
       else if (s.mode === 'arcade') result = 'Duelo';
       const minutesAgo = Math.round((now.getTime() - new Date(s.created_at).getTime()) / 60000);
       let time = '';
-      if (minutesAgo < 60) time = `${minutesAgo}min atras`;
-      else if (minutesAgo < 1440) time = `${Math.round(minutesAgo / 60)}h atras`;
-      else time = `${Math.round(minutesAgo / 1440)}d atras`;
+      if (minutesAgo < 60) time = `${minutesAgo}min atrás`;
+      else if (minutesAgo < 1440) time = `${Math.round(minutesAgo / 60)}h atrás`;
+      else time = `${Math.round(minutesAgo / 1440)}d atrás`;
       return {
         athlete: ath?.name || 'Desconhecido', mode: MODE_LABELS[s.mode] || s.mode,
         result, time, avatarUrl: ath?.avatar_url || undefined, belt: ath?.belt || undefined,
@@ -252,7 +270,7 @@ export default function Dashboard() {
       return { speed: avgKps, power: bestKicks, reaction: avgReact, endurance: totalSessions, precision: 0, consistency };
     });
     const metricKeys = ['speed', 'power', 'reaction', 'endurance', 'precision', 'consistency'] as const;
-    const metricLabels = ['Velocidade', 'Potencia', 'Reacao', 'Resistencia', 'Precisao', 'Consistencia'];
+    const metricLabels = ['Velocidade', 'Potência', 'Reação', 'Resistência', 'Precisão', 'Consistência'];
     const maxes = metricKeys.map(k => Math.max(...radarMetrics.map(m => k === 'reaction' ? 1 / Math.max(m[k], 1) : m[k]), 0.001));
     const radarData = metricLabels.map((label, mi) => {
       const row: Record<string, unknown> = { metric: label };
@@ -261,18 +279,18 @@ export default function Dashboard() {
     });
 
     let insightBestEvolution: { name: string; detail: string } | null = null; let bestDrop = 0;
-    top3Reaction.forEach(([id, sessions]) => { if (sessions.length < 4) return; const half = Math.floor(sessions.length / 2); const avgFirst = sessions.slice(0, half).reduce((s, x) => s + x.avg_score, 0) / half; const avgSecond = sessions.slice(half).reduce((s, x) => s + x.avg_score, 0) / (sessions.length - half); const drop = avgFirst - avgSecond; if (drop > bestDrop) { bestDrop = drop; insightBestEvolution = { name: athleteMap.get(id)?.name || 'Desconhecido', detail: `-${Math.round(drop)}ms em tempo de reacao` }; } });
+    top3Reaction.forEach(([id, sessions]) => { if (sessions.length < 4) return; const half = Math.floor(sessions.length / 2); const avgFirst = sessions.slice(0, half).reduce((s, x) => s + x.avg_score, 0) / half; const avgSecond = sessions.slice(half).reduce((s, x) => s + x.avg_score, 0) / (sessions.length - half); const drop = avgFirst - avgSecond; if (drop > bestDrop) { bestDrop = drop; insightBestEvolution = { name: athleteMap.get(id)?.name || 'Desconhecido', detail: `-${Math.round(drop)}ms em tempo de reação` }; } });
 
     let insightMostConsistent: { name: string; detail: string } | null = null;
     const sessions30dByAthlete: Record<string, number> = {}; recentSessions30d.forEach(s => { sessions30dByAthlete[s.athlete_id] = (sessions30dByAthlete[s.athlete_id] || 0) + 1; });
     const mostConsistentEntry = Object.entries(sessions30dByAthlete).sort(([, a], [, b]) => b - a)[0];
-    if (mostConsistentEntry) { const ath = athleteMap.get(mostConsistentEntry[0]); const streak = calcStreak(athleteSessionDates[mostConsistentEntry[0]] || new Set()); insightMostConsistent = { name: ath?.name || 'Desconhecido', detail: `${mostConsistentEntry[1]} sessoes (30d)${streak > 0 ? ` - ${streak} dias seguidos` : ''}` }; }
+    if (mostConsistentEntry) { const ath = athleteMap.get(mostConsistentEntry[0]); const streak = calcStreak(athleteSessionDates[mostConsistentEntry[0]] || new Set()); insightMostConsistent = { name: ath?.name || 'Desconhecido', detail: `${mostConsistentEntry[1]} sessões (30d)${streak > 0 ? ` - ${streak} dias seguidos` : ''}` }; }
 
     let insightNeedsAttention: { name: string; detail: string } | null = null;
     const sessions14d = recentSessions30d.filter(s => s.created_at >= fourteenDaysAgo);
     const athletesWith14d = new Set(sessions14d.map(s => s.athlete_id));
     const inactiveActive = activeAthletes.filter(a => !athletesWith14d.has(a.id));
-    if (inactiveActive.length > 0) insightNeedsAttention = { name: inactiveActive[0].name, detail: 'Sem sessoes nos ultimos 14 dias' };
+    if (inactiveActive.length > 0) insightNeedsAttention = { name: inactiveActive[0].name, detail: 'Sem sessões nos últimos 14 dias' };
 
     setData({ totalAthletes: activeAthletes.length, weekSessions: sessions.length, totalKicks, avgReaction, sessionsByDay, recentSessions, modeUsage, kickDistribution, topAthletes, topKickers, monthlyGrowth, athletesList, reactionEvolution, reactionAthleteNames, radarData, radarAthleteNames, insightBestEvolution, insightMostConsistent, insightNeedsAttention });
     setLoading(false);
@@ -294,14 +312,14 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm text-[#94A3B8] font-medium">Visao geral da sua academia</p>
+          <p className="text-sm text-[#94A3B8] font-medium">Visão geral da sua academia</p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Tabs */}
-          <div className="flex gap-1 bg-[#141420] rounded-xl p-1 border border-[#1E1E2E]">
+          <div className="flex gap-1 bg-[#141420] rounded-xl p-1 border border-[#1E1E2E]" role="tablist" aria-label="Seções do Dashboard">
             {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} className={cn(
+              <button key={t.id} onClick={() => setTab(t.id)} role="tab" aria-selected={tab === t.id} aria-controls={`tabpanel-${t.id}`} className={cn(
                 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all min-h-0',
                 tab === t.id
                   ? 'bg-gradient-to-r from-[#E11D48] to-[#9F1239] text-white shadow-sm'
@@ -323,25 +341,36 @@ export default function Dashboard() {
       </div>
 
       {/* VISAO GERAL */}
-      {tab === 'visao_geral' && (<>
+      {tab === 'visao_geral' && (<div role="tabpanel" id="tabpanel-visao_geral" className="space-y-6">
+        {data.totalAthletes === 0 && data.weekSessions === 0 && (
+          <div className="bg-[#141420] rounded-xl p-8 border border-[#1E1E2E] text-center">
+            <Users className="w-12 h-12 text-[#374151] mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-white mb-2">Bem-vindo ao seu Dashboard!</h2>
+            <p className="text-sm text-[#64748B] max-w-md mx-auto mb-4">Cadastre seu primeiro atleta para começar a ver dados aqui. Depois, registre treinos para acompanhar estatísticas.</p>
+            <div className="flex items-center justify-center gap-3">
+              <button onClick={() => navigate('/students')} className="px-4 py-2 rounded-lg text-xs font-bold bg-[#E11D48] text-white hover:bg-[#F43F5E] transition-colors">Cadastrar atleta</button>
+              <button onClick={() => navigate('/')} className="px-4 py-2 rounded-lg text-xs font-bold bg-[#1E1E2E] text-[#94A3B8] hover:bg-[#2D2D3F] transition-colors">Iniciar treino</button>
+            </div>
+          </div>
+        )}
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          <KpiCard icon={<Users className="w-5 h-5" />} label="Alunos Ativos" value={String(data.totalAthletes)} sub={`${data.athletesList.length} cadastrados`} color="#10B981" />
-          <KpiCard icon={<Target className="w-5 h-5" />} label="Sessoes (7d)" value={String(data.weekSessions)} sub="Esta semana" color="#3B82F6" />
+          <KpiCard icon={<Users className="w-5 h-5" />} label="Atletas Ativos" value={String(data.totalAthletes)} sub={`${data.athletesList.length} cadastrados`} color="#10B981" />
+          <KpiCard icon={<Target className="w-5 h-5" />} label="Sessões (7d)" value={String(data.weekSessions)} sub="Esta semana" color="#3B82F6" />
           <KpiCard icon={<Flame className="w-5 h-5" />} label="Total Chutes" value={data.totalKicks > 999 ? `${(data.totalKicks / 1000).toFixed(1)}k` : String(data.totalKicks)} sub="Esta semana" color="#F59E0B" />
-          <KpiCard icon={<Zap className="w-5 h-5" />} label="Reacao Media" value={data.avgReaction ? `${data.avgReaction}ms` : '--'} sub="Esta semana" color="#8B5CF6" />
+          <KpiCard icon={<Zap className="w-5 h-5" />} label="Reação Média" value={data.avgReaction ? `${data.avgReaction}ms` : '--'} sub="Esta semana" color="#8B5CF6" />
         </div>
 
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <DashCard title="Sessoes da Semana" icon={<BarChart3 className="w-4 h-4" />} className="lg:col-span-2">
+          <DashCard title="Sessões da Semana" icon={<BarChart3 className="w-4 h-4" />} className="lg:col-span-2">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={data.sessionsByDay}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" />
                 <XAxis dataKey="day" stroke="#64748B" fontSize={12} />
                 <YAxis stroke="#64748B" fontSize={12} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Bar dataKey="sessoes" name="Sessoes" fill="#E11D48" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="sessoes" name="Sessões" fill="#E11D48" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </DashCard>
@@ -349,7 +378,11 @@ export default function Dashboard() {
           <DashCard title="Atividade Recente" icon={<Activity className="w-4 h-4" />}>
             <div className="space-y-2">
               {data.recentSessions.length === 0 ? (
-                <p className="text-xs text-[#64748B]">Nenhuma sessao recente.</p>
+                <div className="text-center py-4">
+                  <p className="text-xs text-[#64748B]">Nenhuma sessão recente.</p>
+                  <p className="text-[11px] text-[#475569] mt-1">Registre treinos para ver a atividade aqui.</p>
+                  <button onClick={() => navigate('/')} className="mt-2 text-[11px] font-bold text-[#E11D48] hover:text-[#F43F5E] transition-colors">Iniciar treino &rarr;</button>
+                </div>
               ) : data.recentSessions.map((s, i) => (
                 <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-[#0A0A0F] border border-[#1E1E2E]">
                   <div className="flex-1 min-w-0">
@@ -369,7 +402,7 @@ export default function Dashboard() {
         {/* Distribution charts */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {data.kickDistribution.length > 0 && (
-            <DashCard title="Distribuicao de Golpes" icon={<Target className="w-4 h-4" />}>
+            <DashCard title="Distribuição de Golpes" icon={<Target className="w-4 h-4" />}>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={data.kickDistribution} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value"
@@ -395,11 +428,19 @@ export default function Dashboard() {
             </DashCard>
           )}
         </div>
-      </>)}
+      </div>)}
 
       {/* ATLETAS */}
-      {tab === 'atletas' && (<>
+      {tab === 'atletas' && (<div role="tabpanel" id="tabpanel-atletas" className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {data.athletesList.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <Users className="w-10 h-10 text-[#374151] mx-auto mb-3" />
+              <p className="text-sm text-[#64748B]">Nenhum atleta cadastrado ainda.</p>
+              <p className="text-xs text-[#475569] mt-1">Cadastre seu primeiro atleta para começar a ver dados aqui.</p>
+              <button onClick={() => navigate('/students')} className="mt-3 px-4 py-2 rounded-lg text-xs font-bold bg-[#E11D48] text-white hover:bg-[#F43F5E] transition-colors">Cadastrar atleta</button>
+            </div>
+          )}
           {data.athletesList.map(a => (
             <div key={a.id} onClick={() => setSelectedAthlete(a.id === selectedAthlete ? null : a.id)}
               className={cn(
@@ -417,7 +458,7 @@ export default function Dashboard() {
                   <p className="font-bold text-sm text-white truncate">{a.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {a.belt && <BeltBadge belt={a.belt} />}
-                    <span className="text-[11px] text-[#64748B]">{a.sessionCount} sessoes</span>
+                    <span className="text-[11px] text-[#64748B]">{a.sessionCount} sessões</span>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -451,11 +492,11 @@ export default function Dashboard() {
             </div>
           </DashCard>
         )}
-      </>)}
+      </div>)}
 
       {/* DESEMPENHO */}
-      {tab === 'desempenho' && (<>
-        <DashCard title="Evolucao do Tempo de Reacao (ms)" icon={<TrendingDown className="w-4 h-4" />}>
+      {tab === 'desempenho' && (<div role="tabpanel" id="tabpanel-desempenho" className="space-y-6">
+        <DashCard title="Evolução do Tempo de Reação (ms)" icon={<TrendingDown className="w-4 h-4" />}>
           {data.reactionEvolution.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={data.reactionEvolution}>
@@ -469,7 +510,7 @@ export default function Dashboard() {
                 ))}
               </LineChart>
             </ResponsiveContainer>
-          ) : <p className="text-center py-10 text-[#64748B] text-sm">Dados insuficientes para visualizar evolucao.</p>}
+          ) : <div className="text-center py-10"><p className="text-[#64748B] text-sm">Dados insuficientes para visualizar evolução.</p><p className="text-xs text-[#475569] mt-1">Registre sessões no modo Reação para acompanhar a evolução dos atletas.</p><button onClick={() => navigate('/')} className="mt-2 text-xs font-bold text-[#E11D48] hover:text-[#F43F5E] transition-colors">Iniciar treino &rarr;</button></div>}
         </DashCard>
 
         <DashCard title="Perfil Comparativo de Atletas" icon={<Target className="w-4 h-4" />}>
@@ -486,14 +527,14 @@ export default function Dashboard() {
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
               </RadarChart>
             </ResponsiveContainer>
-          ) : <p className="text-center py-10 text-[#64748B] text-sm">Dados insuficientes para gerar o radar.</p>}
+          ) : <div className="text-center py-10"><p className="text-[#64748B] text-sm">Dados insuficientes para gerar o radar.</p><p className="text-xs text-[#475569] mt-1">São necessárias pelo menos 3 sessões de diferentes atletas para gerar o comparativo.</p><button onClick={() => navigate('/')} className="mt-2 text-xs font-bold text-[#E11D48] hover:text-[#F43F5E] transition-colors">Iniciar treino &rarr;</button></div>}
         </DashCard>
 
         {/* Insight Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <InsightCard
             icon={<TrendingUp className="w-5 h-5 text-[#818CF8]" />}
-            label="MELHOR EVOLUCAO"
+            label="MELHOR EVOLUÇÃO"
             data={data.insightBestEvolution}
             borderColor="border-[#6366F1]/30"
             bgColor="bg-[#6366F1]/5"
@@ -511,19 +552,19 @@ export default function Dashboard() {
           />
           <InsightCard
             icon={<AlertTriangle className="w-5 h-5 text-[#FCA5A5]" />}
-            label="PRECISA DE ATENCAO"
+            label="PRECISA DE ATENÇÃO"
             data={data.insightNeedsAttention}
-            fallback="Todos os atletas estao ativos!"
+            fallback="Todos os atletas estão ativos!"
             borderColor="border-[#E11D48]/30"
             bgColor="bg-[#E11D48]/5"
             labelColor="text-[#FCA5A5]"
             detailColor="text-[#F87171]"
           />
         </div>
-      </>)}
+      </div>)}
 
       {/* CRESCIMENTO */}
-      {tab === 'crescimento' && (<>
+      {tab === 'crescimento' && (<div role="tabpanel" id="tabpanel-crescimento" className="space-y-6">
         <DashCard title="Crescimento da Academia" icon={<TrendingUp className="w-4 h-4" />}>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={data.monthlyGrowth}>
@@ -539,29 +580,12 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </DashCard>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <KpiCard icon={<TrendingUp className="w-5 h-5" />} label="Retencao" value={`${data.totalAthletes > 0 ? Math.round((data.totalAthletes / data.athletesList.length) * 100) : 0}%`} sub="Ativos / Total" color="#10B981" />
+        <div className="grid grid-cols-2 gap-3">
+          <KpiCard icon={<TrendingUp className="w-5 h-5" />} label="Retenção" value={`${data.totalAthletes > 0 ? Math.round((data.totalAthletes / data.athletesList.length) * 100) : 0}%`} sub="Ativos / Total" color="#10B981" />
           <KpiCard icon={<Users className="w-5 h-5" />} label="Novos este Mes" value={`+${data.monthlyGrowth[data.monthlyGrowth.length - 1]?.novos || 0}`} sub="Cadastros recentes" color="#3B82F6" />
-          <KpiCard icon={<Target className="w-5 h-5" />} label="Ticket Medio" value="--" sub="Em breve" color="#F59E0B" />
-          <KpiCard icon={<Award className="w-5 h-5" />} label="NPS Score" value="--" sub="Em breve" color="#8B5CF6" />
         </div>
 
-        <DashCard title="Insights para Captacao" icon={<Lightbulb className="w-4 h-4" />}>
-          <div className="space-y-2">
-            {[
-              { text: 'Sabado e o dia com mais sessoes - ideal para eventos de captacao', color: '#F59E0B' },
-              { text: 'Modo Reacao tem a melhor taxa de engajamento de novos alunos', color: '#8B5CF6' },
-              { text: 'Alunos com conquistas tem 3x mais retencao - ativar sistema de badges', color: '#10B981' },
-              { text: '65% dos acessos sao mobile - priorizar responsividade', color: '#3B82F6' },
-            ].map((insight, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-[#0A0A0F] border border-[#1E1E2E]">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: insight.color }} />
-                <p className="text-sm text-[#CBD5E1] flex-1">{insight.text}</p>
-              </div>
-            ))}
-          </div>
-        </DashCard>
-      </>)}
+      </div>)}
     </div>
   );
 }
@@ -612,7 +636,7 @@ function InsightCard({ icon, label, data, fallback, borderColor, bgColor, labelC
           <p className={cn('text-sm mt-1', detailColor)}>{data.detail}</p>
         </>
       ) : (
-        <p className="text-sm text-[#64748B]">{fallback || 'Dados insuficientes'}</p>
+        <p className="text-sm text-[#64748B]">{fallback || 'Registre mais sessões de treino para gerar este insight.'}</p>
       )}
     </div>
   );

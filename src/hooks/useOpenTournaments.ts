@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type {
   OpenTournament,
@@ -30,6 +31,8 @@ export function useOpenTournaments(userId: string | undefined) {
 
       if (error) throw error;
       setTournaments((data as unknown as OpenTournament[]) ?? []);
+    } catch (err) {
+      console.error('loadTournaments error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -41,9 +44,14 @@ export function useOpenTournaments(userId: string | undefined) {
     if (!userId) return null;
     setIsLoading(true);
     try {
+      // Remove null/undefined fields so Supabase uses column defaults
+      const cleanTournament = Object.fromEntries(
+        Object.entries(tournament).filter(([, v]) => v != null),
+      );
+
       const { data, error } = await supabase
         .from('open_tournaments')
-        .insert({ ...tournament, created_by: userId } as unknown as Record<string, unknown>)
+        .insert({ ...cleanTournament, created_by: userId } as unknown as Record<string, unknown>)
         .select()
         .single();
 
@@ -51,6 +59,9 @@ export function useOpenTournaments(userId: string | undefined) {
       const newTournament = data as unknown as OpenTournament;
       setTournaments((prev) => [newTournament, ...prev]);
       return newTournament;
+    } catch (err) {
+      console.error('createTournament error:', err);
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +79,9 @@ export function useOpenTournaments(userId: string | undefined) {
       setTournaments((prev) =>
         prev.map((t) => (t.id === tournamentId ? { ...t, status: 'closed' as const } : t)),
       );
+    } catch (err) {
+      console.error('closeTournament error:', err);
+      toast.error('Erro ao encerrar torneio.');
     } finally {
       setIsLoading(false);
     }
@@ -121,6 +135,8 @@ export function useOpenTournaments(userId: string | undefined) {
       });
 
       setRegistrations(mapped);
+    } catch (err) {
+      console.error('loadRegistrations error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -142,6 +158,9 @@ export function useOpenTournaments(userId: string | undefined) {
             : r,
         ),
       );
+    } catch (err) {
+      console.error('updateRegistrationStatus error:', err);
+      toast.error('Erro ao atualizar status da inscrição.');
     } finally {
       setIsLoading(false);
     }
@@ -161,13 +180,21 @@ export function useOpenTournaments(userId: string | undefined) {
           r.id === registrationId ? { ...r, payment_status: paymentStatus } : r,
         ),
       );
+    } catch (err) {
+      console.error('updatePaymentStatus error:', err);
+      toast.error('Erro ao atualizar status de pagamento.');
     } finally {
       setIsLoading(false);
     }
   }
 
   function getRegistrationLink(tournamentId: string): string {
-    return `${window.location.origin + window.location.pathname}#/register?t=${tournamentId}`;
+    // When running inside Electron, window.location.origin is file:// which is useless for sharing.
+    // Use the web-hosted URL instead. Update WEB_BASE_URL when the app is deployed to a domain.
+    const WEB_BASE_URL = window.location.origin;
+    const isElectron = !!(window as any).electronAPI?.isElectron;
+    const base = isElectron ? WEB_BASE_URL : window.location.origin + window.location.pathname;
+    return `${base}#/register?t=${tournamentId}`;
   }
 
   return {
