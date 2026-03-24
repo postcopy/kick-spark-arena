@@ -22,15 +22,24 @@ export interface ImpactCallbackData {
   ts: number;
 }
 
+/** Judge event from referee devices (IDs 5-7) */
+export interface JudgeEvent {
+  button: number;   // which button was pressed (X value from protocol)
+  judgeId: number;  // 1, 2, or 3 (mapped from deviceId 5, 6, 7)
+  deviceId: number; // raw deviceId (5, 6, or 7)
+  ts: number;
+}
+
 export interface UseSerialPortOptions {
   onKick: (side: Side, hitType: HitType) => void;
-  onRawPacket?: (pkt: { 
-    intensity: number; 
-    deviceId: number; 
-    battery?: number; 
-    ts: number; 
+  onRawPacket?: (pkt: {
+    intensity: number;
+    deviceId: number;
+    battery?: number;
+    ts: number;
   }) => void;
   onImpact?: (impact: ImpactCallbackData) => void;
+  onJudgeEvent?: (event: JudgeEvent) => void;
   impactDetectorConfig?: {
     enabled: boolean;
     noiseFloor: Record<string, number>;
@@ -57,6 +66,14 @@ export interface EquipmentState {
 // ID 3 = Red Helmet (Capacete Vermelho)
 // ID 4 = Blue Helmet (Capacete Azul)
 
+export interface DetectorDiag {
+  rejected: number;
+  active: number;
+  lastInt: number;
+  lastDev: number;
+  config: { noiseIntensityMin: number; deltaStart: number; passThroughMode: boolean; noiseFloorKeys: string[] };
+}
+
 export interface UseSerialPortReturn {
   isConnected: boolean;
   isConnecting: boolean;
@@ -67,4 +84,12 @@ export interface UseSerialPortReturn {
   disconnect: () => Promise<void>;
   equipment: Map<EquipmentSlot, EquipmentState>;
   equipmentVersion: number;
+  /** Increments with every parsed serial packet (for debug diagnostics) */
+  rawPacketCount: number;
+  /** Last raw line received from serial (for debug) */
+  lastRawLine: string;
+  /** Get snapshot of ImpactDetector diagnostics */
+  getDetectorDiag: () => DetectorDiag;
+  /** Toggle pass-through mode (bypass all detector filters) */
+  setPassThroughMode: (active: boolean) => void;
 }

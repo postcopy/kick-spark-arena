@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useOpenTournaments } from '@/hooks/useOpenTournaments';
 import type { OpenTournament } from '@/types/registration';
 import {
@@ -15,6 +16,10 @@ import {
   CheckCircle2,
   XCircle,
   Link2,
+  Trophy,
+  MapPin,
+  Calendar,
+  Lock,
 } from 'lucide-react';
 
 interface RegistrationsPanelProps {
@@ -66,24 +71,29 @@ export default function RegistrationsPanel({ userId }: RegistrationsPanelProps) 
   // --- Handlers ---
   async function handleCreate() {
     if (!formName || !formDate) return;
-    const created = await createTournament({
-      name: formName,
-      date: formDate,
-      location: formLocation,
-      registration_deadline: formDeadline,
-      fee_amount: formFee ? parseFloat(formFee) : 0,
-      fee_instructions: formFeeInstructions,
-      status: 'open',
-    });
-    if (created) {
-      setSelectedTournament(created.id);
-      setShowCreateForm(false);
-      setFormName('');
-      setFormDate('');
-      setFormLocation('');
-      setFormDeadline('');
-      setFormFee('');
-      setFormFeeInstructions('');
+    try {
+      const created = await createTournament({
+        name: formName,
+        date: formDate,
+        location: formLocation || null,
+        registration_deadline: formDeadline || null,
+        fee_amount: formFee ? parseFloat(formFee) : 0,
+        fee_instructions: formFeeInstructions || null,
+        status: 'open',
+      });
+      if (created) {
+        setSelectedTournament(created.id);
+        setShowCreateForm(false);
+        setFormName('');
+        setFormDate('');
+        setFormLocation('');
+        setFormDeadline('');
+        setFormFee('');
+        setFormFeeInstructions('');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      toast.error('Erro ao criar torneio: ' + message);
     }
   }
 
@@ -105,28 +115,96 @@ export default function RegistrationsPanel({ userId }: RegistrationsPanelProps) 
   // --- Render ---
   return (
     <div className="space-y-6">
-      {/* ── Tournament Selector ── */}
-      <div className="flex items-center gap-3">
-        <select
-          value={selectedTournament ?? ''}
-          onChange={(e) => setSelectedTournament(e.target.value || null)}
-          className="flex-1 bg-[#141420] border border-[#1E1E2E] rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-red-500 transition-colors"
-        >
-          <option value="">Selecione um torneio...</option>
-          {tournaments.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name} — {t.date} {t.status === 'closed' ? '(Encerrado)' : ''}
-            </option>
-          ))}
-        </select>
+      {/* ── Tournament Selector (Card-based) ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-white font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-red-500" />
+            Seus Torneios
+          </h3>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white text-sm font-bold px-4 py-2.5 rounded-lg transition-all whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Torneio
+          </button>
+        </div>
 
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white text-sm font-bold px-4 py-2.5 rounded-lg transition-all whitespace-nowrap"
-        >
-          <Plus className="h-4 w-4" />
-          Novo Torneio
-        </button>
+        {tournaments.length === 0 && !isLoading && (
+          <div className="text-center py-8 text-zinc-500">
+            <Trophy className="h-10 w-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Nenhum torneio criado ainda.</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {tournaments.map((t) => {
+            const isSelected = selectedTournament === t.id;
+            const isOpen = t.status === 'open';
+            const formattedDate = t.date
+              ? new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '—';
+
+            return (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTournament(t.id)}
+                className={`relative text-left p-4 rounded-xl border transition-all ${
+                  isSelected
+                    ? 'bg-red-500/10 border-red-500/50 ring-1 ring-red-500/30'
+                    : 'bg-[#141420] border-[#1E1E2E] hover:border-zinc-600'
+                }`}
+              >
+                {/* Status badge */}
+                <span
+                  className={`absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    isOpen
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'bg-zinc-500/20 text-zinc-400'
+                  }`}
+                >
+                  {isOpen ? 'Aberto' : 'Encerrado'}
+                </span>
+
+                {/* Tournament name */}
+                <p className="text-white font-bold text-sm pr-16 truncate">
+                  {t.name || 'Sem nome'}
+                </p>
+
+                {/* Details */}
+                <div className="mt-2 space-y-1">
+                  <p className="text-zinc-400 text-xs flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3" />
+                    {formattedDate}
+                  </p>
+                  {t.location && (
+                    <p className="text-zinc-500 text-xs flex items-center gap-1.5 truncate">
+                      <MapPin className="h-3 w-3" />
+                      {t.location}
+                    </p>
+                  )}
+                  {t.fee_amount != null && t.fee_amount > 0 && (
+                    <p className="text-zinc-500 text-xs flex items-center gap-1.5">
+                      <DollarSign className="h-3 w-3" />
+                      R$ {Number(t.fee_amount).toFixed(2)}
+                    </p>
+                  )}
+                  {!isOpen && (
+                    <p className="text-zinc-600 text-xs flex items-center gap-1.5">
+                      <Lock className="h-3 w-3" />
+                      Inscricoes encerradas
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Create Tournament Modal ── */}
@@ -171,14 +249,14 @@ export default function RegistrationsPanel({ userId }: RegistrationsPanelProps) 
                     type="text"
                     value={formLocation}
                     onChange={(e) => setFormLocation(e.target.value)}
-                    placeholder="Cidade / Ginasio"
+                    placeholder="Cidade / Ginásio"
                     className="w-full bg-[#0A0A0F] border border-[#1E1E2E] rounded-lg px-3 py-2 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-red-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-zinc-400 text-xs font-bold mb-1">Prazo de Inscricao</label>
+                <label className="block text-zinc-400 text-xs font-bold mb-1">Prazo de Inscrição</label>
                 <input
                   type="datetime-local"
                   value={formDeadline}
@@ -249,7 +327,7 @@ export default function RegistrationsPanel({ userId }: RegistrationsPanelProps) 
             ) : (
               <>
                 <Copy className="h-4 w-4" />
-                Copiar Link de Inscricao
+                Copiar Link de Inscrição
               </>
             )}
           </button>
@@ -434,7 +512,7 @@ export default function RegistrationsPanel({ userId }: RegistrationsPanelProps) 
       {selectedTournament && !isLoading && registrations.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
           <Link2 className="h-12 w-12 mb-4 opacity-50" />
-          <p className="text-lg font-bold">Nenhuma inscricao ainda.</p>
+          <p className="text-lg font-bold">Nenhuma inscrição ainda.</p>
           <p className="text-sm">Compartilhe o link.</p>
         </div>
       )}
