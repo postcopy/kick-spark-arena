@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, Fragment } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { formatTime, MatchEvent, ScoreType, getChannelName } from '@/types/championship';
-import type { ChampionshipSyncMessage } from '@/types/championship';
+import type { ChampionshipSyncMessage, HardwareTestHit } from '@/types/championship';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
+import { Wifi, WifiOff } from 'lucide-react';
 import { useTournament } from '@/hooks/useTournament';
 import { BracketView } from '@/components/championship/BracketView';
+import { HardwareTestOverlay } from '@/components/championship/HardwareTestOverlay';
 import { cn } from '@/lib/utils';
 import logoSpe from '@/assets/logo-spe-branca.png';
 
@@ -62,24 +64,47 @@ function calculateMatchStats(events: MatchEvent[]): MatchStats {
 }
 
 export default function ChampionshipTV() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const matId = parseInt(searchParams.get('mat') || '1');
   
-  const { state, isConnected } = useChampionshipSync({
+  const handleSyncCommand = useCallback((event: string, payload: unknown) => {
+    if (event === 'show-bracket') {
+      const p = payload as { categoryId: string } | null;
+      if (p?.categoryId) {
+        setBracketCategoryId(p.categoryId);
+        setTvMode('bracket');
+      }
+    } else if (event === 'show-scoreboard') {
+      setTvMode('scoreboard');
+    } else if (event === 'show-hardware-test') {
+      const p = payload as { athleteBlue?: string; athleteRed?: string } | null;
+      setHwTestAthletes({ blue: p?.athleteBlue, red: p?.athleteRed });
+      setHwTestHits([]);
+      setTvMode('hardware-test');
+    } else if (event === 'hide-hardware-test') {
+      setTvMode('scoreboard');
+    } else if (event === 'hardware-test-hit') {
+      const hit = payload as HardwareTestHit;
+      if (hit) setHwTestHits(prev => [...prev, hit]);
+    }
+  }, []);
+
+  const { state, isConnected, connectedDevices } = useChampionshipSync({
     role: 'listener',
     matId,
+    onCommand: handleSyncCommand,
   });
   
-  const [pulseRed, setPulseRed] = useState(false);
-  const [pulseBlue, setPulseBlue] = useState(false);
-
   // Tournament bracket display
   const tournamentHook = useTournament();
-  const [tvMode, setTvMode] = useState<'scoreboard' | 'bracket'>('scoreboard');
+  const [tvMode, setTvMode] = useState<'scoreboard' | 'bracket' | 'hardware-test'>('scoreboard');
   const [bracketCategoryId, setBracketCategoryId] = useState<string | null>(null);
 
-  // Listen for typed messages (SHOW_BRACKET / SHOW_SCOREBOARD)
+  // Hardware test state
+  const [hwTestAthletes, setHwTestAthletes] = useState<{ blue?: string; red?: string }>({});
+  const [hwTestHits, setHwTestHits] = useState<HardwareTestHit[]>([]);
+
+  // Listen for typed messages (SHOW_BRACKET / SHOW_SCOREBOARD / HARDWARE_TEST) via BroadcastChannel (same device)
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return;
     const ch = new BroadcastChannel(getChannelName(matId));
@@ -90,6 +115,14 @@ export default function ChampionshipTV() {
         setTvMode('bracket');
       } else if (msg?.type === 'SHOW_SCOREBOARD') {
         setTvMode('scoreboard');
+      } else if (msg?.type === 'SHOW_HARDWARE_TEST') {
+        setHwTestAthletes({ blue: msg.payload.athleteBlue, red: msg.payload.athleteRed });
+        setHwTestHits([]);
+        setTvMode('hardware-test');
+      } else if (msg?.type === 'HIDE_HARDWARE_TEST') {
+        setTvMode('scoreboard');
+      } else if (msg?.type === 'HARDWARE_TEST_HIT') {
+        setHwTestHits(prev => [...prev, msg.payload]);
       }
     };
     ch.addEventListener('message', handler);
@@ -99,6 +132,7 @@ export default function ChampionshipTV() {
     };
   }, [matId]);
 
+
   // Auto-switch to scoreboard when match starts running
   useEffect(() => {
     if (state.status === 'RUNNING') {
@@ -106,35 +140,18 @@ export default function ChampionshipTV() {
     }
   }, [state.status]);
   
-  // Track score changes for pulse animation
-  useEffect(() => {
-    setPulseRed(true);
-    const timer = setTimeout(() => setPulseRed(false), 300);
-    return () => clearTimeout(timer);
-  }, [state.roundScoreRed]);
-  
-  useEffect(() => {
-    setPulseBlue(true);
-    const timer = setTimeout(() => setPulseBlue(false), 300);
-    return () => clearTimeout(timer);
-  }, [state.roundScoreBlue]);
-  
-  // ESC key navigates back
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') navigate(-1);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [navigate]);
+  // ESC key handler removed — accidental ESC during a live event would close
+  // the TV display. Close via the hidden back button or closing the window.
 
   // No signal state
   if (!isConnected) {
     return (
       <div className="h-screen w-screen bg-[hsl(var(--sulsport-black))] flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl font-bold text-zinc-600 mb-4">SEM SINAL</div>
-          <div className="text-xl text-zinc-700">
+          <WifiOff className="h-16 w-16 text-zinc-400 animate-pulse mx-auto mb-4" />
+          <div className="text-6xl font-bold text-zinc-400 mb-4">SEM SINAL</div>
+          <div className="text-8xl font-black text-zinc-500 mb-6">MAT {matId}</div>
+          <div className="text-xl text-zinc-400">
             Aguardando conexão com Mesa de Luta (MAT {matId})
           </div>
         </div>
@@ -163,21 +180,17 @@ export default function ChampionshipTV() {
   
   return (
     <div className="h-screen w-screen bg-[hsl(var(--sulsport-black))] flex flex-col overflow-hidden select-none">
-      {/* Header Superior com Logo SPE */}
-      <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-center relative group/header">
-        <button
-          onClick={() => navigate(-1)}
-          className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-lg text-zinc-700 hover:text-white hover:bg-white/5 transition-all opacity-0 group-hover/header:opacity-100"
-          title="Voltar (ESC)"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <img
-          src={logoSpe}
-          alt="SPE"
-          className="h-8 w-auto object-contain"
-        />
-      </header>
+      {/* Logo overlay — minimal, does not take vertical space */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 opacity-30">
+        <img src={logoSpe} alt="SPE" className="h-5 w-auto object-contain" />
+      </div>
+      {/* Connection indicator — top right corner */}
+      <div className="absolute top-3 right-3 z-50 flex items-center gap-1.5 opacity-50">
+        <Wifi className="h-3.5 w-3.5 text-green-400" />
+        {connectedDevices > 1 && (
+          <span className="text-[10px] text-zinc-400 font-mono">{connectedDevices}</span>
+        )}
+      </div>
 
       {/* Tournament Bracket View (shown between fights) */}
       {tvMode === 'bracket' && bracketCategoryId && tournamentHook.tournament && (() => {
@@ -196,10 +209,7 @@ export default function ChampionshipTV() {
       {/* Main 3-Column Layout (Scoreboard) — hidden when showing bracket */}
       <div className={cn("flex-1 flex items-stretch p-6 gap-4", tvMode === 'bracket' && "hidden")}>
         {/* BLUE Side - Left Column */}
-        <div className={cn(
-          "flex-1 flex flex-col bg-[hsl(var(--sulsport-blue))] rounded-2xl overflow-hidden transition-transform duration-200",
-          pulseBlue && "scale-[1.01]"
-        )}>
+        <div className="flex-1 flex flex-col bg-[hsl(var(--sulsport-blue))] rounded-2xl overflow-hidden">
           {/* Athlete Name */}
           <div className="h-24 flex items-center justify-center border-b border-white/10">
             <div className="text-center">
@@ -215,23 +225,26 @@ export default function ChampionshipTV() {
           </div>
           
           {/* Score */}
-          <div className="flex-1 flex items-center justify-center">
-            <div 
-              className={cn(
-                "font-black text-white leading-none tabular-nums transition-transform duration-200",
-                pulseBlue && "scale-105"
-              )}
-              style={{ fontSize: 'clamp(140px, 20vw, 280px)' }}
+          <div className="flex-1 flex items-center justify-center overflow-hidden">
+            <span
+              className="font-black text-white tabular-nums text-center block"
+              style={{ fontSize: 'clamp(140px, 20vw, 280px)', lineHeight: 1, minWidth: '1.2em' }}
             >
               {state.roundScoreBlue}
-            </div>
+            </span>
           </div>
           
           {/* Footer: GAM-JEOM / ROUNDS / HITS */}
           <div className="h-32 bg-[hsl(var(--sulsport-blue-dark))] grid grid-cols-3 divide-x divide-white/10">
             <div className="flex flex-col items-center justify-center">
               <div className="text-sm text-white/60 uppercase font-bold tracking-wider">GAM-JEOM</div>
-              <div className="text-4xl font-black text-white">{state.gamjeomBlue}</div>
+              <div className={cn(
+                "text-4xl font-black",
+                state.gamjeomBlue === 0 ? "text-white/50" :
+                state.gamjeomBlue <= 2 ? "text-white" :
+                state.gamjeomBlue <= 4 ? "text-yellow-400" :
+                "text-red-400 animate-pulse"
+              )}>{state.gamjeomBlue}</div>
             </div>
             <div className="flex flex-col items-center justify-center">
               <div className="text-sm text-white/60 uppercase font-bold tracking-wider">ROUNDS</div>
@@ -240,61 +253,91 @@ export default function ChampionshipTV() {
               </div>
             </div>
             <div className="flex flex-col items-center justify-center">
-              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">HITS</div>
+              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">GOLPES</div>
               <div className="text-4xl font-black text-white">{state.hitsBlue}</div>
             </div>
           </div>
         </div>
         
         {/* CENTER Column - Timer & Round */}
-        <div className="w-72 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
-          {/* MATCH header + number */}
+        <div className="w-80 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
+          {/* LUTA header + number */}
           <div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
-            <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">MATCH</span>
+            <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">LUTA</span>
             <span className="text-4xl font-bold text-white tabular-nums">
               {state.config.matchNumber || '001'}
             </span>
           </div>
           
-          {/* Timer - Yellow BAND (thin, fixed height h-24) */}
+          {/* Timer - Yellow BAND (or neutral for break time) */}
           <div className={cn(
-            "h-24 flex items-center justify-center",
-            isMedical 
-              ? "bg-[hsl(var(--sulsport-yellow-dark))]" 
-              : "bg-[hsl(var(--sulsport-yellow))]"
+            "h-36 flex items-center justify-center",
+            state.isBreakTime
+              ? "bg-zinc-600"
+              : isMedical
+                ? "bg-[hsl(var(--sulsport-yellow-dark))]"
+                : state.timeLeftMs <= 5000 && isRunning
+                  ? "bg-red-600"
+                  : state.isGoldenRound
+                    ? "bg-yellow-500"
+                    : "bg-[hsl(var(--sulsport-yellow))]"
           )}>
-            <div 
+            <div
               className={cn(
-                "font-black leading-none tabular-nums text-black",
-                state.timeLeftMs <= 10000 && isRunning && "animate-pulse"
+                "font-black leading-none tabular-nums",
+                state.isBreakTime
+                  ? "text-white"
+                  : state.timeLeftMs <= 5000 && isRunning
+                    ? "text-white font-black animate-[timer-blink-fast_0.25s_ease-in-out_infinite]"
+                    : state.timeLeftMs <= 10000 && isRunning && state.timeLeftMs > 5000
+                      ? "text-black animate-[timer-blink_0.5s_ease-in-out_infinite]"
+                      : "text-black"
               )}
-              style={{ fontSize: 'clamp(48px, 8vw, 80px)' }}
+              style={{ fontSize: 'clamp(64px, 10vw, 120px)' }}
             >
-              {formatTime(state.timeLeftMs)}
+              {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTime(state.timeLeftMs)}
             </div>
           </div>
-          
-          {/* Status (PAUSADO / T. MÉDICO) - texto simples, NÃO badge */}
-          {!isRunning && !isMatchEnd && (
-            <div className="h-12 flex items-center justify-center">
-              <span className="text-xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
+
+          {/* Status (PAUSADO / T. MÉDICO / INTERVALO) */}
+          {state.isBreakTime && !isMatchEnd && (
+            <div className="h-14 flex items-center justify-center">
+              <span className="text-2xl font-bold text-zinc-300 uppercase tracking-wider animate-pulse">
+                INTERVALO
+              </span>
+            </div>
+          )}
+          {!state.isBreakTime && !isRunning && !isMatchEnd && (
+            <div className="h-14 flex items-center justify-center">
+              <span className={cn(
+                "text-2xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider",
+                !isMedical && "animate-pulse"
+              )}>
                 {isMedical ? 'T. MÉDICO' : 'PAUSADO'}
               </span>
             </div>
           )}
-          
+
           {/* ROUND info */}
           <div className="flex-1 flex flex-col items-center justify-center border-t border-[hsl(var(--sulsport-gray))]">
-            <span className="text-lg text-white/60 uppercase font-bold tracking-wider">ROUND</span>
-            <span className="text-7xl font-black text-white">{state.round}</span>
+            {state.isGoldenRound ? (
+              <>
+                <span className="text-lg font-black uppercase tracking-wider text-yellow-400 animate-pulse">GOLDEN</span>
+                <span className="text-5xl font-black text-yellow-400">ROUND</span>
+              </>
+            ) : (
+              <>
+                <span className="text-lg text-white/60 uppercase font-bold tracking-wider">ROUND</span>
+                <span className="text-7xl font-black text-white">{state.round}</span>
+              </>
+            )}
           </div>
         </div>
         
         {/* RED Side - Right Column */}
         <div className={cn(
-          "flex-1 flex flex-col bg-[hsl(var(--sulsport-red))] rounded-2xl overflow-hidden transition-transform duration-200",
-          pulseRed && "scale-[1.01]"
-        )}>
+        "flex-1 flex flex-col bg-[hsl(var(--sulsport-red))] rounded-2xl overflow-hidden"
+        >
           {/* Athlete Name */}
           <div className="h-24 flex items-center justify-center border-b border-white/10">
             <div className="text-center">
@@ -310,23 +353,26 @@ export default function ChampionshipTV() {
           </div>
           
           {/* Score */}
-          <div className="flex-1 flex items-center justify-center">
-            <div 
-              className={cn(
-                "font-black text-white leading-none tabular-nums transition-transform duration-200",
-                pulseRed && "scale-105"
-              )}
-              style={{ fontSize: 'clamp(140px, 20vw, 280px)' }}
+          <div className="flex-1 flex items-center justify-center overflow-hidden">
+            <span
+              className="font-black text-white tabular-nums text-center block"
+              style={{ fontSize: 'clamp(140px, 20vw, 280px)', lineHeight: 1, minWidth: '1.2em' }}
             >
               {state.roundScoreRed}
-            </div>
+            </span>
           </div>
           
           {/* Footer: GAM-JEOM / ROUNDS / HITS */}
           <div className="h-32 bg-[hsl(var(--sulsport-red-dark))] grid grid-cols-3 divide-x divide-white/10">
             <div className="flex flex-col items-center justify-center">
               <div className="text-sm text-white/60 uppercase font-bold tracking-wider">GAM-JEOM</div>
-              <div className="text-4xl font-black text-white">{state.gamjeomRed}</div>
+              <div className={cn(
+                "text-4xl font-black",
+                state.gamjeomRed === 0 ? "text-white/50" :
+                state.gamjeomRed <= 2 ? "text-white" :
+                state.gamjeomRed <= 4 ? "text-yellow-400" :
+                "text-red-400 animate-pulse"
+              )}>{state.gamjeomRed}</div>
             </div>
             <div className="flex flex-col items-center justify-center">
               <div className="text-sm text-white/60 uppercase font-bold tracking-wider">ROUNDS</div>
@@ -335,7 +381,7 @@ export default function ChampionshipTV() {
               </div>
             </div>
             <div className="flex flex-col items-center justify-center">
-              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">HITS</div>
+              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">GOLPES</div>
               <div className="text-4xl font-black text-white">{state.hitsRed}</div>
             </div>
           </div>
@@ -534,11 +580,11 @@ export default function ChampionshipTV() {
               )}
               
               {/* ESTATÍSTICAS DA LUTA - Modo compacto para 720p */}
-              <div className="w-full max-w-[600px]">
+              <div className="w-full max-w-[900px]">
                 <div className="bg-black/60 rounded-lg p-4 border border-white/10">
-                  <h2 
+                  <h2
                     className="text-center text-white/50 uppercase tracking-[0.2em] mb-3 font-bold"
-                    style={{ fontSize: 'clamp(0.75rem, 1.5vw, 1rem)' }}
+                    style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}
                   >
                     Estatísticas (Golpes Pontuados)
                   </h2>
@@ -548,14 +594,14 @@ export default function ChampionshipTV() {
                     {/* Header */}
                     <div 
                       className="text-[hsl(var(--sulsport-blue-light))] font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
                     >
                       AZUL
                     </div>
                     <div></div>
                     <div 
                       className="text-[hsl(var(--sulsport-red-light))] font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
                     >
                       VERMELHO
                     </div>
@@ -571,7 +617,7 @@ export default function ChampionshipTV() {
                         </div>
                         <div 
                           className="text-white/50 uppercase"
-                          style={{ fontSize: 'clamp(0.5rem, 0.9vw, 0.75rem)' }}
+                          style={{ fontSize: 'clamp(0.75rem, 1.35vw, 1.125rem)' }}
                         >
                           {label}
                         </div>
@@ -596,7 +642,7 @@ export default function ChampionshipTV() {
                     </div>
                     <div 
                       className="text-white font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
                     >
                       TOTAL GOLPES
                     </div>
@@ -616,7 +662,7 @@ export default function ChampionshipTV() {
                     </div>
                     <div 
                       className="text-white font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
                     >
                       HITS
                     </div>
@@ -636,7 +682,7 @@ export default function ChampionshipTV() {
                     </div>
                     <div 
                       className="text-white font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.625rem, 1vw, 0.875rem)' }}
+                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
                     >
                       GAM-JEOM
                     </div>
@@ -654,12 +700,23 @@ export default function ChampionshipTV() {
         );
       })()}
       
-      {tvMode !== 'bracket' && isRoundEnd && !isMatchEnd && state.roundScoreRed === state.roundScoreBlue && state.hitsRed === state.hitsBlue && (
-        <div className="h-20 bg-[hsl(var(--sulsport-yellow))]/10 flex items-center justify-center">
-          <span className="text-2xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
+      {tvMode !== 'bracket' && tvMode !== 'hardware-test' && isRoundEnd && !isMatchEnd && state.roundScoreRed === state.roundScoreBlue && state.hitsRed === state.hitsBlue && (
+        <div className="h-28 bg-[hsl(var(--sulsport-yellow))]/10 flex items-center justify-center">
+          <span className="text-4xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
             EMPATE — AGUARDANDO DECISÃO DO ÁRBITRO
           </span>
         </div>
+      )}
+
+      {/* Hardware Test Overlay (TV mode — no controls, receives hits from broadcast) */}
+      {tvMode === 'hardware-test' && (
+        <HardwareTestOverlay
+          onClose={() => setTvMode('scoreboard')}
+          externalHits={hwTestHits}
+          athleteBlue={hwTestAthletes.blue}
+          athleteRed={hwTestAthletes.red}
+          hideControls
+        />
       )}
     </div>
   );

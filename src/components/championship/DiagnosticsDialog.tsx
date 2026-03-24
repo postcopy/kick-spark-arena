@@ -142,6 +142,12 @@ export function DiagnosticsDialog({
                 {serialPort.isConnecting ? 'CONECTANDO...' : isConnected ? 'DESCONECTAR' : 'CONECTAR USB'}
               </Button>
             )}
+          {/* Error message */}
+          {serialPort?.error && (
+            <div className="mt-2 flex items-start gap-1.5 p-2 rounded-md bg-red-500/10 border border-red-500/20">
+              <span className="text-xs text-red-400">⚠ {serialPort.error}</span>
+            </div>
+          )}
           </div>
         </DialogHeader>
 
@@ -162,7 +168,7 @@ export function DiagnosticsDialog({
                   {lastImpact.peakIntensity}
                 </div>
                 <div className="text-zinc-300 text-base mt-2 font-medium">
-                  {DEVICE_NAMES[lastImpact.deviceId] || `Device ${lastImpact.deviceId}`}
+                  {DEVICE_NAMES[lastImpact.deviceId] || `Dispositivo ${lastImpact.deviceId}`}
                 </div>
                 {classification && (
                   <Badge

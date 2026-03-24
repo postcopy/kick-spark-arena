@@ -1,20 +1,23 @@
-import { 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  Stethoscope, 
-  List, 
-  Edit, 
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  Stethoscope,
+  List,
+  Edit,
   XCircle,
   Monitor,
-  Plus,
-  Minus,
   Undo2,
   Settings,
-  Activity,
-  Download,
   Volume2,
-  VolumeX
+  VolumeX,
+  QrCode,
+  Share2,
+  Copy,
+  Check,
+  Plug,
+  SkipForward,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MatchState, MatchSide } from '@/types/championship';
@@ -23,6 +26,7 @@ import { useState } from 'react';
 import { ScoreAdjustDialog } from './ScoreAdjustDialog';
 import { EventLogDialog } from './EventLogDialog';
 import { DiagnosticsDialog } from './DiagnosticsDialog';
+import { HardwarePanel } from './HardwarePanel';
 import type { UseSerialPortReturn } from '@/types/serial';
 import type { UseHardwareDiagnosticsReturn } from '@/types/hardwareDiagnostics';
 import {
@@ -55,250 +59,275 @@ interface OperatorPanelProps {
     hasConfig: boolean;
   };
   onOpenTV: () => void;
-  isTVOpen: boolean;
   serialPort?: UseSerialPortReturn;
   diagnostics?: UseHardwareDiagnosticsReturn;
   onOpenConfig?: () => void;
-  scoringInput?: 'impacts';
   onExportShadowLog?: () => void;
   onThresholdsApplied?: (thresholds: import('@/types/hardwareDiagnostics').HardwareThresholds) => void;
   isMuted?: boolean;
   onToggleMute?: () => void;
+  matId?: number;
+  academyId?: string;
+  onOpenHardwareTest?: () => void;
+  isTVOpen?: boolean;
 }
 
-export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, diagnostics, onOpenConfig, scoringInput, onExportShadowLog, onThresholdsApplied, isMuted, onToggleMute }: OperatorPanelProps) {
+export function OperatorPanel({ state, actions, onOpenTV, serialPort, diagnostics, onOpenConfig, onExportShadowLog, onThresholdsApplied, isMuted, onToggleMute, matId = 1, academyId, onOpenHardwareTest, isTVOpen }: OperatorPanelProps) {
   const [showEndMatchDialog, setShowEndMatchDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showScoreAdjust, setShowScoreAdjust] = useState(false);
   const [showEventLog, setShowEventLog] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
-  
+
   const isRunning = state.status === 'RUNNING';
   const isPaused = state.status === 'PAUSED';
   const isIdle = state.status === 'IDLE';
   const isRoundEnd = state.status === 'ROUND_END';
   const isMatchEnd = state.status === 'MATCH_END';
   const isMedical = state.isMedicalTime;
-  
+
   const canStart = (isIdle || isPaused) && !isMatchEnd;
   const canPause = isRunning;
-  
-  const canAddGamjeom = isRunning || state.status === 'PAUSED';
-  const canRemoveGamjeomBlue = !isRunning && state.gamjeomBlue > 0;
-  const canRemoveGamjeomRed = !isRunning && state.gamjeomRed > 0;
 
-  const btnSecondary = "h-9 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600 font-bold text-xs uppercase disabled:opacity-50";
-  
   return (
     <>
-      <aside className="w-[340px] bg-[hsl(var(--sulsport-dark))] border-l border-[hsl(var(--sulsport-gray))] h-full flex flex-col justify-between overflow-hidden">
-        {/* CONTROLES */}
-        <section className="p-2.5 border-b border-[hsl(var(--sulsport-gray))] flex-shrink-0">
-          <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
-            CONTROLES
-          </h3>
-          <div className="space-y-1.5">
-            {/* Iniciar Round - full width */}
-            <Button
-              onClick={actions.startTimer}
-              disabled={!canStart || !actions.hasConfig}
-              className="w-full h-10 rounded-md bg-green-600 hover:bg-green-500 text-white font-bold uppercase text-sm disabled:opacity-50"
-            >
-              <Play className="w-4 h-4 mr-1.5" />
-              {isMedical ? 'INICIAR T. MÉDICO' : 'INICIAR ROUND'}
-            </Button>
+      <aside className="w-[320px] bg-[hsl(var(--sulsport-dark))] border-l border-[hsl(var(--sulsport-gray))] h-full flex flex-col overflow-hidden">
 
-            {/* Próximo Round - conditional full width */}
-            {isRoundEnd && state.round < state.config.maxRounds && (
-              <Button
-                onClick={actions.nextRound}
-                className="w-full h-10 rounded-md bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase text-sm"
-              >
-                <Play className="w-4 h-4 mr-1.5" />
-                PRÓXIMO ROUND
-              </Button>
+        {/* ── HARDWARE ── */}
+        {serialPort && (
+          <HardwarePanel serialPort={serialPort} diagnostics={diagnostics} />
+        )}
+
+        {onOpenHardwareTest && serialPort && (
+          <div className="px-3 pb-2">
+            <Button
+              onClick={onOpenHardwareTest}
+              disabled={!serialPort.isConnected}
+              className={cn(
+                "w-full h-11 rounded-lg font-bold text-sm uppercase",
+                serialPort.isConnected
+                  ? "bg-cyan-600/30 border border-cyan-500/50 text-cyan-300 hover:bg-cyan-600/40"
+                  : "bg-zinc-800 border border-zinc-700 text-zinc-600"
+              )}
+            >
+              <Zap className="w-4 h-4 mr-1.5" />
+              TESTE HARDWARE
+            </Button>
+          </div>
+        )}
+
+        {/* ── TEMPO ── */}
+        <section className="px-3 pt-3 pb-2 border-b border-zinc-700/60 flex-shrink-0">
+          <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2 text-emerald-400">
+            <Play className="w-4 h-4" />
+            TEMPO
+          </h3>
+
+          <div className="space-y-2">
+            {/* PROXIMO ROUND / PULAR INTERVALO — appears above INICIAR when round ended */}
+            {isRoundEnd && (
+              state.round < state.config.maxRounds ||
+              (state.roundWinsRed === state.roundWinsBlue && state.round >= state.config.maxRounds)
+            ) && (
+              <div>
+                <Button
+                  onClick={actions.nextRound}
+                  className={cn(
+                    "w-full h-14 rounded-lg text-base font-bold uppercase shadow-[0_0_15px_rgba(234,179,8,0.3)]",
+                    state.isBreakTime
+                      ? "bg-zinc-500 hover:bg-zinc-400 text-white"
+                      : state.roundWinsRed === state.roundWinsBlue && state.round >= state.config.maxRounds
+                        ? "bg-yellow-400 hover:bg-yellow-300 text-black"
+                        : "bg-yellow-500 hover:bg-yellow-400 text-black"
+                  )}
+                >
+                  <SkipForward className="w-5 h-5 mr-2" />
+                  {state.isBreakTime
+                    ? 'PULAR INTERVALO'
+                    : state.roundWinsRed === state.roundWinsBlue && state.round >= state.config.maxRounds
+                      ? 'GOLDEN ROUND'
+                      : 'PROXIMO ROUND'}
+                </Button>
+              </div>
             )}
 
-            {/* Grid 2 cols for secondary buttons */}
-            <div className="grid grid-cols-2 gap-1.5">
-              <Button onClick={actions.pauseTimer} disabled={!canPause} className={btnSecondary}>
-                <Pause className="w-3.5 h-3.5 mr-1" /> PAUSAR
-              </Button>
-              <Button onClick={actions.resetTime} disabled={isRunning} className={btnSecondary}>
-                <RotateCcw className="w-3.5 h-3.5 mr-1" /> ZERAR
-              </Button>
+            {/* INICIAR ROUND — biggest button, green glow */}
+            <div>
               <Button
-                onClick={isMedical ? actions.endMedicalTime : actions.startMedicalTime}
-                disabled={isMatchEnd}
+                onClick={actions.startTimer}
+                disabled={!canStart || !actions.hasConfig}
                 className={cn(
-                  "h-9 rounded-md font-bold text-xs uppercase disabled:opacity-50",
-                  isMedical 
-                    ? "bg-[hsl(var(--sulsport-yellow))] hover:bg-[hsl(var(--sulsport-yellow-dark))] text-black" 
-                    : "bg-zinc-700 border border-zinc-600 text-zinc-200 hover:bg-zinc-600"
+                  "w-full h-14 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-base font-bold uppercase disabled:opacity-50 transition-all",
+                  canStart && actions.hasConfig && "shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                 )}
               >
-                <Stethoscope className="w-3.5 h-3.5 mr-1" />
-                {isMedical ? 'VOLTAR' : 'T. MÉDICO'}
+                <Play className="w-5 h-5 mr-2" />
+                {isMedical ? 'INICIAR TEMPO MEDICO' : state.isGoldenRound ? 'INICIAR GOLDEN ROUND' : 'INICIAR ROUND'}
               </Button>
-              <Button onClick={actions.undoLast} disabled={!actions.canUndo} className={btnSecondary}>
-                <Undo2 className="w-3.5 h-3.5 mr-1" /> DESFAZER
-              </Button>
-              <Button onClick={() => setShowEventLog(true)} className={btnSecondary}>
-                <List className="w-3.5 h-3.5 mr-1" /> LOGS
-              </Button>
-              <Button onClick={() => setShowScoreAdjust(true)} className={btnSecondary}>
-                <Edit className="w-3.5 h-3.5 mr-1" /> PLACAR
-              </Button>
+              <p className="text-[10px] text-zinc-500 text-center mt-0.5">Espaco</p>
             </div>
 
-            {/* Encerrar Luta - full width */}
+            {/* PAUSAR + ZERAR — grid 2 cols */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Button
+                  onClick={actions.pauseTimer}
+                  disabled={!canPause}
+                  className="w-full h-11 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold uppercase disabled:opacity-50"
+                >
+                  <Pause className="w-4 h-4 mr-1.5" />
+                  PAUSAR
+                </Button>
+              </div>
+              <div>
+                <Button
+                  onClick={actions.resetTime}
+                  disabled={isRunning}
+                  className="w-full h-11 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-sm font-bold uppercase disabled:opacity-50"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1.5" />
+                  ZERAR
+                </Button>
+              </div>
+            </div>
+
+            {/* TEMPO MEDICO — full width */}
             <Button
-              onClick={() => setShowEndMatchDialog(true)}
+              onClick={isMedical ? actions.endMedicalTime : actions.startMedicalTime}
               disabled={isMatchEnd}
-              className="w-full h-10 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase text-sm disabled:opacity-50"
+              className={cn(
+                "w-full h-11 rounded-lg font-bold text-sm uppercase disabled:opacity-50",
+                isMedical
+                  ? "bg-yellow-500 hover:bg-yellow-400 text-black"
+                  : "bg-orange-600/80 hover:bg-orange-500 text-white"
+              )}
             >
-              <XCircle className="w-4 h-4 mr-1.5" />
-              ENCERRAR LUTA
+              <Stethoscope className="w-4 h-4 mr-1.5" />
+              {isMedical ? 'VOLTAR DA PAUSA MEDICA' : 'TEMPO MEDICO'}
             </Button>
-          </div>
-        </section>
-        
-        {/* GAM-JEOM - compact single-line per side */}
-        <section className="p-2.5 border-b border-[hsl(var(--sulsport-gray))] flex-shrink-0">
-          <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
-            GAM-JEOM
-          </h3>
-          <div className="space-y-1.5">
-            {/* BLUE row */}
-            <div className="flex items-center gap-2">
-              <span className="text-[hsl(var(--sulsport-blue-light))] font-bold text-xs uppercase w-10">BLUE</span>
-              <span className="text-[hsl(var(--sulsport-blue-light))] font-bold text-lg w-6 text-center">{state.gamjeomBlue}</span>
-              <div className="flex gap-1 ml-auto">
-                <Button
-                  size="icon"
-                  onClick={() => actions.removeGamjeom('BLUE')}
-                  disabled={!canRemoveGamjeomBlue}
-                  className={cn(
-                    "rounded-md h-8 w-8",
-                    canRemoveGamjeomBlue
-                      ? "bg-[hsl(var(--sulsport-blue))]/30 border border-[hsl(var(--sulsport-blue-light))]/50 text-[hsl(var(--sulsport-blue-light))] hover:bg-[hsl(var(--sulsport-blue))]/50"
-                      : "bg-zinc-800 border border-zinc-700 text-zinc-600"
-                  )}
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  size="icon"
-                  onClick={() => actions.addGamjeom('BLUE')}
-                  disabled={!canAddGamjeom}
-                  className={cn(
-                    "rounded-md h-8 w-8",
-                    canAddGamjeom
-                      ? "bg-[hsl(var(--sulsport-blue))] hover:bg-[hsl(var(--sulsport-blue-light))] text-white"
-                      : "bg-zinc-800 text-zinc-600"
-                  )}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </div>
-            {/* RED row */}
-            <div className="flex items-center gap-2">
-              <span className="text-[hsl(var(--sulsport-red-light))] font-bold text-xs uppercase w-10">RED</span>
-              <span className="text-[hsl(var(--sulsport-red-light))] font-bold text-lg w-6 text-center">{state.gamjeomRed}</span>
-              <div className="flex gap-1 ml-auto">
-                <Button
-                  size="icon"
-                  onClick={() => actions.removeGamjeom('RED')}
-                  disabled={!canRemoveGamjeomRed}
-                  className={cn(
-                    "rounded-md h-8 w-8",
-                    canRemoveGamjeomRed
-                      ? "bg-[hsl(var(--sulsport-red))]/30 border border-[hsl(var(--sulsport-red-light))]/50 text-[hsl(var(--sulsport-red-light))] hover:bg-[hsl(var(--sulsport-red))]/50"
-                      : "bg-zinc-800 border border-zinc-700 text-zinc-600"
-                  )}
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  size="icon"
-                  onClick={() => actions.addGamjeom('RED')}
-                  disabled={!canAddGamjeom}
-                  className={cn(
-                    "rounded-md h-8 w-8",
-                    canAddGamjeom
-                      ? "bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white"
-                      : "bg-zinc-800 text-zinc-600"
-                  )}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </Button>
-              </div>
+
+            {/* DESFAZER */}
+            <div>
+              <Button
+                onClick={actions.undoLast}
+                disabled={!actions.canUndo}
+                className="w-full h-11 rounded-lg bg-amber-700/50 border border-amber-500/40 text-amber-300 hover:bg-amber-700/70 text-sm font-bold uppercase disabled:opacity-50"
+              >
+                <Undo2 className="w-4 h-4 mr-1.5" />
+                DESFAZER
+              </Button>
+              <p className="text-[10px] text-zinc-500 text-center mt-0.5">Ctrl+Z</p>
             </div>
           </div>
         </section>
-        
-        {/* CONFIGURAÇÕES - compact grid */}
-        <section className="p-2.5 border-b border-[hsl(var(--sulsport-gray))] flex-shrink-0">
-          <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
-            CONFIGURAÇÕES
+
+        {/* ── LUTA ── */}
+        <section className="px-3 pt-3 pb-2 border-b border-zinc-700/60 flex-shrink-0">
+          <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2 text-zinc-400">
+            <Settings className="w-4 h-4" />
+            LUTA
           </h3>
-          <div className="space-y-1.5">
-            <div className="grid grid-cols-2 gap-1.5">
-              <Button onClick={onOpenConfig} className={btnSecondary}>
-                <Settings className="w-3.5 h-3.5 mr-1" /> LUTA
+
+          <div className="space-y-2">
+            {/* CONFIGURAR + NOVA LUTA — grid 2 cols */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={onOpenConfig}
+                className="w-full h-11 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-sm font-bold uppercase"
+              >
+                <Settings className="w-4 h-4 mr-1.5" />
+                CONFIGURAR
               </Button>
               <Button
                 onClick={() => setShowResetDialog(true)}
                 disabled={isIdle && state.roundScoreRed === 0 && state.roundScoreBlue === 0}
-                className={btnSecondary}
+                className="w-full h-11 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-sm font-bold uppercase disabled:opacity-50"
               >
                 NOVA LUTA
               </Button>
             </div>
+
+            {/* VER EVENTOS + AJUSTAR PLACAR — small row */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={() => setShowEventLog(true)}
+                className="w-full h-10 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs font-bold uppercase"
+              >
+                <List className="w-3.5 h-3.5 mr-1" />
+                VER EVENTOS
+              </Button>
+              <Button
+                onClick={() => setShowScoreAdjust(true)}
+                className="w-full h-10 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs font-bold uppercase"
+              >
+                <Edit className="w-3.5 h-3.5 mr-1" />
+                AJUSTAR PLACAR
+              </Button>
+            </div>
+
+            {/* SOM toggle */}
             {onToggleMute && (
-              <Button onClick={onToggleMute} className={cn(btnSecondary, "w-full")}>
-                {isMuted ? <VolumeX className="w-3.5 h-3.5 mr-1" /> : <Volume2 className="w-3.5 h-3.5 mr-1" />}
-                {isMuted ? 'SOM: OFF' : 'SOM: ON'}
+              <Button
+                onClick={onToggleMute}
+                className="w-full h-10 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-sm font-bold uppercase"
+              >
+                {isMuted
+                  ? <><VolumeX className="w-4 h-4 mr-1.5" /> SOM: DESLIGADO</>
+                  : <><Volume2 className="w-4 h-4 mr-1.5" /> SOM: LIGADO</>
+                }
               </Button>
             )}
-            {/* Calibragem & Export inline when available */}
-            {(diagnostics || onExportShadowLog) && (
-              <div className="grid grid-cols-2 gap-1.5">
-                {diagnostics && (
-                  <Button onClick={() => setShowDiagnostics(true)} className={btnSecondary}>
-                    <Activity className="w-3.5 h-3.5 mr-1" /> CALIB.
-                  </Button>
-                )}
-                {onExportShadowLog && (
-                  <Button onClick={onExportShadowLog} className={btnSecondary}>
-                    <Download className="w-3.5 h-3.5 mr-1" /> LOG
-                  </Button>
-                )}
-              </div>
-            )}
+
+            {/* ABRIR PLACAR TV */}
+            <Button
+              onClick={onOpenTV}
+              className={cn(
+                "w-full h-11 rounded-lg text-sm font-bold uppercase",
+                isTVOpen
+                  ? "bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-600/30"
+                  : "bg-blue-600/20 border border-blue-500/40 text-blue-400 hover:bg-blue-600/30"
+              )}
+            >
+              <Monitor className="w-4 h-4 mr-1.5" />
+              {isTVOpen ? 'TV ABERTA \u2713' : 'ABRIR PLACAR TV'}
+            </Button>
+
+            {/* PLACAR CELULAR */}
+            <Button
+              onClick={() => setShowShareDialog(true)}
+              className="w-full h-11 rounded-lg bg-blue-500/10 border border-blue-400/30 text-blue-300 hover:bg-blue-500/20 text-sm font-bold uppercase"
+            >
+              <QrCode className="w-4 h-4 mr-1.5" />
+              PLACAR CELULAR
+            </Button>
           </div>
         </section>
-        
-        {/* TELA EXTERNA - compact */}
-        <section className="p-2.5 flex-shrink-0">
+
+        {/* Spacer to push ENCERRAR to bottom */}
+        <div className="flex-1" />
+
+        {/* ── ENCERRAR LUTA — isolated at bottom ── */}
+        <section className="px-3 py-3 flex-shrink-0">
           <Button
-            onClick={onOpenTV}
-            className="w-full h-9 rounded-md bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white font-bold uppercase text-xs"
+            onClick={() => setShowEndMatchDialog(true)}
+            disabled={isMatchEnd}
+            className="w-full h-12 rounded-lg bg-zinc-800 border-2 border-red-500/50 text-red-400 hover:bg-red-950 text-sm font-bold uppercase disabled:opacity-50"
           >
-            <Monitor className="w-4 h-4 mr-1.5" />
-            ABRIR PLACAR TV
+            <XCircle className="w-5 h-5 mr-2" />
+            ENCERRAR LUTA
           </Button>
         </section>
       </aside>
-      
+
       {/* End Match Dialog */}
       <AlertDialog open={showEndMatchDialog} onOpenChange={setShowEndMatchDialog}>
         <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Encerrar Luta?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
-              Esta ação encerrará a luta atual. O placar será mantido para registro.
+              Esta acao encerrara a luta atual. O placar sera mantido para registro.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -317,14 +346,14 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       {/* Reset Match Dialog */}
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Nova Luta?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
-              Isso irá zerar todo o placar e iniciar uma nova luta com as mesmas configurações.
+              Isso ira zerar todo o placar e iniciar uma nova luta com as mesmas configuracoes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -343,7 +372,7 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       {/* Score Adjust Dialog */}
       <ScoreAdjustDialog
         open={showScoreAdjust}
@@ -351,14 +380,14 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
         state={state}
         onAdjust={actions.adjustScore}
       />
-      
+
       {/* Event Log Dialog */}
       <EventLogDialog
         open={showEventLog}
         onOpenChange={setShowEventLog}
         events={state.events}
       />
-      
+
       {/* Diagnostics Dialog */}
       {diagnostics && (
         <DiagnosticsDialog
@@ -369,6 +398,78 @@ export function OperatorPanel({ state, actions, onOpenTV, isTVOpen, serialPort, 
           onThresholdsApplied={onThresholdsApplied}
         />
       )}
+
+      {/* Share Live Score Dialog */}
+      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))] max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white text-center">Placar ao Vivo no Celular</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400 text-center">
+              Escaneie o QR Code ou compartilhe o link para acompanhar o placar em tempo real pelo navegador.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {(() => {
+            const LIVE_BASE_URL = 'https://spe-sulsport.vercel.app';
+            const liveUrl = `${LIVE_BASE_URL}/#/live?mat=${matId}${academyId ? `&aid=${academyId}` : ''}`;
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(liveUrl)}&bgcolor=18181b&color=ffffff`;
+            return (
+              <div className="flex flex-col items-center gap-4 py-2">
+                <div className="bg-zinc-800 rounded-xl p-3">
+                  <img
+                    src={qrApiUrl}
+                    alt="QR Code para placar ao vivo"
+                    width={200}
+                    height={200}
+                    className="rounded-lg"
+                  />
+                </div>
+                <div className="w-full flex items-center gap-2 bg-zinc-800 rounded-lg p-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={liveUrl}
+                    className="flex-1 bg-transparent text-xs text-zinc-300 font-mono outline-none truncate"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(liveUrl);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="shrink-0 p-1.5 rounded-md hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+                    title="Copiar link"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+                {typeof navigator !== 'undefined' && 'share' in navigator && (
+                  <button
+                    onClick={() => {
+                      navigator.share({
+                        title: `Placar ao Vivo — Quadra ${matId}`,
+                        text: 'Acompanhe o placar em tempo real!',
+                        url: liveUrl,
+                      }).catch(() => {});
+                    }}
+                    className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Compartilhar via...
+                  </button>
+                )}
+                <p className="text-[10px] text-zinc-600 text-center">
+                  O celular precisa estar na mesma rede WiFi ou com acesso a internet.
+                </p>
+              </div>
+            );
+          })()}
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600 w-full">
+              Fechar
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
