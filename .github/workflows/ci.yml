@@ -1,0 +1,70 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+      - run: npx vitest run
+
+  build-web:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - name: Build S-FIGHT PRO (web)
+        run: npm run build
+      - name: Build SPE Sulsport Championship (web)
+        run: npm run build:championship
+
+  build-electron:
+    needs: build-web
+    runs-on: windows-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Build S-FIGHT PRO (web)
+        run: npm run build
+      - name: Build SPE Sulsport Championship (web)
+        run: npm run build:championship
+
+      - name: Compile Electron TypeScript
+        run: npm run electron:compile
+
+      - name: Package S-FIGHT PRO installer
+        run: npx electron-builder --win --config electron-builder.yml
+
+      - name: Package SPE Sulsport installer
+        run: npx electron-builder --win --config electron-builder-championship.yml
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers
+          path: |
+            release/*.exe
+            release-championship/*.exe
+          retention-days: 30

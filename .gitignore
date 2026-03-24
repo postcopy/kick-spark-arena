@@ -13,7 +13,7 @@ dist-championship
 dist-ssr
 dist-electron
 release
-release-championship
+release-championship*
 *.local
 .env
 
@@ -27,3 +27,10 @@ release-championship
 *.njsproj
 *.sln
 *.sw?
+
+# IDE / OS
+*.psd
+*.zip
+bun.lockb
+
+.vercel

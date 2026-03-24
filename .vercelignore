@@ -1,0 +1,12 @@
+node_modules
+release
+release-championship
+dist
+dist-electron
+CP210_Drivers
+.git
+músicas
+public/music
+*.exe
+*.asar
+*.blockmap

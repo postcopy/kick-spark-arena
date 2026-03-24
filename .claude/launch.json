@@ -4,14 +4,14 @@
     {
       "name": "vite-dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
-      "port": 8080
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "8084"],
+      "port": 8084
     },
     {
       "name": "vite-championship",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--config", "vite.config.championship.ts"],
-      "port": 8081
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--config", "vite.config.championship.ts", "--port", "8083"],
+      "port": 8083
     }
   ]
 }

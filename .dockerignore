@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-championship
+dist-electron
+release
+release-championship
+.git
+.github
+.claude
+*.exe
+*.md
