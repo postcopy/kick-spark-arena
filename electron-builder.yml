@@ -38,3 +38,15 @@ nsis:
   uninstallerIcon: public/favicon.ico
   installerHeaderIcon: public/favicon.ico
   include: build/installer.nsh
+
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.sports
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Game

@@ -16,4 +16,17 @@ nsis:
   oneClick: true
   perMachine: false
   allowToChangeInstallationDirectory: false
+  runAfterFinish: true
   artifactName: "SPE-Sulsport-Setup-${version}.exe"
+
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.sports
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Game

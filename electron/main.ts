@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path from 'path';
+import { setupSerialPermissions, registerIpcHandlers, setupKeyboardShortcuts } from './shared';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -12,8 +13,10 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 768,
-    fullscreen: false,
-    frame: true,
+    fullscreen: true,
+    simpleFullscreen: true,
+    frame: false,
+    autoHideMenuBar: true,
     icon: path.join(__dirname, '../public/favicon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -24,30 +27,16 @@ function createWindow() {
     show: false,
   });
 
-  // Enable Web Serial API permissions
-  mainWindow.webContents.session.on('select-serial-port', (event, portList, _webContents, callback) => {
-    event.preventDefault();
-    if (portList && portList.length > 0) {
-      callback(portList[0].portId);
-    } else {
-      callback('');
-    }
-  });
-
-  mainWindow.webContents.session.setPermissionCheckHandler((_webContents, permission) => {
-    if (permission === 'serial') return true;
-    return true;
-  });
-
-  mainWindow.webContents.session.setDevicePermissionHandler((details) => {
-    if (details.deviceType === 'serial') return true;
-    return false;
-  });
+  setupSerialPermissions(mainWindow, '[Electron-SFighter]');
+  setupKeyboardShortcuts(mainWindow);
 
   // Load the app
   if (isDev) {
     mainWindow.loadURL('http://localhost:8080');
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    // Only open DevTools if explicitly requested
+    if (process.env.ELECTRON_DEBUG === '1') {
+      mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
@@ -59,19 +48,12 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-
-  // Keyboard shortcuts
-  mainWindow.webContents.on('before-input-event', (_event, input) => {
-    if (input.key === 'F11') {
-      mainWindow?.setFullScreen(!mainWindow.isFullScreen());
-    }
-    if (input.key === 'Escape' && mainWindow?.isFullScreen()) {
-      mainWindow.setFullScreen(false);
-    }
-  });
 }
 
 app.whenReady().then(() => {
+  // Register IPC handlers ONCE, before any window is created
+  registerIpcHandlers(() => mainWindow);
+
   createWindow();
 
   // Auto-update (production only)

@@ -1,7 +1,13 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, screen, ipcMain } from 'electron';
 import path from 'path';
+import { setupSerialPermissions, registerIpcHandlers, setupKeyboardShortcuts } from './shared';
+
+// Faster GPU startup on low-end hardware
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
 
 let mainWindow: BrowserWindow | null = null;
+let tvWindow: BrowserWindow | null = null;
 
 const isDev = !app.isPackaged;
 
@@ -11,8 +17,11 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 768,
-    fullscreen: false,
-    frame: true,
+    fullscreen: true,
+    frame: false,
+    autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: false,
     icon: path.join(__dirname, '../public/favicon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -20,27 +29,21 @@ function createWindow() {
       nodeIntegration: false,
     },
     backgroundColor: '#0A0A0F',
-    show: false,
+    show: true,
   });
 
-  // Enable Web Serial API permissions
-  mainWindow.webContents.session.on('select-serial-port', (event, portList, _webContents, callback) => {
-    event.preventDefault();
-    if (portList && portList.length > 0) {
-      callback(portList[0].portId);
-    } else {
-      callback('');
+  setupSerialPermissions(mainWindow, '[Electron]');
+
+  // F12 toggle devTools — only in dev mode with ELECTRON_DEBUG=1
+  setupKeyboardShortcuts(mainWindow, (input) => {
+    if (input.key === 'F12' && isDev && process.env.ELECTRON_DEBUG === '1') {
+      mainWindow?.webContents.toggleDevTools();
     }
   });
 
-  mainWindow.webContents.session.setPermissionCheckHandler((_webContents, permission) => {
-    if (permission === 'serial') return true;
-    return true;
-  });
-
-  mainWindow.webContents.session.setDevicePermissionHandler((details) => {
-    if (details.deviceType === 'serial') return true;
-    return false;
+  // Block default window.open — we handle TV via IPC
+  mainWindow.webContents.setWindowOpenHandler(() => {
+    return { action: 'deny' };
   });
 
   // Load the app
@@ -50,26 +53,86 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist-championship/index-championship.html'));
   }
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
-  });
-
   mainWindow.on('closed', () => {
     mainWindow = null;
-  });
-
-  // Keyboard shortcuts
-  mainWindow.webContents.on('before-input-event', (_event, input) => {
-    if (input.key === 'F11') {
-      mainWindow?.setFullScreen(!mainWindow.isFullScreen());
-    }
-    if (input.key === 'Escape' && mainWindow?.isFullScreen()) {
-      mainWindow.setFullScreen(false);
-    }
   });
 }
 
 app.whenReady().then(() => {
+  // Register IPC handlers ONCE, before any window is created
+  registerIpcHandlers(() => mainWindow);
+
+  // IPC: Open TV window on second display (or same display if only one)
+  ipcMain.handle('open-tv-window', (_event, matId: number) => {
+    if (tvWindow && !tvWindow.isDestroyed()) {
+      tvWindow.focus();
+      return { success: true, display: 'existing' };
+    }
+
+    const displays = screen.getAllDisplays();
+    const mainDisplay = mainWindow ? screen.getDisplayMatching(mainWindow.getBounds()) : displays[0];
+    // Pick a display that is NOT the main window's display, or fallback to same
+    const tvDisplay = displays.find(d => d.id !== mainDisplay.id) || mainDisplay;
+    const { x, y, width, height } = tvDisplay.workArea;
+
+    console.log(`[Electron] Opening TV on display ${tvDisplay.id} (${width}x${height}) at (${x},${y}). Total displays: ${displays.length}`);
+
+    tvWindow = new BrowserWindow({
+      x, y, width, height,
+      fullscreen: true,
+      frame: false,
+      autoHideMenuBar: true,
+      backgroundColor: '#0A0A0F',
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    // Load the TV route
+    const tvHash = `#/championship/tv?mat=${matId}`;
+    if (isDev) {
+      tvWindow.loadURL(`http://localhost:8081/${tvHash}`);
+    } else {
+      tvWindow.loadFile(
+        path.join(__dirname, '../dist-championship/index-championship.html'),
+        { hash: `/championship/tv?mat=${matId}` }
+      );
+    }
+
+    tvWindow.on('closed', () => {
+      tvWindow = null;
+      // Notify main window that TV closed
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('tv-window-closed');
+      }
+    });
+
+    return { success: true, display: tvDisplay.id, isSecondary: tvDisplay.id !== mainDisplay.id };
+  });
+
+  // IPC: Close TV window
+  ipcMain.handle('close-tv-window', () => {
+    if (tvWindow && !tvWindow.isDestroyed()) {
+      tvWindow.close();
+      tvWindow = null;
+    }
+    return { success: true };
+  });
+
+  // IPC: Get available displays info
+  ipcMain.handle('get-displays', () => {
+    const displays = screen.getAllDisplays();
+    return displays.map(d => ({
+      id: d.id,
+      label: d.label || `Display ${d.id}`,
+      width: d.workArea.width,
+      height: d.workArea.height,
+      isPrimary: d.id === screen.getPrimaryDisplay().id,
+    }));
+  });
+
   createWindow();
 
   app.on('activate', () => {
