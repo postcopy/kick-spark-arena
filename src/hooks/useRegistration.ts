@@ -219,6 +219,19 @@ export function useRegistration() {
         setIsLoading(true);
         setError(null);
 
+        // Verify coach exists
+        const { data: coachData, error: coachErr } = await supabase
+          .from('academy_coaches')
+          .select('id, phone')
+          .eq('id', coachId)
+          .single();
+
+        if (coachErr || !coachData) {
+          console.error('Coach not found');
+          setError('Treinador não encontrado.');
+          return null;
+        }
+
         // 1. Create the registration header
         const { data: registration, error: regError } = await supabase
           .from('tournament_registrations')

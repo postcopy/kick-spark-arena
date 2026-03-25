@@ -184,7 +184,7 @@ export default function LiveScore() {
                 isMedical ? "text-orange-400" : "text-[hsl(var(--sulsport-yellow))]",
                 state.timeLeftMs <= 10000 && isRunning && "animate-pulse",
               )}
-              style={{ fontSize: 'clamp(36px, 10vw, 80px)' }}
+              style={{ fontSize: 'clamp(44px, 14vw, 120px)' }}
             >
               {formatTime(state.timeLeftMs)}
             </span>
@@ -219,7 +219,7 @@ export default function LiveScore() {
                     "font-black text-white tabular-nums leading-none transition-transform duration-200",
                     pulseBlue && "scale-110",
                   )}
-                  style={{ fontSize: 'clamp(80px, 22vw, 160px)' }}
+                  style={{ fontSize: 'clamp(120px, 45vw, 400px)' }}
                 >
                   {state.roundScoreBlue}
                 </span>
@@ -265,7 +265,7 @@ export default function LiveScore() {
                     "font-black text-white tabular-nums leading-none transition-transform duration-200",
                     pulseRed && "scale-110",
                   )}
-                  style={{ fontSize: 'clamp(80px, 22vw, 160px)' }}
+                  style={{ fontSize: 'clamp(120px, 45vw, 400px)' }}
                 >
                   {state.roundScoreRed}
                 </span>

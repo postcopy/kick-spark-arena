@@ -381,6 +381,7 @@ export function MatchConfigDialog({
                             }
                           }))}
                           disabled={isLocked}
+                          maxLength={100}
                           className="bg-zinc-800 border-zinc-600 text-white h-9"
                         />
                       </div>
@@ -397,6 +398,7 @@ export function MatchConfigDialog({
                             } : undefined
                           }))}
                           disabled={isLocked}
+                          maxLength={50}
                           className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
                         />
                       </div>
@@ -423,6 +425,7 @@ export function MatchConfigDialog({
                             }
                           }))}
                           disabled={isLocked}
+                          maxLength={100}
                           className="bg-zinc-800 border-zinc-600 text-white h-9"
                         />
                       </div>
@@ -439,6 +442,7 @@ export function MatchConfigDialog({
                             } : undefined
                           }))}
                           disabled={isLocked}
+                          maxLength={50}
                           className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
                         />
                       </div>

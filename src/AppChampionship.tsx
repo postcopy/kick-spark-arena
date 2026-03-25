@@ -14,6 +14,7 @@ import ModeSelectorPage from "./pages/ModeSelectorPage";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ImmersiveTitleBar from "./components/layout/ImmersiveTitleBar";
+import { UpdateNotification } from "./components/UpdateNotification";
 
 const ChampionshipMat = lazy(() => import('./pages/ChampionshipMat'));
 const ChampionshipTV = lazy(() => import('./pages/ChampionshipTV'));
@@ -49,6 +50,7 @@ const AppChampionship = () => (
                   <Toaster />
                   <Sonner />
                   <ImmersiveTitleBar />
+                  <UpdateNotification />
                   <HashRouter>
                     <TrialBanner />
                     <Suspense fallback={<div className="flex items-center justify-center h-[100dvh] bg-[#0A0A0F]"><Loader2 className="w-8 h-8 text-[#E11D48] animate-spin" /></div>}>

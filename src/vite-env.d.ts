@@ -16,10 +16,18 @@ interface ElectronAPI {
   isFullscreen: () => Promise<boolean>;
   isMaximized: () => Promise<boolean>;
   reload: () => void;
-  openTVWindow: (matId: number) => Promise<{ success: boolean; display?: number; isSecondary?: boolean }>;
+  openTVWindow: (matId: number, mode?: string) => Promise<{ success: boolean; display?: number; isSecondary?: boolean }>;
   closeTVWindow: () => Promise<{ success: boolean }>;
   getDisplays: () => Promise<Array<{ id: number; label: string; width: number; height: number; isPrimary: boolean }>>;
   onTVWindowClosed: (cb: () => void) => () => void;
+  // Auto-update
+  checkForUpdates: () => Promise<any>;
+  downloadUpdate: () => Promise<void>;
+  installUpdate: () => Promise<void>;
+  getAppVersion: () => Promise<string>;
+  onUpdateAvailable: (cb: (info: any) => void) => () => void;
+  onUpdateProgress: (cb: (progress: any) => void) => () => void;
+  onUpdateDownloaded: (cb: () => void) => () => void;
 }
 
 declare global {

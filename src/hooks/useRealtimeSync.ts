@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { logger } from '@/lib/logger';
 import { supabase } from '@/integrations/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -56,7 +57,7 @@ export function useRealtimeSync({
     function createAndSubscribe() {
       if (cancelled) return;
 
-      console.log(`[RealtimeSync] Creating channel "${channelName}" (attempt ${retryCount + 1})`);
+      logger.log(`[RealtimeSync] Creating channel "${channelName}" (attempt ${retryCount + 1})`);
 
       const channel = supabase.channel(channelName, {
         config: { broadcast: { self: false } },
@@ -86,7 +87,7 @@ export function useRealtimeSync({
       });
 
       channel.subscribe(async (status, err) => {
-        console.log('[RealtimeSync] Channel status:', status, err || '');
+        logger.log('[RealtimeSync] Channel status:', status, err || '');
 
         if (status === 'SUBSCRIBED') {
           retryCount = 0; // reset on success
@@ -101,7 +102,7 @@ export function useRealtimeSync({
           // CLOSED means the channel was intentionally removed — don't retry
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setIsConnected(false);
-          console.warn(`[RealtimeSync] Channel ${status}:`, err || 'no details');
+          logger.warn(`[RealtimeSync] Channel ${status}:`, err || 'no details');
 
           // Clean up the failed channel before retrying
           try {
@@ -113,14 +114,14 @@ export function useRealtimeSync({
           if (!cancelled && retryCount < MAX_RETRIES) {
             retryCount++;
             const delay = BASE_RETRY_DELAY * Math.pow(2, retryCount - 1);
-            console.log(`[RealtimeSync] Retrying in ${delay}ms (attempt ${retryCount}/${MAX_RETRIES})`);
+            logger.log(`[RealtimeSync] Retrying in ${delay}ms (attempt ${retryCount}/${MAX_RETRIES})`);
             retryTimer = setTimeout(createAndSubscribe, delay);
           } else if (!cancelled) {
             console.error(`[RealtimeSync] Giving up after ${MAX_RETRIES} retries`);
           }
         } else {
           // Unknown status — log it so we can diagnose
-          console.warn('[RealtimeSync] Unexpected status:', status, err);
+          logger.warn('[RealtimeSync] Unexpected status:', status, err);
           setIsConnected(false);
         }
       });

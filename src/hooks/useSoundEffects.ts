@@ -1,5 +1,6 @@
 // Audio warm-up system v2
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { logger } from '@/lib/logger';
 
 type SoundName =
   | 'hit'
@@ -239,14 +240,14 @@ export function useSoundEffects() {
           const a = new Audio(url);
           a.preload = 'none';
           (a as any).playsInline = true;
-          a.addEventListener('error', () => { console.warn(`[Sound] Failed to load: ${name}`); }, { once: true });
+          a.addEventListener('error', () => { logger.warn(`[Sound] Failed to load: ${name}`); }, { once: true });
           a.addEventListener('canplaythrough', () => {}, { once: true });
           a.addEventListener('canplay', () => {}, { once: true });
           a.addEventListener('loadeddata', () => {}, { once: true });
           a.volume = volume;
           pool.push(a);
         } catch (err) {
-          console.warn(`[Sound] Could not create Audio for ${name}:`, err);
+          logger.warn(`[Sound] Could not create Audio for ${name}:`, err);
         }
       }
 
@@ -265,14 +266,14 @@ export function useSoundEffects() {
         bg.preload = 'none';
         bg.loop = true;
         (bg as any).playsInline = true;
-        bg.addEventListener('error', () => { console.warn(`[Sound] Failed to load bg: ${bgName}`); }, { once: true });
+        bg.addEventListener('error', () => { logger.warn(`[Sound] Failed to load bg: ${bgName}`); }, { once: true });
         bg.addEventListener('canplaythrough', () => {}, { once: true });
         bg.addEventListener('canplay', () => {}, { once: true });
         bg.addEventListener('loadeddata', () => {}, { once: true });
         bg.volume = volume;
         bgMusicAudios.current.set(bgName, bg);
       } catch (err) {
-        console.warn(`[Sound] Could not create bg Audio for ${bgName}:`, err);
+        logger.warn(`[Sound] Could not create bg Audio for ${bgName}:`, err);
       }
     }
     // Legacy alias
@@ -298,7 +299,7 @@ export function useSoundEffects() {
         heavyPool[0].load();
       }
     } catch (err) {
-      console.warn('[Sound] Preload phase failed (non-fatal):', err);
+      logger.warn('[Sound] Preload phase failed (non-fatal):', err);
     }
 
     // Persist to module-level cache for HMR survival
@@ -409,7 +410,7 @@ export function useSoundEffects() {
 
     const pool = audioPool.current.get(name);
     if (!pool || pool.length === 0) {
-      console.warn(`[Sound] Pool not found for: ${name}`);
+      logger.warn(`[Sound] Pool not found for: ${name}`);
       return;
     }
 
@@ -422,14 +423,14 @@ export function useSoundEffects() {
 
     // Log se nenhuma instância está pronta
     if (audio.readyState < 2) {
-      console.debug(`[Sound] Playing ${name} with readyState=${audio.readyState} (may be silent)`);
+      logger.debug(`[Sound] Playing ${name} with readyState=${audio.readyState} (may be silent)`);
     }
 
     poolIndex.current.set(name, (chosenIdx + 1) % poolSize);
 
     safeResetAudio(audio, volume);
     audio.play().catch((err) => {
-      console.warn(`[Sound] Failed to play ${name}:`, err.message);
+      logger.warn(`[Sound] Failed to play ${name}:`, err.message);
     });
   }, [isMuted, volume]);
 
@@ -519,13 +520,13 @@ export function useSoundEffects() {
         try { audio.currentTime = 0; } catch {}
       } catch (err) {
         // Autoplay blocked or other error — still reset
-        console.debug(`[Audio] Warm-up play failed for ${name}:`, (err as Error).message);
+        logger.debug(`[Audio] Warm-up play failed for ${name}:`, (err as Error).message);
       }
 
       audio.volume = originalVolume;
 
       if (isNaN(audio.duration)) {
-        console.warn(`[Audio] Duration still NaN after warm-up for ${name}`);
+        logger.warn(`[Audio] Duration still NaN after warm-up for ${name}`);
       }
     });
 
@@ -584,11 +585,11 @@ export function useSoundEffects() {
           // Smart retry for bg music before giving up
           bgMusicAudios.current.forEach((bgA, bgName) => {
             if (!isAudioReady(bgA)) {
-              console.warn(`[Audio] ${bgName} not ready after timeout, forcing reload...`);
+              logger.warn(`[Audio] ${bgName} not ready after timeout, forcing reload...`);
               bgA.load();
             }
           });
-          console.warn('[Audio] Timeout waiting for audio ready, proceeding with partial load');
+          logger.warn('[Audio] Timeout waiting for audio ready, proceeding with partial load');
           resolve({ ready: false, progress });
         } else {
           requestAnimationFrame(check);
@@ -602,7 +603,7 @@ export function useSoundEffects() {
     try {
       await warmUpSounds(soundNamesTyped);
     } catch (err) {
-      console.warn('[Audio] Warm-up phase failed:', err);
+      logger.warn('[Audio] Warm-up phase failed:', err);
     }
 
     return downloadReady;

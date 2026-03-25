@@ -30,3 +30,9 @@ linux:
     - AppImage
     - deb
   category: Game
+
+publish:
+  provider: github
+  owner: postcopy
+  repo: kick-spark-arena
+  releaseType: release

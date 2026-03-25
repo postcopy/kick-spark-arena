@@ -327,6 +327,7 @@ export default function PublicRegistration() {
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="(11) 99999-9999"
                   required
+                  maxLength={20}
                   className="w-full px-4 py-3 rounded-lg bg-[#0A0A0F] border border-[#1E1E2E] text-white placeholder-gray-500 focus:outline-none focus:border-[#E11D48] transition-colors"
                 />
               </div>
@@ -339,6 +340,7 @@ export default function PublicRegistration() {
                   onChange={(e) => setAcademyName(e.target.value)}
                   placeholder="Ex: Academia Tiger TKD"
                   required
+                  maxLength={100}
                   className="w-full px-4 py-3 rounded-lg bg-[#0A0A0F] border border-[#1E1E2E] text-white placeholder-gray-500 focus:outline-none focus:border-[#E11D48] transition-colors"
                 />
               </div>
@@ -351,6 +353,7 @@ export default function PublicRegistration() {
                   onChange={(e) => setCoachName(e.target.value)}
                   placeholder="Ex: Mestre Silva"
                   required
+                  maxLength={100}
                   className="w-full px-4 py-3 rounded-lg bg-[#0A0A0F] border border-[#1E1E2E] text-white placeholder-gray-500 focus:outline-none focus:border-[#E11D48] transition-colors"
                 />
               </div>
@@ -512,6 +515,7 @@ export default function PublicRegistration() {
                           setNewAthleteForm((f) => ({ ...f, name: e.target.value }))
                         }
                         placeholder="Nome completo"
+                        maxLength={100}
                         className="w-full px-4 py-2 rounded-lg bg-[#0A0A0F] border border-[#1E1E2E] text-white placeholder-gray-500 focus:outline-none focus:border-[#E11D48] transition-colors"
                       />
                     </div>

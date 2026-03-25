@@ -73,7 +73,7 @@ export function ScoreboardMain({
         
         {/* Score */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-[clamp(80px,12vw,140px)] font-black text-white leading-none tabular-nums">
+          <div className="text-[clamp(100px,20vw,260px)] font-black text-white leading-none tabular-nums">
             {state.roundScoreBlue}
           </div>
         </div>
@@ -122,7 +122,7 @@ export function ScoreboardMain({
           : "bg-[hsl(var(--sulsport-yellow))]"
         )}>
           <div className={cn(
-            "text-[clamp(44px,8vw,64px)] font-black leading-none tabular-nums",
+            "text-[clamp(48px,12vw,96px)] font-black leading-none tabular-nums",
             state.isBreakTime ? "text-white"
             : state.timeLeftMs <= 5000 && isRunning ? "text-white animate-[timer-blink-fast_0.25s_ease-in-out_infinite]"
             : state.timeLeftMs <= 10000 && isRunning ? "animate-[timer-blink_0.5s_ease-in-out_infinite]"
@@ -198,7 +198,7 @@ export function ScoreboardMain({
         
         {/* Score */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-[clamp(80px,12vw,140px)] font-black text-white leading-none tabular-nums">
+          <div className="text-[clamp(100px,20vw,260px)] font-black text-white leading-none tabular-nums">
             {state.roundScoreRed}
           </div>
         </div>

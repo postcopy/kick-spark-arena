@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import { setupSerialPermissions, registerIpcHandlers, setupKeyboardShortcuts } from './shared';
@@ -56,9 +56,38 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  // Auto-update (production only)
+  // Auto-updater config
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = null; // disable default logging
+
+  // Auto-updater events → send to renderer
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('update-available', { version: info.version, releaseDate: info.releaseDate });
+  });
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('update-progress', { percent: Math.round(progress.percent), bytesPerSecond: progress.bytesPerSecond, transferred: progress.transferred, total: progress.total });
+  });
+  autoUpdater.on('update-downloaded', () => {
+    mainWindow?.webContents.send('update-downloaded');
+  });
+  autoUpdater.on('error', (err) => {
+    console.error('[AutoUpdater] Error:', err.message);
+  });
+
+  // IPC handlers
+  ipcMain.handle('check-for-updates', async () => {
+    try { return await autoUpdater.checkForUpdates(); } catch (e) { return null; }
+  });
+  ipcMain.handle('download-update', () => autoUpdater.downloadUpdate());
+  ipcMain.handle('install-update', () => autoUpdater.quitAndInstall());
+  ipcMain.handle('get-app-version', () => app.getVersion());
+
+  // Check for updates 5 seconds after app is ready (only in production)
   if (!isDev) {
-    autoUpdater.checkForUpdatesAndNotify();
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(() => {});
+    }, 5000);
   }
 
   app.on('activate', () => {

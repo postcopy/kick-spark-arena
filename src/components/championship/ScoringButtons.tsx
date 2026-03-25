@@ -24,7 +24,7 @@ interface ScoreButton {
 const SCORE_BUTTONS: ScoreButton[] = [
   { type: 'PUNCH',     label: 'SOCO',   getValue: (s) => s.punch },
   { type: 'BODY',      label: 'CORPO',  getValue: (s) => s.body },
-  { type: 'HEAD',      label: 'CABEÇA', getValue: (s) => s.head },
+  { type: 'HEAD',      label: 'CABECA', getValue: (s) => s.head },
   { type: 'SPIN_BODY', label: 'GIRO',   getValue: (s) => s.spinBody },
 ];
 
@@ -35,8 +35,8 @@ function GamjeomCount({ count }: { count: number }) {
   return (
     <span
       className={cn(
-        'text-sm font-bold tabular-nums min-w-[1.5ch] text-center',
-        count === 0 && 'text-white/50',
+        'text-lg font-black tabular-nums min-w-[2ch] text-center',
+        count === 0 && 'text-white/40',
         count >= 1 && count <= 2 && 'text-white',
         count >= 3 && count <= 4 && 'text-yellow-400',
         count >= 5 && 'text-red-400 animate-pulse',
@@ -61,7 +61,6 @@ export function ScoringButtons({
   const [flashKey, setFlashKey] = useState<FlashKey | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cleanup flash timeout on unmount
   useEffect(() => {
     return () => {
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
@@ -86,15 +85,24 @@ export function ScoringButtons({
 
     return (
       <div className="flex flex-col gap-2">
-        {/* Scoring buttons grid */}
+        {/* Side label */}
+        <div className={cn(
+          'text-center py-1 rounded-t-lg text-xs font-bold uppercase tracking-widest',
+          isBlue ? 'bg-blue-800/50 text-blue-300' : 'bg-red-800/50 text-red-300',
+        )}>
+          {isBlue ? 'PONTUACAO AZUL' : 'PONTUACAO VERMELHO'}
+        </div>
+
+        {/* Scoring buttons — CORPO and CABECA are bigger */}
         <div
           className="grid gap-2"
-          style={{ gridTemplateColumns: '0.8fr 1.2fr 1.2fr 1fr' }}
+          style={{ gridTemplateColumns: '0.6fr 1.3fr 1.3fr 0.8fr' }}
         >
           {SCORE_BUTTONS.map((btn, i) => {
             const value = btn.getValue(scoring);
             const key: FlashKey = `${side}-${btn.type}`;
             const isFlashing = flashKey === key;
+            const isBig = btn.type === 'BODY' || btn.type === 'HEAD';
 
             return (
               <Button
@@ -102,21 +110,25 @@ export function ScoringButtons({
                 onClick={() => handleScore(side, btn.type)}
                 disabled={!isRunning}
                 className={cn(
-                  'relative h-14 lg:h-16 flex flex-col items-center justify-center gap-0.5 rounded-lg',
+                  'relative flex flex-col items-center justify-center gap-0.5 rounded-lg',
                   'text-white font-medium transition-all',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                  'disabled:opacity-40 disabled:cursor-not-allowed',
+                  isBig ? 'h-16 lg:h-20' : 'h-14 lg:h-16',
                   isBlue
                     ? 'bg-blue-700 hover:bg-blue-600 active:bg-blue-500 active:scale-95'
                     : 'bg-red-700 hover:bg-red-600 active:bg-red-500 active:scale-95',
                 )}
               >
-                <span className="text-2xl font-black leading-none">+{value}</span>
-                <span className="text-xs font-medium leading-none">{btn.label}</span>
-                <span className="text-[9px] text-white/30 font-mono leading-none">
+                <span className={cn('font-black leading-none', isBig ? 'text-3xl' : 'text-2xl')}>
+                  +{value}
+                </span>
+                <span className={cn('font-semibold leading-none', isBig ? 'text-sm' : 'text-xs')}>
+                  {btn.label}
+                </span>
+                <span className="text-[9px] text-white/25 font-mono leading-none">
                   {keys[i]}
                 </span>
 
-                {/* Click flash overlay */}
                 {isFlashing && (
                   <div className="absolute inset-0 bg-white/30 animate-[flash_0.3s_ease-out_forwards] rounded-lg pointer-events-none" />
                 )}
@@ -125,50 +137,46 @@ export function ScoringButtons({
           })}
         </div>
 
-        {/* Gam-jeom row */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">
-              GAM-JEOM
-            </span>
-            <GamjeomCount count={gamjeomCount} />
+        {/* Gam-jeom row — colored buttons */}
+        <div className={cn(
+          'flex items-center gap-3 px-2 py-1.5 rounded-lg',
+          isBlue ? 'bg-blue-950/40' : 'bg-red-950/40',
+        )}>
+          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+            GAM-JEOM
+          </span>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onRemoveGamjeom(side)}
-              disabled={!isRunning || gamjeomCount <= 0}
-              className="h-10 w-10 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-700 disabled:opacity-40"
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
+          <GamjeomCount count={gamjeomCount} />
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onAddGamjeom(side)}
-              disabled={!isRunning}
-              className="h-10 w-10 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-700 disabled:opacity-40"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-
-            <span className="text-[9px] text-zinc-600 font-mono">
-              {isBlue ? 'F1' : 'F2'}
-            </span>
-          </div>
-
-          {/* Undo button per side */}
+          {/* Remove button — outline style */}
           <button
-            onClick={onUndo}
-            disabled={!canUndo}
+            onClick={() => onRemoveGamjeom(side)}
+            disabled={isRunning || gamjeomCount <= 0}
             className={cn(
-              'flex items-center gap-1 text-xs text-zinc-500 hover:text-amber-400 transition-colors',
-              'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-zinc-500',
+              'h-9 w-9 rounded-full flex items-center justify-center transition-all',
+              'border-2 disabled:opacity-30 disabled:cursor-not-allowed',
+              isBlue
+                ? 'border-blue-500/50 text-blue-400 hover:bg-blue-800/50 hover:border-blue-400'
+                : 'border-red-500/50 text-red-400 hover:bg-red-800/50 hover:border-red-400',
             )}
           >
-            <Undo2 className="h-3 w-3" />
-            DESFAZER
+            <Minus className="h-4 w-4" />
+          </button>
+
+          {/* Add button — filled with side color + key hint inside */}
+          <button
+            onClick={() => onAddGamjeom(side)}
+            disabled={!isRunning}
+            className={cn(
+              'h-9 px-3 rounded-full flex items-center gap-1.5 transition-all font-bold text-sm',
+              'disabled:opacity-30 disabled:cursor-not-allowed',
+              isBlue
+                ? 'bg-blue-600 text-white hover:bg-blue-500 active:bg-blue-400'
+                : 'bg-red-600 text-white hover:bg-red-500 active:bg-red-400',
+            )}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="text-[9px] font-mono text-white/50">{isBlue ? 'F1' : 'F2'}</span>
           </button>
         </div>
       </div>
@@ -176,19 +184,33 @@ export function ScoringButtons({
   };
 
   return (
-    <div className="border-t border-zinc-700 p-4 bg-zinc-900/50">
+    <div className="border-t border-zinc-700 p-3 bg-zinc-900/50">
       <div
         className="grid gap-0"
-        style={{ gridTemplateColumns: '1fr 48px 1fr' }}
+        style={{ gridTemplateColumns: '1fr 80px 1fr' }}
       >
         {/* Blue panel */}
         {renderPanel('BLUE')}
 
-        {/* Center divider with timer */}
-        <div className="flex flex-col items-center justify-center border-x border-zinc-700">
-          <span className="text-lg font-mono text-zinc-300 tabular-nums">
+        {/* Center divider — timer + undo */}
+        <div className="flex flex-col items-center justify-center gap-2 bg-zinc-950 rounded-lg mx-1">
+          <span className="text-xl font-mono font-bold text-amber-400 tabular-nums">
             {formatTime(state.timeLeftMs)}
           </span>
+
+          {/* Single undo button */}
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            className={cn(
+              'flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-all',
+              'text-zinc-500 hover:text-amber-400 hover:bg-zinc-800',
+              'disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:text-zinc-500 disabled:hover:bg-transparent',
+            )}
+          >
+            <Undo2 className="h-3 w-3" />
+            DESFAZER
+          </button>
         </div>
 
         {/* Red panel */}

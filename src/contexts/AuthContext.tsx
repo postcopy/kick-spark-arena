@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -196,7 +196,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginAttemptsRef = useRef(0);
+  const lastLoginAttemptRef = useRef(0);
+
   const signIn = async (email: string, password: string) => {
+    const now = Date.now();
+    // Reset counter after 5 minutes
+    if (now - lastLoginAttemptRef.current > 5 * 60 * 1000) {
+      loginAttemptsRef.current = 0;
+    }
+    loginAttemptsRef.current++;
+    lastLoginAttemptRef.current = now;
+
+    if (loginAttemptsRef.current > 5) {
+      return { error: new Error('Muitas tentativas de login. Aguarde 5 minutos.') };
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,

@@ -90,10 +90,10 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   matId: 1,
   scoringInput: 'impacts',
   impactThresholds: {
-    vestHitMin: 15,
-    vestPointMin: 19,
-    helmetHitMin: 5,
-    helmetPointMin: 10,
+    vestHitMin: 5,
+    vestPointMin: 5,
+    helmetHitMin: 3,
+    helmetPointMin: 3,
     noiseFloor: {},
   },
 };

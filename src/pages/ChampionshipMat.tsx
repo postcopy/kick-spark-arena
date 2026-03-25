@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { logger } from '@/lib/logger';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { useChampionshipPersistence } from '@/hooks/useChampionshipPersistence';
@@ -58,9 +59,19 @@ function ChampionshipMatInner() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const matId = parseInt(searchParams.get('mat') || '1');
-  
+  const isBasicMode = searchParams.get('mode') === 'basic';
+
   const { user } = useAuth();
-  const sync = useChampionshipSync({ role: 'master', matId, academyId: user?.id });
+  // Use user.id as academyId, or generate a persistent device ID for non-logged-in users
+  const deviceAcademyId = useMemo(() => {
+    if (user?.id) return user.id;
+    const stored = localStorage.getItem('sulsport:device-academy-id');
+    if (stored) return stored;
+    const id = crypto.randomUUID();
+    localStorage.setItem('sulsport:device-academy-id', id);
+    return id;
+  }, [user?.id]);
+  const sync = useChampionshipSync({ role: 'master', matId, academyId: deviceAcademyId });
   useChampionshipPersistence(sync.state);
   const { play, isMuted, toggleMute, unlockAudio, initFullPreload } = useSound();
   const prevStatusRef = useRef(sync.state.status);
@@ -78,7 +89,7 @@ function ChampionshipMatInner() {
 
   // Tournament integration
   const tournamentHook = useTournament();
-  const hasTournament = tournamentHook.tournament?.status === 'IN_PROGRESS';
+  const hasTournament = !isBasicMode && tournamentHook.tournament?.status === 'IN_PROGRESS';
   const matchResultRecordedRef = useRef(false);
   
   // Shadow log for impact scoring
@@ -121,7 +132,7 @@ function ChampionshipMatInner() {
     handleImpactRef.current = (impact: ImpactCallbackData) => {
       // DEBUG: count every impact that arrives here
       debugImpactCountRef.current++;
-      console.log(`[DEBUG-IMPACT] #${debugImpactCountRef.current} dev=${impact.deviceId} peak=${impact.peakIntensity} avg=${impact.avgIntensity} dur=${impact.durationMs}ms pkts=${impact.packetCount}`);
+      logger.log(`[DEBUG-IMPACT] #${debugImpactCountRef.current} dev=${impact.deviceId} peak=${impact.peakIntensity} avg=${impact.avgIntensity} dur=${impact.durationMs}ms pkts=${impact.packetCount}`);
 
       const config = sync.state.config;
 
@@ -149,7 +160,7 @@ function ChampionshipMatInner() {
         // Show warning that match isn't running (instead of silent discard)
         debugNotRunningCountRef.current++;
         setDebugCounts(c => ({ ...c, impacts: debugImpactCountRef.current, notRunning: debugNotRunningCountRef.current }));
-        console.log(`[IMPACT] ⚠ MATCH NOT RUNNING (${sync.state.status}), impact from dev=${impact.deviceId} peak=${impact.peakIntensity} DISCARDED [notRunning=${debugNotRunningCountRef.current}]`);
+        logger.log(`[IMPACT] ⚠ MATCH NOT RUNNING (${sync.state.status}), impact from dev=${impact.deviceId} peak=${impact.peakIntensity} DISCARDED [notRunning=${debugNotRunningCountRef.current}]`);
         setBlockedImpactWarning(true);
         if (blockedWarningTimerRef.current) clearTimeout(blockedWarningTimerRef.current);
         blockedWarningTimerRef.current = setTimeout(() => setBlockedImpactWarning(false), 3000);
@@ -175,7 +186,7 @@ function ChampionshipMatInner() {
       const equipType = deviceIdToEquipmentType(impact.deviceId);
       if (!matchSide) return;
       
-      const thresholds = config.impactThresholds ?? { vestPointMin: 19, helmetPointMin: 10, vestHitMin: 15, helmetHitMin: 5, noiseFloor: {} };
+      const thresholds = config.impactThresholds ?? { vestPointMin: 5, helmetPointMin: 3, vestHitMin: 5, helmetHitMin: 3, noiseFloor: {} };
       const floor = thresholds.noiseFloor[String(impact.deviceId)] ?? 0;
       const peakAboveFloor = impact.peakIntensity - floor;
       
@@ -197,7 +208,7 @@ function ChampionshipMatInner() {
         }
         debugIgnoredCountRef.current++;
         setDebugCounts(c => ({ ...c, impacts: debugImpactCountRef.current, ignored: debugIgnoredCountRef.current }));
-        console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} hitMin=${hitMin} pointMin=${pointMin} -> IGNORED (${equipType}/${matchSide}) [ignored=${debugIgnoredCountRef.current}]`);
+        logger.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} hitMin=${hitMin} pointMin=${pointMin} -> IGNORED (${equipType}/${matchSide}) [ignored=${debugIgnoredCountRef.current}]`);
         return;
       }
       
@@ -217,7 +228,7 @@ function ChampionshipMatInner() {
         if (shadowLogRef.current.length > MAX_SHADOW_LOG) {
           shadowLogRef.current = shadowLogRef.current.slice(-MAX_SHADOW_LOG);
         }
-        console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} pointMin=${pointMin} -> DUPLICATE (${equipType}/${matchSide})`);
+        logger.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} pointMin=${pointMin} -> DUPLICATE (${equipType}/${matchSide})`);
         return;
       }
       
@@ -225,7 +236,7 @@ function ChampionshipMatInner() {
       const isPoint = impact.peakIntensity >= pointMin;
       const decision: ShadowLogEntry['decision'] = isPoint ? 'POINT' : 'HIT';
       
-      console.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} pointMin=${pointMin} -> ${decision} (${equipType}/${matchSide})`);
+      logger.log(`[IMPACT] dev=${impact.deviceId} peak=${impact.peakIntensity} pointMin=${pointMin} -> ${decision} (${equipType}/${matchSide})`);
       
       const entry: ShadowLogEntry = {
         ts: now, deviceId: impact.deviceId, peakIntensity: impact.peakIntensity,
@@ -249,7 +260,7 @@ function ChampionshipMatInner() {
         const scoreType: ScoreType = isHelmet ? 'HEAD' : 'BODY';
         sync.addScore(matchSide, scoreType);
         play(matchSide === 'BLUE' ? 'scoreBlue' : 'scoreRed');
-        console.log(`[IMPACT] ★ SCORED! dev=${impact.deviceId} peak=${impact.peakIntensity} type=${scoreType} side=${matchSide} [scored=${debugScoredCountRef.current}]`);
+        logger.log(`[IMPACT] ★ SCORED! dev=${impact.deviceId} peak=${impact.peakIntensity} type=${scoreType} side=${matchSide} [scored=${debugScoredCountRef.current}]`);
       } else {
         sync.addHit(matchSide);
       }
@@ -333,7 +344,7 @@ function ChampionshipMatInner() {
 
   // Debug: log when impactDetectorConfig changes
   useEffect(() => {
-    console.log('[ChampionshipMat] impactDetectorConfig changed:', impactDetectorConfigMemo);
+    logger.log('[ChampionshipMat] impactDetectorConfig changed:', impactDetectorConfigMemo);
   }, [impactDetectorConfigMemo]);
 
   // Register handlers and impact detector config on mount
@@ -379,7 +390,7 @@ function ChampionshipMatInner() {
   useEffect(() => {
     if (!serialPort.isConnected && sync.state.status === 'RUNNING') {
       sync.pauseTimer();
-      console.warn('[ChampMat] USB disconnected during RUNNING — auto-paused');
+      logger.warn('[ChampMat] USB disconnected during RUNNING — auto-paused');
     }
   }, [serialPort.isConnected, sync.state.status, sync.pauseTimer]);
 
@@ -536,10 +547,10 @@ function ChampionshipMatInner() {
     // Electron: use IPC to open TV on second display
     if (window.electronAPI?.openTVWindow) {
       try {
-        const result = await window.electronAPI.openTVWindow(matId);
+        const result = await window.electronAPI.openTVWindow(matId, isBasicMode ? 'basic' : undefined);
         if (result.success) {
           setIsTVOpen(true);
-          console.log(`[TV] Opened on display ${result.display}, secondary: ${result.isSecondary}`);
+          logger.log(`[TV] Opened on display ${result.display}, secondary: ${result.isSecondary}`);
         }
       } catch (err) {
         console.error('[TV] Failed to open via IPC:', err);
@@ -547,7 +558,7 @@ function ChampionshipMatInner() {
     } else {
       // Browser fallback: window.open
       tvWindowRef.current = window.open(
-        `${window.location.origin}${window.location.pathname}#/championship/tv?mat=${matId}`,
+        `${window.location.origin}${window.location.pathname}#/championship/tv?mat=${matId}${isBasicMode ? '&mode=basic' : ''}`,
         `championship-tv-${matId}`,
         'width=1920,height=1080'
       );
@@ -810,7 +821,7 @@ function ChampionshipMatInner() {
         diagnostics={diagnostics}
         onOpenConfig={() => setShowConfigDialog(true)}
         matId={matId}
-        academyId={user?.id}
+        academyId={deviceAcademyId}
         onExportShadowLog={handleExportShadowLog}
         isMuted={isMuted}
         onToggleMute={toggleMute}

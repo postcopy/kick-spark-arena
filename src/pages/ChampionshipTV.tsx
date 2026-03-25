@@ -66,9 +66,11 @@ function calculateMatchStats(events: MatchEvent[]): MatchStats {
 export default function ChampionshipTV() {
   const [searchParams] = useSearchParams();
   const matId = parseInt(searchParams.get('mat') || '1');
-  
+  const isBasicMode = searchParams.get('mode') === 'basic';
+
   const handleSyncCommand = useCallback((event: string, payload: unknown) => {
     if (event === 'show-bracket') {
+      if (isBasicMode) return;
       const p = payload as { categoryId: string } | null;
       if (p?.categoryId) {
         setBracketCategoryId(p.categoryId);
@@ -111,6 +113,7 @@ export default function ChampionshipTV() {
     const handler = (event: MessageEvent) => {
       const msg = event.data as ChampionshipSyncMessage;
       if (msg?.type === 'SHOW_BRACKET') {
+        if (isBasicMode) return;
         setBracketCategoryId(msg.payload.categoryId);
         setTvMode('bracket');
       } else if (msg?.type === 'SHOW_SCOREBOARD') {
@@ -193,7 +196,7 @@ export default function ChampionshipTV() {
       </div>
 
       {/* Tournament Bracket View (shown between fights) */}
-      {tvMode === 'bracket' && bracketCategoryId && tournamentHook.tournament && (() => {
+      {!isBasicMode && tvMode === 'bracket' && bracketCategoryId && tournamentHook.tournament && (() => {
         const cat = tournamentHook.tournament!.categories.find(c => c.id === bracketCategoryId);
         if (!cat) return null;
         return (
@@ -225,10 +228,10 @@ export default function ChampionshipTV() {
           </div>
           
           {/* Score */}
-          <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <div className="flex-1 flex items-center justify-center">
             <span
               className="font-black text-white tabular-nums text-center block"
-              style={{ fontSize: 'clamp(140px, 20vw, 280px)', lineHeight: 1, minWidth: '1.2em' }}
+              style={{ fontSize: 'clamp(250px, 40vw, 650px)', lineHeight: 1, minWidth: '1.2em' }}
             >
               {state.roundScoreBlue}
             </span>
@@ -293,7 +296,7 @@ export default function ChampionshipTV() {
                       ? "text-black animate-[timer-blink_0.5s_ease-in-out_infinite]"
                       : "text-black"
               )}
-              style={{ fontSize: 'clamp(64px, 10vw, 120px)' }}
+              style={{ fontSize: 'clamp(80px, 14vw, 160px)' }}
             >
               {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTime(state.timeLeftMs)}
             </div>
@@ -335,8 +338,7 @@ export default function ChampionshipTV() {
         </div>
         
         {/* RED Side - Right Column */}
-        <div className={cn(
-        "flex-1 flex flex-col bg-[hsl(var(--sulsport-red))] rounded-2xl overflow-hidden"
+        <div className="flex-1 flex flex-col bg-[hsl(var(--sulsport-red))] rounded-2xl overflow-hidden"
         >
           {/* Athlete Name */}
           <div className="h-24 flex items-center justify-center border-b border-white/10">
@@ -353,10 +355,10 @@ export default function ChampionshipTV() {
           </div>
           
           {/* Score */}
-          <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <div className="flex-1 flex items-center justify-center">
             <span
               className="font-black text-white tabular-nums text-center block"
-              style={{ fontSize: 'clamp(140px, 20vw, 280px)', lineHeight: 1, minWidth: '1.2em' }}
+              style={{ fontSize: 'clamp(250px, 40vw, 650px)', lineHeight: 1, minWidth: '1.2em' }}
             >
               {state.roundScoreRed}
             </span>

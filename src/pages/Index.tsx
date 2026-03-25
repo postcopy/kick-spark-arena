@@ -22,6 +22,7 @@ import { EquipmentSetupScreen } from '@/components/game/EquipmentSetupScreen';
 import { Paywall } from '@/components/Paywall';
 import { AppShell } from '@/components/layout/AppShell';
 import { IntroScreen } from '@/components/IntroScreen';
+import { UpdateNotification } from '@/components/UpdateNotification';
 import { Loader2 } from 'lucide-react';
 import { deviceIdToKickingSide, deviceIdToHitType } from '@/lib/deviceMapping';
 import type { ImpactCallbackData } from '@/types/serial';
@@ -658,6 +659,7 @@ const Index = () => {
 
   return (
     <AppShell hideSidebar={isInGameplay}>
+      <UpdateNotification />
       {inner}
     </AppShell>
   );

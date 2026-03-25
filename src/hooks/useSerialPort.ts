@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { logger } from '@/lib/logger';
 import type { Side, HitType } from '@/types/game';
 import {
   UseSerialPortOptions,
@@ -135,7 +136,7 @@ export function useSerialPort({
       noiseFloor: parsedNoiseFloor,
       noiseIntensityMin,
     });
-    console.log('[useSerialPort] ImpactDetector CONFIG UPDATED, noiseFloor:', parsedNoiseFloor, 'noiseIntensityMin:', noiseIntensityMin);
+    logger.log('[useSerialPort] ImpactDetector CONFIG UPDATED, noiseFloor:', parsedNoiseFloor, 'noiseIntensityMin:', noiseIntensityMin);
   }, [impactDetectorConfig?.enabled, noiseFloorJson, impactDetectorConfig?.noiseIntensityMin]);
 
   // Start flush interval only when connected
@@ -155,11 +156,11 @@ export function useSerialPort({
       const activeCount = detectorRef.current.getActiveCount();
       // Log whenever there are active impacts (helps debug why they don't finalize)
       if (activeCount > 0 || flushCountRef.current % 150 === 0) {
-        console.log(`[FLUSH] #${flushCountRef.current} active=${activeCount} onImpact=${!!onImpactRef.current}`);
+        logger.log(`[FLUSH] #${flushCountRef.current} active=${activeCount} onImpact=${!!onImpactRef.current}`);
       }
       const finalized = detectorRef.current.flush(Date.now());
       if (finalized.length > 0) {
-        console.log(`[useSerialPort] flush -> ${finalized.length} impacts finalized`);
+        logger.log(`[useSerialPort] flush -> ${finalized.length} impacts finalized`);
         if (onImpactRef.current) {
           const now = Date.now();
           for (const impact of finalized) {
@@ -167,7 +168,7 @@ export function useSerialPort({
             if (debounceMs > 0) {
               const lastTime = lastKickTimeRef.current[impact.deviceId];
               if (lastTime !== undefined && now - lastTime < debounceMs) {
-                console.log(`[useSerialPort] debounce skip dev=${impact.deviceId} (${now - lastTime}ms < ${debounceMs}ms)`);
+                logger.log(`[useSerialPort] debounce skip dev=${impact.deviceId} (${now - lastTime}ms < ${debounceMs}ms)`);
                 continue;
               }
               lastKickTimeRef.current[impact.deviceId] = now;
@@ -182,7 +183,7 @@ export function useSerialPort({
             });
           }
         } else {
-          console.warn('[useSerialPort] onImpact callback missing, impacts finalized but not delivered');
+          logger.warn('[useSerialPort] onImpact callback missing, impacts finalized but not delivered');
         }
       }
     }, FLUSH_INTERVAL_MS);
@@ -220,12 +221,12 @@ export function useSerialPort({
 
   const startReading = useCallback(async (port: SerialPort) => {
     if (!port.readable || isReadingRef.current) {
-      console.warn('[Serial] startReading ABORTED: readable=', !!port.readable, 'isReading=', isReadingRef.current);
+      logger.warn('[Serial] startReading ABORTED: readable=', !!port.readable, 'isReading=', isReadingRef.current);
       return;
     }
 
     isReadingRef.current = true;
-    console.log('[Serial] ★ startReading STARTED, beginning to read data...');
+    logger.log('[Serial] ★ startReading STARTED, beginning to read data...');
 
     try {
       const decoder = new TextDecoderStream();
@@ -248,7 +249,7 @@ export function useSerialPort({
           lineCount++;
           // Log first 10 lines, then every 50th
           if (lineCount <= 10 || lineCount % 50 === 0) {
-            console.log(`[Serial] Raw line #${lineCount}:`, JSON.stringify(line));
+            logger.log(`[Serial] Raw line #${lineCount}:`, JSON.stringify(line));
           }
 
           // Update last raw line for debug display
@@ -256,7 +257,7 @@ export function useSerialPort({
 
           const parsed = parseLine(line);
           if (!parsed) {
-            console.log('[Serial] Parse FAILED for:', JSON.stringify(line));
+            logger.log('[Serial] Parse FAILED for:', JSON.stringify(line));
             continue;
           }
 
@@ -269,7 +270,7 @@ export function useSerialPort({
           }
 
           if (rawPacketCountRef.current <= 5) {
-            console.log(`[Serial] Parsed #${rawPacketCountRef.current}:`, { intensity, deviceId, battery });
+            logger.log(`[Serial] Parsed #${rawPacketCountRef.current}:`, { intensity, deviceId, battery });
           }
           
           // Raw packet callback (before any filter)
@@ -281,7 +282,7 @@ export function useSerialPort({
           if (isJudgeDevice(deviceId)) {
             const jNum = judgeNumber(deviceId);
             if (jNum !== null) {
-              console.log(`[Serial] Juiz ${jNum} (device ${deviceId}), botão: ${intensity}`);
+              logger.log(`[Serial] Juiz ${jNum} (device ${deviceId}), botão: ${intensity}`);
               if (onJudgeEventRef.current) {
                 onJudgeEventRef.current({ button: intensity, judgeId: jNum, deviceId, ts: Date.now() });
               }
@@ -296,7 +297,7 @@ export function useSerialPort({
           const activeAfterFeed = detectorRef.current.getActiveCount();
           // Log first 20 feeds, then every 20th — shows if detector is accepting packets
           if (rawPacketCountRef.current <= 20 || rawPacketCountRef.current % 20 === 0) {
-            console.log(`[FEED] pkt#${rawPacketCountRef.current} dev=${deviceId} int=${intensity} active:${activeBeforeFeed}->${activeAfterFeed}`);
+            logger.log(`[FEED] pkt#${rawPacketCountRef.current} dev=${deviceId} int=${intensity} active:${activeBeforeFeed}->${activeAfterFeed}`);
           }
 
           // Update equipment battery state
@@ -315,7 +316,7 @@ export function useSerialPort({
       // CRITICAL: always reset reading flag so reconnect can start a new reader
       isReadingRef.current = false;
       readerRef.current = null;
-      console.log('[Serial] startReading ENDED, isReading reset to false');
+      logger.log('[Serial] startReading ENDED, isReading reset to false');
     }
   }, [updateEquipment]);
 
@@ -342,7 +343,7 @@ export function useSerialPort({
   const tryOpenPort = async (port: SerialPort): Promise<boolean> => {
     // Already open? Reuse directly
     if (port.readable || port.writable) {
-      console.log('[Serial] Porta já aberta, reusando...');
+      logger.log('[Serial] Porta já aberta, reusando...');
       portRef.current = port;
       setIsConnected(true);
       startReading(port);
@@ -352,7 +353,7 @@ export function useSerialPort({
     // Try to open
     try {
       await port.open({ baudRate: BAUD_RATE });
-      console.log('[Serial] Porta aberta com sucesso!');
+      logger.log('[Serial] Porta aberta com sucesso!');
       portRef.current = port;
       setIsConnected(true);
       startReading(port);
@@ -360,7 +361,7 @@ export function useSerialPort({
     } catch (e: any) {
       // InvalidStateError but port is readable = already open, reuse
       if (e.name === 'InvalidStateError' && port.readable) {
-        console.log('[Serial] InvalidStateError mas porta readable, reusando...');
+        logger.log('[Serial] InvalidStateError mas porta readable, reusando...');
         portRef.current = port;
         setIsConnected(true);
         startReading(port);
@@ -382,7 +383,7 @@ export function useSerialPort({
     try {
       // Stage A: Try known/authorized ports first (no popup)
       const knownPorts = await navigator.serial.getPorts();
-      console.log('[Serial] Portas conhecidas:', knownPorts.length);
+      logger.log('[Serial] Portas conhecidas:', knownPorts.length);
 
       if (knownPorts.length > 0) {
         for (const port of knownPorts) {
@@ -390,7 +391,7 @@ export function useSerialPort({
             // Log port info for debugging
             try {
               const info = (port as any).getInfo?.();
-              if (info) console.log('[Serial] Port info:', JSON.stringify(info));
+              if (info) logger.log('[Serial] Port info:', JSON.stringify(info));
             } catch {}
             const success = await tryOpenPort(port);
             if (success) {
@@ -398,7 +399,7 @@ export function useSerialPort({
               return;
             }
           } catch (e: any) {
-            console.log('[Serial] Porta conhecida falhou:', e.name, e.message);
+            logger.log('[Serial] Porta conhecida falhou:', e.name, e.message);
           }
         }
       }
@@ -408,18 +409,18 @@ export function useSerialPort({
       let lastErr: any = null;
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          console.log(`[Serial] requestPort() tentativa ${attempt}...`);
+          logger.log(`[Serial] requestPort() tentativa ${attempt}...`);
           const port = await navigator.serial.requestPort();
           try {
             const info = (port as any).getInfo?.();
-            if (info) console.log('[Serial] Porta selecionada info:', JSON.stringify(info));
+            if (info) logger.log('[Serial] Porta selecionada info:', JSON.stringify(info));
           } catch {}
           await tryOpenPort(port);
           setIsConnecting(false);
           return;
         } catch (e: any) {
           lastErr = e;
-          console.log(`[Serial] requestPort() tentativa ${attempt} falhou:`, e.name, e.message);
+          logger.log(`[Serial] requestPort() tentativa ${attempt} falhou:`, e.name, e.message);
           if (attempt < 2 && e.name === 'NotFoundError') {
             // Wait 1s and retry — port may still be enumerating
             await new Promise(r => setTimeout(r, 1000));
@@ -471,14 +472,14 @@ export function useSerialPort({
         } catch (e: any) {
           // InvalidStateError with readable = already open, reuse
           if (e.name === 'InvalidStateError' && port.readable) {
-            console.log('[Serial] Auto-reconnect: InvalidStateError mas porta readable, reusando...');
+            logger.log('[Serial] Auto-reconnect: InvalidStateError mas porta readable, reusando...');
             portRef.current = port;
             setIsConnected(true);
             startReading(port);
             setIsAutoConnecting(false);
             return true;
           }
-          console.log('[Serial] Auto-reconexão falhou:', e.name, '- tentando próxima porta');
+          logger.log('[Serial] Auto-reconexão falhou:', e.name, '- tentando próxima porta');
         }
       }
 
@@ -494,16 +495,16 @@ export function useSerialPort({
 
         // Retry with exponential backoff
         for (let i = 0; i < BACKOFF_DELAYS.length; i++) {
-          console.log(`[Serial] Auto-reconnect retry ${i + 1}/${BACKOFF_DELAYS.length} in ${BACKOFF_DELAYS[i]}ms...`);
+          logger.log(`[Serial] Auto-reconnect retry ${i + 1}/${BACKOFF_DELAYS.length} in ${BACKOFF_DELAYS[i]}ms...`);
           await new Promise(r => setTimeout(r, BACKOFF_DELAYS[i]));
           if (cancelled) return;
 
           const success = await tryAutoReconnectOnce();
           if (success || cancelled) return;
         }
-        console.log('[Serial] Auto-reconnect gave up after', BACKOFF_DELAYS.length, 'retries');
+        logger.log('[Serial] Auto-reconnect gave up after', BACKOFF_DELAYS.length, 'retries');
       } catch (e) {
-        console.log('Auto-reconnect check failed:', e);
+        logger.log('Auto-reconnect check failed:', e);
         setIsAutoConnecting(false);
       }
     }
@@ -522,7 +523,7 @@ export function useSerialPort({
     if (!portRef.current) return;
     
     const handleDisconnect = () => {
-      console.log('[Serial] ⚡ Physical disconnect detected, resetting state...');
+      logger.log('[Serial] ⚡ Physical disconnect detected, resetting state...');
       // CRITICAL: reset reading flag so startReading() works on reconnect
       isReadingRef.current = false;
       if (readerRef.current) {
@@ -567,7 +568,7 @@ export function useSerialPort({
     getDetectorDiag,
     setPassThroughMode: useCallback((active: boolean) => {
       detectorRef.current.updateConfig({ passThroughMode: active });
-      console.log('[useSerialPort] passThroughMode:', active);
+      logger.log('[useSerialPort] passThroughMode:', active);
     }, []),
   };
 }

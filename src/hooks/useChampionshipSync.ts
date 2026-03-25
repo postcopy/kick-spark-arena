@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { logger } from '@/lib/logger';
 import {
   MatchState,
   MatchConfig,
@@ -166,7 +167,7 @@ export function useChampionshipSync({
       const stateToSync = { ...stateRef.current, lastUpdate: Date.now() };
       const networkPayload = { ...stateToSync, events: stateToSync.events.slice(0, 100) };
       realtimeSendRef.current('match-state', networkPayload);
-      console.log('[Sync] New device joined, force-broadcast state');
+      logger.log('[Sync] New device joined, force-broadcast state');
     }
     prevDeviceCountRef.current = connectedDevices;
   }, [connectedDevices, role]);
@@ -345,7 +346,7 @@ export function useChampionshipSync({
         state: payload,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'academy_id,mat_id' }).then(({ error }) => {
-        if (error) console.warn('[Sync] live_scores upsert failed:', error.message);
+        if (error) logger.warn('[Sync] live_scores upsert failed:', error.message);
       });
     }, 500);
     return () => clearInterval(interval);

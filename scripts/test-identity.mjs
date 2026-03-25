@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SOUNDS_DIR = path.join(__dirname, '..', 'public', 'sounds');
 
-const API_KEY = 'sk_f70b81e9129b8fa04649ef4385d90926ba6b4c5c12dc3e61';
+const API_KEY = process.env.ELEVENLABS_API_KEY;
 
 async function gen(prompt, duration, filename) {
   console.log(`Generating: ${filename}`);

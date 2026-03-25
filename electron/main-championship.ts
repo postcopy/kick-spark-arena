@@ -1,4 +1,5 @@
 import { app, BrowserWindow, screen, ipcMain } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import { setupSerialPermissions, registerIpcHandlers, setupKeyboardShortcuts } from './shared';
 
@@ -63,7 +64,7 @@ app.whenReady().then(() => {
   registerIpcHandlers(() => mainWindow);
 
   // IPC: Open TV window on second display (or same display if only one)
-  ipcMain.handle('open-tv-window', (_event, matId: number) => {
+  ipcMain.handle('open-tv-window', (_event, matId: number, mode?: string) => {
     if (tvWindow && !tvWindow.isDestroyed()) {
       tvWindow.focus();
       return { success: true, display: 'existing' };
@@ -91,13 +92,14 @@ app.whenReady().then(() => {
     });
 
     // Load the TV route
-    const tvHash = `#/championship/tv?mat=${matId}`;
+    const modeParam = mode ? `&mode=${mode}` : '';
+    const tvHash = `#/championship/tv?mat=${matId}${modeParam}`;
     if (isDev) {
       tvWindow.loadURL(`http://localhost:8081/${tvHash}`);
     } else {
       tvWindow.loadFile(
         path.join(__dirname, '../dist-championship/index-championship.html'),
-        { hash: `/championship/tv?mat=${matId}` }
+        { hash: `/championship/tv?mat=${matId}${modeParam}` }
       );
     }
 
@@ -134,6 +136,40 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+
+  // Auto-updater config
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = null; // disable default logging
+
+  // Auto-updater events → send to renderer
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('update-available', { version: info.version, releaseDate: info.releaseDate });
+  });
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('update-progress', { percent: Math.round(progress.percent), bytesPerSecond: progress.bytesPerSecond, transferred: progress.transferred, total: progress.total });
+  });
+  autoUpdater.on('update-downloaded', () => {
+    mainWindow?.webContents.send('update-downloaded');
+  });
+  autoUpdater.on('error', (err) => {
+    console.error('[AutoUpdater] Error:', err.message);
+  });
+
+  // IPC handlers
+  ipcMain.handle('check-for-updates', async () => {
+    try { return await autoUpdater.checkForUpdates(); } catch (e) { return null; }
+  });
+  ipcMain.handle('download-update', () => autoUpdater.downloadUpdate());
+  ipcMain.handle('install-update', () => autoUpdater.quitAndInstall());
+  ipcMain.handle('get-app-version', () => app.getVersion());
+
+  // Check for updates 5 seconds after app is ready (only in production)
+  if (!isDev) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(() => {});
+    }, 5000);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
