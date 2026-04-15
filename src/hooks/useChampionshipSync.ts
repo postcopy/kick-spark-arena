@@ -16,6 +16,7 @@ import {
 import type { ChampionshipSyncMessage } from '@/types/championship';
 import { useRealtimeSync } from './useRealtimeSync';
 import { supabase } from '@/integrations/supabase/client';
+import { migrateMatchConfig } from '@/lib/matchConfigMigration';
 
 // Maximum events to keep in history
 const MAX_EVENTS = 500;
@@ -94,7 +95,11 @@ export function useChampionshipSync({
       const stored = localStorage.getItem(getStorageKey(matId));
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored);
+          // Migrate config aninhado pra tratar configs persistidas em v1.4.x
+          // (sem rulesetVersion) e configs corrompidas. Ver Task A.3.
+          if (parsed?.config) parsed.config = migrateMatchConfig(parsed.config);
+          return parsed;
         } catch { /* ignore */ }
       }
     }
@@ -280,7 +285,10 @@ export function useChampionshipSync({
       const stored = localStorage.getItem(getStorageKey(matId));
       if (stored) {
         try {
-          setState(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          // Migrate config aninhado (mesma justificativa do useState init acima).
+          if (parsed?.config) parsed.config = migrateMatchConfig(parsed.config);
+          setState(parsed);
           setIsConnected(true);
         } catch { /* ignore */ }
       }
