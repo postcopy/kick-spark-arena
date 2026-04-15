@@ -14,12 +14,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Save, RotateCcw, AlertTriangle } from 'lucide-react';
-import { 
-  MatchConfig, 
-  DEFAULT_MATCH_CONFIG, 
+import {
+  MatchConfig,
+  DEFAULT_MATCH_CONFIG,
   DEFAULT_SCORE_CONFIG,
   SCORE_LABELS,
 } from '@/types/championship';
+import {
+  WT_RULESET_LABELS,
+  getRulesetPreset,
+  type WTRulesetVersion,
+} from '@/lib/wtRuleset';
 import { cn } from '@/lib/utils';
 
 interface MatchConfigDialogProps {
@@ -77,6 +82,31 @@ export function MatchConfigDialog({
       scoring: DEFAULT_SCORE_CONFIG,
     }));
   };
+
+  /**
+   * Aplica preset do ruleset escolhido — sincroniza pointGap, maxGamjeom
+   * e scoring com WT_RULESET_PRESETS. CUSTOM preserva valores atuais
+   * (operador edita manualmente).
+   *
+   * Esta eh a "value normalization" que migrateMatchConfig (Task A.3)
+   * deliberadamente NAO faz — ver commit d9d6ea8 pra justificativa de
+   * separacao de responsabilidades.
+   */
+  const handleRulesetChange = (version: WTRulesetVersion) => {
+    setConfig(prev => {
+      if (version === 'CUSTOM') {
+        return { ...prev, rulesetVersion: 'CUSTOM' };
+      }
+      const preset = getRulesetPreset(version);
+      return {
+        ...prev,
+        rulesetVersion: version,
+        pointGap: preset.pointGap,
+        maxGamjeom: preset.maxGamjeom,
+        scoring: preset.scoring,
+      };
+    });
+  };
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,7 +130,40 @@ export function MatchConfigDialog({
             </span>
           </div>
         )}
-        
+
+        {/* Ruleset selector — operador escolhe regulamento WT antes de editar valores */}
+        <div className="px-4 py-3 border-b border-[hsl(var(--sulsport-gray))]">
+          <Label className="text-xs font-semibold text-zinc-400 mb-1.5 block">
+            REGULAMENTO WT
+          </Label>
+          <Select
+            value={config.rulesetVersion}
+            onValueChange={(v) => handleRulesetChange(v as WTRulesetVersion)}
+            disabled={isLocked}
+          >
+            <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(WT_RULESET_LABELS) as WTRulesetVersion[]).map((v) => (
+                <SelectItem key={v} value={v}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{WT_RULESET_LABELS[v].label}</span>
+                    <span className="text-[11px] text-zinc-500">
+                      {WT_RULESET_LABELS[v].vigencia}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {config.rulesetVersion !== 'CUSTOM' && (
+            <p className="text-[11px] text-zinc-500 mt-1">
+              Valores derivam do preset. Para editar livremente, escolha &quot;Customizado&quot;.
+            </p>
+          )}
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
           <TabsList className="grid grid-cols-5 bg-zinc-900 mx-4 shrink-0">
             <TabsTrigger value="time" className="text-xs sm:text-sm">Tempo</TabsTrigger>
@@ -290,7 +353,7 @@ export function MatchConfigDialog({
                     </RadioGroup>
                   </div>
                   
-                  {/* Point Gap */}
+                  {/* Point Gap — derivado do ruleset, editavel apenas em CUSTOM */}
                   <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
                     <Label className="text-white text-sm font-bold mb-1 block">Point Gap</Label>
                     <p className="text-zinc-500 text-xs mb-2">Diferença para vitória automática</p>
@@ -303,12 +366,12 @@ export function MatchConfigDialog({
                         ...prev,
                         pointGap: parseInt(e.target.value) || 20
                       }))}
-                      disabled={isLocked}
+                      disabled={isLocked || config.rulesetVersion !== 'CUSTOM'}
                       className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
                     />
                   </div>
-                  
-                  {/* Gam-jeom Limit */}
+
+                  {/* Gam-jeom Limit — derivado do ruleset, editavel apenas em CUSTOM */}
                   <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">
                     <Label className="text-white text-sm font-bold mb-1 block">Limite de Gam-jeom</Label>
                     <p className="text-zinc-500 text-xs mb-2">Máximo de penalidades antes de desqualificação</p>
@@ -321,7 +384,7 @@ export function MatchConfigDialog({
                         ...prev,
                         maxGamjeom: parseInt(e.target.value) || 10
                       }))}
-                      disabled={isLocked}
+                      disabled={isLocked || config.rulesetVersion !== 'CUSTOM'}
                       className="bg-zinc-800 border-zinc-600 text-white w-20 h-9"
                     />
                   </div>
@@ -483,7 +546,7 @@ export function MatchConfigDialog({
                             [key]: parseInt(e.target.value) || 1,
                           }
                         }))}
-                        disabled={isLocked}
+                        disabled={isLocked || config.rulesetVersion !== 'CUSTOM'}
                         className="bg-zinc-800 border-zinc-600 text-white w-16 h-9 text-center font-bold"
                       />
                     </div>
