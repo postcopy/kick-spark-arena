@@ -1,5 +1,7 @@
 // Championship Mode Types (WT-style scoring)
 
+import type { WTRulesetVersion } from '@/lib/wtRuleset';
+
 export type MatchStatus = 'IDLE' | 'RUNNING' | 'PAUSED' | 'MEDICAL' | 'ROUND_END' | 'MATCH_END';
 export type MatchSide = 'RED' | 'BLUE';
 export type ScoreType = 'PUNCH' | 'BODY' | 'HEAD' | 'SPIN_BODY' | 'SPIN_HEAD' | 'GAMJEOM';
@@ -9,16 +11,19 @@ export interface ScoreConfig {
   punch: number;      // Soco (tronco) - default 1
   body: number;       // Chute corpo - default 2
   head: number;       // Chute cabeça - default 3
-  spinBody: number;   // Giro corpo - WT: 3 (2+1 bonus)
-  spinHead: number;   // Giro cabeça - WT: 4 (3+1 bonus)
+  spinBody: number;   // Giro corpo - WT 2026 (Wuxi jan): base (2) x 2 = 4
+  spinHead: number;   // Giro cabeça - WT 2026 (Wuxi jan): base (3) x 2 = 6
 }
 
 export const DEFAULT_SCORE_CONFIG: ScoreConfig = {
   punch: 1,
   body: 2,
   head: 3,
-  spinBody: 3,   // WT: chute giratório tronco = 2 + 1 bonus = 3
-  spinHead: 4,   // WT: chute giratório cabeça = 3 + 1 bonus = 4
+  // WT 2026 Wuxi amendment (efetivo 01/Jan/2026): formula muda de
+  // "base + 1 bonus" para "base x 2". Nova: spinBody=4, spinHead=6.
+  // Valores devem permanecer consistentes com WT_RULESET_PRESETS['WT-2026-JAN'].scoring.
+  spinBody: 4,
+  spinHead: 6,
 };
 
 export const SCORE_LABELS: Record<keyof ScoreConfig, string> = {
@@ -39,9 +44,23 @@ export interface MatchConfig {
   // Rules
   maxRounds: 1 | 3;
   maxGamjeom: number;       // WT: 10 - desclassificação por penalidades
-  pointGap: number;         // WT: 12 - vitória automática por gap de pontos
+  pointGap: number;         // Pts/round que encerram o round automaticamente. Vem do ruleset selecionado.
   tiebreakByHits?: boolean; // default true - use hits as tiebreaker when round score is tied
-  
+
+  /**
+   * Versao do regulamento WT em uso. Source of truth pros parametros que
+   * variam entre versoes (pointGap, scoring, gamjeomPassivityBonus).
+   *
+   * Default = 'WT-2026-JAN' (regra vigente ate 31/Mai/2026). Operador troca
+   * pra 'WT-2026-JUN' apos 01/Jun/2026 deliberadamente via dropdown.
+   * Sem auto-upgrade por data — sistema informa, operador decide.
+   *
+   * Configs persistidas em localStorage que NAO contem este campo
+   * (pre-v1.5.0) sao migradas pra 'CUSTOM' por migrateMatchConfig
+   * (Task A.3) — operador deve revisar antes de iniciar luta.
+   */
+  rulesetVersion: WTRulesetVersion;
+
   // Scoring values (configurable)
   scoring: ScoreConfig;
   
@@ -80,16 +99,23 @@ export interface MatchConfig {
 }
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
-  roundTimeMs: 120000,     // 2:00
-  medicalTimeMs: 60000,    // 1:00
-  breakTimeMs: 60000,      // 1:00
+  roundTimeMs: 120000,            // 2:00
+  medicalTimeMs: 60000,           // 1:00
+  breakTimeMs: 60000,              // 1:00
   maxRounds: 3,
-  maxGamjeom: 10,  // WT: 10 gam-jeom = desclassificação
-  pointGap: 12,    // WT: gap de 12 pontos = vitória automática
-  scoring: DEFAULT_SCORE_CONFIG,
+  maxGamjeom: 10,                  // WT: 10 gam-jeom = desclassificação (PUN — match end imediato)
+  // pointGap: consistente com WT_RULESET_PRESETS['WT-2026-JAN'].pointGap (12).
+  // Se mudar rulesetVersion, deve mudar pointGap junto pra manter coerencia
+  // (handler do dropdown em MatchConfigDialog faz isso automaticamente — Task A.5).
+  pointGap: 12,
+  scoring: DEFAULT_SCORE_CONFIG,   // {1, 2, 3, 4, 6} — consistente com WT-2026-JAN preset
   matId: 1,
+  rulesetVersion: 'WT-2026-JAN',   // regra vigente ate 31/Mai/2026; operador troca via UI
   scoringInput: 'impacts',
   impactThresholds: {
+    // Defaults baixos de bancada — operador AJUSTA via CalibrationWizardDialog
+    // ou MatchConfigDialog antes da luta. Stage D adiciona guardrail nao-bloqueante
+    // que avisa se threshold esta fora da faixa tipica da categoria.
     vestHitMin: 5,
     vestPointMin: 5,
     helmetHitMin: 3,
