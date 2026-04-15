@@ -28,6 +28,15 @@ export type WTRulesetVersion =
   | 'WT-LEGACY-2022'
   | 'CUSTOM';
 
+/**
+ * Contem APENAS campos que variam entre versoes WT.
+ *
+ * Campos constantes entre versoes (duracao de round, tempo medico, intervalo,
+ * regras de golden round, criterios de tiebreak, etc) vivem em MatchConfig.
+ *
+ * Antes de adicionar campo novo aqui, perguntar: "este valor muda entre versoes
+ * WT?" Se sim, vai em WTRuleset. Se nao, vai em MatchConfig.
+ */
 export interface WTRuleset {
   version: WTRulesetVersion;
   /** Diferencial de pontos que encerra o round automaticamente. */
@@ -67,7 +76,11 @@ export const WT_RULESET_PRESETS: Record<WTRulesetVersion, WTRuleset> = {
     version: 'WT-LEGACY-2022',
     pointGap: 12,
     maxGamjeom: 10,
-    scoring: { punch: 1, body: 2, head: 3, spinBody: 2, spinHead: 3 },
+    // Formula pre-2026: giro = base + 2 (bonus fixo).
+    //   body=2  -> spinBody=4
+    //   head=3  -> spinHead=5
+    // A partir de WT-2026-JAN a formula mudou para base x 2 (spinHead=6).
+    scoring: { punch: 1, body: 2, head: 3, spinBody: 4, spinHead: 5 },
     gamjeomPassivityBonus: 1,
     gamjeomPassivityWindowMs: 10_000,
   },
@@ -82,15 +95,16 @@ export const WT_RULESET_PRESETS: Record<WTRulesetVersion, WTRuleset> = {
 };
 
 /**
- * Retorna uma copia profunda do preset para que chamadores possam mutar
- * com seguranca sem afetar a fonte.
+ * Retorna uma copia profunda e totalmente independente do preset.
+ * Chamadores podem mutar o resultado sem afetar WT_RULESET_PRESETS.
+ *
+ * Usa structuredClone (ES2022) por a prova de regressao: se adicionarmos
+ * campos aninhados (Array, Map, objeto composto) no futuro, o contrato
+ * de independencia de referencia continua valido sem precisar ajustar
+ * esta funcao.
  */
 export function getRulesetPreset(version: WTRulesetVersion): WTRuleset {
-  const preset = WT_RULESET_PRESETS[version];
-  return {
-    ...preset,
-    scoring: { ...preset.scoring },
-  };
+  return structuredClone(WT_RULESET_PRESETS[version]);
 }
 
 /**

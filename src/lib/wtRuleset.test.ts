@@ -24,11 +24,13 @@ describe('WTRuleset presets', () => {
     expect(r.gamjeomPassivityBonus).toBe(1);
   });
 
-  it('WT-LEGACY-2022: pre-2026 scoring', () => {
+  it('WT-LEGACY-2022: spin = base + 2 (formula pre-2026)', () => {
     const r = getRulesetPreset('WT-LEGACY-2022');
     expect(r.pointGap).toBe(12);
-    expect(r.scoring.spinBody).toBe(2);
-    expect(r.scoring.spinHead).toBe(3);
+    expect(r.scoring.body).toBe(2);
+    expect(r.scoring.spinBody).toBe(4);  // 2 + 2
+    expect(r.scoring.head).toBe(3);
+    expect(r.scoring.spinHead).toBe(5);  // 3 + 2
     expect(r.gamjeomPassivityBonus).toBe(1);
   });
 
@@ -49,10 +51,20 @@ describe('WTRuleset presets', () => {
     }
   });
 
-  it('getRulesetPreset returns a deep-copy (mutating result does not alter the source)', () => {
-    const r = getRulesetPreset('WT-2026-JUN');
-    r.scoring.spinHead = 999;
-    const fresh = getRulesetPreset('WT-2026-JUN');
-    expect(fresh.scoring.spinHead).toBe(6);
+  it('returns a fully independent copy (no shared references)', () => {
+    // Contrato: mutar o resultado NAO pode vazar pra WT_RULESET_PRESETS.
+    // Testamos independencia de referencia, nao valores — assim o contrato
+    // continua valido se adicionarmos campos aninhados no futuro.
+    const original = WT_RULESET_PRESETS['WT-2026-JUN'];
+    const copy = getRulesetPreset('WT-2026-JUN');
+
+    // Top-level: preset e copia sao objetos distintos
+    expect(copy).not.toBe(original);
+    // Aninhado: scoring tambem nao pode ser a mesma referencia
+    expect(copy.scoring).not.toBe(original.scoring);
+
+    // Prova de isolamento: mutar copia nao altera o preset imutavel
+    copy.scoring.spinHead = 999;
+    expect(WT_RULESET_PRESETS['WT-2026-JUN'].scoring.spinHead).toBe(6);
   });
 });
