@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
@@ -119,6 +120,15 @@ function ChampionshipMatInner() {
       setShowConfigDialog(true);
     }
   }, [sync.hasConfig]);
+
+  // Hub query-param handoff: open overlay/dialog once on mount based on ?openHwTest / ?openConfig
+  const hubOpenHandledRef = useRef(false);
+  useEffect(() => {
+    if (hubOpenHandledRef.current) return;
+    hubOpenHandledRef.current = true;
+    if (searchParams.get('openHwTest') === '1') setShowHardwareTest(true);
+    if (searchParams.get('openConfig') === '1') setShowConfigDialog(true);
+  }, [searchParams]);
   
   // ─── onKick no-op (RAW mode removed — all scoring via ImpactDetector) ───
   const handleHardwareKick = useCallback((_side: Side, _hitType: HitType) => {
@@ -413,6 +423,9 @@ function ChampionshipMatInner() {
     }
     if (curr === 'ROUND_END' || curr === 'MATCH_END') {
       play('timeUp');
+    }
+    if (curr === 'MATCH_END') {
+      toast.success('Luta registrada!');
     }
 
     // Reset recording flag when starting a new match

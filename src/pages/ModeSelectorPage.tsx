@@ -237,7 +237,7 @@ export default function ModeSelectorPage() {
         <div className="flex gap-6 max-w-[780px] w-full">
           {/* BÁSICO */}
           <button
-            onClick={() => navigate('/championship/mat?mat=1&mode=basic')}
+            onClick={() => navigate('/championship/hub?mat=1&mode=basic')}
             className="group flex-1 relative overflow-hidden transition-all duration-500 hover:scale-[1.015] active:scale-[0.99]"
           >
             <div className="relative bg-[#0c0c12] border border-white/[0.04] overflow-hidden"

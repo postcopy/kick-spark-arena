@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>SPE Operator — fluxo completo</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<style>
+  html,body,#root{margin:0;padding:0;height:100%;}
+  body{background:#050508;font-family:Rajdhani, system-ui, sans-serif;color:#fff;}
+  @keyframes spe-blink-fast{0%,100%{filter:brightness(1)}50%{filter:brightness(1.6)}}
+  @keyframes spe-blink-slow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+  @keyframes spe-score-pop{0%{transform:scale(1)}40%{transform:scale(1.15)}100%{transform:scale(1)}}
+  @keyframes spe-float-up{0%{opacity:0;transform:translateY(20px) scale(.7)}20%{opacity:1}100%{opacity:0;transform:translateY(-60px) scale(1.1)}}
+  @keyframes spe-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  @keyframes spe-ring{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.4);opacity:0}}
+  @keyframes spe-toast-in{0%{transform:translateY(-24px) scale(.92);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
+  @keyframes spe-success-pop{0%{transform:scale(.5);opacity:0}50%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}}
+  .spe-crit-flash{animation: spe-blink-slow .5s infinite;}
+
+  /* Tweaks panel */
+  .tweaks{position:fixed;bottom:16px;right:16px;background:#0A0A0F;color:#fff;
+    border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:16px 18px;
+    font-family:Rajdhani;width:280px;display:none;z-index:9999;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);}
+  .tweaks.open{display:block;}
+  .tweaks h4{margin:0 0 10px;font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:#94A3B8;font-weight:700;}
+  .tweaks h5{margin:14px 0 6px;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#E11D48;font-weight:900;}
+  .tweaks label{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:12px;color:#fff;cursor:pointer;gap:10px;}
+  .tweaks input[type=checkbox]{accent-color:#E11D48;width:16px;height:16px;}
+  .tweaks input[type=number]{width:70px;background:#1a1a26;color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 8px;font-family:inherit;font-size:12px;text-align:right;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="tweaks" id="tweaks">
+  <h4>Tweaks</h4>
+  <label>Atalhos visíveis <input type="checkbox" id="tw-kbd" checked/></label>
+  <h5>Regras</h5>
+  <label>Rounds <input type="number" id="tw-rounds" min="1" max="5"/></label>
+  <label>Tempo / round (s) <input type="number" id="tw-rsec" min="30" max="180" step="5"/></label>
+  <h5>Pontos por golpe</h5>
+  <label>Cabeça <input type="number" id="tw-p-h" min="1" max="10"/></label>
+  <label>Corpo <input type="number" id="tw-p-b" min="1" max="10"/></label>
+  <label>Soco <input type="number" id="tw-p-p" min="1" max="10"/></label>
+  <label>Giro · cabeça <input type="number" id="tw-p-gh" min="1" max="10"/></label>
+  <label>Giro · corpo <input type="number" id="tw-p-gb" min="1" max="10"/></label>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="./shared.jsx"></script>
+<script type="text/babel" src="./config.jsx"></script>
+<script type="text/babel" src="./matches.jsx"></script>
+<script type="text/babel" src="./hardware.jsx"></script>
+<script type="text/babel" src="./hardware-test.jsx"></script>
+<script type="text/babel" src="./briefing.jsx"></script>
+<script type="text/babel" src="./operator.jsx"></script>
+<script type="text/babel" src="./tv.jsx"></script>
+<script type="text/babel" src="./result.jsx"></script>
+<script type="text/babel" src="./bracket.jsx"></script>
+<script type="text/babel" src="./quick.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+
+const TW_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "showKbd": true,
+  "rounds": 3,
+  "roundSecs": 90,
+  "pH": 3, "pB": 2, "pP": 1, "pGh": 5, "pGb": 4
+}/*EDITMODE-END*/;
+
+// HUB — tela inicial amigável. Linguagem humana, 3 botões grandes no topo.
+// Jargão técnico só aparece em "Mais opções" (colapsado).
+function Hub({ onNavigate, mode, setMode }) {
+  const [showMore, setShowMore] = useState(false);
+
+  // 3 ações principais — tudo que uma pessoa nova precisa no dia-a-dia.
+  // Linguagem humana, sem termos técnicos. Ícone + título curto + subtítulo explicativo.
+  const mainActions = [
+    {
+      key:'start', title:'Começar uma luta', sub:'Pega a próxima da fila e abre o placar.',
+      icon:'zap', color:'#10B981', big:true,
+      onClick:() => { setMode('quick'); onNavigate('quick'); toast.ok('Modo rápido iniciado. Boa luta!'); },
+    },
+    {
+      key:'equip', title:'Testar equipamento', sub:'Verifica capacete e colete dos dois atletas.',
+      icon:'stethoscope', color:'#06b6d4',
+      onClick:() => onNavigate('hwtest'),
+    },
+    {
+      key:'tv', title:'Mostrar na TV', sub:'Abre o placar grande para o público.',
+      icon:'monitor', color:'#8b5cf6',
+      onClick:() => onNavigate('tv'),
+    },
+  ];
+
+  // Opções avançadas — só para quem sabe o que está fazendo
+  const moreActions = [
+    { key:'config',   title:'Ajustar regras',        sub:'Rounds, tempo, pontos',              icon:'settings', color:'#3b82f6' },
+    { key:'matches',  title:'Ver todas as lutas',    sub:'Fila completa do dia',               icon:'list',     color:'#8b5cf6' },
+    { key:'hardware', title:'Conectar equipamento',  sub:'Parear capacetes e coletes',         icon:'bluetooth',color:'#06b6d4' },
+    { key:'briefing', title:'Apresentação formal',   sub:'Briefing pré-luta federado',         icon:'users',    color:'#f59e0b' },
+    { key:'result',   title:'Resultado da luta',     sub:'Tela de vencedor',                   icon:'trophy',   color:'#eab308' },
+    { key:'bracket',  title:'Chaveamento',           sub:'Bracket eliminatório',               icon:'flag',     color:'#ec4899' },
+  ];
+
+  return <div style={{width:1280, height:720, background:'linear-gradient(135deg, #0A0A0F 0%, #12121C 100%)', color:'#fff', fontFamily:FONT, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+    {/* Header limpo — só logo, sem v0.4 / jargão */}
+    <div style={{height:72, padding:'0 36px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid rgba(255,255,255,.06)', flexShrink:0}}>
+      <div style={{display:'flex', alignItems:'center', gap:16}}>
+        <img src="../assets/logo-spe-branca.png" style={{height:30}}/>
+        <div style={{height:30, width:1, background:'rgba(255,255,255,.15)'}}/>
+        <div>
+          <div style={{fontSize:17, fontWeight:700, color:'#fff', letterSpacing:'.01em', lineHeight:1.15}}>Olá! O que você quer fazer?</div>
+          <div style={{fontSize:11, color:'rgba(255,255,255,.5)', marginTop:3, letterSpacing:'.02em'}}>Mat 1 · Ginásio Municipal · Domingo</div>
+        </div>
+      </div>
+      <div style={{fontSize:11, fontWeight:700, letterSpacing:'.3em', color:'rgba(255,255,255,.4)'}}>SPE</div>
+    </div>
+
+    <div style={{flex:1, padding:'36px 48px', display:'flex', flexDirection:'column', gap:22, minHeight:0, overflow:'auto'}}>
+
+      {/* 3 ações principais */}
+      <div style={{display:'grid', gridTemplateColumns:'1.6fr 1fr 1fr', gap:14}}>
+        {mainActions.map(a => (
+          <button key={a.key} onClick={a.onClick}
+            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.borderColor=a.color;}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.borderColor='rgba(255,255,255,.1)';}}
+            style={{
+              background:`linear-gradient(145deg, ${a.color}20, ${a.color}05)`,
+              border:`2px solid rgba(255,255,255,.1)`,
+              borderRadius:18, padding: a.big ? '30px 30px' : '26px 22px',
+              display:'flex', flexDirection:'column', justifyContent:'space-between', gap:18,
+              cursor:'pointer', color:'#fff', fontFamily:FONT, textAlign:'left',
+              transition:'all .18s', minHeight: 220,
+            }}>
+            <div style={{
+              width: a.big ? 64 : 54, height: a.big ? 64 : 54, borderRadius:14,
+              background:`${a.color}33`, border:`1.5px solid ${a.color}88`,
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>
+              <Icon name={a.icon} size={a.big ? 32 : 28} color={a.color} strokeWidth={2.3}/>
+            </div>
+            <div>
+              <div style={{fontSize: a.big ? 28 : 22, fontWeight:700, color:'#fff', lineHeight:1.15}}>{a.title}</div>
+              <div style={{fontSize:13, color:'rgba(255,255,255,.65)', marginTop:8, lineHeight:1.45}}>{a.sub}</div>
+            </div>
+            <div style={{display:'flex', alignItems:'center', gap:6, color:a.color, fontSize:12, fontWeight:700, letterSpacing:'.18em'}}>
+              {a.big ? 'TOCAR PARA COMEÇAR' : 'ABRIR'} <Icon name="arrowRight" size={14}/>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Mais opções — colapsável */}
+      <div>
+        <button onClick={()=>setShowMore(v=>!v)} style={{
+          background:'transparent', border:'none', color:'rgba(255,255,255,.65)',
+          fontFamily:FONT, fontSize:13, fontWeight:600, letterSpacing:'.02em',
+          display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'6px 0',
+        }}>
+          <div style={{width:22, height:22, borderRadius:6, background:'rgba(255,255,255,.06)', display:'flex', alignItems:'center', justifyContent:'center', transition:'transform .2s', transform: showMore?'rotate(90deg)':'rotate(0)'}}>
+            <Icon name="chevronRight" size={14}/>
+          </div>
+          {showMore ? 'Esconder opções avançadas' : 'Mais opções (avançado)'}
+        </button>
+
+        {showMore && <div style={{
+          display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10,
+          marginTop:14, animation:'spe-toast-in .2s',
+        }}>
+          {moreActions.map(it => (
+            <button key={it.key} onClick={()=>onNavigate(it.key)}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=it.color;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.08)';}}
+              style={{
+                background:'rgba(255,255,255,.03)',
+                border:'1px solid rgba(255,255,255,.08)',
+                borderRadius:12, padding:'14px 16px',
+                display:'flex', alignItems:'center', gap:12,
+                textAlign:'left', cursor:'pointer', color:'#fff', fontFamily:FONT,
+                transition:'border-color .15s',
+              }}>
+              <div style={{width:38, height:38, borderRadius:10, background:`${it.color}22`, border:`1px solid ${it.color}55`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+                <Icon name={it.icon} size={18} color={it.color} strokeWidth={2.2}/>
+              </div>
+              <div style={{minWidth:0, flex:1}}>
+                <div style={{fontSize:14, fontWeight:700, color:'#fff'}}>{it.title}</div>
+                <div style={{fontSize:11, color:'rgba(255,255,255,.55)', marginTop:2}}>{it.sub}</div>
+              </div>
+            </button>
+          ))}
+        </div>}
+      </div>
+    </div>
+  </div>;
+}
+
+function App(){
+  const [tw, setTw] = React.useState(()=>({...TW_DEFAULTS, ...(JSON.parse(localStorage.getItem('spe-tw-v2')||'{}'))}));
+  const [screen, setScreen] = React.useState(()=> localStorage.getItem('spe-screen') || 'hub');
+  const [mode, setMode] = React.useState(()=> localStorage.getItem('spe-mode') || 'quick');
+  React.useEffect(()=>{ localStorage.setItem('spe-mode', mode); }, [mode]);
+  const match = useMatchStore();
+  const { rules, setRules } = match;
+
+  React.useEffect(()=>{ localStorage.setItem('spe-tw-v2', JSON.stringify(tw)); }, [tw]);
+  React.useEffect(()=>{ localStorage.setItem('spe-screen', screen); }, [screen]);
+
+  // sync tweaks → rules
+  React.useEffect(()=>{
+    setRules(r => ({
+      ...r,
+      rounds: tw.rounds,
+      roundSecs: tw.roundSecs,
+      pts: { h:tw.pH, b:tw.pB, p:tw.pP, gh:tw.pGh, gb:tw.pGb },
+    }));
+  }, [tw.rounds, tw.roundSecs, tw.pH, tw.pB, tw.pP, tw.pGh, tw.pGb]);
+
+  // tweak panel wiring
+  React.useEffect(()=>{
+    const onMsg = (e) => {
+      if (e.data?.type === '__activate_edit_mode')   document.getElementById('tweaks').classList.add('open');
+      if (e.data?.type === '__deactivate_edit_mode') document.getElementById('tweaks').classList.remove('open');
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({type:'__edit_mode_available'}, '*');
+
+    const bind = (id, key, parse=v=>v) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type==='checkbox') el.checked = tw[key];
+      else el.value = tw[key];
+      const handler = () => {
+        const v = el.type==='checkbox' ? el.checked : parse(el.value);
+        setTw(t => ({...t, [key]:v}));
+        window.parent.postMessage({type:'__edit_mode_set_keys', edits:{[key]:v}}, '*');
+      };
+      el.onchange = handler; el.oninput = handler;
+    };
+    bind('tw-kbd','showKbd');
+    bind('tw-rounds','rounds', v=>+v);
+    bind('tw-rsec','roundSecs', v=>+v);
+    bind('tw-p-h','pH', v=>+v);
+    bind('tw-p-b','pB', v=>+v);
+    bind('tw-p-p','pP', v=>+v);
+    bind('tw-p-gh','pGh', v=>+v);
+    bind('tw-p-gb','pGb', v=>+v);
+
+    return ()=>window.removeEventListener('message', onMsg);
+  }, []);
+
+  const nav = (k) => setScreen(k);
+
+  // render screen
+  const screens = {
+    hub:      <Hub onNavigate={nav} mode={mode} setMode={setMode}/>,
+    quick:    <QuickMode match={match} rules={rules} showKbd={tw.showKbd}
+                onExit={()=>nav('hub')}
+                onOpenConfig={()=>nav('config')}
+                onOpenTV={()=>nav('tv')}
+                onOpenBracket={()=>nav('bracket')}/>,
+    config:   <ConfigScreen rules={rules} setRules={setRules} onNavigate={nav}/>,
+    matches:  <MatchesScreen onNavigate={nav}/>,
+    hardware: <HardwareScreen onNavigate={nav}/>,
+    hwtest:   <HardwareTestScreen onNavigate={nav} rules={rules}/>,
+    briefing: <BriefingScreen onNavigate={nav} rules={rules}/>,
+    operator: <OperatorScreen match={match} onNavigate={nav} rules={rules} showKbd={tw.showKbd} onEnd={()=>nav('result')}/>,
+    tv:       <TVScreen match={match} onNavigate={nav} rules={rules}/>,
+    result:   <ResultScreen match={match} onNavigate={nav} rules={rules}/>,
+    bracket:  <BracketScreen onNavigate={nav}/>,
+  };
+
+  // Fit 1280×720 on viewport
+  const [scale, setScale] = React.useState(1);
+  React.useEffect(()=>{
+    const fit = () => {
+      const s = Math.min(window.innerWidth/1280, window.innerHeight/720);
+      setScale(Math.min(1, s));
+    };
+    fit(); window.addEventListener('resize', fit);
+    return ()=>window.removeEventListener('resize', fit);
+  }, []);
+
+  return <div style={{width:'100vw', height:'100vh', background:'#050508', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden'}}>
+    <div style={{width:1280, height:720, transform:`scale(${scale})`, transformOrigin:'center center', boxShadow:'0 20px 80px rgba(0,0,0,.5)', borderRadius:12, overflow:'hidden', position:'relative'}}>
+      {screens[screen] || screens.hub}
+
+      {/* Toast host — feedback global de sucesso/erro */}
+      <ToastHost/>
+
+      {/* Tiny nav hint — oculto em telas que já possuem botão HUB/home próprio */}
+      {!['hub','quick','operator','tv'].includes(screen) && <button onClick={()=>nav('hub')} style={{
+        position:'absolute', bottom:14, right:14, zIndex:200,
+        background:'rgba(10,10,15,.85)', color:'#fff',
+        border:'1px solid rgba(255,255,255,.15)', borderRadius:8,
+        padding:'6px 10px', fontFamily:FONT, fontSize:10, fontWeight:700, letterSpacing:'.2em',
+        display:'flex', alignItems:'center', gap:6, cursor:'pointer',
+        backdropFilter:'blur(6px)',
+      }}><Icon name="home" size={12}/> HUB</button>}
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

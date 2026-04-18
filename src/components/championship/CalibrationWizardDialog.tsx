@@ -18,6 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { AlertTriangle, Check, Zap } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { CalibrationWizardState, HardwareThresholds, ImpactEvent } from '@/types/hardwareDiagnostics';
 
@@ -346,7 +347,10 @@ export function CalibrationWizardDialog({
                 DESCARTAR
               </Button>
               <Button
-                onClick={onApply}
+                onClick={() => {
+                  onApply();
+                  toast.success('Calibração concluída!');
+                }}
                 disabled={!wizard.suggestedThresholds}
                 className="flex-1 bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white font-bold"
               >

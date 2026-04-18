@@ -190,7 +190,7 @@ export default function HelpPage() {
                 <KeyBadge>A / L</KeyBadge> <span className="text-sm">Gam-jeom Verm. / Azul</span>
               </div>
               <div className="flex items-center gap-2">
-                <KeyBadge>R</KeyBadge> <span className="text-sm">Resetar round</span>
+                <KeyBadge>R</KeyBadge> <span className="text-sm">Zerar round</span>
               </div>
             </div>
 

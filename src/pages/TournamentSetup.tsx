@@ -23,6 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import {
@@ -525,14 +526,38 @@ function CategoryRow({
             <Shuffle className="h-3 w-3 mr-1" />
             Gerar Chave
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onRemoveCategory}
-            className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-white">Excluir categoria?</AlertDialogTitle>
+                <AlertDialogDescription className="text-zinc-400">
+                  {category.athletes.length > 0
+                    ? `${category.athletes.length} atleta${category.athletes.length > 1 ? 's' : ''} e a chave gerada serão perdidos.`
+                    : 'Esta categoria será removida.'}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+                  Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={onRemoveCategory}
+                  className="bg-red-600 hover:bg-red-500 text-white"
+                >
+                  Sim, excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 

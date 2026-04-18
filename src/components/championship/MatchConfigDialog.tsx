@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,9 +24,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Save, RotateCcw, AlertTriangle } from 'lucide-react';
-import { 
-  MatchConfig, 
-  DEFAULT_MATCH_CONFIG, 
+import { toast } from 'sonner';
+import {
+  MatchConfig,
+  DEFAULT_MATCH_CONFIG,
   DEFAULT_SCORE_CONFIG,
   SCORE_LABELS,
 } from '@/types/championship';
@@ -39,17 +50,31 @@ export function MatchConfigDialog({
 }: MatchConfigDialogProps) {
   const [config, setConfig] = useState<MatchConfig>(currentConfig);
   const [activeTab, setActiveTab] = useState('time');
-  
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+
   // Sync config when dialog opens
   useEffect(() => {
     if (open) {
       setConfig(currentConfig);
     }
   }, [open, currentConfig]);
-  
+
+  const isDirty = JSON.stringify(config) !== JSON.stringify(currentConfig);
+
+  const requestClose = () => {
+    if (isDirty) setShowDiscardDialog(true);
+    else onOpenChange(false);
+  };
+
+  const handleDiscard = () => {
+    setShowDiscardDialog(false);
+    onOpenChange(false);
+  };
+
   const handleSave = () => {
     onSave(config);
     onOpenChange(false);
+    toast.success('Regras salvas!');
   };
   
   const formatMsToMinSec = (ms: number) => {
@@ -79,7 +104,13 @@ export function MatchConfigDialog({
   };
   
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) requestClose();
+        else onOpenChange(true);
+      }}
+    >
       <DialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))] p-0 max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
         <DialogHeader className="px-4 pt-4 pb-2 shrink-0">
           <DialogTitle className="text-white text-lg font-bold flex items-center gap-2">
@@ -693,7 +724,7 @@ export function MatchConfigDialog({
         <div className="shrink-0 p-4 border-t border-[hsl(var(--sulsport-gray))] bg-[hsl(var(--sulsport-dark))] flex gap-3 justify-end">
           <Button
             variant="ghost"
-            onClick={() => onOpenChange(false)}
+            onClick={requestClose}
             className="text-zinc-400 hover:text-white"
           >
             Cancelar
@@ -708,6 +739,28 @@ export function MatchConfigDialog({
           </Button>
         </div>
       </DialogContent>
+
+      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Descartar mudanças?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              As alterações não serão salvas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+              Continuar editando
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDiscard}
+              className="bg-red-600 hover:bg-red-500 text-white"
+            >
+              Sim, descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

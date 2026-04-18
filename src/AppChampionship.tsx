@@ -17,6 +17,7 @@ import ImmersiveTitleBar from "./components/layout/ImmersiveTitleBar";
 import { UpdateNotification } from "./components/UpdateNotification";
 
 const ChampionshipMat = lazy(() => import('./pages/ChampionshipMat'));
+const ChampionshipHub = lazy(() => import('./pages/ChampionshipHub'));
 const ChampionshipTV = lazy(() => import('./pages/ChampionshipTV'));
 const TournamentSetup = lazy(() => import('./pages/TournamentSetup'));
 const CentralPage = lazy(() => import('./pages/CentralPage'));
@@ -58,6 +59,7 @@ const AppChampionship = () => (
                         <Route path="/" element={<ModeSelectorPage />} />
                         <Route path="/professional" element={<ProfessionalSelectorPage />} />
                         <Route path="/central" element={<CentralPage />} />
+                        <Route path="/championship/hub" element={<ChampionshipHub />} />
                         <Route path="/championship/mat" element={<ChampionshipMat />} />
                         <Route path="/championship/tv" element={<ChampionshipTV />} />
                         <Route path="/championship/tournament" element={<TournamentSetup />} />

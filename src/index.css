@@ -884,3 +884,9 @@
   0% { opacity: 0.3; }
   100% { opacity: 0; }
 }
+
+/* Hardware test verify ripple */
+@keyframes spe-ring {
+  0%   { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
