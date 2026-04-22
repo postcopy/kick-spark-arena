@@ -16,6 +16,7 @@ import {
 import type { ChampionshipSyncMessage } from '@/types/championship';
 import { useRealtimeSync } from './useRealtimeSync';
 import { supabase } from '@/integrations/supabase/client';
+import { migrateMatchConfig } from '@/lib/matchConfigMigration';
 
 // Maximum events to keep in history
 const MAX_EVENTS = 500;
@@ -95,7 +96,9 @@ export function useChampionshipSync({
       if (stored) {
         try {
           const parsed = JSON.parse(stored) as Partial<MatchState>;
-          // Migrate: older builds didn't persist roundHistoryRed/Blue
+          // Migrate config aninhado (WT ruleset, pre-v1.5.0 sem rulesetVersion).
+          if (parsed?.config) parsed.config = migrateMatchConfig(parsed.config);
+          // Migrate: older builds didn't persist roundHistoryRed/Blue.
           return {
             ...INITIAL_MATCH_STATE,
             ...parsed,
@@ -289,6 +292,8 @@ export function useChampionshipSync({
       if (stored) {
         try {
           const parsed = JSON.parse(stored) as Partial<MatchState>;
+          // Migrate config aninhado (mesma justificativa do useState init acima).
+          if (parsed?.config) parsed.config = migrateMatchConfig(parsed.config);
           setState({
             ...INITIAL_MATCH_STATE,
             ...parsed,
