@@ -1,204 +1,14 @@
 // Mode Selector — SPE Sulsport Home
-// EA-style cinematic intro with sound → premium mode selector
+// Menu direto: BÁSICO × PROFISSIONAL.
 
-import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logoSpe from '@/assets/logo-spe-branca.png';
-import openingSound from '@/assets/opening-9sec.mp3';
-
-type Phase = 'black' | 'logo-in' | 'tagline' | 'flash' | 'menu';
 
 export default function ModeSelectorPage() {
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<Phase>('black');
-  const [skipTransition, setSkipTransition] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Skip intro on click/key during animation
-  const skipIntro = useCallback(() => {
-    if (phase === 'menu') return;
-    // Stop audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    setSkipTransition(true);
-    setPhase('menu');
-    sessionStorage.setItem('spe_intro_done', '1');
-  }, [phase]);
-
-  useEffect(() => {
-    // Check if intro was already shown this session
-    if (sessionStorage.getItem('spe_intro_done')) {
-      setSkipTransition(true);
-      setPhase('menu');
-      return;
-    }
-
-    // Play opening sound
-    const audio = new Audio(openingSound);
-    audio.volume = 0.7;
-    audioRef.current = audio;
-    audio.play().catch(() => {
-      // Autoplay blocked — continue silently
-    });
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    // Phase sequence synced to ~9s audio:
-    // 0ms      → black (silence builds)
-    // 800ms    → logo-in (logo fades in with ambient glow)
-    // 3500ms   → tagline (text + light streak)
-    // 7200ms   → flash (bright flash transition)
-    // 8200ms   → menu (cards slide in, audio ends ~9s)
-    timers.push(setTimeout(() => setPhase('logo-in'), 800));
-    timers.push(setTimeout(() => setPhase('tagline'), 3500));
-    timers.push(setTimeout(() => setPhase('flash'), 7200));
-    timers.push(setTimeout(() => {
-      setPhase('menu');
-      sessionStorage.setItem('spe_intro_done', '1');
-    }, 8200));
-
-    return () => {
-      timers.forEach(clearTimeout);
-      audio.pause();
-      audio.currentTime = 0;
-    };
-  }, []);
-
-  // Listen for skip events
-  useEffect(() => {
-    const handler = () => skipIntro();
-    window.addEventListener('click', handler);
-    window.addEventListener('keydown', handler);
-    return () => {
-      window.removeEventListener('click', handler);
-      window.removeEventListener('keydown', handler);
-    };
-  }, [skipIntro]);
-
-  const isIntro = phase !== 'menu';
 
   return (
     <div className="min-h-screen bg-[#030305] flex flex-col relative overflow-hidden select-none">
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* INTRO CINEMATIC OVERLAY                        */}
-      {/* ═══════════════════════════════════════════════ */}
-      {isIntro && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#030305]">
-          {/* Ambient radial light behind logo */}
-          <div
-            className="absolute transition-all duration-[2500ms] ease-out"
-            style={{
-              width: 700,
-              height: 700,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(225,29,72,0.10) 0%, rgba(225,29,72,0.04) 40%, transparent 70%)',
-              opacity: phase === 'logo-in' || phase === 'tagline' ? 1 : 0,
-              transform: phase === 'tagline' ? 'scale(1.4)' : 'scale(0.7)',
-            }}
-          />
-
-          {/* Secondary warm glow */}
-          <div
-            className="absolute transition-all duration-[3000ms] ease-out"
-            style={{
-              width: 500,
-              height: 500,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(180,140,40,0.06) 0%, transparent 60%)',
-              opacity: phase === 'tagline' ? 1 : 0,
-              transform: phase === 'tagline' ? 'scale(1.2) translateY(-20px)' : 'scale(0.5)',
-            }}
-          />
-
-          {/* Horizontal light streak */}
-          <div
-            className="absolute h-[1px] transition-all ease-out"
-            style={{
-              width: phase === 'tagline' || phase === 'flash' ? 600 : 0,
-              background: 'linear-gradient(90deg, transparent, rgba(225,29,72,0.4), rgba(255,255,255,0.7), rgba(225,29,72,0.4), transparent)',
-              opacity: phase === 'flash' ? 0 : 0.8,
-              transitionDuration: phase === 'flash' ? '400ms' : '1800ms',
-            }}
-          />
-
-          {/* Logo */}
-          <div className="relative flex flex-col items-center">
-            <img
-              src={logoSpe}
-              alt="SPE Sulsport"
-              className="relative"
-              style={{
-                height: 80,
-                willChange: 'transform, opacity',
-                opacity: phase === 'black' ? 0 : phase === 'flash' ? 0 : 1,
-                transform:
-                  phase === 'black' ? 'scale(0.6) translateY(15px)' :
-                  phase === 'logo-in' ? 'scale(1) translateY(0)' :
-                  phase === 'tagline' ? 'scale(1.04) translateY(0)' :
-                  'scale(1.15) translateY(0)',
-                transition: `opacity ${phase === 'flash' ? '400ms' : '1800ms'} ease-out, transform ${phase === 'flash' ? '400ms' : '1800ms'} ease-out`,
-              }}
-            />
-            {/* Glow effect behind logo (separate element to avoid filter jitter) */}
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-              style={{
-                width: 200,
-                height: 200,
-                borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(225,29,72,0.35) 0%, rgba(225,29,72,0.12) 40%, transparent 70%)',
-                opacity: phase === 'tagline' ? 1 : phase === 'logo-in' ? 0.3 : 0,
-                transform: phase === 'tagline' ? 'scale(1.5)' : 'scale(0.8)',
-                transition: `opacity ${phase === 'flash' ? '400ms' : '2000ms'} ease-out, transform ${phase === 'flash' ? '400ms' : '2000ms'} ease-out`,
-                willChange: 'transform, opacity',
-              }}
-            />
-
-            {/* Tagline reveal */}
-            <div
-              className="mt-7 flex items-center gap-4 transition-all ease-out"
-              style={{
-                opacity: phase === 'tagline' ? 1 : 0,
-                transform: phase === 'tagline' ? 'translateY(0)' : 'translateY(10px)',
-                transitionDuration: '1000ms',
-                transitionDelay: phase === 'tagline' ? '300ms' : '0ms',
-              }}
-            >
-              <div className="w-14 h-px bg-gradient-to-r from-transparent to-white/25" />
-              <span className="text-sm text-white/50 tracking-[0.5em] uppercase font-light">
-                Eventos Profissionais
-              </span>
-              <div className="w-14 h-px bg-gradient-to-l from-transparent to-white/25" />
-            </div>
-          </div>
-
-          {/* Flash overlay */}
-          <div
-            className="absolute inset-0 bg-white pointer-events-none transition-opacity"
-            style={{
-              opacity: phase === 'flash' ? 0.08 : 0,
-              transitionDuration: '500ms',
-            }}
-          />
-
-          {/* Skip hint */}
-          <div
-            className="absolute bottom-8 transition-opacity duration-[1500ms]"
-            style={{ opacity: phase === 'tagline' ? 0.35 : 0 }}
-          >
-            <span className="text-xs text-zinc-500 tracking-[0.3em] uppercase">
-              Pressione para continuar
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* MAIN MENU (fades in after intro)               */}
-      {/* ═══════════════════════════════════════════════ */}
 
       {/* Atmospheric background */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,80,40,0.12),transparent)]" />
@@ -208,15 +18,8 @@ export default function ModeSelectorPage() {
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }} />
 
-      {/* Content — slides up into view */}
-      <div
-        className="relative z-10 flex flex-col items-center justify-center flex-1 px-6"
-        style={{
-          opacity: phase === 'menu' ? 1 : 0,
-          transform: phase === 'menu' ? 'translateY(0)' : 'translateY(30px)',
-          transition: skipTransition ? 'none' : 'opacity 800ms ease-out, transform 800ms ease-out',
-        }}
-      >
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-6">
         {/* Logo block */}
         <div className="flex flex-col items-center mb-20">
           <img
@@ -295,13 +98,7 @@ export default function ModeSelectorPage() {
       </div>
 
       {/* Footer */}
-      <div
-        className="relative z-10 flex justify-center pb-6"
-        style={{
-          opacity: phase === 'menu' ? 1 : 0,
-          transition: skipTransition ? 'none' : 'opacity 800ms ease-out 200ms',
-        }}
-      >
+      <div className="relative z-10 flex justify-center pb-6">
         <span className="text-zinc-600 text-xs tracking-[0.3em]">v1.0.0</span>
       </div>
     </div>

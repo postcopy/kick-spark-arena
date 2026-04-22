@@ -120,6 +120,11 @@ export interface MatchState {
   roundScoreRed: number;
   roundScoreBlue: number;
 
+  // Snapshot of scores per finished round (index 0 = round 1, etc.)
+  // Populated when transitioning from a round to the next (nextRound/endMatch).
+  roundHistoryRed: number[];
+  roundHistoryBlue: number[];
+
   // Hit counters (reset each round) - for statistics and tiebreak
   hitsRed: number;
   hitsBlue: number;
@@ -161,6 +166,8 @@ export const INITIAL_MATCH_STATE: MatchState = {
   timeLeftMs: 120000,
   roundScoreRed: 0,
   roundScoreBlue: 0,
+  roundHistoryRed: [],
+  roundHistoryBlue: [],
   hitsRed: 0,
   hitsBlue: 0,
   roundWinsRed: 0,

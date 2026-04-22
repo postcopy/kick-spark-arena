@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { MatchConfigDialog } from '@/components/championship/MatchConfigDialog';
 import { HelpDialog } from '@/components/championship/HelpDialog';
 import { HardwareTestOverlay } from '@/components/championship/HardwareTestOverlay';
+import { QuickMatchLayout } from '@/components/championship/QuickMatchLayout';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, HelpCircle, Wifi } from 'lucide-react';
 import logoSpe from '@/assets/logo-spe-branca.png';
@@ -81,6 +82,7 @@ function ChampionshipMatInner() {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [showQuickExitDialog, setShowQuickExitDialog] = useState(false);
   const [showDebugOverlay, setShowDebugOverlay] = useState(false);
   const tvWindowRef = useRef<Window | null>(null);
 
@@ -459,7 +461,7 @@ function ChampionshipMatInner() {
       // Ignore when focus is on form elements
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return;
       // Ignore when any dialog is open
-      if (showConfigDialog || showResetDialog || showHelpDialog || showExitDialog) return;
+      if (showConfigDialog || showResetDialog || showHelpDialog || showExitDialog || showQuickExitDialog) return;
 
       const status = sync.state.status;
 
@@ -673,6 +675,28 @@ function ChampionshipMatInner() {
       </div>
       )}
 
+      {isBasicMode ? (
+        <QuickMatchLayout
+          state={sync.state}
+          actions={sync}
+          serialPortConnected={serialPort.isConnected}
+          serialPortConnecting={serialPort.isConnecting}
+          onConnectUsb={() => { if (!serialPort.isConnected) serialPort.connect(); }}
+          hwFlash={hwFlash}
+          blockedImpactWarning={blockedImpactWarning && serialPort.isConnected && sync.state.status !== 'RUNNING'}
+          onOpenTV={handleOpenTV}
+          onOpenConfig={() => setShowConfigDialog(true)}
+          onOpenHardwareTest={handleOpenHardwareTest}
+          onOpenHelp={() => setShowHelpDialog(true)}
+          onBack={() => {
+            if (sync.state.status === 'RUNNING') setShowQuickExitDialog(true);
+            else navigate(`/championship/hub?mat=${matId}&mode=basic`);
+          }}
+          matId={matId}
+          isTVOpen={isTVOpen}
+        />
+      ) : (
+      <>
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header (h-10) */}
@@ -841,6 +865,8 @@ function ChampionshipMatInner() {
         onOpenHardwareTest={handleOpenHardwareTest}
         isTVOpen={isTVOpen}
       />
+      </>
+      )}
 
       {/* Config Dialog */}
       <MatchConfigDialog
@@ -892,6 +918,29 @@ function ChampionshipMatInner() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => navigate('/professional')}
+              className="bg-red-600 hover:bg-red-500 text-white"
+            >
+              Sair
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Exit Confirmation Dialog — BASIC mode (goes to Hub) */}
+      <AlertDialog open={showQuickExitDialog} onOpenChange={setShowQuickExitDialog}>
+        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Sair da Luta?</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400">
+              A luta está em andamento. Se sair agora, o progresso será perdido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+              Continuar Luta
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => navigate(`/championship/hub?mat=${matId}&mode=basic`)}
               className="bg-red-600 hover:bg-red-500 text-white"
             >
               Sair

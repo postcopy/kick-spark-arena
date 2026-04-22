@@ -94,7 +94,15 @@ export function useChampionshipSync({
       const stored = localStorage.getItem(getStorageKey(matId));
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored) as Partial<MatchState>;
+          // Migrate: older builds didn't persist roundHistoryRed/Blue
+          return {
+            ...INITIAL_MATCH_STATE,
+            ...parsed,
+            roundHistoryRed: Array.isArray(parsed.roundHistoryRed) ? parsed.roundHistoryRed : [],
+            roundHistoryBlue: Array.isArray(parsed.roundHistoryBlue) ? parsed.roundHistoryBlue : [],
+            events: Array.isArray(parsed.events) ? parsed.events : [],
+          };
         } catch { /* ignore */ }
       }
     }
@@ -280,7 +288,14 @@ export function useChampionshipSync({
       const stored = localStorage.getItem(getStorageKey(matId));
       if (stored) {
         try {
-          setState(JSON.parse(stored));
+          const parsed = JSON.parse(stored) as Partial<MatchState>;
+          setState({
+            ...INITIAL_MATCH_STATE,
+            ...parsed,
+            roundHistoryRed: Array.isArray(parsed.roundHistoryRed) ? parsed.roundHistoryRed : [],
+            roundHistoryBlue: Array.isArray(parsed.roundHistoryBlue) ? parsed.roundHistoryBlue : [],
+            events: Array.isArray(parsed.events) ? parsed.events : [],
+          });
           setIsConnected(true);
         } catch { /* ignore */ }
       }
@@ -408,6 +423,12 @@ export function useChampionshipSync({
     const newWinsBlue = winner === 'BLUE' ? prev.roundWinsBlue + 1 : prev.roundWinsBlue;
     const winsNeeded = prev.config.maxRounds === 1 ? 1 : 2;
 
+    // Snapshot the current round score into history (once per round)
+    const historyLen = prev.roundHistoryBlue.length;
+    const shouldSnapshot = historyLen < prev.round;
+    const nextHistoryRed = shouldSnapshot ? [...prev.roundHistoryRed, prev.roundScoreRed] : prev.roundHistoryRed;
+    const nextHistoryBlue = shouldSnapshot ? [...prev.roundHistoryBlue, prev.roundScoreBlue] : prev.roundHistoryBlue;
+
     // Golden round win -> always MATCH_END
     if (prev.isGoldenRound) {
       return {
@@ -417,6 +438,8 @@ export function useChampionshipSync({
         isGoldenRound: false,
         roundWinsRed: newWinsRed,
         roundWinsBlue: newWinsBlue,
+        roundHistoryRed: nextHistoryRed,
+        roundHistoryBlue: nextHistoryBlue,
         events: [createEvent(eventType, description, winner), ...prev.events].slice(0, MAX_EVENTS),
       };
     }
@@ -440,6 +463,8 @@ export function useChampionshipSync({
       status: isMatchOver ? 'MATCH_END' : 'ROUND_END',
       roundWinsRed: newWinsRed,
       roundWinsBlue: newWinsBlue,
+      roundHistoryRed: nextHistoryRed,
+      roundHistoryBlue: nextHistoryBlue,
       isBreakTime: hasMoreRounds ? true : undefined,
       breakTimeLeftMs: hasMoreRounds ? prev.config.breakTimeMs : undefined,
       events: [createEvent(eventType, description, winner), ...prev.events].slice(0, MAX_EVENTS),
@@ -537,6 +562,8 @@ export function useChampionshipSync({
             timeLeftMs: prev.config.roundTimeMs,
             roundScoreRed: 0,
             roundScoreBlue: 0,
+            roundHistoryRed: [...prev.roundHistoryRed, prev.roundScoreRed],
+            roundHistoryBlue: [...prev.roundHistoryBlue, prev.roundScoreBlue],
             hitsRed: 0,
             hitsBlue: 0,
             gamjeomRed: prev.gamjeomRed,
@@ -767,6 +794,8 @@ export function useChampionshipSync({
           timeLeftMs: prev.config.roundTimeMs,
           roundScoreRed: 0,
           roundScoreBlue: 0,
+          roundHistoryRed: [...prev.roundHistoryRed, prev.roundScoreRed],
+          roundHistoryBlue: [...prev.roundHistoryBlue, prev.roundScoreBlue],
           hitsRed: 0,
           hitsBlue: 0,
           gamjeomRed: prev.gamjeomRed,
@@ -793,6 +822,8 @@ export function useChampionshipSync({
         timeLeftMs: prev.config.roundTimeMs,
         roundScoreRed: 0,
         roundScoreBlue: 0,
+        roundHistoryRed: [...prev.roundHistoryRed, prev.roundScoreRed],
+        roundHistoryBlue: [...prev.roundHistoryBlue, prev.roundScoreBlue],
         hitsRed: 0,
         hitsBlue: 0,
         gamjeomRed: prev.gamjeomRed,
@@ -815,9 +846,14 @@ export function useChampionshipSync({
     saveToHistory(state);
     
     setState(prev => {
+      // Snapshot current round score into history if it wasn't yet (e.g. ending mid-round)
+      const historyLen = prev.roundHistoryBlue.length;
+      const shouldSnapshot = historyLen < prev.round;
       const newState: MatchState = {
         ...prev,
         status: 'MATCH_END',
+        roundHistoryRed: shouldSnapshot ? [...prev.roundHistoryRed, prev.roundScoreRed] : prev.roundHistoryRed,
+        roundHistoryBlue: shouldSnapshot ? [...prev.roundHistoryBlue, prev.roundScoreBlue] : prev.roundHistoryBlue,
         events: [createEvent('MATCH_END', 'Luta encerrada'), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
