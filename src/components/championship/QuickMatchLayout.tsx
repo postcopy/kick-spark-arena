@@ -174,6 +174,8 @@ export function QuickMatchLayout({
 
   const isRunning = state.status === 'RUNNING';
   const isMatchEnd = state.status === 'MATCH_END';
+  const isRoundEnd = state.status === 'ROUND_END';
+  const isBreak = isRoundEnd && !!state.isBreakTime;
 
   // Auto-open result modal on MATCH_END (including initial mount)
   const prevStatusRef = useRef<MatchState['status'] | null>(null);
@@ -192,8 +194,12 @@ export function QuickMatchLayout({
   const leading: 'BLUE' | 'RED' | null =
     blueScore > redScore ? 'BLUE' : redScore > blueScore ? 'RED' : null;
 
-  const timerSeconds = Math.max(0, Math.ceil(state.timeLeftMs / 1000));
-  const totalSeconds = Math.max(1, Math.round(state.config.roundTimeMs / 1000));
+  // Durante intervalo, o ring exibe o countdown do break (operador precisa
+  // ver que a luta esta em intervalo, nao um 0:00 estatico confuso).
+  const displayMs = isBreak ? (state.breakTimeLeftMs || 0) : state.timeLeftMs;
+  const displayTotal = isBreak ? (state.config.breakTimeMs || 60000) : state.config.roundTimeMs;
+  const timerSeconds = Math.max(0, Math.ceil(displayMs / 1000));
+  const totalSeconds = Math.max(1, Math.round(displayTotal / 1000));
   const critical = timerSeconds <= 10 && isRunning;
 
   // Fallback vazio — o topo do painel já exibe "CHUNG"/"HONG" como label.
@@ -248,6 +254,7 @@ export function QuickMatchLayout({
 
   const handleToggleRun = () => {
     if (isRunning) actions.pauseTimer();
+    else if (isRoundEnd) actions.nextRound();
     else if (!isMatchEnd) actions.startTimer();
   };
 
@@ -496,10 +503,13 @@ export function QuickMatchLayout({
           {/* Center: timer + controls */}
           <div className="w-[230px] flex flex-col gap-2.5 shrink-0">
             <div className="bg-black rounded-2xl border border-white/10 p-3 flex flex-col items-center gap-1.5">
-              <div className="text-[9px] font-bold tracking-[0.28em] text-white/55">
-                ROUND {state.round}/{state.config.maxRounds}
+              <div className={cn(
+                "text-[9px] font-bold tracking-[0.28em]",
+                isBreak ? "text-amber-400 animate-pulse" : "text-white/55"
+              )}>
+                {isBreak ? 'INTERVALO' : `ROUND ${state.round}/${state.config.maxRounds}`}
               </div>
-              <TimerRing seconds={timerSeconds} total={totalSeconds} ms={state.timeLeftMs} size={170} />
+              <TimerRing seconds={timerSeconds} total={totalSeconds} ms={displayMs} size={170} />
               <div className="flex gap-1 mt-1">
                 {Array.from({ length: state.config.maxRounds }).map((_, i) => {
                   const r = i + 1;
@@ -531,6 +541,13 @@ export function QuickMatchLayout({
                     <Pause className="w-5 h-5" /> PAUSAR <Kbd>␣</Kbd>
                   </span>
                   <span className="text-[9px] font-semibold tracking-[0.35em] opacity-70">KAL-YEO</span>
+                </>
+              ) : isRoundEnd ? (
+                <>
+                  <span className="flex items-center gap-2.5 text-[15px] tracking-[0.22em]">
+                    <Play className="w-5 h-5" /> PRÓX. ROUND <Kbd>␣</Kbd>
+                  </span>
+                  <span className="text-[9px] font-semibold tracking-[0.35em] opacity-70">AVANÇAR</span>
                 </>
               ) : (
                 <>

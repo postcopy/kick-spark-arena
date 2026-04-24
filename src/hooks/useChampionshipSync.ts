@@ -700,7 +700,12 @@ export function useChampionshipSync({
     if (role !== 'master') return;
     if (!state.hasConfig) return;
     if (state.status === 'MATCH_END') return;
-    
+    // Guarda: nao re-startar timer em ROUND_END. Timer ja ta em 0, o tick
+    // imediato re-chamaria handleRoundEnd sobre os mesmos scores e incrementaria
+    // roundWins de novo — bug que terminava a luta em 1 click errado.
+    // Pra avancar, operador precisa clicar "PROX. ROUND" (nextRound).
+    if (state.status === 'ROUND_END') return;
+
     saveToHistory(state);
     
     setState(prev => {
