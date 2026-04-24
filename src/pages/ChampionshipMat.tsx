@@ -8,19 +8,15 @@ import { useSerialPortContext } from '@/contexts/SerialPortContext';
 import { useHardwareDiagnostics } from '@/hooks/useHardwareDiagnostics';
 import { useSound } from '@/contexts/SoundContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { OperatorPanel } from '@/components/championship/OperatorPanel';
-import { ScoreboardMain } from '@/components/championship/ScoreboardMain';
-import { ScoringButtons } from '@/components/championship/ScoringButtons';
 import { Button } from '@/components/ui/button';
 import { MatchConfigDialog } from '@/components/championship/MatchConfigDialog';
 import { HelpDialog } from '@/components/championship/HelpDialog';
 import { HardwareTestOverlay } from '@/components/championship/HardwareTestOverlay';
 import { QuickMatchLayout } from '@/components/championship/QuickMatchLayout';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, HelpCircle, Wifi } from 'lucide-react';
+import { ArrowLeft, HelpCircle } from 'lucide-react';
 import logoSpe from '@/assets/logo-spe-branca.png';
 import { useTournament } from '@/hooks/useTournament';
-import { TournamentHeader } from '@/components/championship/TournamentHeader';
 import { NextMatchBar } from '@/components/championship/NextMatchBar';
 import { getNextReadyMatch } from '@/hooks/useBracketGenerator';
 import { deviceIdToMatchSide, deviceIdToEquipmentType } from '@/lib/deviceMapping';
@@ -76,6 +72,35 @@ function ChampionshipMatInner() {
   const sync = useChampionshipSync({ role: 'master', matId, academyId: deviceAcademyId });
   useChampionshipPersistence(sync.state);
   const { play, isMuted, toggleMute, unlockAudio, initFullPreload } = useSound();
+
+  // Proxy: envolve actions do sync pra tocar som KPNP automaticamente.
+  // Qualquer componente que recebe `actions` toca som sem precisar saber.
+  const soundActions = useMemo(() => ({
+    ...sync,
+    addScore: (side: MatchSide, type: ScoreType) => {
+      sync.addScore(side, type);
+      const isHead = type === 'HEAD' || type === 'SPIN_HEAD';
+      const isPunch = type === 'PUNCH';
+      play(isPunch ? 'speHitPunch' : isHead ? 'speHitHead' : 'speHitBody');
+    },
+    addGamjeom: (side: MatchSide) => {
+      sync.addGamjeom(side);
+      play('speGamjeom');
+    },
+    removeGamjeom: (side: MatchSide) => {
+      sync.removeGamjeom(side);
+      play('speGamjeomRemove');
+    },
+    adjustScore: (side: MatchSide, roundScore: number, gamjeom: number) => {
+      const before = side === 'BLUE' ? sync.state.roundScoreBlue : sync.state.roundScoreRed;
+      sync.adjustScore(side, roundScore, gamjeom);
+      play(roundScore > before ? 'speManualAdd' : 'speManualRemove');
+    },
+    startMedicalTime: () => {
+      sync.startMedicalTime();
+      play('speRefereeCall');
+    },
+  }), [sync, play]);
   const prevStatusRef = useRef(sync.state.status);
   const [isTVOpen, setIsTVOpen] = useState(false);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
@@ -271,7 +296,8 @@ function ChampionshipMatInner() {
         setDebugCounts(c => ({ ...c, impacts: debugImpactCountRef.current, scored: debugScoredCountRef.current }));
         const scoreType: ScoreType = isHelmet ? 'HEAD' : 'BODY';
         sync.addScore(matchSide, scoreType);
-        play(matchSide === 'BLUE' ? 'scoreBlue' : 'scoreRed');
+        // Som KPNP especifico por tipo (head vs body)
+        play(isHelmet ? 'speHitHead' : 'speHitBody');
         logger.log(`[IMPACT] ★ SCORED! dev=${impact.deviceId} peak=${impact.peakIntensity} type=${scoreType} side=${matchSide} [scored=${debugScoredCountRef.current}]`);
       } else {
         sync.addHit(matchSide);
@@ -423,10 +449,11 @@ function ChampionshipMatInner() {
     if (curr === 'RUNNING' && (prev === 'IDLE' || prev === 'PAUSED' || prev === 'ROUND_END')) {
       play('roundStart');
     }
-    if (curr === 'ROUND_END' || curr === 'MATCH_END') {
-      play('timeUp');
+    if (curr === 'ROUND_END') {
+      play('speBoong');        // buzina curta de fim de round (KPNP)
     }
     if (curr === 'MATCH_END') {
+      play('speMatchEnd');     // buzina longa de fim de luta (KPNP)
       toast.success('Luta registrada!');
     }
 
@@ -480,7 +507,10 @@ function ChampionshipMatInner() {
         const scoreType = scoreKeyMap[e.code];
         const side: MatchSide = e.shiftKey ? 'RED' : 'BLUE';
         sync.addScore(side, scoreType);
-        play(side === 'BLUE' ? 'scoreBlue' : 'scoreRed');
+        // Som especifico por tipo (KPNP): PUNCH→funch, BODY/SPIN_BODY→body, HEAD/SPIN_HEAD→head
+        const isHead = scoreType === 'HEAD' || scoreType === 'SPIN_HEAD';
+        const isPunch = scoreType === 'PUNCH';
+        play(isPunch ? 'speHitPunch' : isHead ? 'speHitHead' : 'speHitBody');
         return;
       }
 
@@ -490,8 +520,10 @@ function ChampionshipMatInner() {
         const side: MatchSide = e.code === 'F1' ? 'BLUE' : 'RED';
         if (e.shiftKey) {
           sync.removeGamjeom(side);
+          play('speGamjeomRemove');
         } else {
           sync.addGamjeom(side);
+          play('speGamjeom');
         }
         return;
       }
@@ -535,6 +567,7 @@ function ChampionshipMatInner() {
             sync.endMedicalTime();
           } else {
             sync.startMedicalTime();
+            play('speRefereeCall');
           }
         }
         return;
@@ -654,7 +687,7 @@ function ChampionshipMatInner() {
                 sync.state.hitsRed === sync.state.hitsBlue;
   
   return (
-    <div className="h-screen flex bg-[hsl(var(--sulsport-black))]">
+    <div className="h-screen flex bg-wt-bg font-display">
       {/* DEBUG overlay — only visible with Ctrl+Shift+D toggle */}
       {showDebugOverlay && (
       <div className="fixed bottom-2 left-2 z-[9999] bg-black/90 text-[10px] font-mono text-white px-2 py-1 rounded border border-yellow-500/50 space-y-0.5">
@@ -678,7 +711,7 @@ function ChampionshipMatInner() {
       {isBasicMode ? (
         <QuickMatchLayout
           state={sync.state}
-          actions={sync}
+          actions={soundActions}
           serialPortConnected={serialPort.isConnected}
           serialPortConnecting={serialPort.isConnecting}
           onConnectUsb={() => { if (!serialPort.isConnected) serialPort.connect(); }}
@@ -693,179 +726,88 @@ function ChampionshipMatInner() {
             else navigate(`/championship/hub?mat=${matId}&mode=basic`);
           }}
           matId={matId}
+          academyId={deviceAcademyId}
           isTVOpen={isTVOpen}
+          events={sync.state.events}
+          isMuted={isMuted}
+          onToggleMute={toggleMute}
         />
-      ) : (
-      <>
-      {/* Main Area */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Header (h-10) */}
-        <header className="h-10 shrink-0 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-between px-4 relative">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (sync.state.status === 'RUNNING') {
-                  setShowExitDialog(true);
-                } else {
-                  navigate('/professional');
-                }
-              }}
-              className="text-zinc-500 hover:text-zinc-300 transition-colors"
-              title="Voltar"
-              aria-label="Voltar"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setShowHelpDialog(true)}
-              className="text-zinc-500 hover:text-zinc-300 transition-colors"
-              title="Guia de Ajuda"
-              aria-label="Guia de Ajuda"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </button>
-            {/* Hardware activity flash indicator */}
-            {hwFlash && (
-              <span className={cn(
-                "px-1.5 py-0.5 rounded font-black text-[10px] uppercase animate-pulse",
-                hwFlash === 'red' ? "bg-red-500/40 text-red-300" : "bg-blue-500/40 text-blue-300",
-              )}>
-                {hwFlash === 'red' ? 'VERM' : 'AZUL'}
-              </span>
-            )}
-            <button
-              onClick={() => {
-                if (!serialPort.isConnected) {
-                  serialPort.connect();
-                }
-              }}
-              className={cn(
-                "px-1.5 py-0.5 rounded font-bold text-[10px] uppercase transition-colors",
-                serialPort.isConnected
-                  ? "bg-green-500/20 text-green-400 cursor-default"
-                  : serialPort.isConnecting
-                  ? "bg-amber-500/20 text-amber-400 animate-pulse cursor-wait"
-                  : "bg-yellow-600/80 text-black hover:bg-yellow-500 cursor-pointer"
-              )}
-              title={serialPort.isConnected ? 'USB Conectado' : 'Clique para conectar USB'}
-              aria-label={serialPort.isConnected ? 'USB Conectado' : serialPort.isConnecting ? 'Conectando USB' : 'Conectar USB'}
-            >
-              {serialPort.isConnecting ? 'USB...' : serialPort.isConnected ? 'USB' : 'USB OFF'}
-            </button>
-          </div>
-          <div className="absolute left-1/2 -translate-x-1/2">
-            {hasTournament && tournamentHook.tournament ? (
-              <TournamentHeader tournament={tournamentHook.tournament} />
-            ) : (
-              <img src={logoSpe} alt="SPE" className="h-6 w-auto object-contain" />
-            )}
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className={cn(
-              "px-1.5 py-0.5 rounded font-bold text-[10px] uppercase",
-              sync.state.status === 'RUNNING'
-                ? "bg-green-500/20 text-green-500"
-                : sync.state.status === 'MATCH_END'
-                ? "bg-yellow-500/20 text-yellow-500"
-                : "bg-zinc-700 text-zinc-400"
-            )}>
-              {sync.state.status === 'IDLE' && 'PRONTO'}
-              {sync.state.status === 'RUNNING' && 'EM ANDAMENTO'}
-              {sync.state.status === 'PAUSED' && 'PAUSADO'}
-              {sync.state.status === 'MEDICAL' && 'TEMPO MÉDICO'}
-              {sync.state.status === 'ROUND_END' && 'FIM DO ROUND'}
-              {sync.state.status === 'MATCH_END' && 'FIM DA LUTA'}
-            </span>
-            <span className="text-zinc-400 font-bold text-[10px]">
-              R{sync.state.round}/{sync.state.config.maxRounds}
-            </span>
-            {sync.connectedDevices > 1 && (
-              <span className="px-1.5 py-0.5 rounded font-bold text-[10px] bg-blue-500/20 text-blue-400 flex items-center gap-1">
-                <Wifi className="h-3 w-3" />
-                {sync.connectedDevices}
-              </span>
-            )}
-          </div>
-        </header>
-
-        {/* Blocked impact warning */}
-        {blockedImpactWarning && serialPort.isConnected && sync.state.status !== 'RUNNING' && (
-          <div className="shrink-0 bg-orange-500/20 border-b border-orange-500/40 px-4 py-1.5 flex items-center justify-center gap-3 animate-in fade-in duration-200">
-            <span className="text-orange-300 font-bold text-xs uppercase">
-              Impacto detectado! Inicie a luta (SPACE) para pontuar
-            </span>
-          </div>
-        )}
-
-        {/* Scoreboard — fills remaining space */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScoreboardMain state={sync.state} onResetMatch={() => setShowResetDialog(true)} />
-        </div>
-
-        {/* Tie Decision — conditional */}
-        {isTie && (
-          <div className="shrink-0 bg-[hsl(var(--sulsport-yellow))]/10 border-y border-[hsl(var(--sulsport-yellow))]/30 p-4">
-            <div className="text-center mb-3">
-              <span className="text-lg font-bold text-[hsl(var(--sulsport-yellow))] uppercase">
-                EMPATE — Declarar Vencedor do Round
-              </span>
-            </div>
-            <div className="flex justify-center gap-4">
-              <Button onClick={() => sync.declareRoundWinner('BLUE')}
-                className="bg-[hsl(var(--sulsport-blue))] hover:bg-[hsl(var(--sulsport-blue-light))] text-white px-8 py-6 text-lg font-bold uppercase rounded-md">
-                VITÓRIA AZUL
-              </Button>
-              <Button onClick={() => sync.declareRoundWinner('RED')}
-                className="bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white px-8 py-6 text-lg font-bold uppercase rounded-md">
-                VITÓRIA VERMELHO
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Scoring Buttons */}
-        <div className="shrink-0">
-          <ScoringButtons
+      ) : /* ═══════════════════════════════════════════════════════════════
+             MODO COMPETIÇÃO PROFISSIONAL — mesma UI do treino +
+             acréscimos específicos (TournamentHeader, tie UI, NextMatchBar)
+             renderizados como overlays quando aplicável.
+             Ver nota de migração: phase 1 — visual unificado; tie UI e
+             NextMatchBar ficam como widgets flutuantes em vez de inline.
+          ═══════════════════════════════════════════════════════════════ */ (
+        <>
+          <QuickMatchLayout
+            competitionMode
             state={sync.state}
-            onScore={sync.addScore}
-            onAddGamjeom={sync.addGamjeom}
-            onRemoveGamjeom={sync.removeGamjeom}
-            onUndo={sync.undoLast}
-            canUndo={sync.canUndo}
+            actions={soundActions}
+            serialPortConnected={serialPort.isConnected}
+            serialPortConnecting={serialPort.isConnecting}
+            onConnectUsb={() => { if (!serialPort.isConnected) serialPort.connect(); }}
+            hwFlash={hwFlash}
+            blockedImpactWarning={blockedImpactWarning && serialPort.isConnected && sync.state.status !== 'RUNNING'}
+            onOpenTV={handleOpenTV}
+            onOpenConfig={() => setShowConfigDialog(true)}
+            onOpenHardwareTest={handleOpenHardwareTest}
+            onOpenHelp={() => setShowHelpDialog(true)}
+            onBack={() => {
+              if (sync.state.status === 'RUNNING') setShowExitDialog(true);
+              else navigate('/professional');
+            }}
+            matId={matId}
+            academyId={deviceAcademyId}
+            isTVOpen={isTVOpen}
+            events={sync.state.events}
+            isMuted={isMuted}
+            onToggleMute={toggleMute}
           />
-        </div>
 
-        {/* Tournament NextMatchBar */}
-        {hasTournament && tournamentHook.tournament && sync.state.status === 'MATCH_END' && (
-          <div className="shrink-0">
-            <NextMatchBar
-              tournament={tournamentHook.tournament}
-              currentMatchWinnerSide={sync.state.roundWinsRed > sync.state.roundWinsBlue ? 'RED' : 'BLUE'}
-              onNextMatch={handleNextMatch}
-              onOverrideWinner={handleOverrideWinner}
-              onGoToTournament={handleGoToTournament}
-            />
-          </div>
-        )}
-      </main>
+          {/* Tie Decision — overlay quando empate ao fim do round */}
+          {isTie && (
+            <div className="fixed inset-x-0 bottom-0 z-30 bg-wt-manual/95 backdrop-blur border-t-2 border-wt-manual p-4">
+              <div className="max-w-xl mx-auto">
+                <div className="text-center mb-3">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.35em] text-black mb-1">
+                    Empate
+                  </div>
+                  <div className="text-base font-bold uppercase tracking-wider text-black">
+                    Declarar vencedor do round
+                  </div>
+                </div>
+                <div className="flex justify-center gap-[2px]">
+                  <Button
+                    onClick={() => sync.declareRoundWinner('BLUE')}
+                    className="bg-chung hover:bg-chung-accent text-white px-10 py-5 text-base font-bold uppercase tracking-wider rounded-none border border-chung"
+                  >
+                    Vitória azul
+                  </Button>
+                  <Button
+                    onClick={() => sync.declareRoundWinner('RED')}
+                    className="bg-hong hover:bg-hong-accent text-white px-10 py-5 text-base font-bold uppercase tracking-wider rounded-none border border-hong"
+                  >
+                    Vitória vermelho
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
-      {/* Sidebar — RIGHT PANEL */}
-      <OperatorPanel
-        state={sync.state}
-        actions={sync}
-        onOpenTV={handleOpenTV}
-        serialPort={serialPort}
-        diagnostics={diagnostics}
-        onOpenConfig={() => setShowConfigDialog(true)}
-        matId={matId}
-        academyId={deviceAcademyId}
-        onExportShadowLog={handleExportShadowLog}
-        isMuted={isMuted}
-        onToggleMute={toggleMute}
-        onOpenHardwareTest={handleOpenHardwareTest}
-        isTVOpen={isTVOpen}
-      />
-      </>
+          {/* Tournament NextMatchBar — overlay no fim da luta quando em torneio */}
+          {hasTournament && tournamentHook.tournament && sync.state.status === 'MATCH_END' && (
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-wt-manual">
+              <NextMatchBar
+                tournament={tournamentHook.tournament}
+                currentMatchWinnerSide={sync.state.roundWinsRed > sync.state.roundWinsBlue ? 'RED' : 'BLUE'}
+                onNextMatch={handleNextMatch}
+                onOverrideWinner={handleOverrideWinner}
+                onGoToTournament={handleGoToTournament}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {/* Config Dialog */}
@@ -879,15 +821,15 @@ function ChampionshipMatInner() {
 
       {/* Reset Match Dialog */}
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Nova Luta?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
+            <AlertDialogDescription className="text-wt-fg-secondary">
               Esta ação resetará todos os placares e iniciará uma nova luta. As configurações serão mantidas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+            <AlertDialogCancel className="bg-wt-bg-tertiary border-wt-divider text-wt-fg-primary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider text-xs font-bold">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
@@ -895,7 +837,7 @@ function ChampionshipMatInner() {
                 sync.resetMatch();
                 setShowResetDialog(false);
               }}
-              className="bg-yellow-600 hover:bg-yellow-500 text-black"
+              className="bg-wt-warning hover:bg-wt-warning/90 text-black rounded-none uppercase tracking-wider text-xs font-bold"
             >
               Iniciar Nova Luta
             </AlertDialogAction>
@@ -905,20 +847,20 @@ function ChampionshipMatInner() {
 
       {/* Exit Confirmation Dialog */}
       <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
-        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Sair da Luta?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
+            <AlertDialogTitle className="text-wt-fg-primary uppercase tracking-wider">Sair da Luta?</AlertDialogTitle>
+            <AlertDialogDescription className="text-wt-fg-secondary">
               A luta está em andamento. Se sair agora, o progresso será perdido.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+            <AlertDialogCancel className="bg-wt-bg-tertiary border-wt-divider text-wt-fg-primary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider text-xs font-bold">
               Continuar Luta
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => navigate('/professional')}
-              className="bg-red-600 hover:bg-red-500 text-white"
+              className="bg-wt-danger hover:bg-wt-danger/90 text-white rounded-none uppercase tracking-wider text-xs font-bold"
             >
               Sair
             </AlertDialogAction>
@@ -928,20 +870,20 @@ function ChampionshipMatInner() {
 
       {/* Exit Confirmation Dialog — BASIC mode (goes to Hub) */}
       <AlertDialog open={showQuickExitDialog} onOpenChange={setShowQuickExitDialog}>
-        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Sair da Luta?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
+            <AlertDialogTitle className="text-wt-fg-primary uppercase tracking-wider">Sair da Luta?</AlertDialogTitle>
+            <AlertDialogDescription className="text-wt-fg-secondary">
               A luta está em andamento. Se sair agora, o progresso será perdido.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+            <AlertDialogCancel className="bg-wt-bg-tertiary border-wt-divider text-wt-fg-primary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider text-xs font-bold">
               Continuar Luta
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => navigate(`/championship/hub?mat=${matId}&mode=basic`)}
-              className="bg-red-600 hover:bg-red-500 text-white"
+              className="bg-wt-danger hover:bg-wt-danger/90 text-white rounded-none uppercase tracking-wider text-xs font-bold"
             >
               Sair
             </AlertDialogAction>

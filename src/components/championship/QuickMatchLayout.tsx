@@ -25,6 +25,10 @@ import {
   Share2,
   Copy,
   Check,
+  Volume2,
+  VolumeX,
+  ClipboardList,
+  Edit3,
 } from 'lucide-react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
@@ -43,6 +47,8 @@ import { cn } from '@/lib/utils';
 import { useMatchQueue, type QueueEntry } from '@/hooks/useMatchQueue';
 import { StrikeIcon, type StrikeType } from './StrikeIcon';
 import { getScoreValue, type MatchState, type MatchSide, type ScoreType, type MatchEvent } from '@/types/championship';
+import { EventLogDialog } from './EventLogDialog';
+import { ScoreAdjustDialog } from './ScoreAdjustDialog';
 import logoSpe from '@/assets/logo-spe-branca.png';
 
 // ─── Types ───
@@ -56,6 +62,10 @@ interface QuickActions {
   resetMatch: () => void;
   addScore: (side: MatchSide, type: ScoreType) => void;
   addGamjeom: (side: MatchSide) => void;
+  removeGamjeom?: (side: MatchSide) => void;
+  adjustScore?: (side: MatchSide, roundScore: number, gamjeom: number) => void;
+  startMedicalTime?: () => void;
+  endMedicalTime?: () => void;
   undoLast: () => void;
   canUndo: boolean;
   saveConfig: (config: MatchState['config']) => void;
@@ -87,6 +97,12 @@ interface QuickMatchLayoutProps {
   competitionMode?: boolean;
   /** Rótulo da categoria (ex: "SENIOR M -68kg"). Só usado quando competitionMode=true. */
   categoryLabel?: string;
+
+  /** Histórico de eventos pra Log. Se ausente, botão de log fica oculto. */
+  events?: MatchEvent[];
+  /** Estado do mute de áudio. Se ausente, botão de mute fica oculto. */
+  isMuted?: boolean;
+  onToggleMute?: () => void;
 }
 
 // Score type metadata (icon + label + keyboard shortcut)
@@ -132,12 +148,17 @@ export function QuickMatchLayout({
   isTVOpen: _isTVOpen,
   competitionMode = false,
   categoryLabel,
+  events,
+  isMuted,
+  onToggleMute,
 }: QuickMatchLayoutProps) {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [showQueueDialog, setShowQueueDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showEventLog, setShowEventLog] = useState(false);
+  const [showScoreAdjust, setShowScoreAdjust] = useState(false);
   const { queue, add: addToQueue, remove: removeFromQueue, clear: clearQueue, shift: shiftQueue } = useMatchQueue(matId);
 
   const isRunning = state.status === 'RUNNING';
@@ -377,6 +398,21 @@ export function QuickMatchLayout({
             <QrCode className="w-4 h-4" />
             <span className="text-[10px] font-black tracking-[0.2em] uppercase">Celular</span>
           </button>
+          {events && (
+            <IconBtn onClick={() => setShowEventLog(true)} title={`Histórico de eventos (${events.length})`}>
+              <ClipboardList className="w-4 h-4" />
+            </IconBtn>
+          )}
+          {actions.adjustScore && (
+            <IconBtn onClick={() => setShowScoreAdjust(true)} title="Ajustar placar manualmente">
+              <Edit3 className="w-4 h-4" />
+            </IconBtn>
+          )}
+          {onToggleMute && (
+            <IconBtn onClick={onToggleMute} title={isMuted ? 'Ativar som' : 'Silenciar som'}>
+              {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+            </IconBtn>
+          )}
           <IconBtn onClick={onOpenHardwareTest} title="Testar equipamento">
             <Stethoscope className="w-4 h-4" />
           </IconBtn>
@@ -551,6 +587,25 @@ export function QuickMatchLayout({
         <span className="flex items-center gap-1.5"><Kbd>M</Kbd><span className="tracking-[0.15em]">KYESHI</span></span>
         <span className="flex items-center gap-1.5"><Kbd>⌫</Kbd><span className="tracking-[0.15em]">UNDO</span></span>
       </div>
+
+      {/* Event log dialog */}
+      {events && (
+        <EventLogDialog
+          open={showEventLog}
+          onOpenChange={setShowEventLog}
+          events={events}
+        />
+      )}
+
+      {/* Manual score adjust dialog */}
+      {actions.adjustScore && (
+        <ScoreAdjustDialog
+          open={showScoreAdjust}
+          onOpenChange={setShowScoreAdjust}
+          state={state}
+          onAdjust={actions.adjustScore}
+        />
+      )}
 
       {/* Queue management dialog */}
       <QueueDialog
