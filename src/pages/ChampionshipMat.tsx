@@ -119,6 +119,19 @@ function ChampionshipMatInner() {
   const tournamentHook = useTournament();
   const hasTournament = !isBasicMode && tournamentHook.tournament?.status === 'IN_PROGRESS';
   const matchResultRecordedRef = useRef(false);
+
+  // Category label pro subtítulo do operador em modo competição
+  // Formato: "SENIOR M -68kg PRETA" (ageGroup + gender + weight + belt).
+  const categoryLabel = useMemo(() => {
+    if (!hasTournament) return undefined;
+    const cur = tournamentHook.getCurrentMatch();
+    if (!cur) return undefined;
+    const { category } = cur;
+    return [category.ageGroup, category.gender, category.weightClass, category.belt]
+      .filter(Boolean)
+      .join(' ')
+      .toUpperCase();
+  }, [hasTournament, tournamentHook]);
   
   // Shadow log for impact scoring
   const shadowLogRef = useRef<ShadowLogEntry[]>([]);
@@ -763,6 +776,7 @@ function ChampionshipMatInner() {
             events={sync.state.events}
             isMuted={isMuted}
             onToggleMute={toggleMute}
+            categoryLabel={categoryLabel}
           />
 
           {/* Tie Decision — overlay quando empate ao fim do round */}
