@@ -299,7 +299,7 @@ export default function ChampionshipTV() {
         <div
           className="flex flex-col items-center justify-center bg-black"
           style={{
-            width: 'clamp(260px, 18vw, 380px)',
+            width: 'clamp(300px, 21vw, 440px)',
             padding: 'clamp(16px, 2vh, 32px) clamp(10px, 1vw, 20px)',
             gap: 'clamp(10px, 1.4vh, 20px)',
           }}
@@ -361,7 +361,7 @@ export default function ChampionshipTV() {
                           : "text-white"
                 )}
                 style={{
-                  fontSize: 'clamp(72px, 6.2vw, 128px)',
+                  fontSize: 'clamp(110px, 9.5vw, 200px)',
                   padding: hasBg ? 'clamp(8px, 1vh, 16px) clamp(6px, 0.6vw, 12px)' : 0,
                   letterSpacing: '-0.04em',
                 }}
