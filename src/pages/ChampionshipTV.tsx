@@ -299,7 +299,7 @@ export default function ChampionshipTV() {
         <div
           className="flex flex-col items-center justify-center bg-black"
           style={{
-            width: 'clamp(240px, 16vw, 340px)',
+            width: 'clamp(260px, 18vw, 380px)',
             padding: 'clamp(16px, 2vh, 32px) clamp(10px, 1vw, 20px)',
             gap: 'clamp(10px, 1.4vh, 20px)',
           }}
@@ -339,28 +339,37 @@ export default function ChampionshipTV() {
 
           <div className="w-3/4 h-px bg-white/15" />
 
-          {/* Timer — retangular broadcast, lê a 10m */}
-          <div
-            className={cn(
-              "font-black tabular-nums leading-none text-center border-2 w-full",
-              state.isBreakTime
-                ? "bg-wt-bg-tertiary text-white border-wt-divider"
-                : isMedical
-                  ? "bg-wt-warning text-black border-wt-warning"
-                  : state.timeLeftMs <= 5000 && isRunning
-                    ? "bg-wt-danger text-white border-wt-danger animate-[timer-blink-fast_0.25s_ease-in-out_infinite]"
-                    : state.timeLeftMs <= 10000 && isRunning
-                      ? "bg-wt-warning text-black border-wt-warning animate-[timer-blink_0.5s_ease-in-out_infinite]"
-                      : "bg-white text-black border-white"
-            )}
-            style={{
-              fontSize: 'clamp(90px, 8.5vw, 168px)',
-              padding: 'clamp(10px, 1.2vh, 20px) clamp(8px, 0.8vw, 16px)',
-              letterSpacing: '-0.03em',
-            }}
-          >
-            {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTimePrecise(state.timeLeftMs)}
-          </div>
+          {/* Timer — texto limpo no preto em estado normal. Bloco de cor só
+              quando a cor CARREGA info (medical, break, <=10s, <=5s). */}
+          {(() => {
+            const critical = !state.isBreakTime && state.timeLeftMs <= 5000 && isRunning;
+            const urgent = !state.isBreakTime && state.timeLeftMs <= 10000 && isRunning && !critical;
+            const hasBg = state.isBreakTime || isMedical || critical || urgent;
+            return (
+              <div
+                className={cn(
+                  "font-black tabular-nums leading-none text-center w-full",
+                  hasBg && "border-2",
+                  state.isBreakTime
+                    ? "bg-wt-bg-tertiary text-white border-wt-divider"
+                    : isMedical
+                      ? "bg-wt-warning text-black border-wt-warning"
+                      : critical
+                        ? "bg-wt-danger text-white border-wt-danger animate-[timer-blink-fast_0.25s_ease-in-out_infinite]"
+                        : urgent
+                          ? "bg-wt-warning text-black border-wt-warning animate-[timer-blink_0.5s_ease-in-out_infinite]"
+                          : "text-white"
+                )}
+                style={{
+                  fontSize: 'clamp(72px, 6.2vw, 128px)',
+                  padding: hasBg ? 'clamp(8px, 1vh, 16px) clamp(6px, 0.6vw, 12px)' : 0,
+                  letterSpacing: '-0.04em',
+                }}
+              >
+                {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTimePrecise(state.timeLeftMs)}
+              </div>
+            );
+          })()}
 
           {/* Status label */}
           {state.isBreakTime && !isMatchEnd && (
