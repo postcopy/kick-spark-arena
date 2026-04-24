@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { formatTime, MatchEvent, ScoreType, getChannelName } from '@/types/championship';
+import { formatTime, formatTimePrecise, MatchEvent, ScoreType, getChannelName } from '@/types/championship';
 import type { ChampionshipSyncMessage, HardwareTestHit } from '@/types/championship';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { Wifi, WifiOff } from 'lucide-react';
@@ -220,7 +220,7 @@ export default function ChampionshipTV() {
           const blueName = state.config.athleteBlue?.name || 'CHUNG';
           const blueCountry = state.config.athleteBlue?.country;
           return (
-            <div className="flex-1 flex flex-col overflow-hidden relative bg-chung-bg">
+            <div className="flex-1 flex flex-col overflow-hidden relative bg-chung">
               {/* Stripe superior — CHUNG cor sólida, convenção broadcast */}
               <div className="h-2 w-full bg-chung" />
 
@@ -328,7 +328,7 @@ export default function ChampionshipTV() {
             )}
             style={{ fontSize: 64 }}
           >
-            {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTime(state.timeLeftMs)}
+            {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTimePrecise(state.timeLeftMs)}
           </div>
 
           {/* Status label */}
@@ -362,7 +362,7 @@ export default function ChampionshipTV() {
           const redName = state.config.athleteRed?.name || 'HONG';
           const redCountry = state.config.athleteRed?.country;
           return (
-            <div className="flex-1 flex flex-col overflow-hidden relative bg-hong-bg">
+            <div className="flex-1 flex flex-col overflow-hidden relative bg-hong">
               {/* Stripe superior — HONG cor sólida */}
               <div className="h-2 w-full bg-hong" />
 

@@ -278,3 +278,18 @@ export function formatTime(ms: number): string {
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
+
+/**
+ * Format precise pros 10 segundos finais: "9.4", "0.1" etc (1 casa decimal).
+ * Acima de 10s, retorna formato normal "M:SS".
+ * Timer tica a 10Hz (100ms) — décimos são a precisão máxima honesta.
+ * Abaixo disso seria jitter visual sem ganho real.
+ */
+export function formatTimePrecise(ms: number): string {
+  if (ms >= 10000) return formatTime(ms);
+  // Usar floor pra décimos (não arredondar pra cima — senão 9.95 → "10.0" e pula pro formato normal)
+  const tenths = Math.max(0, Math.floor(ms / 100));
+  const seconds = Math.floor(tenths / 10);
+  const tenth = tenths % 10;
+  return `${seconds}.${tenth}`;
+}

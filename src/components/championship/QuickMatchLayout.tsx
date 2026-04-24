@@ -499,7 +499,7 @@ export function QuickMatchLayout({
               <div className="text-[9px] font-bold tracking-[0.28em] text-white/55">
                 ROUND {state.round}/{state.config.maxRounds}
               </div>
-              <TimerRing seconds={timerSeconds} total={totalSeconds} size={170} />
+              <TimerRing seconds={timerSeconds} total={totalSeconds} ms={state.timeLeftMs} size={170} />
               <div className="flex gap-1 mt-1">
                 {Array.from({ length: state.config.maxRounds }).map((_, i) => {
                   const r = i + 1;
@@ -1165,7 +1165,7 @@ function StatusPill({ status }: { status: MatchState['status'] }) {
   );
 }
 
-function TimerRing({ seconds, total, size = 170 }: { seconds: number; total: number; size?: number }) {
+function TimerRing({ seconds, total, ms, size = 170 }: { seconds: number; total: number; ms?: number; size?: number }) {
   const pct = total > 0 ? seconds / total : 0;
   const radius = size * 0.44;
   const C = 2 * Math.PI * radius;
@@ -1174,8 +1174,20 @@ function TimerRing({ seconds, total, size = 170 }: { seconds: number; total: num
   const urgent = seconds <= 10;
   const strokeColor = critical ? '#ef4444' : urgent ? '#FACC15' : '#22c55e';
   const textColor = critical ? 'text-red-400' : urgent ? 'text-amber-300' : 'text-white';
+  // Sob 10s mostra precisao em decimos (timer tica a 10Hz, decimos sao precisao honesta maxima).
+  // Acima de 10s, formato normal M:SS.
+  const showTenths = ms !== undefined && ms < 10000 && ms > 0;
   const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
   const ss = String(seconds % 60).padStart(2, '0');
+  let display: string;
+  if (showTenths) {
+    const tenths = Math.max(0, Math.floor((ms as number) / 100));
+    const s = Math.floor(tenths / 10);
+    const t = tenths % 10;
+    display = `${s}.${t}`;
+  } else {
+    display = `${mm}:${ss}`;
+  }
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
@@ -1211,9 +1223,9 @@ function TimerRing({ seconds, total, size = 170 }: { seconds: number; total: num
           textColor,
           critical && 'animate-pulse',
         )}
-        style={{ fontSize: size * 0.3 }}
+        style={{ fontSize: size * (showTenths ? 0.34 : 0.3) }}
       >
-        {mm}:{ss}
+        {display}
       </div>
     </div>
   );
