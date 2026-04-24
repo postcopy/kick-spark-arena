@@ -184,7 +184,7 @@ export default function ChampionshipTV() {
   return (
     <div className="h-screen w-screen bg-wt-bg flex flex-col overflow-hidden select-none font-display">
       {/* Chrome (logo + WiFi) escondido quando tvCleanMode=true (FOB off) */}
-      {!sync.state.config.tvCleanMode && (
+      {!state.config.tvCleanMode && (
         <>
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 opacity-30">
             <img src={logoSpe} alt="SPE" className="h-5 w-auto object-contain" />
