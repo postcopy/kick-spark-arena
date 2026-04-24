@@ -225,7 +225,7 @@ export default function ChampionshipTV() {
               <div className="h-2 w-full bg-chung" />
 
               {/* Header: CHUNG label + nome + country + LIDERA */}
-              <div className="px-10 pt-7 pb-4 flex flex-col items-start">
+              <div className="px-8 pt-5 pb-2 flex flex-col items-start">
                 <div className="text-white/80 font-bold" style={{ fontSize: 14, letterSpacing: '0.5em' }}>
                   CHUNG
                 </div>
@@ -251,7 +251,7 @@ export default function ChampionshipTV() {
                 <span
                   className="font-black tabular-nums leading-none"
                   style={{
-                    fontSize: 'clamp(240px, 38vw, 520px)',
+                    fontSize: 'clamp(320px, 52vw, 720px)',
                     letterSpacing: '-0.05em',
                     color: blueLeading ? 'hsl(var(--wt-manual))' : '#FFFFFF',
                   }}
@@ -261,7 +261,7 @@ export default function ChampionshipTV() {
               </div>
 
               {/* Rodapé: gam-jeom + rounds + hits — retangular, sem border-radius */}
-              <div className="px-10 pb-6 flex gap-[2px] justify-start">
+              <div className="px-8 pb-4 flex gap-[2px] justify-start">
                 <div className="px-5 py-3 bg-black/40 min-w-[108px]">
                   <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GAM-JEOM</div>
                   <div
@@ -299,12 +299,12 @@ export default function ChampionshipTV() {
         <div
           className="flex flex-col items-center justify-center bg-black"
           style={{
-            width: 'clamp(320px, 22vw, 440px)',
-            padding: 'clamp(16px, 2vh, 32px) clamp(12px, 1.2vw, 24px)',
-            gap: 'clamp(12px, 1.6vh, 24px)',
+            width: 'clamp(240px, 16vw, 340px)',
+            padding: 'clamp(16px, 2vh, 32px) clamp(10px, 1vw, 20px)',
+            gap: 'clamp(10px, 1.4vh, 20px)',
           }}
         >
-          <div className="text-white/50 font-bold" style={{ fontSize: 'clamp(11px, 0.9vw, 16px)', letterSpacing: '0.4em' }}>ROUND</div>
+          <div className="text-white/50 font-bold" style={{ fontSize: 'clamp(10px, 0.8vw, 14px)', letterSpacing: '0.4em' }}>ROUND</div>
           {state.isGoldenRound ? (
             <>
               <div
@@ -324,13 +324,13 @@ export default function ChampionshipTV() {
             <>
               <div
                 className="font-black text-white tabular-nums leading-none"
-                style={{ fontSize: 'clamp(140px, 13vw, 260px)', letterSpacing: '-0.03em' }}
+                style={{ fontSize: 'clamp(80px, 6vw, 130px)', letterSpacing: '-0.03em' }}
               >
                 {state.round}
               </div>
               <div
                 className="text-white/40 font-bold"
-                style={{ fontSize: 'clamp(14px, 1.1vw, 22px)', letterSpacing: '0.3em', marginTop: '-0.3em' }}
+                style={{ fontSize: 'clamp(12px, 0.9vw, 18px)', letterSpacing: '0.3em', marginTop: '-0.2em' }}
               >
                 / {state.config.maxRounds}
               </div>
@@ -398,7 +398,7 @@ export default function ChampionshipTV() {
               <div className="h-2 w-full bg-hong" />
 
               {/* Header: HONG label + nome + country + LIDERA (alinhado à direita) */}
-              <div className="px-10 pt-7 pb-4 flex flex-col items-end text-right">
+              <div className="px-8 pt-5 pb-2 flex flex-col items-end text-right">
                 <div className="text-white/80 font-bold" style={{ fontSize: 14, letterSpacing: '0.5em' }}>
                   HONG
                 </div>
@@ -423,7 +423,7 @@ export default function ChampionshipTV() {
                 <span
                   className="font-black tabular-nums leading-none"
                   style={{
-                    fontSize: 'clamp(240px, 38vw, 520px)',
+                    fontSize: 'clamp(320px, 52vw, 720px)',
                     letterSpacing: '-0.05em',
                     color: redLeading ? 'hsl(var(--wt-manual))' : '#FFFFFF',
                   }}
@@ -433,7 +433,7 @@ export default function ChampionshipTV() {
               </div>
 
               {/* Rodapé alinhado à direita */}
-              <div className="px-10 pb-6 flex gap-[2px] justify-end">
+              <div className="px-8 pb-4 flex gap-[2px] justify-end">
                 <div className="px-5 py-3 bg-black/40">
                   <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GOLPES</div>
                   <div className="font-black text-white tabular-nums leading-none mt-1" style={{ fontSize: 36 }}>
