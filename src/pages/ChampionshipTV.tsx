@@ -260,33 +260,38 @@ export default function ChampionshipTV() {
                 </span>
               </div>
 
-              {/* Rodapé: gam-jeom + rounds + hits — retangular, sem border-radius */}
-              <div className="px-8 pb-4 flex gap-[2px] justify-start">
-                <div className="px-5 py-3 bg-black/40 min-w-[108px]">
-                  <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GAM-JEOM</div>
+              {/* Rodape: gam-jeom + rounds + hits — escalas por peso decisional.
+                  GAM-JEOM critico (10 GJ = desclassificacao) pesa mais.
+                  Round wins visiveis a 10m. GOLPES estatistica, menor. */}
+              <div className="px-8 pb-4 flex gap-[2px] justify-start items-stretch">
+                <div className="px-5 py-3 bg-black/40 min-w-[140px]">
+                  <div className="text-white/70 font-bold" style={{ fontSize: 'clamp(12px, 1vw, 18px)', letterSpacing: '0.3em' }}>GAM-JEOM</div>
                   <div
                     className={cn(
                       "font-black tabular-nums leading-none mt-1",
                       state.gamjeomBlue >= 3 ? "text-wt-warning" : "text-white"
                     )}
-                    style={{ fontSize: 36 }}
+                    style={{ fontSize: 'clamp(48px, 4.5vw, 90px)' }}
                   >
                     {state.gamjeomBlue}
                   </div>
                 </div>
-                <div className="px-5 py-3 bg-black/40 flex gap-4 items-center">
+                <div className="px-5 py-3 bg-black/40 flex gap-5 items-center">
                   {Array.from({ length: state.config.maxRounds }).map((_, i) => (
                     <div key={i} className="text-center">
-                      <div className="text-white/60 font-bold" style={{ fontSize: 9, letterSpacing: '0.25em' }}>R{i + 1}</div>
-                      <div className="font-black text-white tabular-nums mt-0.5" style={{ fontSize: 26 }}>
+                      <div className="text-white/70 font-bold" style={{ fontSize: 'clamp(11px, 0.9vw, 16px)', letterSpacing: '0.25em' }}>R{i + 1}</div>
+                      <div
+                        className="font-black text-white tabular-nums leading-none mt-1"
+                        style={{ fontSize: 'clamp(32px, 3vw, 60px)' }}
+                      >
                         {i < state.roundWinsBlue ? '●' : '○'}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="px-5 py-3 bg-black/40">
-                  <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GOLPES</div>
-                  <div className="font-black text-white tabular-nums leading-none mt-1" style={{ fontSize: 36 }}>
+                  <div className="text-white/70 font-bold" style={{ fontSize: 'clamp(12px, 1vw, 18px)', letterSpacing: '0.3em' }}>GOLPES</div>
+                  <div className="font-black text-white tabular-nums leading-none mt-1" style={{ fontSize: 'clamp(32px, 2.8vw, 56px)' }}>
                     {state.hitsBlue}
                   </div>
                 </div>
@@ -304,7 +309,7 @@ export default function ChampionshipTV() {
             gap: 'clamp(10px, 1.4vh, 20px)',
           }}
         >
-          <div className="text-white/50 font-bold" style={{ fontSize: 'clamp(10px, 0.8vw, 14px)', letterSpacing: '0.4em' }}>ROUND</div>
+          <div className="text-white/60 font-bold" style={{ fontSize: 'clamp(14px, 1.2vw, 22px)', letterSpacing: '0.4em' }}>ROUND</div>
           {state.isGoldenRound ? (
             <>
               <div
@@ -329,8 +334,8 @@ export default function ChampionshipTV() {
                 {state.round}
               </div>
               <div
-                className="text-white/40 font-bold"
-                style={{ fontSize: 'clamp(12px, 0.9vw, 18px)', letterSpacing: '0.3em', marginTop: '-0.2em' }}
+                className="text-white/50 font-bold"
+                style={{ fontSize: 'clamp(18px, 1.5vw, 28px)', letterSpacing: '0.3em', marginTop: '-0.2em' }}
               >
                 / {state.config.maxRounds}
               </div>
@@ -444,32 +449,36 @@ export default function ChampionshipTV() {
                 </span>
               </div>
 
-              {/* Rodapé alinhado à direita */}
-              <div className="px-8 pb-4 flex gap-[2px] justify-end">
+              {/* Rodape alinhado a direita — escalas por peso decisional (igual
+                  ao lado CHUNG, espelhado). */}
+              <div className="px-8 pb-4 flex gap-[2px] justify-end items-stretch">
                 <div className="px-5 py-3 bg-black/40">
-                  <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GOLPES</div>
-                  <div className="font-black text-white tabular-nums leading-none mt-1" style={{ fontSize: 36 }}>
+                  <div className="text-white/70 font-bold" style={{ fontSize: 'clamp(12px, 1vw, 18px)', letterSpacing: '0.3em' }}>GOLPES</div>
+                  <div className="font-black text-white tabular-nums leading-none mt-1" style={{ fontSize: 'clamp(32px, 2.8vw, 56px)' }}>
                     {state.hitsRed}
                   </div>
                 </div>
-                <div className="px-5 py-3 bg-black/40 flex gap-4 items-center">
+                <div className="px-5 py-3 bg-black/40 flex gap-5 items-center">
                   {Array.from({ length: state.config.maxRounds }).map((_, i) => (
                     <div key={i} className="text-center">
-                      <div className="text-white/60 font-bold" style={{ fontSize: 9, letterSpacing: '0.25em' }}>R{i + 1}</div>
-                      <div className="font-black text-white tabular-nums mt-0.5" style={{ fontSize: 26 }}>
+                      <div className="text-white/70 font-bold" style={{ fontSize: 'clamp(11px, 0.9vw, 16px)', letterSpacing: '0.25em' }}>R{i + 1}</div>
+                      <div
+                        className="font-black text-white tabular-nums leading-none mt-1"
+                        style={{ fontSize: 'clamp(32px, 3vw, 60px)' }}
+                      >
                         {i < state.roundWinsRed ? '●' : '○'}
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="px-5 py-3 bg-black/40 min-w-[108px]">
-                  <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GAM-JEOM</div>
+                <div className="px-5 py-3 bg-black/40 min-w-[140px]">
+                  <div className="text-white/70 font-bold" style={{ fontSize: 'clamp(12px, 1vw, 18px)', letterSpacing: '0.3em' }}>GAM-JEOM</div>
                   <div
                     className={cn(
                       "font-black tabular-nums leading-none mt-1",
                       state.gamjeomRed >= 3 ? "text-wt-warning" : "text-white"
                     )}
-                    style={{ fontSize: 36 }}
+                    style={{ fontSize: 'clamp(48px, 4.5vw, 90px)' }}
                   >
                     {state.gamjeomRed}
                   </div>
