@@ -21,6 +21,10 @@ import {
   ListOrdered,
   Plus,
   X,
+  QrCode,
+  Share2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
@@ -38,7 +42,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useMatchQueue, type QueueEntry } from '@/hooks/useMatchQueue';
 import { StrikeIcon, type StrikeType } from './StrikeIcon';
-import type { MatchState, MatchSide, ScoreType, MatchEvent } from '@/types/championship';
+import { getScoreValue, type MatchState, type MatchSide, type ScoreType, type MatchEvent } from '@/types/championship';
 import logoSpe from '@/assets/logo-spe-branca.png';
 
 // ─── Types ───
@@ -71,7 +75,18 @@ interface QuickMatchLayoutProps {
   onOpenHelp: () => void;
   onBack: () => void;
   matId: number;
+  academyId?: string;
   isTVOpen?: boolean;
+
+  /**
+   * Quando true, troca rótulos/paleta pro modo competição profissional:
+   * badge "● AO VIVO" (vermelho) no lugar de "● TREINO" (verde),
+   * subtítulo exibe categoria + MAT no lugar de "LUTA AO VIVO".
+   * Não altera lógica de scoring/sync — apenas apresentação.
+   */
+  competitionMode?: boolean;
+  /** Rótulo da categoria (ex: "SENIOR M -68kg"). Só usado quando competitionMode=true. */
+  categoryLabel?: string;
 }
 
 // Score type metadata (icon + label + keyboard shortcut)
@@ -113,11 +128,16 @@ export function QuickMatchLayout({
   onOpenHelp,
   onBack,
   matId,
+  academyId,
   isTVOpen: _isTVOpen,
+  competitionMode = false,
+  categoryLabel,
 }: QuickMatchLayoutProps) {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [showQueueDialog, setShowQueueDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const { queue, add: addToQueue, remove: removeFromQueue, clear: clearQueue, shift: shiftQueue } = useMatchQueue(matId);
 
   const isRunning = state.status === 'RUNNING';
@@ -144,9 +164,12 @@ export function QuickMatchLayout({
   const totalSeconds = Math.max(1, Math.round(state.config.roundTimeMs / 1000));
   const critical = timerSeconds <= 10 && isRunning;
 
-  const blueName = state.config.athleteBlue?.name || 'CHUNG (AZUL)';
+  // Fallback vazio — o topo do painel já exibe "CHUNG"/"HONG" como label.
+  // Quando não há atleta configurado, mostra "—" pra evitar duplicar
+  // "CHUNG (AZUL)" embaixo de um título que já diz CHUNG.
+  const blueName = state.config.athleteBlue?.name || '—';
   const blueCountry = state.config.athleteBlue?.country || '';
-  const redName = state.config.athleteRed?.name || 'HONG (VERMELHO)';
+  const redName = state.config.athleteRed?.name || '—';
   const redCountry = state.config.athleteRed?.country || '';
 
   const winner: 'BLUE' | 'RED' | null =
@@ -243,7 +266,7 @@ export function QuickMatchLayout({
   };
 
   return (
-    <div className="relative h-screen w-full flex flex-col bg-[hsl(var(--sulsport-black))] overflow-hidden">
+    <div className="relative h-screen w-full flex flex-col bg-wt-bg overflow-hidden">
       {/* Critical timer flash overlay */}
       {critical && (
         <div
@@ -253,7 +276,7 @@ export function QuickMatchLayout({
       )}
 
       {/* ── Top bar ── */}
-      <div className="h-14 shrink-0 flex items-stretch bg-[hsl(var(--sulsport-black))] border-b border-white/5">
+      <div className="h-14 shrink-0 flex items-stretch bg-wt-bg border-b border-white/5">
         <div className="px-4 flex items-center gap-3 border-r border-white/5 shrink-0">
           <button
             onClick={onBack}
@@ -265,11 +288,18 @@ export function QuickMatchLayout({
           </button>
           <img src={logoSpe} alt="SPE" className="h-5" draggable={false} />
           <div className="leading-tight">
-            <div className="text-[9px] font-black tracking-[0.3em] text-emerald-400">
-              ● MODO RÁPIDO
+            <div
+              className={cn(
+                'text-[9px] font-black tracking-[0.3em]',
+                competitionMode ? 'text-red-400' : 'text-emerald-400',
+              )}
+            >
+              {competitionMode ? '● AO VIVO' : '● TREINO'}
             </div>
             <div className="text-[10px] font-mono text-zinc-500 tracking-[0.1em]">
-              MAT {matId} · LUTA AO VIVO
+              {competitionMode && categoryLabel
+                ? `${categoryLabel} · MAT ${matId}`
+                : `MAT ${matId} · LUTA AO VIVO`}
             </div>
           </div>
         </div>
@@ -338,6 +368,15 @@ export function QuickMatchLayout({
           <IconBtn onClick={onOpenTV} title="Abrir placar na TV">
             <Monitor className="w-4 h-4" />
           </IconBtn>
+          <button
+            onClick={() => setShowShareDialog(true)}
+            title="Placar ao vivo no celular (QR Code)"
+            aria-label="Placar no celular"
+            className="h-8 px-2.5 flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/15 text-blue-300 hover:bg-blue-500/25 hover:text-blue-200 transition-colors shrink-0"
+          >
+            <QrCode className="w-4 h-4" />
+            <span className="text-[10px] font-black tracking-[0.2em] uppercase">Celular</span>
+          </button>
           <IconBtn onClick={onOpenHardwareTest} title="Testar equipamento">
             <Stethoscope className="w-4 h-4" />
           </IconBtn>
@@ -418,8 +457,9 @@ export function QuickMatchLayout({
             <button
               onClick={handleToggleRun}
               disabled={isMatchEnd}
+              title={isRunning ? 'Kal-yeo (pausa arbitral) — equivalente KPNP: Kal-yeo' : 'Shijak (iniciar combate) — equivalente KPNP: Shijak'}
               className={cn(
-                'w-full rounded-xl py-4 flex items-center justify-center gap-2.5 text-[15px] font-black tracking-[0.22em] text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
+                'w-full rounded-xl py-3.5 flex flex-col items-center justify-center gap-0.5 font-black text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
                 isRunning
                   ? 'bg-rose-600 hover:bg-rose-500 shadow-[0_6px_18px_rgba(220,38,38,0.4)]'
                   : 'bg-emerald-500 hover:bg-emerald-400 shadow-[0_6px_18px_rgba(16,185,129,0.4)]',
@@ -427,27 +467,35 @@ export function QuickMatchLayout({
             >
               {isRunning ? (
                 <>
-                  <Pause className="w-5 h-5" /> PAUSAR <Kbd>␣</Kbd>
+                  <span className="flex items-center gap-2.5 text-[15px] tracking-[0.22em]">
+                    <Pause className="w-5 h-5" /> PAUSAR <Kbd>␣</Kbd>
+                  </span>
+                  <span className="text-[9px] font-semibold tracking-[0.35em] opacity-70">KAL-YEO</span>
                 </>
               ) : (
                 <>
-                  <Play className="w-5 h-5" /> INICIAR <Kbd>␣</Kbd>
+                  <span className="flex items-center gap-2.5 text-[15px] tracking-[0.22em]">
+                    <Play className="w-5 h-5" /> INICIAR <Kbd>␣</Kbd>
+                  </span>
+                  <span className="text-[9px] font-semibold tracking-[0.35em] opacity-70">SHIJAK</span>
                 </>
               )}
             </button>
 
             <div className="grid grid-cols-2 gap-1.5">
-              <SmallBtn onClick={() => actions.resetTime()}>RESET</SmallBtn>
+              <SmallBtn onClick={() => actions.resetTime()} title="Reset do cronômetro do round atual">RESET</SmallBtn>
               <SmallBtn
                 onClick={() => actions.nextRound()}
                 disabled={state.status !== 'ROUND_END'}
+                title="Avançar para o próximo round"
               >
-                PRÓX. R
+                PRÓX. R <Kbd>N</Kbd>
               </SmallBtn>
               <SmallBtn
                 onClick={() => actions.undoLast()}
                 disabled={!actions.canUndo}
                 className="col-span-2"
+                title="Desfazer última ação — equivalente KPNP: Reverse"
               >
                 <Undo2 className="w-3 h-3" /> DESFAZER <Kbd>⌫</Kbd>
               </SmallBtn>
@@ -455,6 +503,7 @@ export function QuickMatchLayout({
                 onClick={() => setShowEndConfirm(true)}
                 disabled={isMatchEnd}
                 className="col-span-2 !bg-red-500/15 !text-red-300 !border-red-500/40 hover:!bg-red-500/25"
+                title="Encerrar luta — equivalente KPNP: Completion"
               >
                 <Power className="w-3 h-3" /> ENCERRAR LUTA
               </SmallBtn>
@@ -492,6 +541,17 @@ export function QuickMatchLayout({
         />
       </div>
 
+      {/* ── Legenda de atalhos (KPNP-compatible) ── */}
+      <div className="px-4 pb-2 pt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] font-mono text-zinc-500 border-t border-white/5">
+        <span className="flex items-center gap-1.5"><Kbd>␣</Kbd><span className="tracking-[0.15em]">SHIJAK / KAL-YEO</span></span>
+        <span className="flex items-center gap-1.5"><Kbd>1</Kbd>–<Kbd>5</Kbd><span className="text-blue-400/80 tracking-[0.15em]">CHUNG</span></span>
+        <span className="flex items-center gap-1.5"><Kbd>⇧</Kbd>+<Kbd>1</Kbd>–<Kbd>5</Kbd><span className="text-red-400/80 tracking-[0.15em]">HONG</span></span>
+        <span className="flex items-center gap-1.5"><Kbd>F1</Kbd>/<Kbd>F2</Kbd><span className="tracking-[0.15em]">GAM-JEOM</span></span>
+        <span className="flex items-center gap-1.5"><Kbd>N</Kbd><span className="tracking-[0.15em]">PRÓX. ROUND</span></span>
+        <span className="flex items-center gap-1.5"><Kbd>M</Kbd><span className="tracking-[0.15em]">KYESHI</span></span>
+        <span className="flex items-center gap-1.5"><Kbd>⌫</Kbd><span className="tracking-[0.15em]">UNDO</span></span>
+      </div>
+
       {/* Queue management dialog */}
       <QueueDialog
         open={showQueueDialog}
@@ -502,9 +562,81 @@ export function QuickMatchLayout({
         onClear={clearQueue}
       />
 
+      {/* ── Placar celular (QR) ── */}
+      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white text-center">Placar ao Vivo no Celular</AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400 text-center">
+              Escaneie o QR Code ou compartilhe o link para acompanhar o placar em tempo real pelo navegador.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {(() => {
+            const LIVE_BASE_URL = 'https://spe-sulsport.vercel.app';
+            const liveUrl = `${LIVE_BASE_URL}/#/live?mat=${matId}${academyId ? `&aid=${academyId}` : ''}`;
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(liveUrl)}&bgcolor=18181b&color=ffffff`;
+            return (
+              <div className="flex flex-col items-center gap-4 py-2">
+                <div className="bg-zinc-800 rounded-xl p-3">
+                  <img
+                    src={qrApiUrl}
+                    alt="QR Code para placar ao vivo"
+                    width={200}
+                    height={200}
+                    className="rounded-lg"
+                  />
+                </div>
+                <div className="w-full flex items-center gap-2 bg-zinc-800 rounded-lg p-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={liveUrl}
+                    className="flex-1 bg-transparent text-xs text-zinc-300 font-mono outline-none truncate"
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(liveUrl);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                    }}
+                    className="shrink-0 p-1.5 rounded-md hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+                    title="Copiar link"
+                  >
+                    {copiedLink ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+                {typeof navigator !== 'undefined' && 'share' in navigator && (
+                  <button
+                    onClick={() => {
+                      navigator.share({
+                        title: `Placar ao Vivo — Quadra ${matId}`,
+                        text: 'Acompanhe o placar em tempo real!',
+                        url: liveUrl,
+                      }).catch(() => {});
+                    }}
+                    className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Compartilhar via...
+                  </button>
+                )}
+                <p className="text-[10px] text-zinc-600 text-center">
+                  O celular precisa estar na mesma rede WiFi ou com acesso a internet.
+                </p>
+              </div>
+            );
+          })()}
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600 w-full">
+              Fechar
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ── End match confirmation ── */}
       <AlertDialog open={showEndConfirm} onOpenChange={setShowEndConfirm}>
-        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Encerrar esta luta?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
@@ -731,7 +863,7 @@ function QueueDialog({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-[560px] max-w-[95vw] max-h-[85vh] overflow-hidden bg-[hsl(var(--sulsport-dark))] border border-white/10 rounded-xl shadow-2xl flex flex-col">
+        <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-[560px] max-w-[95vw] max-h-[85vh] overflow-hidden bg-wt-bg-secondary border border-wt-divider flex flex-col">
           <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
             <div>
               <DialogPrimitive.Title className="text-white text-base font-bold">
@@ -867,16 +999,19 @@ function SmallBtn({
   disabled,
   className,
   children,
+  title,
 }: {
   onClick: () => void;
   disabled?: boolean;
   className?: string;
   children: React.ReactNode;
+  title?: string;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={cn(
         'bg-white/[0.06] text-white border border-white/10 rounded-md py-2 px-1.5 flex items-center justify-center gap-1.5 text-[10px] font-bold tracking-[0.18em] hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors',
         className,
@@ -900,7 +1035,7 @@ function StatusPill({ status }: { status: MatchState['status'] }) {
     IDLE: { label: 'PRONTO', cls: 'bg-zinc-700 text-zinc-300' },
     RUNNING: { label: '● AO VIVO', cls: 'bg-emerald-500/20 text-emerald-400' },
     PAUSED: { label: 'PAUSADO', cls: 'bg-yellow-500/20 text-yellow-400' },
-    MEDICAL: { label: 'T. MÉDICO', cls: 'bg-orange-500/20 text-orange-400' },
+    MEDICAL: { label: 'KYESHI · MÉDICO', cls: 'bg-orange-500/20 text-orange-400' },
     ROUND_END: { label: 'FIM ROUND', cls: 'bg-blue-500/20 text-blue-400' },
     MATCH_END: { label: 'ENCERRADA', cls: 'bg-zinc-500/30 text-zinc-300' },
   } as const;
@@ -1004,7 +1139,7 @@ function ScoreRail({
         <ScoreChip
           key={type}
           type={type}
-          points={scoring[type as keyof typeof scoring] ?? 0}
+          points={getScoreValue(type, scoring)}
           side={side}
           dimmed={dimmed}
           onClick={() => onScore(type)}
