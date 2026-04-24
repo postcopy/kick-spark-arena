@@ -1013,26 +1013,58 @@ export function useChampionshipSync({
     });
   }, [role, state, saveToHistory, broadcast]);
   
+  // Adjust aceita 1 ou 2 chamadas seguidas no mesmo tick — ScoreAdjustDialog
+  // chama uma vez por lado quando ambos mudam. Precisamos garantir 1 UNICO
+  // broadcast no final pra evitar TV flashar estado intermediario (ex: BLUE
+  // novo + RED antigo). Estrategia: usar stateRef + microtask pra coalescer.
+  const pendingAdjustRef = useRef<{
+    blue?: { score: number; gamjeom: number };
+    red?: { score: number; gamjeom: number };
+    scheduled: boolean;
+  }>({ scheduled: false });
+
   const adjustScore = useCallback((side: MatchSide, roundScore: number, gamjeom: number) => {
     if (role !== 'master') return;
-    
-    saveToHistory(state);
-    
-    const sideLabel = side === 'RED' ? 'Vermelho' : 'Azul';
-    
-    setState(prev => {
-      const newState: MatchState = {
-        ...prev,
-        roundScoreRed: side === 'RED' ? roundScore : prev.roundScoreRed,
-        roundScoreBlue: side === 'BLUE' ? roundScore : prev.roundScoreBlue,
-        gamjeomRed: side === 'RED' ? gamjeom : prev.gamjeomRed,
-        gamjeomBlue: side === 'BLUE' ? gamjeom : prev.gamjeomBlue,
-        events: [createEvent('ADJUST', `Placar ${sideLabel} ajustado: ${roundScore} pts, ${gamjeom} GJ`, side), ...prev.events].slice(0, MAX_EVENTS),
-      };
-      broadcast(newState, true);
-      return newState;
+
+    // Acumula no ref
+    if (side === 'BLUE') {
+      pendingAdjustRef.current.blue = { score: roundScore, gamjeom };
+    } else {
+      pendingAdjustRef.current.red = { score: roundScore, gamjeom };
+    }
+
+    // Agenda flush único no fim do microtask — coalesce chamadas síncronas
+    if (pendingAdjustRef.current.scheduled) return;
+    pendingAdjustRef.current.scheduled = true;
+
+    queueMicrotask(() => {
+      const pending = pendingAdjustRef.current;
+      pendingAdjustRef.current = { scheduled: false };
+      if (!pending.blue && !pending.red) return;
+
+      saveToHistory(stateRef.current);
+
+      setState(prev => {
+        const events: MatchEvent[] = [];
+        if (pending.blue) {
+          events.push(createEvent('ADJUST', `Placar Azul ajustado: ${pending.blue.score} pts, ${pending.blue.gamjeom} GJ`, 'BLUE'));
+        }
+        if (pending.red) {
+          events.push(createEvent('ADJUST', `Placar Vermelho ajustado: ${pending.red.score} pts, ${pending.red.gamjeom} GJ`, 'RED'));
+        }
+        const newState: MatchState = {
+          ...prev,
+          roundScoreBlue: pending.blue ? pending.blue.score : prev.roundScoreBlue,
+          gamjeomBlue: pending.blue ? pending.blue.gamjeom : prev.gamjeomBlue,
+          roundScoreRed: pending.red ? pending.red.score : prev.roundScoreRed,
+          gamjeomRed: pending.red ? pending.red.gamjeom : prev.gamjeomRed,
+          events: [...events, ...prev.events].slice(0, MAX_EVENTS),
+        };
+        broadcast(newState, true);
+        return newState;
+      });
     });
-  }, [role, state, saveToHistory, broadcast]);
+  }, [role, saveToHistory, broadcast]);
   
   // Reverse sides — swap CHUNG (BLUE) ↔ HONG (RED) completamente.
   // Equivalente KPNP: botão "Reverse Sides". Troca atletas, scores, gamjeoms,

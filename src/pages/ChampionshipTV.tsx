@@ -253,7 +253,7 @@ export default function ChampionshipTV() {
                   style={{
                     fontSize: 'clamp(240px, 38vw, 520px)',
                     letterSpacing: '-0.05em',
-                    color: blueLeading ? 'hsl(var(--chung-accent))' : '#FFFFFF',
+                    color: blueLeading ? 'hsl(var(--wt-manual))' : '#FFFFFF',
                   }}
                 >
                   {state.roundScoreBlue}
@@ -394,7 +394,7 @@ export default function ChampionshipTV() {
                   style={{
                     fontSize: 'clamp(240px, 38vw, 520px)',
                     letterSpacing: '-0.05em',
-                    color: redLeading ? 'hsl(var(--hong-accent))' : '#FFFFFF',
+                    color: redLeading ? 'hsl(var(--wt-manual))' : '#FFFFFF',
                   }}
                 >
                   {state.roundScoreRed}
