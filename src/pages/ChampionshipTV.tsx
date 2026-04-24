@@ -295,27 +295,54 @@ export default function ChampionshipTV() {
           );
         })()}
 
-        {/* CENTER — estreito, sóbrio, retangular, só o essencial */}
-        <div className="flex flex-col items-center justify-center gap-4 bg-black" style={{ width: 240, padding: '20px 10px' }}>
-          <div className="text-white/50 font-bold" style={{ fontSize: 11, letterSpacing: '0.4em' }}>ROUND</div>
+        {/* CENTER — broadcast-grade, números leem a 5m+ em ginásio */}
+        <div
+          className="flex flex-col items-center justify-center bg-black"
+          style={{
+            width: 'clamp(320px, 22vw, 440px)',
+            padding: 'clamp(16px, 2vh, 32px) clamp(12px, 1.2vw, 24px)',
+            gap: 'clamp(12px, 1.6vh, 24px)',
+          }}
+        >
+          <div className="text-white/50 font-bold" style={{ fontSize: 'clamp(11px, 0.9vw, 16px)', letterSpacing: '0.4em' }}>ROUND</div>
           {state.isGoldenRound ? (
             <>
-              <div className="font-black text-wt-manual animate-pulse" style={{ fontSize: 38, letterSpacing: '0.15em' }}>GOLDEN</div>
-              <div className="font-black text-wt-manual" style={{ fontSize: 38, letterSpacing: '0.15em' }}>ROUND</div>
+              <div
+                className="font-black text-wt-manual animate-pulse leading-none"
+                style={{ fontSize: 'clamp(40px, 3.5vw, 72px)', letterSpacing: '0.15em' }}
+              >
+                GOLDEN
+              </div>
+              <div
+                className="font-black text-wt-manual leading-none"
+                style={{ fontSize: 'clamp(40px, 3.5vw, 72px)', letterSpacing: '0.15em' }}
+              >
+                ROUND
+              </div>
             </>
           ) : (
             <>
-              <div className="font-black text-white tabular-nums leading-none" style={{ fontSize: 92 }}>{state.round}</div>
-              <div className="text-white/40 font-bold -mt-1" style={{ fontSize: 12, letterSpacing: '0.3em' }}>/ {state.config.maxRounds}</div>
+              <div
+                className="font-black text-white tabular-nums leading-none"
+                style={{ fontSize: 'clamp(140px, 13vw, 260px)', letterSpacing: '-0.03em' }}
+              >
+                {state.round}
+              </div>
+              <div
+                className="text-white/40 font-bold"
+                style={{ fontSize: 'clamp(14px, 1.1vw, 22px)', letterSpacing: '0.3em', marginTop: '-0.3em' }}
+              >
+                / {state.config.maxRounds}
+              </div>
             </>
           )}
 
-          <div className="w-3/4 h-px bg-white/15 my-1" />
+          <div className="w-3/4 h-px bg-white/15" />
 
-          {/* Timer — retangular broadcast */}
+          {/* Timer — retangular broadcast, lê a 10m */}
           <div
             className={cn(
-              "font-black tabular-nums leading-none px-5 py-3 w-full text-center border-2",
+              "font-black tabular-nums leading-none text-center border-2 w-full",
               state.isBreakTime
                 ? "bg-wt-bg-tertiary text-white border-wt-divider"
                 : isMedical
@@ -326,14 +353,18 @@ export default function ChampionshipTV() {
                       ? "bg-wt-warning text-black border-wt-warning animate-[timer-blink_0.5s_ease-in-out_infinite]"
                       : "bg-white text-black border-white"
             )}
-            style={{ fontSize: 64 }}
+            style={{
+              fontSize: 'clamp(90px, 8.5vw, 168px)',
+              padding: 'clamp(10px, 1.2vh, 20px) clamp(8px, 0.8vw, 16px)',
+              letterSpacing: '-0.03em',
+            }}
           >
             {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTimePrecise(state.timeLeftMs)}
           </div>
 
           {/* Status label */}
           {state.isBreakTime && !isMatchEnd && (
-            <div className="font-bold uppercase text-white/70 tracking-widest animate-pulse" style={{ fontSize: 14 }}>INTERVALO</div>
+            <div className="font-bold uppercase text-white/70 tracking-widest animate-pulse" style={{ fontSize: 'clamp(14px, 1.1vw, 22px)' }}>INTERVALO</div>
           )}
           {!state.isBreakTime && !isRunning && !isMatchEnd && (
             <div
@@ -341,17 +372,17 @@ export default function ChampionshipTV() {
                 "font-bold uppercase tracking-widest",
                 isMedical ? "text-wt-warning" : "text-white/70 animate-pulse"
               )}
-              style={{ fontSize: 14 }}
+              style={{ fontSize: 'clamp(14px, 1.1vw, 22px)' }}
             >
               {isMedical ? 'TEMPO MÉDICO' : 'PAUSADO'}
             </div>
           )}
           {isRunning && !state.isBreakTime && (
-            <div className="font-bold uppercase text-wt-success tracking-widest" style={{ fontSize: 14 }}>EM LUTA</div>
+            <div className="font-bold uppercase text-wt-success tracking-widest" style={{ fontSize: 'clamp(14px, 1.1vw, 22px)' }}>EM LUTA</div>
           )}
 
           {/* LUTA identifier abaixo do timer */}
-          <div className="text-white/30 font-bold font-mono mt-2" style={{ fontSize: 10, letterSpacing: '0.25em' }}>
+          <div className="text-white/30 font-bold font-mono" style={{ fontSize: 'clamp(10px, 0.8vw, 14px)', letterSpacing: '0.25em' }}>
             LUTA {state.config.matchNumber || '001'}
           </div>
         </div>
