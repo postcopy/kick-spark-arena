@@ -140,7 +140,16 @@ export function useChampionshipSync({
     if (event === 'match-state' && payload) {
       // If BroadcastChannel received data recently, skip Realtime to avoid double-setState
       if (Date.now() - bcLastReceived.current < 3000) return;
-      setState(payload as MatchState);
+      const incoming = payload as MatchState;
+      // Guarda anti-regressao: se payload eh mais antigo que estado atual,
+      // ignora. Evita o bug do TV flashar pra estado default (2:00) quando
+      // heartbeat/polling entrega um snapshot stale depois de config nova.
+      setState(prev => {
+        if (incoming.lastUpdate && prev.lastUpdate && incoming.lastUpdate < prev.lastUpdate) {
+          return prev;
+        }
+        return incoming;
+      });
       setIsConnected(true);
     } else {
       // Forward command messages (show-bracket, show-scoreboard) to consumer
@@ -244,7 +253,16 @@ export function useChampionshipSync({
           .single();
 
         if (!cancelled && data?.state && !error) {
-          setState(data.state as MatchState);
+          const incoming = data.state as MatchState;
+          // Guarda anti-regressao: polling pode retornar linha stale se
+          // master acabou de atualizar. Rejeita qualquer payload com
+          // lastUpdate mais antigo que o que ja temos.
+          setState(prev => {
+            if (incoming.lastUpdate && prev.lastUpdate && incoming.lastUpdate < prev.lastUpdate) {
+              return prev;
+            }
+            return incoming;
+          });
           setIsConnected(true);
         }
       } catch { /* ignore */ }
@@ -273,6 +291,12 @@ export function useChampionshipSync({
         if (payload) {
           // Only update if something meaningful changed (avoid redundant renders)
           setState(prev => {
+            // Guarda anti-regressao por timestamp: rejeita payload mais antigo
+            // que estado atual. Evita flash pra estado default quando um
+            // heartbeat/reconnect entrega snapshot stale.
+            if (payload.lastUpdate && prev.lastUpdate && payload.lastUpdate < prev.lastUpdate) {
+              return prev;
+            }
             if (prev.timeLeftMs === payload.timeLeftMs &&
                 prev.roundScoreRed === payload.roundScoreRed &&
                 prev.roundScoreBlue === payload.roundScoreBlue &&
