@@ -29,6 +29,7 @@ import {
   VolumeX,
   ClipboardList,
   Edit3,
+  ArrowLeftRight,
 } from 'lucide-react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
@@ -64,6 +65,7 @@ interface QuickActions {
   addGamjeom: (side: MatchSide) => void;
   removeGamjeom?: (side: MatchSide) => void;
   adjustScore?: (side: MatchSide, roundScore: number, gamjeom: number) => void;
+  reverseSides?: () => void;
   startMedicalTime?: () => void;
   endMedicalTime?: () => void;
   undoLast: () => void;
@@ -159,6 +161,7 @@ export function QuickMatchLayout({
   const [copiedLink, setCopiedLink] = useState(false);
   const [showEventLog, setShowEventLog] = useState(false);
   const [showScoreAdjust, setShowScoreAdjust] = useState(false);
+  const [showReverseConfirm, setShowReverseConfirm] = useState(false);
   const { queue, add: addToQueue, remove: removeFromQueue, clear: clearQueue, shift: shiftQueue } = useMatchQueue(matId);
 
   const isRunning = state.status === 'RUNNING';
@@ -406,6 +409,11 @@ export function QuickMatchLayout({
           {actions.adjustScore && (
             <IconBtn onClick={() => setShowScoreAdjust(true)} title="Ajustar placar manualmente">
               <Edit3 className="w-4 h-4" />
+            </IconBtn>
+          )}
+          {actions.reverseSides && (
+            <IconBtn onClick={() => setShowReverseConfirm(true)} title="Inverter lados Chung ↔ Hong — equivalente KPNP: Reverse Sides">
+              <ArrowLeftRight className="w-4 h-4" />
             </IconBtn>
           )}
           {onToggleMute && (
@@ -688,6 +696,40 @@ export function QuickMatchLayout({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Reverse sides confirmation ── */}
+      {actions.reverseSides && (
+        <AlertDialog open={showReverseConfirm} onOpenChange={setShowReverseConfirm}>
+          <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">Inverter lados Chung ↔ Hong?</AlertDialogTitle>
+              <AlertDialogDescription className="text-zinc-400">
+                Troca atletas, placar, gam-jeoms, hits e vitórias de round entre os lados.
+                Reversível via DESFAZER.
+                <br /><br />
+                <span className="text-blue-400 font-bold">CHUNG: {blueName}</span>{' '}
+                <span className="text-zinc-500">→</span>{' '}
+                <span className="text-red-400 font-bold">HONG: {blueName}</span>
+                <br />
+                <span className="text-red-400 font-bold">HONG: {redName}</span>{' '}
+                <span className="text-zinc-500">→</span>{' '}
+                <span className="text-blue-400 font-bold">CHUNG: {redName}</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => actions.reverseSides?.()}
+                className="bg-amber-600 hover:bg-amber-500 text-white"
+              >
+                Sim, inverter
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {/* ── End match confirmation ── */}
       <AlertDialog open={showEndConfirm} onOpenChange={setShowEndConfirm}>

@@ -17,6 +17,7 @@ import type { ChampionshipSyncMessage } from '@/types/championship';
 import { useRealtimeSync } from './useRealtimeSync';
 import { supabase } from '@/integrations/supabase/client';
 import { migrateMatchConfig } from '@/lib/matchConfigMigration';
+import { WT_RULESET_PRESETS } from '@/lib/wtRuleset';
 
 // Maximum events to keep in history
 const MAX_EVENTS = 500;
@@ -50,9 +51,10 @@ interface UseChampionshipSyncReturn {
   // Scoring (master only)
   addScore: (side: MatchSide, type: ScoreType) => void;
   addHit: (side: MatchSide) => void;
-  addGamjeom: (side: MatchSide) => void;
+  addGamjeom: (side: MatchSide, reason?: import('@/types/championship').GamjeomReason) => void;
   removeGamjeom: (side: MatchSide) => void;
   adjustScore: (side: MatchSide, roundScore: number, gamjeom: number) => void;
+  reverseSides: () => void;
 
   // Undo (master only)
   undoLast: () => void;
@@ -69,7 +71,8 @@ function createEvent(
   type: MatchEvent['type'],
   description: string,
   side?: MatchSide,
-  points?: number
+  points?: number,
+  extra?: { reason?: import('@/types/championship').GamjeomReason; operatorId?: string }
 ): MatchEvent {
   return {
     id: crypto.randomUUID(),
@@ -78,6 +81,8 @@ function createEvent(
     points,
     ts: Date.now(),
     description,
+    ...(extra?.reason ? { reason: extra.reason } : {}),
+    ...(extra?.operatorId ? { operatorId: extra.operatorId } : {}),
   };
 }
 
@@ -927,16 +932,38 @@ export function useChampionshipSync({
     });
   }, [role, saveToHistory, broadcast]);
   
-  const addGamjeom = useCallback((side: MatchSide) => {
+  const addGamjeom = useCallback((side: MatchSide, reason: import('@/types/championship').GamjeomReason = 'OTHER') => {
     if (role !== 'master') return;
     const s = stateRef.current;
     if (s.status !== 'RUNNING' && s.status !== 'PAUSED') return;
-    
+
     saveToHistory(s);
-    
+
     const sideLabel = side === 'RED' ? 'Vermelho' : 'Azul';
     const opponentLabel = side === 'RED' ? 'Azul' : 'Vermelho';
-    
+
+    // WT 2026 JUN anti-stalling: passividade na janela final do round => +2 pts pro oponente.
+    // Resolve via ruleset ativo; fallback seguro se version nao estiver no preset (defaults 1 ponto).
+    const preset = WT_RULESET_PRESETS[s.config.rulesetVersion];
+    const bonus = preset?.gamjeomPassivityBonus ?? 1;
+    const windowMs = preset?.gamjeomPassivityWindowMs ?? 10_000;
+    const inPassivityWindow = s.timeLeftMs > 0 && s.timeLeftMs <= windowMs;
+    const applyBonus = reason === 'PASSIVITY' && bonus === 2 && inPassivityWindow;
+    const pointsToOpponent = applyBonus ? 2 : 1;
+
+    const reasonLabel: Record<import('@/types/championship').GamjeomReason, string> = {
+      PASSIVITY: 'Passividade',
+      FALL: 'Queda',
+      GRAB: 'Agarrar/empurrar',
+      BOUNDARY: 'Sair da area',
+      FACE_ATTACK: 'Ataque ao rosto',
+      BELOW_WAIST: 'Ataque abaixo da cintura',
+      OTHER: '',
+    };
+    const reasonSuffix = reasonLabel[reason] ? ` [${reasonLabel[reason]}]` : '';
+    const bonusSuffix = applyBonus ? ' — BONUS PASSIVIDADE' : '';
+    const description = `GAM-JEOM ${sideLabel}${reasonSuffix} (+${pointsToOpponent} ponto${pointsToOpponent > 1 ? 's' : ''} ${opponentLabel})${bonusSuffix}`;
+
     setState(prev => {
       const isRunning = prev.status === 'RUNNING';
       const newState: MatchState = {
@@ -944,10 +971,10 @@ export function useChampionshipSync({
         status: isRunning ? 'PAUSED' : prev.status,
         gamjeomRed: side === 'RED' ? prev.gamjeomRed + 1 : prev.gamjeomRed,
         gamjeomBlue: side === 'BLUE' ? prev.gamjeomBlue + 1 : prev.gamjeomBlue,
-        roundScoreRed: side === 'BLUE' ? prev.roundScoreRed + 1 : prev.roundScoreRed,
-        roundScoreBlue: side === 'RED' ? prev.roundScoreBlue + 1 : prev.roundScoreBlue,
+        roundScoreRed: side === 'BLUE' ? prev.roundScoreRed + pointsToOpponent : prev.roundScoreRed,
+        roundScoreBlue: side === 'RED' ? prev.roundScoreBlue + pointsToOpponent : prev.roundScoreBlue,
         events: [
-          createEvent('GAMJEOM', `GAM-JEOM ${sideLabel} (+1 ponto ${opponentLabel})`, side, 1),
+          createEvent('GAMJEOM', description, side, pointsToOpponent, { reason }),
           ...(isRunning ? [createEvent('TIMER_PAUSE', 'Auto-pause: Gam-jeom aplicado')] : []),
           ...prev.events
         ].slice(0, MAX_EVENTS),
@@ -1007,6 +1034,41 @@ export function useChampionshipSync({
     });
   }, [role, state, saveToHistory, broadcast]);
   
+  // Reverse sides — swap CHUNG (BLUE) ↔ HONG (RED) completamente.
+  // Equivalente KPNP: botão "Reverse Sides". Troca atletas, scores, gamjeoms,
+  // hits, roundWins, roundHistory e as entradas do config. Registra evento no log.
+  // Uso típico: operador percebeu que os atletas estão nos lados trocados
+  // (colete azul no direito, vermelho no esquerdo). Reversível via Undo.
+  const reverseSides = useCallback(() => {
+    if (role !== 'master') return;
+
+    saveToHistory(state);
+
+    setState(prev => {
+      const newState: MatchState = {
+        ...prev,
+        roundScoreRed: prev.roundScoreBlue,
+        roundScoreBlue: prev.roundScoreRed,
+        roundHistoryRed: prev.roundHistoryBlue,
+        roundHistoryBlue: prev.roundHistoryRed,
+        hitsRed: prev.hitsBlue,
+        hitsBlue: prev.hitsRed,
+        roundWinsRed: prev.roundWinsBlue,
+        roundWinsBlue: prev.roundWinsRed,
+        gamjeomRed: prev.gamjeomBlue,
+        gamjeomBlue: prev.gamjeomRed,
+        config: {
+          ...prev.config,
+          athleteRed: prev.config.athleteBlue,
+          athleteBlue: prev.config.athleteRed,
+        },
+        events: [createEvent('SIDES_REVERSED', 'Lados invertidos (Chung ↔ Hong)'), ...prev.events].slice(0, MAX_EVENTS),
+      };
+      broadcast(newState, true);
+      return newState;
+    });
+  }, [role, state, saveToHistory, broadcast]);
+
   // Undo
   const undoLast = useCallback(() => {
     if (role !== 'master') return;
@@ -1089,6 +1151,7 @@ export function useChampionshipSync({
     addGamjeom,
     removeGamjeom,
     adjustScore,
+    reverseSides,
     undoLast,
     canUndo: history.length > 0,
     saveConfig,

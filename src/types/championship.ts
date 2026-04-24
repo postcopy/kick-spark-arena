@@ -124,16 +124,35 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   },
 };
 
+/**
+ * Motivo do gam-jeom (audit trail federativo WT).
+ * PASSIVITY aciona o bonus de passividade quando aplicado na janela final
+ * do round em rulesets com gamjeomPassivityBonus=2 (WT-2026-JUN+).
+ */
+export type GamjeomReason =
+  | 'PASSIVITY'   // passividade / evitar combate
+  | 'FALL'        // queda ao chao
+  | 'GRAB'        // agarrar / empurrar
+  | 'BOUNDARY'    // sair da area
+  | 'FACE_ATTACK' // ataque ao rosto com mao
+  | 'BELOW_WAIST' // ataque abaixo da cintura
+  | 'OTHER';      // nao especificado
+
 // Match event for logging
 export interface MatchEvent {
   id: string;
   type: ScoreType | 'UNDO' | 'TIMER_START' | 'TIMER_PAUSE' | 'TIMER_RESET' |
         'MEDICAL_START' | 'MEDICAL_END' | 'ROUND_END' | 'ROUND_WIN' |
-        'MATCH_END' | 'POINT_GAP' | 'GAMJEOM_LIMIT' | 'ADJUST' | 'GOLDEN_ROUND' | 'BREAK_TIME';
+        'MATCH_END' | 'POINT_GAP' | 'GAMJEOM_LIMIT' | 'ADJUST' | 'GOLDEN_ROUND' | 'BREAK_TIME' |
+        'SIDES_REVERSED';
   side?: MatchSide;
   points?: number;
   ts: number;
   description: string;
+  /** Motivo do gam-jeom (preenchido apenas quando type='GAMJEOM'). Audit trail WT. */
+  reason?: GamjeomReason;
+  /** ID do operador que aplicou (futuro: auth). Audit trail WT. */
+  operatorId?: string;
 }
 
 // Main match state
