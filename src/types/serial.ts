@@ -92,4 +92,6 @@ export interface UseSerialPortReturn {
   getDetectorDiag: () => DetectorDiag;
   /** Toggle pass-through mode (bypass all detector filters) */
   setPassThroughMode: (active: boolean) => void;
+  /** Envia comando raw ao receptor (ex: "#COOLDOWN 250"). Retorna true se a escrita teve sucesso. */
+  sendCommand: (cmd: string) => Promise<boolean>;
 }

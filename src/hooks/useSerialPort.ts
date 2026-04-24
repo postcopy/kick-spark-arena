@@ -553,6 +553,30 @@ export function useSerialPort({
     config: detectorRef.current.getConfigSnapshot(),
   }), []);
 
+  // Envia um comando ao receptor custom v5.1 (ex: "#COOLDOWN 250").
+  // Linha é encerrada com \n. Silencioso quando não há porta conectada.
+  const sendCommand = useCallback(async (cmd: string): Promise<boolean> => {
+    const port = portRef.current;
+    if (!port || !port.writable) {
+      logger.warn('[useSerialPort] sendCommand: no writable port', cmd);
+      return false;
+    }
+    try {
+      const writer = port.writable.getWriter();
+      try {
+        const payload = cmd.endsWith('\n') ? cmd : cmd + '\n';
+        await writer.write(new TextEncoder().encode(payload));
+        logger.log('[useSerialPort] >>', cmd);
+        return true;
+      } finally {
+        writer.releaseLock();
+      }
+    } catch (e) {
+      logger.warn('[useSerialPort] sendCommand failed:', e);
+      return false;
+    }
+  }, []);
+
   return {
     isConnected,
     isConnecting,
@@ -566,6 +590,7 @@ export function useSerialPort({
     rawPacketCount,
     lastRawLine,
     getDetectorDiag,
+    sendCommand,
     setPassThroughMode: useCallback((active: boolean) => {
       detectorRef.current.updateConfig({ passThroughMode: active });
       logger.log('[useSerialPort] passThroughMode:', active);

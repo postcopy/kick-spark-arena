@@ -44,18 +44,33 @@ interface MatchConfigDialogProps {
   currentConfig: MatchConfig;
   onSave: (config: MatchConfig) => void;
   isLocked?: boolean; // Block editing when RUNNING
+  /** Envia comando raw ao receptor (ex: "#COOLDOWN 250"). Opcional. */
+  onSendReceiverCommand?: (cmd: string) => Promise<boolean>;
+  /** Receptor conectado? Usado pra habilitar botões de configuração de firmware. */
+  receiverConnected?: boolean;
 }
 
-export function MatchConfigDialog({ 
-  open, 
-  onOpenChange, 
-  currentConfig, 
+export function MatchConfigDialog({
+  open,
+  onOpenChange,
+  currentConfig,
   onSave,
   isLocked = false,
+  onSendReceiverCommand,
+  receiverConnected = false,
 }: MatchConfigDialogProps) {
   const [config, setConfig] = useState<MatchConfig>(currentConfig);
   const [activeTab, setActiveTab] = useState('time');
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  // PSS Hit Level (firmware cooldown, em ms). Persistido em localStorage por-mat.
+  const hitLevelStorageKey = `championship.hitLevel.mat${currentConfig.matId}`;
+  const [hitLevelMs, setHitLevelMs] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(hitLevelStorageKey);
+      return raw ? Math.max(50, Math.min(1000, parseInt(raw, 10) || 200)) : 200;
+    } catch { return 200; }
+  });
+  const [hitLevelSent, setHitLevelSent] = useState<'idle' | 'sending' | 'ok' | 'fail'>('idle');
 
   // Sync config when dialog opens
   useEffect(() => {
@@ -709,6 +724,59 @@ export function MatchConfigDialog({
                         className="bg-zinc-800 border-zinc-600 text-white w-24 h-9"
                       />
                     </div>
+
+                    {/* PSS Hit Level — firmware cooldown (KPNP: PSS Hit Level) */}
+                    {onSendReceiverCommand && (
+                      <div className="bg-zinc-900 border border-amber-700/40 rounded-md p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <Label className="text-white text-sm font-bold">PSS Hit Level (ms)</Label>
+                          <span className={cn(
+                            'text-[10px] font-mono px-1.5 py-0.5 rounded',
+                            receiverConnected ? 'bg-green-500/20 text-green-400' : 'bg-zinc-700 text-zinc-500'
+                          )}>
+                            {receiverConnected ? '● RECEPTOR' : 'OFFLINE'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 mb-2">
+                          Cooldown anti-rajada no receptor custom v5.1 (comando <code className="bg-zinc-800 px-1 rounded">#COOLDOWN &lt;ms&gt;</code>).
+                          Menor = mais sensível a chutes rápidos em sequência. Default firmware: 200ms.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={50}
+                            max={1000}
+                            step={10}
+                            value={hitLevelMs}
+                            onChange={(e) => {
+                              const n = Math.max(50, Math.min(1000, parseInt(e.target.value, 10) || 200));
+                              setHitLevelMs(n);
+                              setHitLevelSent('idle');
+                            }}
+                            className="bg-zinc-800 border-zinc-600 text-white w-24 h-9"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!receiverConnected || hitLevelSent === 'sending'}
+                            onClick={async () => {
+                              setHitLevelSent('sending');
+                              const ok = await onSendReceiverCommand(`#COOLDOWN ${hitLevelMs}`);
+                              try { localStorage.setItem(hitLevelStorageKey, String(hitLevelMs)); } catch {}
+                              setHitLevelSent(ok ? 'ok' : 'fail');
+                              setTimeout(() => setHitLevelSent('idle'), 2000);
+                            }}
+                            className={cn(
+                              'h-9',
+                              hitLevelSent === 'ok' && 'bg-green-600 hover:bg-green-500',
+                              hitLevelSent === 'fail' && 'bg-red-600 hover:bg-red-500',
+                            )}
+                          >
+                            {hitLevelSent === 'sending' ? 'Enviando...' : hitLevelSent === 'ok' ? '✓ Aplicado' : hitLevelSent === 'fail' ? '✗ Falhou' : 'Aplicar no Receptor'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Noise Floor per device */}
                     <div className="bg-zinc-900 border border-zinc-700 rounded-md p-3">

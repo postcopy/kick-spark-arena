@@ -833,6 +833,8 @@ function ChampionshipMatInner() {
         currentConfig={sync.state.config}
         onSave={handleSaveConfig}
         isLocked={isConfigLocked}
+        onSendReceiverCommand={serialPort.sendCommand}
+        receiverConnected={serialPort.isConnected}
       />
 
       {/* Reset Match Dialog */}
