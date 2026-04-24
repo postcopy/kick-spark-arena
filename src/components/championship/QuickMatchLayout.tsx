@@ -437,7 +437,7 @@ export function QuickMatchLayout({
               {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
             </IconBtn>
           )}
-          <IconBtn onClick={onOpenHardwareTest} title="Testar equipamento">
+          <IconBtn onClick={onOpenHardwareTest} title="Modo Teste — valida coletes e capacetes recebendo impactos sem contabilizar pontos (equivalente KPNP: Test Mode)">
             <Stethoscope className="w-4 h-4" />
           </IconBtn>
           <IconBtn onClick={onOpenConfig} title="Configuração">

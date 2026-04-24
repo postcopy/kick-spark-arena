@@ -16,7 +16,7 @@
 | B.3 — Reverse Sides | ✅ FEITO | (próximo commit) |
 | B.4 — FOB On/Off toggle | ✅ FEITO | (próximo commit) |
 | B.5 — PSS Hit Level UI | ✅ FEITO | (próximo commit) |
-| B.6 — Test Mode rota | ⏳ TODO | — |
+| B.6 — Test Mode (KPNP) | ✅ FEITO (pré-existente + tooltip) | `HardwareTestOverlay` |
 | C — Record Paper / IVR / Equipment Registration | 📋 BACKLOG | — |
 
 ---
