@@ -14,7 +14,7 @@
 | B.1 — Event log + Score adjust + Mute toggle no header | ✅ FEITO | `5b80c6a` |
 | B.2 — Categoria visível (wire `categoryLabel`) | ⏳ TODO | — |
 | B.3 — Reverse Sides | ✅ FEITO | (próximo commit) |
-| B.4 — FOB On/Off toggle | ⏳ TODO | — |
+| B.4 — FOB On/Off toggle | ✅ FEITO | (próximo commit) |
 | B.5 — PSS Hit Level UI | ⏳ TODO | — |
 | B.6 — Test Mode rota | ⏳ TODO | — |
 | C — Record Paper / IVR / Equipment Registration | 📋 BACKLOG | — |

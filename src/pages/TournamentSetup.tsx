@@ -135,7 +135,7 @@ export default function TournamentSetup() {
   const totalCatsWithBrackets = t.tournament?.categories.filter(c => c.bracket.length > 0).length || 0;
 
   return (
-    <div className="h-screen flex flex-col bg-[hsl(var(--sulsport-black))] text-white overflow-hidden">
+    <div className="h-screen flex flex-col bg-wt-bg text-wt-fg-primary overflow-hidden font-display">
       {/* Hidden file input for CSV */}
       <input
         ref={fileInputRef}
@@ -146,16 +146,16 @@ export default function TournamentSetup() {
       />
 
       {/* Header */}
-      <header className="h-14 bg-[hsl(var(--sulsport-dark))] border-b border-[hsl(var(--sulsport-gray))] flex items-center justify-between px-6 shrink-0">
+      <header className="h-14 bg-wt-bg-secondary border-b border-wt-divider flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/central')}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-wt-fg-muted hover:text-wt-fg-primary transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <Trophy className="h-5 w-5 text-[hsl(var(--sulsport-yellow))]" />
-          <span className="font-bold text-lg">Gerenciar Campeonato</span>
+          <Trophy className="h-5 w-5 text-wt-manual" />
+          <span className="font-bold text-lg uppercase tracking-wider">Gerenciar campeonato</span>
         </div>
         <img src={logoSpe} alt="SPE" className="h-8 w-auto" />
       </header>
@@ -165,9 +165,9 @@ export default function TournamentSetup() {
         <div className="max-w-5xl mx-auto space-y-8">
 
           {/* SECTION 1: Tournament Info */}
-          <section className="bg-[hsl(var(--sulsport-dark))] rounded-xl border border-[hsl(var(--sulsport-gray))] p-6">
+          <section className="bg-wt-bg-secondary border border-wt-divider p-6">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-[hsl(var(--sulsport-yellow))]" />
+              <Trophy className="h-5 w-5 text-wt-manual" />
               Dados do Campeonato
             </h2>
 
@@ -177,24 +177,24 @@ export default function TournamentSetup() {
                   placeholder="Nome do Campeonato"
                   value={tournamentName}
                   onChange={e => setTournamentName(e.target.value)}
-                  className="bg-zinc-900 border-zinc-700 text-white"
+                  className="bg-wt-bg border-wt-divider text-wt-fg-primary rounded-none"
                 />
                 <Input
                   type="date"
                   value={tournamentDate}
                   onChange={e => setTournamentDate(e.target.value)}
-                  className="bg-zinc-900 border-zinc-700 text-white"
+                  className="bg-wt-bg border-wt-divider text-wt-fg-primary rounded-none"
                 />
                 <Input
                   placeholder="Local (opcional)"
                   value={tournamentLocation}
                   onChange={e => setTournamentLocation(e.target.value)}
-                  className="bg-zinc-900 border-zinc-700 text-white"
+                  className="bg-wt-bg border-wt-divider text-wt-fg-primary rounded-none"
                 />
                 <Button
                   onClick={handleCreateTournament}
                   disabled={!tournamentName.trim()}
-                  className="bg-[hsl(var(--sulsport-yellow))] hover:bg-[hsl(var(--sulsport-yellow-dark))] text-black font-bold md:col-span-3"
+                  className="bg-wt-manual hover:bg-wt-manual/90 text-black font-bold uppercase tracking-wider rounded-none md:col-span-3"
                 >
                   Criar Campeonato
                 </Button>
@@ -202,13 +202,13 @@ export default function TournamentSetup() {
             ) : (
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-2xl font-black text-[hsl(var(--sulsport-yellow))]">
+                  <h3 className="text-2xl font-black text-wt-manual">
                     {t.tournament!.name}
                   </h3>
-                  <p className="text-zinc-400">
+                  <p className="text-wt-fg-secondary">
                     {t.tournament!.date} {t.tournament!.location && `— ${t.tournament!.location}`}
                   </p>
-                  <p className="text-sm text-zinc-500 mt-1">
+                  <p className="text-sm text-wt-fg-muted mt-1">
                     {t.tournament!.categories.length} categorias · {totalAthletes} atletas
                   </p>
                 </div>
@@ -217,7 +217,7 @@ export default function TournamentSetup() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowDeleteDialog(true)}
-                    className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                    className="border-wt-danger/40 text-wt-danger hover:bg-wt-danger/10 rounded-none uppercase tracking-wider text-xs font-bold"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Excluir
@@ -229,16 +229,16 @@ export default function TournamentSetup() {
 
           {/* SECTION 2: Categories */}
           {hasTournament && isSetup && (
-            <section className="bg-[hsl(var(--sulsport-dark))] rounded-xl border border-[hsl(var(--sulsport-gray))] p-6">
+            <section className="bg-wt-bg-secondary border border-wt-divider p-6">
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Users className="h-5 w-5 text-[hsl(var(--sulsport-yellow))]" />
+                <Users className="h-5 w-5 text-wt-manual" />
                 Categorias
               </h2>
 
               {/* Add Category Form */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
                 <Select value={catAgeGroup} onValueChange={setCatAgeGroup}>
-                  <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
+                  <SelectTrigger className="bg-wt-bg border-wt-divider text-wt-fg-primary rounded-none">
                     <SelectValue placeholder="Faixa Etária" />
                   </SelectTrigger>
                   <SelectContent>
@@ -249,7 +249,7 @@ export default function TournamentSetup() {
                 </Select>
 
                 <Select value={catBelt} onValueChange={setCatBelt}>
-                  <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
+                  <SelectTrigger className="bg-wt-bg border-wt-divider text-wt-fg-primary rounded-none">
                     <SelectValue placeholder="Graduação" />
                   </SelectTrigger>
                   <SelectContent>
@@ -260,7 +260,7 @@ export default function TournamentSetup() {
                 </Select>
 
                 <Select value={catWeight} onValueChange={setCatWeight}>
-                  <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
+                  <SelectTrigger className="bg-wt-bg border-wt-divider text-wt-fg-primary rounded-none">
                     <SelectValue placeholder="Peso" />
                   </SelectTrigger>
                   <SelectContent>
@@ -271,7 +271,7 @@ export default function TournamentSetup() {
                 </Select>
 
                 <Select value={catGender} onValueChange={v => setCatGender(v as CategoryGender)}>
-                  <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white">
+                  <SelectTrigger className="bg-wt-bg border-wt-divider text-wt-fg-primary rounded-none">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -283,7 +283,7 @@ export default function TournamentSetup() {
                 <Button
                   onClick={handleAddCategory}
                   disabled={!catAgeGroup || !catBelt || !catWeight}
-                  className="bg-[hsl(var(--sulsport-yellow))] hover:bg-[hsl(var(--sulsport-yellow-dark))] text-black font-bold"
+                  className="bg-wt-manual hover:bg-wt-manual/90 text-black font-bold uppercase tracking-wider rounded-none"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Adicionar
@@ -312,7 +312,7 @@ export default function TournamentSetup() {
                 ))}
 
                 {t.tournament!.categories.length === 0 && (
-                  <p className="text-zinc-500 text-center py-6">
+                  <p className="text-wt-fg-muted text-center py-6">
                     Nenhuma categoria adicionada ainda.
                   </p>
                 )}
@@ -322,11 +322,11 @@ export default function TournamentSetup() {
 
           {/* SECTION 3: Generate All + Start */}
           {hasTournament && isSetup && t.tournament!.categories.length > 0 && (
-            <section className="bg-[hsl(var(--sulsport-dark))] rounded-xl border border-[hsl(var(--sulsport-gray))] p-6">
+            <section className="bg-wt-bg-secondary border border-wt-divider p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold">Iniciar Campeonato</h2>
-                  <p className="text-sm text-zinc-400 mt-1">
+                  <p className="text-sm text-wt-fg-secondary mt-1">
                     {totalCatsWithBrackets}/{t.tournament!.categories.length} categorias com chaves geradas
                     · {t.getTotalMatches()} lutas no total
                   </p>
@@ -335,7 +335,7 @@ export default function TournamentSetup() {
                   <Button
                     onClick={t.generateAllBrackets}
                     variant="outline"
-                    className="border-zinc-600 text-white hover:bg-zinc-800"
+                    className="border-wt-divider bg-wt-bg-secondary text-wt-fg-primary hover:bg-wt-bg-tertiary rounded-none uppercase tracking-wider text-xs font-bold"
                     disabled={totalAthletes < 2}
                   >
                     <Shuffle className="h-4 w-4 mr-2" />
@@ -344,7 +344,7 @@ export default function TournamentSetup() {
                   <Button
                     onClick={() => setShowStartDialog(true)}
                     disabled={totalCatsWithBrackets === 0}
-                    className="bg-green-600 hover:bg-green-500 text-white font-bold px-8"
+                    className="bg-wt-success hover:bg-wt-success/90 text-white font-bold px-8 uppercase tracking-wider rounded-none"
                   >
                     <Play className="h-4 w-4 mr-2" />
                     Iniciar Campeonato
@@ -362,13 +362,13 @@ export default function TournamentSetup() {
                   Campeonato {t.tournament!.status === 'FINISHED' ? 'Encerrado' : 'Em Andamento'}
                 </h2>
                 <div className="flex gap-3">
-                  <span className="text-zinc-400">
+                  <span className="text-wt-fg-secondary">
                     {t.getFinishedMatches()}/{t.getTotalMatches()} lutas
                   </span>
                   {t.tournament!.status === 'IN_PROGRESS' && (
                     <Button
                       onClick={() => navigate('/championship/mat')}
-                      className="bg-green-600 hover:bg-green-500 text-white font-bold"
+                      className="bg-wt-success hover:bg-wt-success/90 text-white font-bold uppercase tracking-wider rounded-none"
                     >
                       <Play className="h-4 w-4 mr-2" />
                       Ir para Mesa
@@ -378,7 +378,7 @@ export default function TournamentSetup() {
               </div>
 
               {t.tournament!.categories.map(cat => (
-                <div key={cat.id} className="bg-[hsl(var(--sulsport-dark))] rounded-xl border border-[hsl(var(--sulsport-gray))] p-4">
+                <div key={cat.id} className="bg-wt-bg-secondary border border-wt-divider p-4">
                   <BracketView
                     category={cat}
                     currentMatchId={t.tournament!.currentMatchId}
@@ -393,35 +393,35 @@ export default function TournamentSetup() {
 
       {/* CSV Errors Toast */}
       {csvErrors.length > 0 && (
-        <div className="fixed bottom-4 right-4 bg-red-900/90 border border-red-500/50 rounded-lg p-4 max-w-sm">
+        <div className="fixed bottom-4 right-4 bg-wt-danger/10 border border-wt-danger/50 p-4 max-w-sm">
           <div className="flex justify-between items-start mb-2">
-            <span className="font-bold text-red-300">Erros no CSV</span>
-            <button onClick={() => setCsvErrors([])} className="text-red-400 hover:text-red-200">
+            <span className="font-bold text-wt-danger uppercase tracking-wider text-xs">Erros no CSV</span>
+            <button onClick={() => setCsvErrors([])} className="text-wt-danger hover:text-wt-danger/70">
               <X className="h-4 w-4" />
             </button>
           </div>
           {csvErrors.map((err, i) => (
-            <p key={i} className="text-red-200 text-sm">{err}</p>
+            <p key={i} className="text-wt-danger/80 text-sm">{err}</p>
           ))}
         </div>
       )}
 
       {/* Delete Tournament Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Excluir Campeonato?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
+            <AlertDialogDescription className="text-wt-fg-secondary">
               Todos os dados do campeonato serão perdidos permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+            <AlertDialogCancel className="bg-wt-bg-tertiary border-wt-divider text-wt-fg-primary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider text-xs font-bold">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => { t.deleteTournament(); setShowDeleteDialog(false); }}
-              className="bg-red-600 hover:bg-red-500 text-white"
+              className="bg-wt-danger hover:bg-wt-danger/90 text-white rounded-none uppercase tracking-wider text-xs font-bold"
             >
               Excluir
             </AlertDialogAction>
@@ -431,21 +431,21 @@ export default function TournamentSetup() {
 
       {/* Start Tournament Dialog */}
       <AlertDialog open={showStartDialog} onOpenChange={setShowStartDialog}>
-        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Iniciar Campeonato?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
+            <AlertDialogDescription className="text-wt-fg-secondary">
               {totalCatsWithBrackets} categorias com chaves prontas. {t.getTotalMatches()} lutas no total.
               Após iniciar, não será possível alterar categorias ou atletas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+            <AlertDialogCancel className="bg-wt-bg-tertiary border-wt-divider text-wt-fg-primary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider text-xs font-bold">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => { handleStartTournament(); setShowStartDialog(false); }}
-              className="bg-green-600 hover:bg-green-500 text-white"
+              className="bg-wt-success hover:bg-wt-success/90 text-white rounded-none uppercase tracking-wider text-xs font-bold"
             >
               Iniciar
             </AlertDialogAction>
@@ -488,20 +488,20 @@ function CategoryRow({
   };
 
   return (
-    <div className="bg-zinc-900/50 rounded-lg border border-zinc-800">
+    <div className="bg-wt-bg border border-wt-divider">
       {/* Category Header */}
       <div
-        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-zinc-800/50 transition-colors"
+        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-wt-bg-tertiary/40 transition-colors"
         onClick={onToggle}
       >
         <div className="flex items-center gap-3">
-          {expanded ? <ChevronUp className="h-4 w-4 text-zinc-400" /> : <ChevronDown className="h-4 w-4 text-zinc-400" />}
+          {expanded ? <ChevronUp className="h-4 w-4 text-wt-fg-secondary" /> : <ChevronDown className="h-4 w-4 text-wt-fg-secondary" />}
           <span className="font-bold">{category.name}</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-700 text-zinc-300">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border border-wt-divider bg-wt-bg-tertiary text-wt-fg-secondary">
             {category.athletes.length} atletas
           </span>
           {category.bracket.length > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 border border-wt-success/50 bg-wt-success/10 text-wt-success">
               Chave gerada
             </span>
           )}
@@ -511,7 +511,7 @@ function CategoryRow({
             size="sm"
             variant="outline"
             onClick={onCsvImport}
-            className="h-7 text-xs border-zinc-600 text-zinc-300 hover:bg-zinc-800"
+            className="h-7 text-xs border-wt-divider bg-wt-bg-tertiary text-wt-fg-secondary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider font-bold"
           >
             <Upload className="h-3 w-3 mr-1" />
             CSV
@@ -521,7 +521,7 @@ function CategoryRow({
             variant="outline"
             onClick={onGenerateBracket}
             disabled={category.athletes.length < 2}
-            className="h-7 text-xs border-zinc-600 text-zinc-300 hover:bg-zinc-800"
+            className="h-7 text-xs border-wt-divider bg-wt-bg-tertiary text-wt-fg-secondary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider font-bold"
           >
             <Shuffle className="h-3 w-3 mr-1" />
             Gerar Chave
@@ -531,27 +531,27 @@ function CategoryRow({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                className="h-7 text-xs text-wt-danger hover:text-wt-danger/80 hover:bg-wt-danger/10 rounded-none"
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+            <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-white">Excluir categoria?</AlertDialogTitle>
-                <AlertDialogDescription className="text-zinc-400">
+                <AlertDialogDescription className="text-wt-fg-secondary">
                   {category.athletes.length > 0
                     ? `${category.athletes.length} atleta${category.athletes.length > 1 ? 's' : ''} e a chave gerada serão perdidos.`
                     : 'Esta categoria será removida.'}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-zinc-700 border-zinc-600 text-white hover:bg-zinc-600">
+                <AlertDialogCancel className="bg-wt-bg-tertiary border-wt-divider text-wt-fg-primary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider text-xs font-bold">
                   Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={onRemoveCategory}
-                  className="bg-red-600 hover:bg-red-500 text-white"
+                  className="bg-wt-danger hover:bg-wt-danger/90 text-white rounded-none uppercase tracking-wider text-xs font-bold"
                 >
                   Sim, excluir
                 </AlertDialogAction>
@@ -563,7 +563,7 @@ function CategoryRow({
 
       {/* Expanded: Athletes List + Add Form */}
       {expanded && (
-        <div className="px-4 pb-4 pt-2 border-t border-zinc-800">
+        <div className="px-4 pb-4 pt-2 border-t border-wt-divider">
           {/* Add athlete form */}
           <div className="flex gap-2 mb-3">
             <Input
@@ -571,20 +571,20 @@ function CategoryRow({
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              className="bg-zinc-800 border-zinc-700 text-white h-8 text-sm"
+              className="bg-wt-bg border-wt-divider text-wt-fg-primary h-8 text-sm rounded-none"
             />
             <Input
               placeholder="Academia (opcional)"
               value={academy}
               onChange={e => setAcademy(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              className="bg-zinc-800 border-zinc-700 text-white h-8 text-sm w-48"
+              className="bg-wt-bg border-wt-divider text-wt-fg-primary h-8 text-sm rounded-none w-48"
             />
             <Button
               onClick={handleAdd}
               disabled={!name.trim()}
               size="sm"
-              className="bg-[hsl(var(--sulsport-yellow))] hover:bg-[hsl(var(--sulsport-yellow-dark))] text-black h-8"
+              className="bg-wt-manual hover:bg-wt-manual/90 text-black h-8 rounded-none"
             >
               <Plus className="h-3 w-3" />
             </Button>
@@ -592,24 +592,24 @@ function CategoryRow({
 
           {/* Athletes list */}
           {category.athletes.length === 0 ? (
-            <p className="text-zinc-600 text-sm text-center py-2">Nenhum atleta cadastrado</p>
+            <p className="text-wt-fg-muted text-sm text-center py-2">Nenhum atleta cadastrado</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
               {category.athletes.map((a, idx) => (
                 <div
                   key={a.id}
-                  className="flex items-center justify-between px-3 py-1.5 rounded bg-zinc-800/50 group"
+                  className="flex items-center justify-between px-3 py-1.5 bg-wt-bg-tertiary/40 border border-wt-divider group"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-500 w-5">{idx + 1}.</span>
+                    <span className="text-xs text-wt-fg-muted w-5">{idx + 1}.</span>
                     <span className="text-sm font-medium">{a.name}</span>
                     {a.academy && (
-                      <span className="text-xs text-zinc-500">({a.academy})</span>
+                      <span className="text-xs text-wt-fg-muted">({a.academy})</span>
                     )}
                   </div>
                   <button
                     onClick={() => onRemoveAthlete(a.id)}
-                    className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-wt-fg-muted hover:text-wt-danger opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -620,7 +620,7 @@ function CategoryRow({
 
           {/* Bracket Preview (compact) */}
           {category.bracket.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-zinc-800">
+            <div className="mt-4 pt-4 border-t border-wt-divider">
               <div className="h-48 overflow-hidden">
                 <BracketView category={category} compact />
               </div>

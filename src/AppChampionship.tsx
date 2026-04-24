@@ -13,7 +13,6 @@ import { Loader2 } from "lucide-react";
 import ModeSelectorPage from "./pages/ModeSelectorPage";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import ImmersiveTitleBar from "./components/layout/ImmersiveTitleBar";
 import { UpdateNotification } from "./components/UpdateNotification";
 
 const ChampionshipMat = lazy(() => import('./pages/ChampionshipMat'));
@@ -50,7 +49,6 @@ const AppChampionship = () => (
                 <TooltipProvider>
                   <Toaster />
                   <Sonner />
-                  <ImmersiveTitleBar />
                   <UpdateNotification />
                   <HashRouter>
                     <TrialBanner />

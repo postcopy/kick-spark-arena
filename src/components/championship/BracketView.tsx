@@ -1,4 +1,8 @@
-// Bracket View — Single elimination bracket visualization for TV and setup preview
+// Bracket View — chaveamento single-elim pra TV e preview de setup.
+//
+// spe-ui-design §P1/§P3: retangular, sem glow, sem pulse decorativo.
+// Current match: stripe lateral 1px (wt-manual), sem ring colorido ruidoso.
+// Vencedor: atleta vencedor em cor sólida; perdedor opacidade 40%.
 
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
@@ -45,21 +49,22 @@ export function BracketView({ category, currentMatchId, compact = false }: Brack
 
   if (rounds.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-zinc-500 text-xl">
+      <div className="flex items-center justify-center h-full text-wt-fg-muted text-sm uppercase tracking-[0.3em]">
         Nenhuma chave gerada
       </div>
     );
   }
 
-  const gapY = compact ? 'gap-1' : 'gap-2';
-
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full flex flex-col font-display">
       {/* Category Title */}
-      <div className="text-center mb-4">
+      <div className="text-center mb-5 border-b border-wt-divider pb-3">
+        <div className="text-[10px] font-bold uppercase tracking-[0.35em] text-wt-fg-muted mb-1">
+          Categoria
+        </div>
         <h2 className={cn(
-          "font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider",
-          compact ? "text-lg" : "text-2xl"
+          'font-black text-wt-fg-primary uppercase tracking-tight leading-none',
+          compact ? 'text-xl' : 'text-3xl',
         )}>
           {category.name}
         </h2>
@@ -67,19 +72,20 @@ export function BracketView({ category, currentMatchId, compact = false }: Brack
 
       {/* Bracket Grid */}
       <div className="flex-1 flex items-center overflow-x-auto overflow-y-hidden px-4">
-        <div className="flex gap-8 mx-auto min-w-max">
+        <div className="flex gap-10 mx-auto min-w-max">
           {rounds.map((col) => (
             <div key={col.round} className="flex flex-col items-center">
               {/* Round Label */}
               <div className={cn(
-                "mb-3 font-bold text-white/50 uppercase tracking-wider",
-                compact ? "text-[10px]" : "text-xs"
+                'mb-4 font-bold text-wt-fg-muted uppercase tracking-[0.35em]',
+                compact ? 'text-[9px]' : 'text-[10px]',
               )}>
                 {col.label}
               </div>
 
               {/* Matches */}
-              <div className={cn("flex flex-col justify-around flex-1", gapY)}
+              <div
+                className="flex flex-col justify-around flex-1"
                 style={{ gap: `${Math.pow(2, col.round - 1) * (compact ? 8 : 12)}px` }}
               >
                 {col.matches.map(match => (
@@ -110,57 +116,97 @@ function MatchCard({
 }) {
   const isFinished = match.status === 'FINISHED';
   const isBye = match.status === 'BYE';
-  const width = compact ? 'w-40' : 'w-52';
+  const width = compact ? 'w-44' : 'w-56';
 
   return (
-    <div className={cn(
-      "rounded-lg border overflow-hidden",
-      width,
-      isCurrent && "ring-2 ring-[hsl(var(--sulsport-yellow))] animate-pulse",
-      isFinished ? "border-white/20" : "border-white/10",
-      isBye && "opacity-50",
-    )}>
+    <div
+      className={cn(
+        'relative border bg-wt-bg-secondary overflow-hidden transition-colors',
+        width,
+        isCurrent ? 'border-wt-manual/70' : 'border-wt-divider',
+        isBye && 'opacity-40',
+      )}
+    >
+      {/* Current indicator — stripe lateral 1px, sem pulse */}
+      {isCurrent && (
+        <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-wt-manual" />
+      )}
+
       {/* Match number */}
-      <div className={cn(
-        "text-center text-[10px] font-bold uppercase tracking-wider py-0.5",
-        isCurrent
-          ? "bg-[hsl(var(--sulsport-yellow))] text-black"
-          : "bg-white/5 text-white/40"
-      )}>
-        {isBye ? 'BYE' : `LUTA ${String(match.matchNumber).padStart(3, '0')}`}
+      <div
+        className={cn(
+          'flex items-center justify-between px-2 border-b border-wt-divider',
+          compact ? 'py-1 text-[9px]' : 'py-1.5 text-[10px]',
+          'font-bold uppercase tracking-[0.3em] tabular-nums',
+          isCurrent
+            ? 'bg-wt-manual/10 text-wt-manual'
+            : 'bg-wt-bg text-wt-fg-muted',
+        )}
+      >
+        <span>{isBye ? 'BYE' : `Luta ${String(match.matchNumber).padStart(3, '0')}`}</span>
+        {isCurrent && <span className="text-wt-manual">• AO VIVO</span>}
       </div>
 
-      {/* Red athlete (top) */}
-      <div className={cn(
-        "flex items-center px-2 border-b border-white/10",
-        compact ? "h-7" : "h-9",
-        isFinished && match.winnerSide === 'RED'
-          ? "bg-[hsl(var(--sulsport-red))]/30"
-          : "bg-[hsl(var(--sulsport-red))]/10",
-      )}>
-        <span className={cn(
-          "truncate font-bold",
-          compact ? "text-[11px]" : "text-sm",
-          isFinished && match.winnerSide === 'RED' ? "text-white" : "text-white/70",
-        )}>
-          {match.athleteRed?.name || '—'}
-        </span>
-      </div>
+      {/* Red (HONG) athlete */}
+      <AthleteRow
+        side="hong"
+        name={match.athleteRed?.name}
+        isWinner={isFinished && match.winnerSide === 'RED'}
+        isLoser={isFinished && match.winnerSide !== 'RED'}
+        compact={compact}
+      />
 
-      {/* Blue athlete (bottom) */}
-      <div className={cn(
-        "flex items-center px-2",
-        compact ? "h-7" : "h-9",
-        isFinished && match.winnerSide === 'BLUE'
-          ? "bg-[hsl(var(--sulsport-blue))]/30"
-          : "bg-[hsl(var(--sulsport-blue))]/10",
-      )}>
-        <span className={cn(
-          "truncate font-bold",
-          compact ? "text-[11px]" : "text-sm",
-          isFinished && match.winnerSide === 'BLUE' ? "text-white" : "text-white/70",
-        )}>
-          {match.athleteBlue?.name || '—'}
+      {/* Divider */}
+      <div className="h-px bg-wt-divider" />
+
+      {/* Blue (CHUNG) athlete */}
+      <AthleteRow
+        side="chung"
+        name={match.athleteBlue?.name}
+        isWinner={isFinished && match.winnerSide === 'BLUE'}
+        isLoser={isFinished && match.winnerSide !== 'BLUE'}
+        compact={compact}
+      />
+    </div>
+  );
+}
+
+function AthleteRow({
+  side,
+  name,
+  isWinner,
+  isLoser,
+  compact,
+}: {
+  side: 'hong' | 'chung';
+  name?: string;
+  isWinner: boolean;
+  isLoser: boolean;
+  compact: boolean;
+}) {
+  const sideStripe = side === 'hong' ? 'bg-hong' : 'bg-chung';
+  const sideAccent = side === 'hong' ? 'text-hong-accent' : 'text-chung-accent';
+
+  return (
+    <div
+      className={cn(
+        'flex items-stretch',
+        compact ? 'h-7' : 'h-9',
+        isLoser && 'opacity-40',
+      )}
+    >
+      {/* Side stripe — 2px, cor do atleta */}
+      <div className={cn('w-[3px] shrink-0', sideStripe)} />
+
+      <div className="flex-1 flex items-center px-2 min-w-0">
+        <span
+          className={cn(
+            'truncate font-bold',
+            compact ? 'text-[11px]' : 'text-sm',
+            isWinner ? sideAccent : 'text-wt-fg-secondary',
+          )}
+        >
+          {name || '—'}
         </span>
       </div>
     </div>

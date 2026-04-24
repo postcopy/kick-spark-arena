@@ -29,13 +29,13 @@ export function TournamentHeader({ tournament }: TournamentHeaderProps) {
     : `ROUND ${match.round}`;
 
   return (
-    <div className="flex items-center gap-3 text-xs">
-      <span className="px-2 py-1 rounded bg-[hsl(var(--sulsport-yellow))]/20 text-[hsl(var(--sulsport-yellow))] font-bold uppercase">
+    <div className="flex items-center gap-3 text-xs font-display">
+      <span className="px-2 py-1 border border-wt-manual/40 bg-wt-manual/10 text-wt-manual font-black uppercase tracking-[0.2em] tabular-nums">
         Luta {finishedMatches + 1}/{totalMatches}
       </span>
-      <span className="text-zinc-400 font-bold uppercase">{roundLabel}</span>
-      <span className="text-zinc-500">—</span>
-      <span className="text-zinc-400 truncate max-w-[200px]">{cat.name}</span>
+      <span className="text-wt-fg-secondary font-bold uppercase tracking-[0.25em]">{roundLabel}</span>
+      <span className="text-wt-fg-muted">—</span>
+      <span className="text-wt-fg-secondary truncate max-w-[200px] uppercase tracking-wider">{cat.name}</span>
     </div>
   );
 }

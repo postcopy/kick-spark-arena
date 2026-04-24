@@ -96,6 +96,13 @@ export interface MatchConfig {
   
   // Anti-duplicate window in ms (per deviceId, discards entire impact within window)
   antiDuplicateWindowMs?: number; // default 300
+
+  /**
+   * "Clean broadcast" (FOB-style): quando true, a janela de TV esconde chrome
+   * auxiliar (logo SPE, indicador WiFi, etc) pra produção de vídeo limpa.
+   * Default: false (chrome visível). Equivalente KPNP: botão FOB On/Off.
+   */
+  tvCleanMode?: boolean;
 }
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {

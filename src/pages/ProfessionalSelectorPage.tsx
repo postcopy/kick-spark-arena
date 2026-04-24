@@ -1,9 +1,20 @@
-// Professional Mode Selector — Choose role: Central, Mat, TV, Chamada
-// Premium atmospheric design matching ModeSelectorPage
+// Professional Mode Selector — escolha de papel (Central, Mat, TV, Chamada).
+//
+// spe-ui-design §P3/§3: retangular, sem gradientes decorativos, sem clip-path
+// ornamental. Cor com função: cada papel ancorado em token WT coerente.
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  Command,
+  Gamepad2,
+  Monitor,
+  Megaphone,
+  FlaskConical,
+  BookOpen,
+  ChevronRight,
+} from 'lucide-react';
 import logoSpe from '@/assets/logo-spe-branca.png';
 import {
   AlertDialog,
@@ -15,78 +26,114 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-const ROLES = [
+type RoleIconName = 'command' | 'gamepad' | 'monitor' | 'megaphone';
+type RoleTone = 'gold' | 'hong' | 'chung' | 'success';
+
+interface Role {
+  id: string;
+  title: string;
+  tagline: string;
+  description: string;
+  iconName: RoleIconName;
+  route: string;
+  needsMat: boolean;
+  tone: RoleTone;
+}
+
+const ROLES: Role[] = [
   {
     id: 'central',
     title: 'CENTRAL',
-    description: 'Organizar torneio e gerenciar quadras',
+    tagline: 'Comando do evento',
+    description: 'Organizar torneio, criar chaves, gerenciar quadras e fila de lutas.',
+    iconName: 'command',
     route: '/central',
     needsMat: false,
-    accentFrom: 'from-[hsl(var(--sulsport-yellow))]/60',
-    accentVia: 'via-[hsl(var(--sulsport-yellow))]/80',
-    accentTo: 'to-[hsl(var(--sulsport-yellow))]/60',
-    separatorBg: 'bg-[hsl(var(--sulsport-yellow))]/30',
-    separatorHover: 'group-hover:bg-[hsl(var(--sulsport-yellow))]/60',
-    glowColor: 'rgba(180,140,40,0.06)',
-    cornerBg: 'bg-[hsl(var(--sulsport-yellow))]/20',
-    cornerHover: 'group-hover:bg-[hsl(var(--sulsport-yellow))]/50',
+    tone: 'gold',
   },
   {
     id: 'mat',
     title: 'MAT',
-    description: 'Operar lutas na quadra',
+    tagline: 'Mesa de luta',
+    description: 'Operar lutas na quadra — placar, gam-jeom, pausa, round, decisões.',
+    iconName: 'gamepad',
     route: '/championship/mat',
     needsMat: true,
-    accentFrom: 'from-red-600/60',
-    accentVia: 'via-red-500/80',
-    accentTo: 'to-red-600/60',
-    separatorBg: 'bg-red-500/30',
-    separatorHover: 'group-hover:bg-red-500/60',
-    glowColor: 'rgba(220,38,38,0.06)',
-    cornerBg: 'bg-red-500/20',
-    cornerHover: 'group-hover:bg-red-500/50',
+    tone: 'hong',
   },
   {
     id: 'tv',
     title: 'TV',
-    description: 'Placar e chaves no telão',
+    tagline: 'Telão público',
+    description: 'Placar e chaveamento no telão da arena. Modo somente leitura.',
+    iconName: 'monitor',
     route: '/championship/tv',
     needsMat: true,
-    accentFrom: 'from-blue-600/60',
-    accentVia: 'via-blue-500/80',
-    accentTo: 'to-blue-600/60',
-    separatorBg: 'bg-blue-500/30',
-    separatorHover: 'group-hover:bg-blue-500/60',
-    glowColor: 'rgba(59,130,246,0.06)',
-    cornerBg: 'bg-blue-500/20',
-    cornerHover: 'group-hover:bg-blue-500/50',
+    tone: 'chung',
   },
   {
     id: 'chamada',
     title: 'CHAMADA',
-    description: 'Próximas lutas no aquecimento',
+    tagline: 'Aquecimento',
+    description: 'Próximas lutas na fila. Chamar atletas e anunciar entrada no tatame.',
+    iconName: 'megaphone',
     route: '/chamada',
     needsMat: false,
-    accentFrom: 'from-emerald-600/60',
-    accentVia: 'via-emerald-500/80',
-    accentTo: 'to-emerald-600/60',
-    separatorBg: 'bg-emerald-500/30',
-    separatorHover: 'group-hover:bg-emerald-500/60',
-    glowColor: 'rgba(16,185,129,0.06)',
-    cornerBg: 'bg-emerald-500/20',
-    cornerHover: 'group-hover:bg-emerald-500/50',
+    tone: 'success',
   },
-] as const;
+];
 
 const MAT_NUMBERS = [1, 2, 3, 4, 5, 6, 7];
+
+const TONE_CLASSES: Record<RoleTone, { stripe: string; text: string; iconBg: string; iconBorder: string }> = {
+  gold: {
+    stripe: 'bg-wt-manual',
+    text: 'text-wt-manual',
+    iconBg: 'bg-wt-manual/10',
+    iconBorder: 'border-wt-manual/40',
+  },
+  hong: {
+    stripe: 'bg-hong',
+    text: 'text-hong-accent',
+    iconBg: 'bg-hong/10',
+    iconBorder: 'border-hong/40',
+  },
+  chung: {
+    stripe: 'bg-chung',
+    text: 'text-chung-accent',
+    iconBg: 'bg-chung/10',
+    iconBorder: 'border-chung/40',
+  },
+  success: {
+    stripe: 'bg-wt-success',
+    text: 'text-wt-success',
+    iconBg: 'bg-wt-success/10',
+    iconBorder: 'border-wt-success/40',
+  },
+};
+
+function RoleIcon({ name, size = 22 }: { name: RoleIconName; size?: number }) {
+  const props = { size, strokeWidth: 2 };
+  switch (name) {
+    case 'command':
+      return <Command {...props} />;
+    case 'gamepad':
+      return <Gamepad2 {...props} />;
+    case 'monitor':
+      return <Monitor {...props} />;
+    case 'megaphone':
+      return <Megaphone {...props} />;
+  }
+}
 
 export default function ProfessionalSelectorPage() {
   const navigate = useNavigate();
   const [matDialogOpen, setMatDialogOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<typeof ROLES[number] | null>(null);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
-  function handleRoleClick(role: typeof ROLES[number]) {
+  function handleRoleClick(role: Role) {
     if (role.needsMat) {
       setSelectedRole(role);
       setMatDialogOpen(true);
@@ -102,127 +149,180 @@ export default function ProfessionalSelectorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#060609] flex flex-col relative overflow-hidden select-none">
-      {/* Atmospheric background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,80,40,0.12),transparent)]" />
+    <div className="min-h-screen bg-wt-bg flex flex-col font-display select-none">
+      {/* Top bar */}
+      <header className="flex items-center justify-between px-8 py-4 border-b border-wt-divider">
+        <button
+          onClick={() => navigate('/')}
+          className="group flex items-center gap-2 text-wt-fg-muted hover:text-wt-fg-primary transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" strokeWidth={2.2} />
+          <span className="text-[10px] tracking-[0.35em] font-bold uppercase">Voltar</span>
+        </button>
 
-      {/* Noise texture */}
-      <div className="absolute inset-0 opacity-[0.015]" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-      }} />
-
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-6">
-        {/* Header */}
-        <div className="flex flex-col items-center mb-16">
-          <div className="flex items-center gap-5 mb-4">
-            <button
-              onClick={() => navigate('/')}
-              className="p-2 rounded-lg text-zinc-700 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <img
-              src={logoSpe}
-              alt="SPE Sulsport"
-              className="h-14 object-contain opacity-90"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-px bg-gradient-to-r from-transparent to-zinc-700" />
-            <span className="text-xs text-zinc-500 tracking-[0.4em] uppercase font-medium">
-              Modo Profissional
-            </span>
-            <div className="w-8 h-px bg-gradient-to-l from-transparent to-zinc-700" />
-          </div>
+        <div className="flex items-center gap-2 text-[10px] tracking-[0.3em] font-bold uppercase">
+          <span className="text-wt-fg-muted">SPE</span>
+          <ChevronRight className="w-3 h-3 text-wt-divider" />
+          <span className="text-wt-fg-primary">Competição</span>
+          <ChevronRight className="w-3 h-3 text-wt-divider" />
+          <span className="text-wt-fg-muted">Papel</span>
         </div>
 
-        {/* Role Cards — 2x2 grid */}
-        <div className="grid grid-cols-2 gap-5 max-w-[680px] w-full">
-          {ROLES.map(role => (
-            <button
-              key={role.id}
-              onClick={() => handleRoleClick(role)}
-              className="group relative overflow-hidden transition-all duration-500 hover:scale-[1.015] active:scale-[0.99]"
-            >
-              <div
-                className="relative bg-[#0c0c12] border border-white/[0.04] overflow-hidden"
-                style={{ clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%)' }}
+        <img src={logoSpe} alt="SPE" className="h-6 object-contain opacity-80" />
+      </header>
+
+      {/* Heading */}
+      <div className="flex flex-col items-center mt-12 mb-10">
+        <span className="text-[11px] tracking-[0.45em] uppercase font-bold text-wt-fg-muted mb-4">
+          Centro de comando
+        </span>
+        <h1 className="text-wt-fg-primary font-black leading-none tracking-tight text-4xl md:text-5xl">
+          ESCOLHA SEU PAPEL
+        </h1>
+        <p className="text-wt-fg-muted text-sm mt-3 tracking-wide">
+          Cada papel tem uma tela otimizada pra função.
+        </p>
+      </div>
+
+      {/* Roles grid */}
+      <main className="flex-1 flex items-center justify-center px-8 pb-6 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-[2px] max-w-[960px] w-full">
+          {ROLES.map((role) => {
+            const tone = TONE_CLASSES[role.tone];
+            return (
+              <button
+                key={role.id}
+                onClick={() => handleRoleClick(role)}
+                className="group relative text-left bg-wt-bg-secondary border border-wt-divider hover:border-wt-fg-muted transition-colors focus:outline-none focus:border-wt-fg-primary"
               >
-                {/* Hover glow */}
-                <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700"
-                  style={{ background: `radial-gradient(ellipse at top, ${role.glowColor}, transparent 70%)` }}
-                />
+                {/* Top stripe — única ornamentação, identifica papel */}
+                <div className={cn('h-1', tone.stripe)} />
 
-                {/* Top accent bar */}
-                <div className={`h-[2px] bg-gradient-to-r ${role.accentFrom} ${role.accentVia} ${role.accentTo} opacity-60 group-hover:opacity-100 transition-opacity duration-500`} />
+                <div className="px-7 pt-6 pb-7">
+                  <div className="flex items-start justify-between mb-5">
+                    <div
+                      className={cn(
+                        'w-12 h-12 flex items-center justify-center border',
+                        tone.iconBg,
+                        tone.iconBorder,
+                        tone.text,
+                      )}
+                    >
+                      <RoleIcon name={role.iconName} />
+                    </div>
+                    <span
+                      className={cn(
+                        'text-[9px] font-bold tracking-[0.3em] uppercase',
+                        tone.text,
+                      )}
+                    >
+                      {role.tagline}
+                    </span>
+                  </div>
 
-                <div className="px-8 pt-10 pb-12 flex flex-col items-center">
-                  <h2 className="text-2xl font-black text-white/90 tracking-[0.2em] mb-3 group-hover:text-white transition-colors duration-500">
+                  <h2 className="text-wt-fg-primary font-black leading-none tracking-tight text-4xl md:text-[44px] mb-3">
                     {role.title}
                   </h2>
-                  <div className={`w-8 h-[1px] ${role.separatorBg} group-hover:w-14 ${role.separatorHover} transition-all duration-500 mb-3`} />
-                  <p className="text-zinc-500 text-sm tracking-wide group-hover:text-zinc-400 transition-colors duration-500">
+
+                  <p className="text-wt-fg-muted text-[13px] leading-snug group-hover:text-wt-fg-secondary transition-colors max-w-[38ch]">
                     {role.description}
                   </p>
+
+                  <div
+                    className={cn(
+                      'mt-5 flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity',
+                      tone.text,
+                    )}
+                  >
+                    <span className="text-[10px] font-bold tracking-[0.35em] uppercase">
+                      {role.needsMat ? 'Selecionar quadra' : 'Entrar'}
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  </div>
                 </div>
-
-                {/* Bottom corner accent */}
-                <div className={`absolute bottom-0 right-4 w-[1px] h-4 ${role.cornerBg} ${role.cornerHover} transition-colors duration-500`} />
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
+      </main>
 
-        {/* Utility links */}
-        <div className="flex gap-6 mt-12">
+      {/* Utility links */}
+      <footer className="flex flex-col items-center gap-3 pb-5 pt-3 border-t border-wt-divider">
+        <div className="flex items-center justify-center gap-6">
           <button
             onClick={() => navigate('/demo')}
-            className="text-sm text-zinc-500 tracking-[0.2em] uppercase hover:text-[hsl(var(--sulsport-yellow))] transition-colors duration-300 font-medium"
+            className="flex items-center gap-2 text-wt-fg-muted hover:text-wt-fg-primary transition-colors"
           >
-            Demo & Teste
+            <FlaskConical className="w-3.5 h-3.5" strokeWidth={2} />
+            <span className="text-[10px] tracking-[0.3em] uppercase font-bold">Demo & Teste</span>
           </button>
-          <div className="w-px h-4 bg-zinc-700" />
+
+          <div className="w-px h-3 bg-wt-divider" />
+
           <button
             onClick={() => navigate('/help')}
-            className="text-sm text-zinc-500 tracking-[0.2em] uppercase hover:text-white transition-colors duration-300 font-medium"
+            className="flex items-center gap-2 text-wt-fg-muted hover:text-wt-fg-primary transition-colors"
           >
-            Manual
+            <BookOpen className="w-3.5 h-3.5" strokeWidth={2} />
+            <span className="text-[10px] tracking-[0.3em] uppercase font-bold">Manual</span>
           </button>
         </div>
-      </div>
 
-      {/* Footer */}
-      <div className="relative z-10 flex justify-center pb-6">
-        <span className="text-zinc-600 text-xs tracking-[0.3em]">v1.0.0</span>
-      </div>
+        <span className="text-[9px] text-wt-fg-muted tracking-[0.4em] font-mono uppercase">
+          SPE · Sulsport
+        </span>
+      </footer>
 
-      {/* Mat Number Dialog */}
+      {/* Mat selection dialog */}
       <AlertDialog open={matDialogOpen} onOpenChange={setMatDialogOpen}>
-        <AlertDialogContent className="bg-[#0D0D14] border-zinc-800/50">
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider max-w-md rounded-none">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white font-black tracking-wider">
-              SELECIONE A QUADRA
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-500">
-              Escolha o número da quadra para {selectedRole?.title}
+            <div className="flex items-center gap-3 mb-2">
+              {selectedRole && (() => {
+                const tone = TONE_CLASSES[selectedRole.tone];
+                return (
+                  <div
+                    className={cn(
+                      'w-10 h-10 flex items-center justify-center border',
+                      tone.iconBg,
+                      tone.iconBorder,
+                      tone.text,
+                    )}
+                  >
+                    <RoleIcon name={selectedRole.iconName} size={18} />
+                  </div>
+                );
+              })()}
+              <div>
+                <div className="text-[9px] tracking-[0.35em] font-bold text-wt-fg-muted uppercase">
+                  {selectedRole?.tagline}
+                </div>
+                <AlertDialogTitle className="text-wt-fg-primary font-black tracking-wider text-xl leading-none mt-1 uppercase">
+                  Selecione a quadra
+                </AlertDialogTitle>
+              </div>
+            </div>
+            <AlertDialogDescription className="text-wt-fg-secondary text-sm">
+              Escolha o número de quadra onde você vai operar como{' '}
+              <span className="font-bold text-wt-fg-primary">{selectedRole?.title}</span>.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="grid grid-cols-4 gap-3 py-4">
-            {MAT_NUMBERS.map(n => (
+
+          <div className="grid grid-cols-4 gap-[2px] py-5">
+            {MAT_NUMBERS.map((n) => (
               <Button
                 key={n}
                 variant="outline"
                 onClick={() => handleMatSelect(n)}
-                className="h-16 text-2xl font-black border-zinc-800 hover:bg-[hsl(var(--sulsport-yellow))]/10 hover:border-[hsl(var(--sulsport-yellow))]/50 hover:text-[hsl(var(--sulsport-yellow))] transition-all"
+                className="h-16 text-2xl font-black rounded-none border border-wt-divider bg-wt-bg hover:bg-wt-bg-tertiary hover:border-wt-fg-muted text-wt-fg-primary tabular-nums transition-colors"
               >
                 {n}
               </Button>
             ))}
           </div>
+
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-zinc-800 text-zinc-400 hover:text-white">
+            <AlertDialogCancel className="border-wt-divider bg-wt-bg-tertiary text-wt-fg-primary hover:bg-wt-bg-tertiary/70 rounded-none uppercase tracking-wider text-xs font-bold">
               Cancelar
             </AlertDialogCancel>
           </AlertDialogFooter>

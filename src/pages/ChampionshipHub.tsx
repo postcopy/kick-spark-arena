@@ -64,21 +64,12 @@ export default function ChampionshipHub() {
   }).format(new Date());
 
   return (
-    <div className="min-h-screen bg-[#030305] flex flex-col relative overflow-hidden select-none">
-      {/* Ambient background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,80,40,0.12),transparent)]" />
-      <div
-        className="absolute inset-0 opacity-[0.015]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-        }}
-      />
-
+    <div className="min-h-screen bg-wt-bg flex flex-col relative overflow-hidden select-none font-display">
       {/* Top bar */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-4">
+      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-wt-divider">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors text-sm"
+          className="flex items-center gap-2 text-wt-fg-muted hover:text-white transition-colors text-sm font-medium"
           title="Voltar"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -91,35 +82,34 @@ export default function ChampionshipHub() {
       {/* Main content */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6">
         {/* Greeting */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-            Olá! O que você quer fazer?
-          </h1>
-          <p className="text-zinc-500 text-sm tracking-wider">
+        <div className="text-center mb-12">
+          <div className="text-xs font-bold uppercase tracking-[0.4em] text-wt-fg-muted mb-3">
             Mat {matId} · {todayLabel}
-          </p>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+            O que você quer fazer?
+          </h1>
         </div>
 
         {/* Main 3 buttons */}
-        <div className="w-full max-w-[960px] grid grid-cols-1 md:grid-cols-[1.6fr_1fr_1fr] gap-4 mb-8">
+        <div className="w-full max-w-[1040px] grid grid-cols-1 md:grid-cols-[1.8fr_1fr_1fr] gap-3 mb-10">
           <HubButton
             onClick={startMatch}
-            accent="green"
+            variant="primary"
             icon={<Zap className="w-8 h-8" strokeWidth={2.2} />}
             title="Começar uma luta"
-            subtitle="Abre o placar pra começar agora."
-            primary
+            subtitle="Abre o placar para iniciar agora."
           />
           <HubButton
             onClick={openHardwareTest}
-            accent="cyan"
+            variant="secondary"
             icon={<Stethoscope className="w-7 h-7" strokeWidth={2.2} />}
             title="Testar equipamento"
             subtitle="Verifica capacete e colete dos dois atletas."
           />
           <HubButton
             onClick={openTv}
-            accent="purple"
+            variant="secondary"
             icon={<Monitor className="w-7 h-7" strokeWidth={2.2} />}
             title="Mostrar na TV"
             subtitle="Abre o placar grande para o público."
@@ -127,15 +117,15 @@ export default function ChampionshipHub() {
         </div>
 
         {/* Advanced collapsible */}
-        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="w-full max-w-[960px]">
-          <CollapsibleTrigger className="w-full flex items-center justify-center gap-2 py-3 text-zinc-500 hover:text-zinc-300 text-sm font-medium transition-colors">
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="w-full max-w-[1040px]">
+          <CollapsibleTrigger className="w-full flex items-center justify-center gap-2 py-3 text-wt-fg-muted hover:text-white text-xs font-bold uppercase tracking-[0.25em] transition-colors">
             <ChevronDown
               className={cn('w-4 h-4 transition-transform', advancedOpen && 'rotate-180')}
             />
-            Mais opções (avançado)
+            Mais opções
           </CollapsibleTrigger>
-          <CollapsibleContent className="pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <CollapsibleContent className="pt-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-[2px]">
               <AdvancedButton
                 onClick={openConfig}
                 icon={<Settings className="w-4 h-4" />}
@@ -157,8 +147,8 @@ export default function ChampionshipHub() {
       </main>
 
       {/* Tiny footer */}
-      <footer className="relative z-10 flex justify-center pb-4">
-        <span className="text-zinc-700 text-[10px] tracking-[0.3em] uppercase">
+      <footer className="relative z-10 flex justify-center pb-4 border-t border-wt-divider pt-3">
+        <span className="text-wt-fg-muted text-[10px] tracking-[0.4em] uppercase font-semibold">
           Modo básico
         </span>
       </footer>
@@ -166,67 +156,56 @@ export default function ChampionshipHub() {
   );
 }
 
-// ─── Main button (primary grows bigger via `primary` flag) ───
+// ─── Main button — retangular, sem glow, hierarquia via size/contraste ───
 
 interface HubButtonProps {
   onClick: () => void;
-  accent: 'green' | 'cyan' | 'purple';
+  variant: 'primary' | 'secondary';
   icon: React.ReactNode;
   title: string;
   subtitle: string;
-  primary?: boolean;
 }
 
-const ACCENT_STYLES: Record<HubButtonProps['accent'], { ring: string; iconBg: string; iconColor: string; glow: string }> = {
-  green: {
-    ring: 'hover:border-emerald-500/60 hover:shadow-[0_0_40px_rgba(16,185,129,0.18)]',
-    iconBg: 'bg-emerald-500/15',
-    iconColor: 'text-emerald-400',
-    glow: 'bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.08),transparent_70%)]',
-  },
-  cyan: {
-    ring: 'hover:border-cyan-500/60 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)]',
-    iconBg: 'bg-cyan-500/15',
-    iconColor: 'text-cyan-400',
-    glow: 'bg-[radial-gradient(ellipse_at_top,rgba(6,182,212,0.08),transparent_70%)]',
-  },
-  purple: {
-    ring: 'hover:border-purple-500/60 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)]',
-    iconBg: 'bg-purple-500/15',
-    iconColor: 'text-purple-400',
-    glow: 'bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.08),transparent_70%)]',
-  },
-};
-
-function HubButton({ onClick, accent, icon, title, subtitle, primary }: HubButtonProps) {
-  const s = ACCENT_STYLES[accent];
+function HubButton({ onClick, variant, icon, title, subtitle }: HubButtonProps) {
+  const isPrimary = variant === 'primary';
   return (
     <button
       onClick={onClick}
       className={cn(
-        'group relative bg-[#0c0c12] border border-white/[0.06] rounded-2xl transition-all duration-300 text-left overflow-hidden',
-        'hover:scale-[1.015] active:scale-[0.99]',
-        s.ring,
-        primary ? 'p-7 min-h-[200px]' : 'p-6 min-h-[180px]',
+        'group relative border transition-all duration-200 text-left overflow-hidden',
+        'active:scale-[0.99]',
+        isPrimary
+          ? 'bg-chung hover:bg-chung-accent border-chung p-8 min-h-[220px]'
+          : 'bg-wt-bg-secondary hover:bg-wt-bg-tertiary border-wt-divider hover:border-wt-fg-muted p-6 min-h-[200px]',
       )}
     >
-      <div className={cn('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500', s.glow)} />
-      <div className="relative flex flex-col gap-4 h-full">
-        <div className={cn('w-14 h-14 rounded-xl flex items-center justify-center', s.iconBg, s.iconColor)}>
+      <div className="relative flex flex-col gap-5 h-full">
+        <div className={cn(
+          'w-14 h-14 flex items-center justify-center border',
+          isPrimary ? 'border-white/30 text-white' : 'border-wt-divider text-wt-fg-secondary',
+        )}>
           {icon}
         </div>
         <div className="mt-auto">
-          <h2 className={cn('font-bold text-white leading-tight', primary ? 'text-2xl mb-1.5' : 'text-xl mb-1')}>
+          <h2 className={cn(
+            'font-black text-white leading-tight uppercase tracking-tight',
+            isPrimary ? 'text-3xl mb-2' : 'text-xl mb-1.5',
+          )}>
             {title}
           </h2>
-          <p className="text-zinc-500 text-sm leading-snug">{subtitle}</p>
+          <p className={cn(
+            'text-sm leading-snug',
+            isPrimary ? 'text-white/75' : 'text-wt-fg-muted',
+          )}>
+            {subtitle}
+          </p>
         </div>
       </div>
     </button>
   );
 }
 
-// ─── Advanced secondary button ───
+// ─── Advanced secondary button — retangular ───
 
 function AdvancedButton({
   onClick,
@@ -240,9 +219,9 @@ function AdvancedButton({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 px-4 py-3 bg-white/[0.02] border border-white/[0.05] rounded-lg text-zinc-300 hover:bg-white/[0.04] hover:text-white hover:border-white/10 transition-colors text-sm font-medium"
+      className="flex items-center gap-3 px-4 py-3 bg-wt-bg-secondary border border-wt-divider text-wt-fg-secondary hover:bg-wt-bg-tertiary hover:text-white hover:border-wt-fg-muted transition-colors text-sm font-semibold uppercase tracking-wider"
     >
-      <span className="text-zinc-400">{icon}</span>
+      <span>{icon}</span>
       {label}
     </button>
   );

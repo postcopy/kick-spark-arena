@@ -30,6 +30,8 @@ import {
   ClipboardList,
   Edit3,
   ArrowLeftRight,
+  Radio,
+  RadioTower,
 } from 'lucide-react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
@@ -105,6 +107,10 @@ interface QuickMatchLayoutProps {
   /** Estado do mute de áudio. Se ausente, botão de mute fica oculto. */
   isMuted?: boolean;
   onToggleMute?: () => void;
+
+  /** Estado do "clean broadcast" da TV (FOB). Se ausente, botão fica oculto. */
+  tvCleanMode?: boolean;
+  onToggleTvCleanMode?: () => void;
 }
 
 // Score type metadata (icon + label + keyboard shortcut)
@@ -153,6 +159,8 @@ export function QuickMatchLayout({
   events,
   isMuted,
   onToggleMute,
+  tvCleanMode,
+  onToggleTvCleanMode,
 }: QuickMatchLayoutProps) {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
@@ -392,6 +400,14 @@ export function QuickMatchLayout({
           <IconBtn onClick={onOpenTV} title="Abrir placar na TV">
             <Monitor className="w-4 h-4" />
           </IconBtn>
+          {onToggleTvCleanMode && (
+            <IconBtn
+              onClick={onToggleTvCleanMode}
+              title={tvCleanMode ? 'FOB OFF — TV em modo limpo (sem logo/wifi). Clique pra voltar.' : 'FOB ON — TV mostra logo e WiFi. Clique pra modo limpo (broadcast).'}
+            >
+              {tvCleanMode ? <Radio className="w-4 h-4 text-amber-400" /> : <RadioTower className="w-4 h-4" />}
+            </IconBtn>
+          )}
           <button
             onClick={() => setShowShareDialog(true)}
             title="Placar ao vivo no celular (QR Code)"

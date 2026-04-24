@@ -13,6 +13,33 @@
     --background: 240 20% 4%;        /* #0A0A0F */
     --foreground: 210 40% 98%;       /* #F8FAFC */
 
+    /* ========================================================
+     * WT Semantic Tokens (competition mode — per spe-ui-design)
+     * Tufte + Rams + Vignelli. Broadcast-grade, WT convention.
+     * CHUNG sempre azul (left), HONG sempre vermelho (right).
+     * ======================================================== */
+    --chung:          214 100% 40%;  /* #0066CC  — colete azul */
+    --chung-bg:       214 100% 12%;  /* #001F3D  — fundo escuro CHUNG */
+    --chung-accent:   214 100% 60%;  /* #3399FF  — destaque ativo */
+    --hong:             0 100% 40%;  /* #CC0000  — colete vermelho */
+    --hong-bg:          0 100% 12%;  /* #3D0000  — fundo escuro HONG */
+    --hong-accent:      0 100% 60%;  /* #FF3333  — destaque ativo */
+
+    /* System neutrals (skill §2.3) — nunca #000/#FFF puros */
+    --wt-bg-primary:    0   0%  4%;   /* #0A0A0A */
+    --wt-bg-secondary:  0   0% 10%;   /* #1A1A1A */
+    --wt-bg-tertiary:   0   0% 16%;   /* #2A2A2A */
+    --wt-fg-primary:    0   0% 98%;   /* #FAFAFA */
+    --wt-fg-secondary:  0   0% 63%;   /* #A0A0A0 */
+    --wt-fg-muted:      0   0% 38%;   /* #606060 */
+    --wt-divider:       0   0% 20%;   /* #333333 */
+
+    /* Functional colors (use sparingly, never decorative) */
+    --wt-success:     142 100% 33%;   /* #00AA44 */
+    --wt-warning:      40 100% 50%;   /* #FFAA00 */
+    --wt-danger:        0 100% 60%;   /* #FF3333 */
+    --wt-manual:       43  60% 53%;   /* #D4AF37 — dourado MANUAL indicator */
+
     /* Legacy Sulsport colors (kept for championship mode) */
     --sulsport-blue: 217 91% 40%;
     --sulsport-blue-light: 217 91% 60%;
@@ -53,7 +80,15 @@
 
     --radius: 0.75rem;
 
-    /* S-Fight PRO Brand Colors */
+    /* ────────────────────────────────────────────────────────────────
+     * ARCADE-ONLY TOKENS (S-Fight PRO modo arcade)
+     *
+     * NÃO USAR em telas de competição (SPE). Competição usa os tokens
+     * --wt-*, --chung*, --hong* definidos acima. Estes tokens existem
+     * apenas para as telas arcade/game/* e public live score.
+     * ──────────────────────────────────────────────────────────────── */
+
+    /* S-Fight PRO Brand Colors (arcade) */
     --sfight-red: 347 77% 50%;       /* #E11D48 */
     --sfight-red-dark: 347 77% 37%;  /* #9F1239 */
     --sfight-gold: 38 92% 50%;       /* #F59E0B */
@@ -61,7 +96,7 @@
     --sfight-green: 160 84% 39%;     /* #10B981 */
     --sfight-blue: 217 91% 60%;      /* #3B82F6 */
 
-    /* Game-specific colors (S-FIGHT PRO palette) */
+    /* Game-specific colors (arcade/S-FIGHT PRO palette) */
     --game-red: 0 100% 44%;
     --game-red-glow: 0 100% 50%;
     --game-blue: 217 91% 60%;

@@ -54,7 +54,7 @@ export function NewSampleDialog({ open, onOpenChange, onStart }: NewSampleDialog
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))] max-w-md">
+      <DialogContent className="bg-wt-bg-secondary border-wt-divider max-w-md rounded-none">
         <DialogHeader>
           <DialogTitle className="text-white uppercase">Nova Amostra</DialogTitle>
         </DialogHeader>
@@ -133,7 +133,7 @@ export function NewSampleDialog({ open, onOpenChange, onStart }: NewSampleDialog
           <Button
             onClick={handleStart}
             disabled={!label.trim()}
-            className="bg-[hsl(var(--sulsport-red))] hover:bg-[hsl(var(--sulsport-red-light))] text-white"
+            className="bg-hong hover:bg-hong/90 text-white rounded-none uppercase tracking-wider text-xs font-bold"
           >
             INICIAR GRAVAÇÃO
           </Button>

@@ -77,6 +77,30 @@ export default {
           green: "hsl(var(--sfight-green))",
           blue: "hsl(var(--sfight-blue))",
         },
+        // WT semantic tokens (competition mode)
+        chung: {
+          DEFAULT: "hsl(var(--chung))",
+          bg: "hsl(var(--chung-bg))",
+          accent: "hsl(var(--chung-accent))",
+        },
+        hong: {
+          DEFAULT: "hsl(var(--hong))",
+          bg: "hsl(var(--hong-bg))",
+          accent: "hsl(var(--hong-accent))",
+        },
+        wt: {
+          bg: "hsl(var(--wt-bg-primary))",
+          "bg-secondary": "hsl(var(--wt-bg-secondary))",
+          "bg-tertiary": "hsl(var(--wt-bg-tertiary))",
+          fg: "hsl(var(--wt-fg-primary))",
+          "fg-secondary": "hsl(var(--wt-fg-secondary))",
+          "fg-muted": "hsl(var(--wt-fg-muted))",
+          divider: "hsl(var(--wt-divider))",
+          success: "hsl(var(--wt-success))",
+          warning: "hsl(var(--wt-warning))",
+          danger: "hsl(var(--wt-danger))",
+          manual: "hsl(var(--wt-manual))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

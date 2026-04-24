@@ -105,10 +105,10 @@ export function CalibrationWizardDialog({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+      <DialogContent className="max-w-lg bg-wt-bg-secondary border-wt-divider rounded-none">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-white uppercase flex items-center gap-2">
-            <Zap className="w-5 h-5 text-[hsl(var(--sulsport-yellow))]" />
+            <Zap className="w-5 h-5 text-wt-manual" />
             WIZARD DE CALIBRAÇÃO
           </DialogTitle>
         </DialogHeader>
@@ -123,8 +123,8 @@ export function CalibrationWizardDialog({
                   key={num}
                   className={cn(
                     'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm',
-                    num < stepInfo.stepNumber && 'bg-[hsl(var(--sulsport-green))] text-white',
-                    num === stepInfo.stepNumber && 'bg-[hsl(var(--sulsport-blue))] text-white',
+                    num < stepInfo.stepNumber && 'bg-wt-success text-black',
+                    num === stepInfo.stepNumber && 'bg-chung text-white',
                     num > stepInfo.stepNumber && 'bg-zinc-700 text-zinc-400'
                   )}
                 >
@@ -135,13 +135,13 @@ export function CalibrationWizardDialog({
             
             {/* Title */}
             <div className="text-center">
-              <Badge className="bg-[hsl(var(--sulsport-blue))] text-white text-lg px-4 py-1">
+              <Badge className="bg-chung text-white text-lg px-4 py-1">
                 ETAPA {stepInfo.stepNumber}/3: {stepInfo.title}
               </Badge>
             </div>
             
             {/* Instructions */}
-            <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
+            <Card className="bg-wt-bg border-wt-divider rounded-none">
               <CardContent className="p-4 text-center">
                 <p className="text-white text-lg font-semibold mb-1">
                   {stepInfo.instruction}
@@ -172,7 +172,7 @@ export function CalibrationWizardDialog({
             )}
             
             {/* Impact Counter */}
-            <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
+            <Card className="bg-wt-bg border-wt-divider rounded-none">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
                   <p className="text-zinc-400 text-sm">Impactos coletados</p>
@@ -181,7 +181,7 @@ export function CalibrationWizardDialog({
                 {lastImpact && (
                   <div className="text-right">
                     <p className="text-zinc-400 text-sm">Último peak</p>
-                    <p className="text-[hsl(var(--sulsport-yellow))] text-2xl font-bold font-mono">
+                    <p className="text-wt-manual text-2xl font-bold font-mono">
                       {lastImpact.peakIntensity}
                     </p>
                   </div>
@@ -205,7 +205,7 @@ export function CalibrationWizardDialog({
               </Button>
               <Button
                 onClick={onAdvance}
-                className="flex-1 bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white font-bold"
+                className="flex-1 bg-wt-success hover:bg-wt-success/90 text-black font-bold rounded-none uppercase tracking-wider"
               >
                 PRÓXIMO →
               </Button>
@@ -217,7 +217,7 @@ export function CalibrationWizardDialog({
         {wizard.step === 'result' && (
           <div className="space-y-4">
             <div className="text-center">
-              <Badge className="bg-[hsl(var(--sulsport-green))] text-white text-lg px-4 py-1">
+              <Badge className="bg-wt-success text-black text-lg px-4 py-1">
                 ANÁLISE COMPLETA
               </Badge>
             </div>
@@ -244,11 +244,11 @@ export function CalibrationWizardDialog({
             )}
             
             {/* Stats Summary */}
-            <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
+            <Card className="bg-wt-bg border-wt-divider rounded-none">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                    <TableRow className="border-wt-divider">
                       <TableHead className="text-zinc-500 text-xs">CATEGORIA</TableHead>
                       <TableHead className="text-zinc-500 text-xs text-right">QTD</TableHead>
                       <TableHead className="text-zinc-500 text-xs text-right">P95</TableHead>
@@ -256,7 +256,7 @@ export function CalibrationWizardDialog({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                    <TableRow className="border-wt-divider">
                       <TableCell className="text-zinc-300 py-2">RASPAGEM</TableCell>
                       <TableCell className="text-white text-right font-mono py-2">
                         {wizard.raspagem.stats?.count ?? 0}
@@ -268,7 +268,7 @@ export function CalibrationWizardDialog({
                         {wizard.raspagem.stats?.max ?? '-'}
                       </TableCell>
                     </TableRow>
-                    <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                    <TableRow className="border-wt-divider">
                       <TableCell className="text-zinc-300 py-2">TOQUE</TableCell>
                       <TableCell className="text-white text-right font-mono py-2">
                         {wizard.toque.stats?.count ?? 0}
@@ -280,7 +280,7 @@ export function CalibrationWizardDialog({
                         {wizard.toque.stats?.max ?? '-'}
                       </TableCell>
                     </TableRow>
-                    <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                    <TableRow className="border-wt-divider">
                       <TableCell className="text-zinc-300 py-2">PONTO</TableCell>
                       <TableCell className="text-white text-right font-mono py-2">
                         {wizard.ponto.stats?.count ?? 0}
@@ -299,35 +299,35 @@ export function CalibrationWizardDialog({
             
             {/* Suggested Thresholds */}
             {wizard.suggestedThresholds && (
-              <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-blue))]">
+              <Card className="bg-wt-bg border-chung rounded-none">
                 <CardContent className="p-4">
-                  <h4 className="text-sm font-bold text-[hsl(var(--sulsport-blue))] uppercase mb-3">
+                  <h4 className="text-sm font-bold text-chung-accent uppercase tracking-wider mb-3">
                     Thresholds Sugeridos
                   </h4>
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                      <TableRow className="border-wt-divider">
                         <TableHead className="text-zinc-500 text-xs">TIPO</TableHead>
                         <TableHead className="text-zinc-500 text-xs text-right">HIT mín</TableHead>
                         <TableHead className="text-zinc-500 text-xs text-right">PONTO mín</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                      <TableRow className="border-wt-divider">
                         <TableCell className="text-zinc-300 py-2">Colete</TableCell>
-                        <TableCell className="text-[hsl(var(--sulsport-yellow))] text-right font-mono font-bold py-2">
+                        <TableCell className="text-wt-manual text-right font-mono font-bold py-2">
                           {wizard.suggestedThresholds.vestHitMin}
                         </TableCell>
-                        <TableCell className="text-[hsl(var(--sulsport-green))] text-right font-mono font-bold py-2">
+                        <TableCell className="text-wt-success text-right font-mono font-bold py-2">
                           {wizard.suggestedThresholds.vestPointMin}
                         </TableCell>
                       </TableRow>
-                      <TableRow className="border-[hsl(var(--sulsport-gray))]">
+                      <TableRow className="border-wt-divider">
                         <TableCell className="text-zinc-300 py-2">Capacete</TableCell>
-                        <TableCell className="text-[hsl(var(--sulsport-yellow))] text-right font-mono font-bold py-2">
+                        <TableCell className="text-wt-manual text-right font-mono font-bold py-2">
                           {wizard.suggestedThresholds.helmetHitMin}
                         </TableCell>
-                        <TableCell className="text-[hsl(var(--sulsport-green))] text-right font-mono font-bold py-2">
+                        <TableCell className="text-wt-success text-right font-mono font-bold py-2">
                           {wizard.suggestedThresholds.helmetPointMin}
                         </TableCell>
                       </TableRow>
@@ -352,7 +352,7 @@ export function CalibrationWizardDialog({
                   toast.success('Calibração concluída!');
                 }}
                 disabled={!wizard.suggestedThresholds}
-                className="flex-1 bg-[hsl(var(--sulsport-green))] hover:bg-[hsl(var(--sulsport-green-light))] text-white font-bold"
+                className="flex-1 bg-wt-success hover:bg-wt-success/90 text-black font-bold rounded-none uppercase tracking-wider"
               >
                 <Check className="w-4 h-4 mr-1" />
                 APLICAR THRESHOLDS

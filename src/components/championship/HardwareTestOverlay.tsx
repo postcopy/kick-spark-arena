@@ -236,7 +236,7 @@ export function HardwareTestOverlay({
                   Começar de novo
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+              <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider rounded-none">
                 <AlertDialogHeader>
                   <AlertDialogTitle className="text-white">Zerar todos os testes?</AlertDialogTitle>
                   <AlertDialogDescription className="text-zinc-400">

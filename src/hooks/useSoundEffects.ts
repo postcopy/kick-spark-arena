@@ -39,7 +39,18 @@ type SoundName =
   | 'usbDisconnected'
   | 'modeSelect'
   | 'loginSuccess'
-  | 'ready';
+  | 'ready'
+  // ═══ SPE championship sounds (KPNP — temporario, trocar por proprios depois) ═══
+  | 'speHitBody'        // ponto no colete (+2 corpo)
+  | 'speHitHead'        // ponto na cabeca (+3)
+  | 'speHitPunch'       // ponto de soco (+1)
+  | 'speGamjeom'        // gam-jeom aplicado
+  | 'speGamjeomRemove'  // gam-jeom removido
+  | 'speBoong'          // buzina — fim de round
+  | 'speMatchEnd'       // buzina longa — fim de luta
+  | 'speManualAdd'      // ajuste manual: ponto adicionado
+  | 'speManualRemove'   // ajuste manual: ponto removido
+  | 'speRefereeCall';   // chamada do arbitro central
 
 // Fallback to public/sounds/ (relative paths for Electron file:// compatibility)
 const FALLBACK_PATHS: Record<SoundName, string> = {
@@ -91,6 +102,17 @@ const FALLBACK_PATHS: Record<SoundName, string> = {
   bgTimeAttack: './sounds/bg-time-attack.mp3',
   bgArcade: './sounds/bg-arcade.mp3',
   bgReaction: './sounds/bg-reaction.mp3',
+  // ═══ SPE Championship (KPNP) — temp ═══
+  speHitBody:       './sounds/hitbody.wav',
+  speHitHead:       './sounds/hithead.wav',
+  speHitPunch:      './sounds/hitfunch.wav',
+  speGamjeom:       './sounds/deduction.wav',
+  speGamjeomRemove: './sounds/removededuction.wav',
+  speBoong:         './sounds/boong.wav',
+  speMatchEnd:      './sounds/mboong.wav',
+  speManualAdd:     './sounds/manualptadd.wav',
+  speManualRemove:  './sounds/manualptrmv.wav',
+  speRefereeCall:   './sounds/refereecall.wav',
 };
 
 const STORAGE_KEY = 'kickcounter_soundMuted';
@@ -132,6 +154,17 @@ const POOL_SIZES: Partial<Record<SoundName, number>> = {
   modeSelect: 1,
   loginSuccess: 1,
   ready: 1,
+  // SPE championship — hits sao frequentes em cadeia, boong unico
+  speHitBody: 3,
+  speHitHead: 3,
+  speHitPunch: 3,
+  speGamjeom: 2,
+  speGamjeomRemove: 1,
+  speBoong: 1,
+  speMatchEnd: 1,
+  speManualAdd: 2,
+  speManualRemove: 1,
+  speRefereeCall: 1,
 };
 
 // All paths now point to real files — no overrides needed

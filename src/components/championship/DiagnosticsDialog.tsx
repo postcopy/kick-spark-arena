@@ -108,7 +108,7 @@ export function DiagnosticsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[92vh] overflow-auto bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+      <DialogContent className="max-w-lg max-h-[92vh] overflow-auto bg-wt-bg-secondary border-wt-divider rounded-none">
         {/* Header */}
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-white uppercase">
@@ -152,7 +152,7 @@ export function DiagnosticsDialog({
         </DialogHeader>
 
         {/* Section 1: Monitor de Teste */}
-        <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
+        <Card className="bg-wt-bg border-wt-divider rounded-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
               MONITOR DE TESTE
@@ -188,7 +188,7 @@ export function DiagnosticsDialog({
         </Card>
 
         {/* Section 2: Configuração de Limiares */}
-        <Card className="bg-[hsl(var(--sulsport-black))] border-[hsl(var(--sulsport-gray))]">
+        <Card className="bg-wt-bg border-wt-divider rounded-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-zinc-400 uppercase">
               CONFIGURAÇÃO DE LIMIARES
@@ -203,7 +203,7 @@ export function DiagnosticsDialog({
                   className={cn(
                     'flex-1 text-xs font-bold uppercase',
                     activePreset === key
-                      ? 'bg-[hsl(var(--sulsport-blue))] border-[hsl(var(--sulsport-blue))] text-white'
+                      ? 'bg-chung border-chung text-white'
                       : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
                   )}
                 >
@@ -258,7 +258,7 @@ export function DiagnosticsDialog({
 
             <Button
               onClick={handleSave}
-              className="w-full bg-[hsl(var(--sulsport-blue))] hover:bg-[hsl(var(--sulsport-blue))]/80 text-white font-bold uppercase"
+              className="w-full bg-chung hover:bg-chung/80 text-white font-bold uppercase tracking-wider rounded-none"
             >
               <Save className="w-4 h-4 mr-2" />
               SALVAR CONFIGURAÇÃO

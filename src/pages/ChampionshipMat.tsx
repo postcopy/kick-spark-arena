@@ -744,6 +744,8 @@ function ChampionshipMatInner() {
           events={sync.state.events}
           isMuted={isMuted}
           onToggleMute={toggleMute}
+          tvCleanMode={sync.state.config.tvCleanMode}
+          onToggleTvCleanMode={() => sync.updateConfigInPlace((c) => ({ ...c, tvCleanMode: !c.tvCleanMode }))}
         />
       ) : /* ═══════════════════════════════════════════════════════════════
              MODO COMPETIÇÃO PROFISSIONAL — mesma UI do treino +

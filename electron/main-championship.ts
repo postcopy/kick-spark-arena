@@ -14,22 +14,32 @@ const isDev = !app.isPackaged;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: 1400,
+    height: 900,
     minWidth: 1024,
-    minHeight: 768,
-    fullscreen: true,
-    frame: false,
+    minHeight: 720,
+    // KPNP-style: janela compacta centralizada pro operador (nao fullscreen).
+    // Fullscreen permanece apenas na TV broadcast (openTVWindow).
+    fullscreen: false,
+    center: true,
+    resizable: true,
+    maximizable: true,
+    // Barra de titulo NATIVA do Windows — minimize/maximize/close sempre
+    // visiveis, professional, nao atrapalha. Substituiu ImmersiveTitleBar
+    // (custom auto-hide que parecia amador).
+    frame: true,
     autoHideMenuBar: true,
-    titleBarStyle: 'hidden',
-    titleBarOverlay: false,
     icon: path.join(__dirname, '../public/favicon.ico'),
+    title: 'SPE Sulsport',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // Desativa throttling de background pra TV nao atrasar quando
+      // a janela do operador esta em foco (e vice-versa).
+      backgroundThrottling: false,
     },
-    backgroundColor: '#0A0A0F',
+    backgroundColor: '#050507',
     show: true,
   });
 

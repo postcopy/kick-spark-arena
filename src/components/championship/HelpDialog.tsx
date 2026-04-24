@@ -44,7 +44,7 @@ function ColorDot({ color, label }: { color: string; label: string }) {
 export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))] text-white">
+      <DialogContent className="max-w-2xl bg-wt-bg-secondary border-wt-divider text-wt-fg-primary rounded-none">
         <DialogHeader>
           <DialogTitle className="text-white text-lg font-bold uppercase tracking-wider">
             Guia de Ajuda

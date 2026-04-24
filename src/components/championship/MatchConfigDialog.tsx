@@ -141,12 +141,12 @@ export function MatchConfigDialog({
         else onOpenChange(true);
       }}
     >
-      <DialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))] p-0 max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
+      <DialogContent className="bg-wt-bg-secondary border-wt-divider p-0 max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
         <DialogHeader className="px-4 pt-4 pb-2 shrink-0">
           <DialogTitle className="text-white text-lg font-bold flex items-center gap-2">
             Configurar Luta
             {isLocked && (
-              <span className="text-xs bg-[hsl(var(--sulsport-yellow))]/20 text-[hsl(var(--sulsport-yellow))] px-2 py-0.5 rounded-md">
+              <span className="text-xs bg-wt-manual/15 border border-wt-manual/40 text-wt-manual px-2 py-0.5 rounded-md">
                 BLOQUEADO
               </span>
             )}
@@ -154,16 +154,16 @@ export function MatchConfigDialog({
         </DialogHeader>
         
         {isLocked && (
-          <div className="mx-4 mb-2 p-2 bg-[hsl(var(--sulsport-yellow))]/10 border border-[hsl(var(--sulsport-yellow))]/30 rounded-md flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-[hsl(var(--sulsport-yellow))] shrink-0" />
-            <span className="text-xs text-[hsl(var(--sulsport-yellow))]">
+          <div className="mx-4 mb-2 p-2 bg-wt-manual/10 border border-wt-manual/40 rounded-md flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-wt-manual shrink-0" />
+            <span className="text-xs text-wt-manual">
               Pause a luta para editar as configurações
             </span>
           </div>
         )}
 
         {/* Ruleset selector — operador escolhe regulamento WT antes de editar valores */}
-        <div className="px-4 py-3 border-b border-[hsl(var(--sulsport-gray))]">
+        <div className="px-4 py-3 border-b border-wt-divider">
           <Label className="text-xs font-semibold text-zinc-400 mb-1.5 block">
             REGULAMENTO WT
           </Label>
@@ -456,8 +456,8 @@ export function MatchConfigDialog({
               <TabsContent value="athletes" className="mt-0 space-y-3">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {/* Red Athlete */}
-                  <div className="bg-zinc-900 border border-[hsl(var(--sulsport-red))]/50 rounded-md p-3">
-                    <Label className="text-[hsl(var(--sulsport-red-light))] text-sm font-bold mb-2 block">
+                  <div className="bg-zinc-900 border border-hong/50 rounded-md p-3">
+                    <Label className="text-hong-accent text-sm font-bold mb-2 block">
                       Vermelho (Hong)
                     </Label>
                     <div className="space-y-2">
@@ -500,8 +500,8 @@ export function MatchConfigDialog({
                   </div>
                   
                   {/* Blue Athlete */}
-                  <div className="bg-zinc-900 border border-[hsl(var(--sulsport-blue))]/50 rounded-md p-3">
-                    <Label className="text-[hsl(var(--sulsport-blue-light))] text-sm font-bold mb-2 block">
+                  <div className="bg-zinc-900 border border-chung/50 rounded-md p-3">
+                    <Label className="text-chung-accent text-sm font-bold mb-2 block">
                       Azul (Chung)
                     </Label>
                     <div className="space-y-2">
@@ -784,7 +784,7 @@ export function MatchConfigDialog({
         </Tabs>
         
         {/* Footer - Always Visible */}
-        <div className="shrink-0 p-4 border-t border-[hsl(var(--sulsport-gray))] bg-[hsl(var(--sulsport-dark))] flex gap-3 justify-end">
+        <div className="shrink-0 p-4 border-t border-wt-divider bg-wt-bg-secondary flex gap-3 justify-end">
           <Button
             variant="ghost"
             onClick={requestClose}
@@ -804,7 +804,7 @@ export function MatchConfigDialog({
       </DialogContent>
 
       <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
-        <AlertDialogContent className="bg-[hsl(var(--sulsport-dark))] border-[hsl(var(--sulsport-gray))]">
+        <AlertDialogContent className="bg-wt-bg-secondary border-wt-divider">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Descartar mudanças?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">

@@ -149,13 +149,13 @@ export default function ChampionshipTV() {
   // No signal state
   if (!isConnected) {
     return (
-      <div className="h-screen w-screen bg-[hsl(var(--sulsport-black))] flex items-center justify-center">
+      <div className="h-screen w-screen bg-wt-bg flex items-center justify-center font-display">
         <div className="text-center">
-          <WifiOff className="h-16 w-16 text-zinc-400 animate-pulse mx-auto mb-4" />
-          <div className="text-6xl font-bold text-zinc-400 mb-4">SEM SINAL</div>
-          <div className="text-8xl font-black text-zinc-500 mb-6">MAT {matId}</div>
-          <div className="text-xl text-zinc-400">
-            Aguardando conexão com Mesa de Luta (MAT {matId})
+          <WifiOff className="h-16 w-16 text-wt-danger animate-pulse mx-auto mb-6" />
+          <div className="text-5xl font-bold uppercase tracking-[0.3em] text-white/70 mb-3">Sem sinal</div>
+          <div className="text-8xl font-black text-white mb-6 tabular-nums tracking-tight">MAT {matId}</div>
+          <div className="text-lg text-white/50">
+            Aguardando conexão com Mesa de Luta
           </div>
         </div>
       </div>
@@ -182,18 +182,21 @@ export default function ChampionshipTV() {
   };
   
   return (
-    <div className="h-screen w-screen bg-[hsl(var(--sulsport-black))] flex flex-col overflow-hidden select-none">
-      {/* Logo overlay — minimal, does not take vertical space */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 opacity-30">
-        <img src={logoSpe} alt="SPE" className="h-5 w-auto object-contain" />
-      </div>
-      {/* Connection indicator — top right corner */}
-      <div className="absolute top-3 right-3 z-50 flex items-center gap-1.5 opacity-50">
-        <Wifi className="h-3.5 w-3.5 text-green-400" />
-        {connectedDevices > 1 && (
-          <span className="text-[10px] text-zinc-400 font-mono">{connectedDevices}</span>
-        )}
-      </div>
+    <div className="h-screen w-screen bg-wt-bg flex flex-col overflow-hidden select-none font-display">
+      {/* Chrome (logo + WiFi) escondido quando tvCleanMode=true (FOB off) */}
+      {!sync.state.config.tvCleanMode && (
+        <>
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 opacity-30">
+            <img src={logoSpe} alt="SPE" className="h-5 w-auto object-contain" />
+          </div>
+          <div className="absolute top-3 right-3 z-50 flex items-center gap-1.5 opacity-50">
+            <Wifi className="h-3.5 w-3.5 text-green-400" />
+            {connectedDevices > 1 && (
+              <span className="text-[10px] text-zinc-400 font-mono">{connectedDevices}</span>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Tournament Bracket View (shown between fights) */}
       {!isBasicMode && tvMode === 'bracket' && bracketCategoryId && tournamentHook.tournament && (() => {
@@ -209,185 +212,229 @@ export default function ChampionshipTV() {
         );
       })()}
 
-      {/* Main 3-Column Layout (Scoreboard) — hidden when showing bracket */}
-      <div className={cn("flex-1 flex items-stretch p-6 gap-4", tvMode === 'bracket' && "hidden")}>
-        {/* BLUE Side - Left Column */}
-        <div className="flex-1 flex flex-col bg-[hsl(var(--sulsport-blue))] rounded-2xl overflow-hidden">
-          {/* Athlete Name */}
-          <div className="h-24 flex items-center justify-center border-b border-white/10">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white uppercase tracking-wider">
-                {state.config.athleteBlue?.name || 'CHUNG'}
-              </div>
-              {state.config.athleteBlue?.country && (
-                <div className="text-xl text-white/70">
-                  ({state.config.athleteBlue.country})
+      {/* Main 3-Column Layout — Claude Design RODADA 2 (TV broadcast UFC-style) */}
+      <div className={cn("flex-1 flex items-stretch overflow-hidden", tvMode === 'bracket' && "hidden")}>
+        {/* BLUE Side */}
+        {(() => {
+          const blueLeading = state.roundScoreBlue > state.roundScoreRed;
+          const blueName = state.config.athleteBlue?.name || 'CHUNG';
+          const blueCountry = state.config.athleteBlue?.country;
+          return (
+            <div className="flex-1 flex flex-col overflow-hidden relative bg-chung-bg">
+              {/* Stripe superior — CHUNG cor sólida, convenção broadcast */}
+              <div className="h-2 w-full bg-chung" />
+
+              {/* Header: CHUNG label + nome + country + LIDERA */}
+              <div className="px-10 pt-7 pb-4 flex flex-col items-start">
+                <div className="text-white/80 font-bold" style={{ fontSize: 14, letterSpacing: '0.5em' }}>
+                  CHUNG
                 </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Score */}
-          <div className="flex-1 flex items-center justify-center">
-            <span
-              className="font-black text-white tabular-nums text-center block"
-              style={{ fontSize: 'clamp(250px, 40vw, 650px)', lineHeight: 1, minWidth: '1.2em' }}
-            >
-              {state.roundScoreBlue}
-            </span>
-          </div>
-          
-          {/* Footer: GAM-JEOM / ROUNDS / HITS */}
-          <div className="h-32 bg-[hsl(var(--sulsport-blue-dark))] grid grid-cols-3 divide-x divide-white/10">
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">GAM-JEOM</div>
-              <div className={cn(
-                "text-4xl font-black",
-                state.gamjeomBlue === 0 ? "text-white/50" :
-                state.gamjeomBlue <= 2 ? "text-white" :
-                state.gamjeomBlue <= 4 ? "text-yellow-400" :
-                "text-red-400 animate-pulse"
-              )}>{state.gamjeomBlue}</div>
-            </div>
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">ROUNDS</div>
-              <div className="flex gap-2 text-white">
-                {renderRoundIndicators(state.roundWinsBlue, state.config.maxRounds)}
+                <div className="font-bold text-white leading-tight mt-1 truncate max-w-full uppercase tracking-wide" style={{ fontSize: 46 }}>
+                  {blueName}
+                </div>
+                {blueCountry && (
+                  <div className="text-white/60 font-mono mt-0.5" style={{ fontSize: 20, letterSpacing: '0.2em' }}>
+                    {blueCountry}
+                  </div>
+                )}
+                {blueLeading && (
+                  <div className="mt-2.5 font-bold text-black bg-white"
+                    style={{ fontSize: 11, letterSpacing: '0.4em', padding: '5px 13px' }}
+                  >
+                    LIDERA
+                  </div>
+                )}
+              </div>
+
+              {/* Número gigante — broadcast hero, retangular, zero sombra decorativa */}
+              <div className="flex-1 flex items-center justify-center relative">
+                <span
+                  className="font-black tabular-nums leading-none"
+                  style={{
+                    fontSize: 'clamp(240px, 38vw, 520px)',
+                    letterSpacing: '-0.05em',
+                    color: blueLeading ? 'hsl(var(--chung-accent))' : '#FFFFFF',
+                  }}
+                >
+                  {state.roundScoreBlue}
+                </span>
+              </div>
+
+              {/* Rodapé: gam-jeom + rounds + hits — retangular, sem border-radius */}
+              <div className="px-10 pb-6 flex gap-[2px] justify-start">
+                <div className="px-5 py-3 bg-black/40 min-w-[108px]">
+                  <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GAM-JEOM</div>
+                  <div
+                    className={cn(
+                      "font-black tabular-nums leading-none mt-1",
+                      state.gamjeomBlue >= 3 ? "text-wt-warning" : "text-white"
+                    )}
+                    style={{ fontSize: 36 }}
+                  >
+                    {state.gamjeomBlue}
+                  </div>
+                </div>
+                <div className="px-5 py-3 bg-black/40 flex gap-4 items-center">
+                  {Array.from({ length: state.config.maxRounds }).map((_, i) => (
+                    <div key={i} className="text-center">
+                      <div className="text-white/60 font-bold" style={{ fontSize: 9, letterSpacing: '0.25em' }}>R{i + 1}</div>
+                      <div className="font-black text-white tabular-nums mt-0.5" style={{ fontSize: 26 }}>
+                        {i < state.roundWinsBlue ? '●' : '○'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-5 py-3 bg-black/40">
+                  <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GOLPES</div>
+                  <div className="font-black text-white tabular-nums leading-none mt-1" style={{ fontSize: 36 }}>
+                    {state.hitsBlue}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">GOLPES</div>
-              <div className="text-4xl font-black text-white">{state.hitsBlue}</div>
-            </div>
-          </div>
-        </div>
-        
-        {/* CENTER Column - Timer & Round */}
-        <div className="w-80 flex flex-col bg-[hsl(var(--sulsport-dark))] rounded-2xl overflow-hidden border border-[hsl(var(--sulsport-gray))]">
-          {/* LUTA header + number */}
-          <div className="flex-1 flex flex-col items-center justify-center border-b border-[hsl(var(--sulsport-gray))]">
-            <span className="text-2xl font-bold text-white uppercase tracking-[0.3em]">LUTA</span>
-            <span className="text-4xl font-bold text-white tabular-nums">
-              {state.config.matchNumber || '001'}
-            </span>
-          </div>
-          
-          {/* Timer - Yellow BAND (or neutral for break time) */}
-          <div className={cn(
-            "h-36 flex items-center justify-center",
-            state.isBreakTime
-              ? "bg-zinc-600"
-              : isMedical
-                ? "bg-[hsl(var(--sulsport-yellow-dark))]"
-                : state.timeLeftMs <= 5000 && isRunning
-                  ? "bg-red-600"
-                  : state.isGoldenRound
-                    ? "bg-yellow-500"
-                    : "bg-[hsl(var(--sulsport-yellow))]"
-          )}>
-            <div
-              className={cn(
-                "font-black leading-none tabular-nums",
-                state.isBreakTime
-                  ? "text-white"
+          );
+        })()}
+
+        {/* CENTER — estreito, sóbrio, retangular, só o essencial */}
+        <div className="flex flex-col items-center justify-center gap-4 bg-black" style={{ width: 240, padding: '20px 10px' }}>
+          <div className="text-white/50 font-bold" style={{ fontSize: 11, letterSpacing: '0.4em' }}>ROUND</div>
+          {state.isGoldenRound ? (
+            <>
+              <div className="font-black text-wt-manual animate-pulse" style={{ fontSize: 38, letterSpacing: '0.15em' }}>GOLDEN</div>
+              <div className="font-black text-wt-manual" style={{ fontSize: 38, letterSpacing: '0.15em' }}>ROUND</div>
+            </>
+          ) : (
+            <>
+              <div className="font-black text-white tabular-nums leading-none" style={{ fontSize: 92 }}>{state.round}</div>
+              <div className="text-white/40 font-bold -mt-1" style={{ fontSize: 12, letterSpacing: '0.3em' }}>/ {state.config.maxRounds}</div>
+            </>
+          )}
+
+          <div className="w-3/4 h-px bg-white/15 my-1" />
+
+          {/* Timer — retangular broadcast */}
+          <div
+            className={cn(
+              "font-black tabular-nums leading-none px-5 py-3 w-full text-center border-2",
+              state.isBreakTime
+                ? "bg-wt-bg-tertiary text-white border-wt-divider"
+                : isMedical
+                  ? "bg-wt-warning text-black border-wt-warning"
                   : state.timeLeftMs <= 5000 && isRunning
-                    ? "text-white font-black animate-[timer-blink-fast_0.25s_ease-in-out_infinite]"
-                    : state.timeLeftMs <= 10000 && isRunning && state.timeLeftMs > 5000
-                      ? "text-black animate-[timer-blink_0.5s_ease-in-out_infinite]"
-                      : "text-black"
-              )}
-              style={{ fontSize: 'clamp(80px, 14vw, 160px)' }}
-            >
-              {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTime(state.timeLeftMs)}
-            </div>
+                    ? "bg-wt-danger text-white border-wt-danger animate-[timer-blink-fast_0.25s_ease-in-out_infinite]"
+                    : state.timeLeftMs <= 10000 && isRunning
+                      ? "bg-wt-warning text-black border-wt-warning animate-[timer-blink_0.5s_ease-in-out_infinite]"
+                      : "bg-white text-black border-white"
+            )}
+            style={{ fontSize: 64 }}
+          >
+            {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTime(state.timeLeftMs)}
           </div>
 
-          {/* Status (PAUSADO / T. MÉDICO / INTERVALO) */}
+          {/* Status label */}
           {state.isBreakTime && !isMatchEnd && (
-            <div className="h-14 flex items-center justify-center">
-              <span className="text-2xl font-bold text-zinc-300 uppercase tracking-wider animate-pulse">
-                INTERVALO
-              </span>
-            </div>
+            <div className="font-bold uppercase text-white/70 tracking-widest animate-pulse" style={{ fontSize: 14 }}>INTERVALO</div>
           )}
           {!state.isBreakTime && !isRunning && !isMatchEnd && (
-            <div className="h-14 flex items-center justify-center">
-              <span className={cn(
-                "text-2xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider",
-                !isMedical && "animate-pulse"
-              )}>
-                {isMedical ? 'T. MÉDICO' : 'PAUSADO'}
-              </span>
+            <div
+              className={cn(
+                "font-bold uppercase tracking-widest",
+                isMedical ? "text-wt-warning" : "text-white/70 animate-pulse"
+              )}
+              style={{ fontSize: 14 }}
+            >
+              {isMedical ? 'TEMPO MÉDICO' : 'PAUSADO'}
             </div>
           )}
+          {isRunning && !state.isBreakTime && (
+            <div className="font-bold uppercase text-wt-success tracking-widest" style={{ fontSize: 14 }}>EM LUTA</div>
+          )}
 
-          {/* ROUND info */}
-          <div className="flex-1 flex flex-col items-center justify-center border-t border-[hsl(var(--sulsport-gray))]">
-            {state.isGoldenRound ? (
-              <>
-                <span className="text-lg font-black uppercase tracking-wider text-yellow-400 animate-pulse">GOLDEN</span>
-                <span className="text-5xl font-black text-yellow-400">ROUND</span>
-              </>
-            ) : (
-              <>
-                <span className="text-lg text-white/60 uppercase font-bold tracking-wider">ROUND</span>
-                <span className="text-7xl font-black text-white">{state.round}</span>
-              </>
-            )}
+          {/* LUTA identifier abaixo do timer */}
+          <div className="text-white/30 font-bold font-mono mt-2" style={{ fontSize: 10, letterSpacing: '0.25em' }}>
+            LUTA {state.config.matchNumber || '001'}
           </div>
         </div>
-        
-        {/* RED Side - Right Column */}
-        <div className="flex-1 flex flex-col bg-[hsl(var(--sulsport-red))] rounded-2xl overflow-hidden"
-        >
-          {/* Athlete Name */}
-          <div className="h-24 flex items-center justify-center border-b border-white/10">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white uppercase tracking-wider">
-                {state.config.athleteRed?.name || 'HONG'}
-              </div>
-              {state.config.athleteRed?.country && (
-                <div className="text-xl text-white/70">
-                  ({state.config.athleteRed.country})
+
+        {/* RED Side */}
+        {(() => {
+          const redLeading = state.roundScoreRed > state.roundScoreBlue;
+          const redName = state.config.athleteRed?.name || 'HONG';
+          const redCountry = state.config.athleteRed?.country;
+          return (
+            <div className="flex-1 flex flex-col overflow-hidden relative bg-hong-bg">
+              {/* Stripe superior — HONG cor sólida */}
+              <div className="h-2 w-full bg-hong" />
+
+              {/* Header: HONG label + nome + country + LIDERA (alinhado à direita) */}
+              <div className="px-10 pt-7 pb-4 flex flex-col items-end text-right">
+                <div className="text-white/80 font-bold" style={{ fontSize: 14, letterSpacing: '0.5em' }}>
+                  HONG
                 </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Score */}
-          <div className="flex-1 flex items-center justify-center">
-            <span
-              className="font-black text-white tabular-nums text-center block"
-              style={{ fontSize: 'clamp(250px, 40vw, 650px)', lineHeight: 1, minWidth: '1.2em' }}
-            >
-              {state.roundScoreRed}
-            </span>
-          </div>
-          
-          {/* Footer: GAM-JEOM / ROUNDS / HITS */}
-          <div className="h-32 bg-[hsl(var(--sulsport-red-dark))] grid grid-cols-3 divide-x divide-white/10">
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">GAM-JEOM</div>
-              <div className={cn(
-                "text-4xl font-black",
-                state.gamjeomRed === 0 ? "text-white/50" :
-                state.gamjeomRed <= 2 ? "text-white" :
-                state.gamjeomRed <= 4 ? "text-yellow-400" :
-                "text-red-400 animate-pulse"
-              )}>{state.gamjeomRed}</div>
-            </div>
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">ROUNDS</div>
-              <div className="flex gap-2 text-white">
-                {renderRoundIndicators(state.roundWinsRed, state.config.maxRounds)}
+                <div className="font-bold text-white leading-tight mt-1 truncate max-w-full uppercase tracking-wide" style={{ fontSize: 46 }}>
+                  {redName}
+                </div>
+                {redCountry && (
+                  <div className="text-white/60 font-mono mt-0.5" style={{ fontSize: 20, letterSpacing: '0.2em' }}>
+                    {redCountry}
+                  </div>
+                )}
+                {redLeading && (
+                  <div className="mt-2.5 font-bold text-black bg-white"
+                    style={{ fontSize: 11, letterSpacing: '0.4em', padding: '5px 13px' }}
+                  >
+                    LIDERA
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 flex items-center justify-center relative">
+                <span
+                  className="font-black tabular-nums leading-none"
+                  style={{
+                    fontSize: 'clamp(240px, 38vw, 520px)',
+                    letterSpacing: '-0.05em',
+                    color: redLeading ? 'hsl(var(--hong-accent))' : '#FFFFFF',
+                  }}
+                >
+                  {state.roundScoreRed}
+                </span>
+              </div>
+
+              {/* Rodapé alinhado à direita */}
+              <div className="px-10 pb-6 flex gap-[2px] justify-end">
+                <div className="px-5 py-3 bg-black/40">
+                  <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GOLPES</div>
+                  <div className="font-black text-white tabular-nums leading-none mt-1" style={{ fontSize: 36 }}>
+                    {state.hitsRed}
+                  </div>
+                </div>
+                <div className="px-5 py-3 bg-black/40 flex gap-4 items-center">
+                  {Array.from({ length: state.config.maxRounds }).map((_, i) => (
+                    <div key={i} className="text-center">
+                      <div className="text-white/60 font-bold" style={{ fontSize: 9, letterSpacing: '0.25em' }}>R{i + 1}</div>
+                      <div className="font-black text-white tabular-nums mt-0.5" style={{ fontSize: 26 }}>
+                        {i < state.roundWinsRed ? '●' : '○'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-5 py-3 bg-black/40 min-w-[108px]">
+                  <div className="text-white/60 font-bold" style={{ fontSize: 10, letterSpacing: '0.3em' }}>GAM-JEOM</div>
+                  <div
+                    className={cn(
+                      "font-black tabular-nums leading-none mt-1",
+                      state.gamjeomRed >= 3 ? "text-wt-warning" : "text-white"
+                    )}
+                    style={{ fontSize: 36 }}
+                  >
+                    {state.gamjeomRed}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex flex-col items-center justify-center">
-              <div className="text-sm text-white/60 uppercase font-bold tracking-wider">GOLPES</div>
-              <div className="text-4xl font-black text-white">{state.hitsRed}</div>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
       
       {/* TELA DE VITÓRIA - Fullscreen quando MATCH_END */}
@@ -461,118 +508,152 @@ export default function ChampionshipTV() {
         ];
         
         return (
-          <div className="absolute inset-0 bg-[hsl(var(--sulsport-black))] flex flex-col items-center justify-center z-50 animate-in fade-in duration-500 overflow-auto py-4">
-            {/* Background gradient based on winner */}
-            <div className={cn(
-              "absolute inset-0 opacity-20",
-              isBlueWinner && "bg-gradient-to-br from-[hsl(var(--sulsport-blue))] to-transparent",
-              isRedWinner && "bg-gradient-to-br from-[hsl(var(--sulsport-red))] to-transparent",
-              isTie && "bg-gradient-to-br from-[hsl(var(--sulsport-yellow))] to-transparent"
-            )} />
-            
-            <div className="relative z-10 flex flex-col items-center max-w-[90vw] w-full">
+          <div className="absolute inset-0 bg-wt-bg flex flex-col items-center justify-center z-50 animate-in fade-in duration-300 overflow-auto py-6 font-display">
+            <div className="relative z-10 flex flex-col items-center max-w-[92vw] w-full">
               {/* Header: MATCH 001 RESULT */}
-              <div className="text-center mb-4">
-                <h1 
-                  className="font-black text-white uppercase tracking-[0.2em]"
-                  style={{ fontSize: 'clamp(1.5rem, 4vw, 3.5rem)' }}
+              <div className="text-center mb-6 border-b border-wt-divider pb-4 w-full max-w-[900px]">
+                <div className="text-[11px] font-bold uppercase tracking-[0.45em] text-wt-fg-muted mb-2">
+                  Resultado
+                </div>
+                <h1
+                  className="font-black text-wt-fg-primary uppercase tracking-tight leading-none tabular-nums"
+                  style={{ fontSize: 'clamp(1.75rem, 4.5vw, 4rem)' }}
                 >
-                  MATCH {state.config.matchNumber || '001'} RESULT
+                  LUTA {String(state.config.matchNumber || 1).padStart(3, '0')}
                 </h1>
               </div>
-              
-              {/* Faixa VENCEDOR/EMPATE + Placar Final (PONTOS TOTAIS) */}
-              <div className="flex items-stretch mb-4">
-                {/* VENCEDOR / EMPATE - Faixa amarela */}
-                <div className="bg-[hsl(var(--sulsport-yellow))] px-6 py-3 flex items-center">
-                  <span 
-                    className="font-black text-black uppercase"
-                    style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
+
+              {/* Faixa VENCEDOR/EMPATE + Placar Final */}
+              <div className="flex items-stretch mb-5 gap-[2px]">
+                {/* VENCEDOR / EMPATE — faixa com stripe superior */}
+                <div
+                  className={cn(
+                    'relative px-7 py-4 flex items-center bg-wt-bg-secondary border border-wt-divider',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'absolute top-0 left-0 right-0 h-[2px]',
+                      isTie && 'bg-wt-manual',
+                      isBlueWinner && 'bg-chung',
+                      isRedWinner && 'bg-hong',
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'font-black uppercase tracking-[0.25em]',
+                      isTie && 'text-wt-manual',
+                      isBlueWinner && 'text-chung-accent',
+                      isRedWinner && 'text-hong-accent',
+                    )}
+                    style={{ fontSize: 'clamp(1rem, 2vw, 1.75rem)' }}
                   >
-                    {isTie ? 'EMPATE' : 'VENCEDOR'}
+                    {isTie ? 'Empate' : 'Vencedor'}
                   </span>
                 </div>
-                
-                {/* Placar Final AZUL (total points from events) */}
-                <div className="bg-[hsl(var(--sulsport-blue))] px-5 py-3 flex flex-col items-center justify-center min-w-[70px]">
-                  <span 
-                    className="font-black text-white tabular-nums leading-none"
+
+                {/* Placar final CHUNG */}
+                <div className="bg-wt-bg-secondary border border-wt-divider border-l-0 px-6 py-4 flex flex-col items-center justify-center min-w-[90px]">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-chung-accent mb-1">
+                    Chung
+                  </span>
+                  <span
+                    className="font-black text-wt-fg-primary tabular-nums leading-none"
                     style={{ fontSize: 'clamp(1.75rem, 3.5vw, 3rem)' }}
                   >
                     {stats.blue.totalPoints}
                   </span>
                 </div>
-                
-                {/* Placar Final VERMELHO (total points from events) */}
-                <div className="bg-[hsl(var(--sulsport-red))] px-5 py-3 flex flex-col items-center justify-center min-w-[70px]">
-                  <span 
-                    className="font-black text-white tabular-nums leading-none"
+
+                {/* Placar final HONG */}
+                <div className="bg-wt-bg-secondary border border-wt-divider border-l-0 px-6 py-4 flex flex-col items-center justify-center min-w-[90px]">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-hong-accent mb-1">
+                    Hong
+                  </span>
+                  <span
+                    className="font-black text-wt-fg-primary tabular-nums leading-none"
                     style={{ fontSize: 'clamp(1.75rem, 3.5vw, 3rem)' }}
                   >
                     {stats.red.totalPoints}
                   </span>
                 </div>
               </div>
-              
-              {/* Rounds ganhos - Secundário */}
-              <div className="flex items-center gap-3 mb-4 text-white/60">
-                <span className="uppercase tracking-wider" style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}>
-                  Rounds:
+
+              {/* Rounds ganhos */}
+              <div className="flex items-center gap-4 mb-6">
+                <span
+                  className="uppercase tracking-[0.35em] text-wt-fg-muted font-bold"
+                  style={{ fontSize: 'clamp(0.625rem, 1vw, 0.75rem)' }}
+                >
+                  Rounds
                 </span>
-                <span className="font-bold text-[hsl(var(--sulsport-blue-light))]" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>
+                <span
+                  className="font-black text-chung-accent tabular-nums"
+                  style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
+                >
                   {state.roundWinsBlue}
                 </span>
-                <span>x</span>
-                <span className="font-bold text-[hsl(var(--sulsport-red-light))]" style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}>
+                <span className="text-wt-fg-muted font-bold">×</span>
+                <span
+                  className="font-black text-hong-accent tabular-nums"
+                  style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
+                >
                   {state.roundWinsRed}
                 </span>
               </div>
-              
-              {/* Nome do Vencedor ou ambos em caso de empate */}
+
+              {/* Nome do Vencedor (ou ambos em empate) */}
               {!isTie ? (
-                <div className="flex items-stretch mb-6">
-                  {/* Bandeira/País */}
+                <div className="flex items-stretch mb-8">
                   {flagDisplay && (
-                    <div className="bg-zinc-800 px-4 flex items-center justify-center border-r border-white/20">
+                    <div className="bg-wt-bg-tertiary border border-wt-divider px-5 flex items-center justify-center">
                       <span style={{ fontSize: 'clamp(1.5rem, 3vw, 3rem)' }}>
                         {flagDisplay}
                       </span>
                     </div>
                   )}
-                  
-                  {/* Nome do Vencedor */}
-                  <div className={cn(
-                    "px-8 py-4 flex items-center",
-                    isBlueWinner ? "bg-[hsl(var(--sulsport-blue))]" : "bg-[hsl(var(--sulsport-red))]"
-                  )}>
-                    <span 
-                      className="font-black text-white uppercase"
-                      style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}
+
+                  <div
+                    className={cn(
+                      'relative px-10 py-5 flex items-center bg-wt-bg-secondary border border-wt-divider',
+                      flagDisplay && 'border-l-0',
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'absolute left-0 top-0 bottom-0 w-1',
+                        isBlueWinner ? 'bg-chung' : 'bg-hong',
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        'font-black uppercase tracking-tight leading-none pl-3',
+                        isBlueWinner ? 'text-chung-accent' : 'text-hong-accent',
+                      )}
+                      style={{ fontSize: 'clamp(2rem, 5vw, 4.5rem)' }}
                     >
                       {winnerName}
                     </span>
                   </div>
                 </div>
               ) : (
-                /* Empate - Mostra ambos os nomes */
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="bg-[hsl(var(--sulsport-blue))] px-6 py-3">
-                    <span 
-                      className="font-bold text-white uppercase"
+                <div className="flex items-stretch gap-[2px] mb-8">
+                  <div className="relative bg-wt-bg-secondary border border-wt-divider px-6 py-4">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-chung" />
+                    <span
+                      className="font-black text-chung-accent uppercase tracking-tight pl-3"
                       style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
                     >
                       {state.config.athleteBlue?.name || 'CHUNG'}
                     </span>
                   </div>
-                  <span 
-                    className="text-white/60 font-bold"
-                    style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
-                  >
+                  <div className="flex items-center px-4 text-wt-fg-muted font-bold uppercase tracking-[0.3em] text-sm">
                     vs
-                  </span>
-                  <div className="bg-[hsl(var(--sulsport-red))] px-6 py-3">
-                    <span 
-                      className="font-bold text-white uppercase"
+                  </div>
+                  <div className="relative bg-wt-bg-secondary border border-wt-divider px-6 py-4">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-hong" />
+                    <span
+                      className="font-black text-hong-accent uppercase tracking-tight pl-3"
                       style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
                     >
                       {state.config.athleteRed?.name || 'HONG'}
@@ -580,116 +661,115 @@ export default function ChampionshipTV() {
                   </div>
                 </div>
               )}
-              
-              {/* ESTATÍSTICAS DA LUTA - Modo compacto para 720p */}
+
+              {/* Estatísticas */}
               <div className="w-full max-w-[900px]">
-                <div className="bg-black/60 rounded-lg p-4 border border-white/10">
-                  <h2
-                    className="text-center text-white/50 uppercase tracking-[0.2em] mb-3 font-bold"
-                    style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}
-                  >
-                    Estatísticas (Golpes Pontuados)
-                  </h2>
-                  
-                  {/* Grid compacto de stats */}
-                  <div className="grid grid-cols-3 gap-y-1 text-center">
-                    {/* Header */}
-                    <div 
-                      className="text-[hsl(var(--sulsport-blue-light))] font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
-                    >
-                      AZUL
+                <div className="bg-wt-bg-secondary border border-wt-divider p-5">
+                  <div className="border-b border-wt-divider pb-3 mb-4">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.4em] text-wt-fg-muted">
+                      Estatísticas
                     </div>
-                    <div></div>
-                    <div 
-                      className="text-[hsl(var(--sulsport-red-light))] font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
+                    <h2
+                      className="text-wt-fg-primary uppercase tracking-tight font-black leading-none mt-1"
+                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.25rem)' }}
                     >
-                      VERMELHO
+                      Golpes pontuados
+                    </h2>
+                  </div>
+
+                  {/* Grid de stats — tipografia tabular, sem cor ornamental */}
+                  <div className="grid grid-cols-3 gap-y-2 text-center">
+                    <div
+                      className="text-chung-accent font-black uppercase tracking-[0.25em]"
+                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
+                    >
+                      Chung
                     </div>
-                    
-                    {/* Stats rows */}
+                    <div />
+                    <div
+                      className="text-hong-accent font-black uppercase tracking-[0.25em]"
+                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
+                    >
+                      Hong
+                    </div>
+
                     {statRows.map(({ key, label }) => (
                       <Fragment key={key}>
-                        <div 
-                          className="text-[hsl(var(--sulsport-blue-light))] font-bold tabular-nums"
+                        <div
+                          className="text-wt-fg-primary font-bold tabular-nums"
                           style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
                         >
                           {stats.blue[key]}
                         </div>
-                        <div 
-                          className="text-white/50 uppercase"
-                          style={{ fontSize: 'clamp(0.75rem, 1.35vw, 1.125rem)' }}
+                        <div
+                          className="text-wt-fg-muted uppercase tracking-[0.2em] font-bold"
+                          style={{ fontSize: 'clamp(0.625rem, 1.15vw, 0.875rem)' }}
                         >
                           {label}
                         </div>
-                        <div 
-                          className="text-[hsl(var(--sulsport-red-light))] font-bold tabular-nums"
+                        <div
+                          className="text-wt-fg-primary font-bold tabular-nums"
                           style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
                         >
                           {stats.red[key]}
                         </div>
                       </Fragment>
                     ))}
-                    
-                    {/* Separator */}
-                    <div className="col-span-3 border-t border-white/20 my-2"></div>
-                    
-                    {/* Total Hits */}
-                    <div 
-                      className="text-[hsl(var(--sulsport-blue-light))] font-black tabular-nums"
+
+                    <div className="col-span-3 border-t border-wt-divider my-2" />
+
+                    <div
+                      className="text-wt-fg-primary font-black tabular-nums"
                       style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
                     >
                       {stats.blue.totalHits}
                     </div>
-                    <div 
-                      className="text-white font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
+                    <div
+                      className="text-wt-fg-secondary font-bold uppercase tracking-[0.25em]"
+                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
                     >
-                      TOTAL GOLPES
+                      Total golpes
                     </div>
-                    <div 
-                      className="text-[hsl(var(--sulsport-red-light))] font-black tabular-nums"
+                    <div
+                      className="text-wt-fg-primary font-black tabular-nums"
                       style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
                     >
                       {stats.red.totalHits}
                     </div>
-                    
-                    {/* HITS (hardware touches) */}
-                    <div 
-                      className="text-[hsl(var(--sulsport-blue-light))] font-black tabular-nums"
+
+                    <div
+                      className="text-wt-fg-primary font-black tabular-nums"
                       style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
                     >
                       {state.hitsBlue}
                     </div>
-                    <div 
-                      className="text-white font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
+                    <div
+                      className="text-wt-fg-secondary font-bold uppercase tracking-[0.25em]"
+                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
                     >
-                      HITS
+                      Hits PSS
                     </div>
-                    <div 
-                      className="text-[hsl(var(--sulsport-red-light))] font-black tabular-nums"
+                    <div
+                      className="text-wt-fg-primary font-black tabular-nums"
                       style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
                     >
                       {state.hitsRed}
                     </div>
-                    
-                    {/* Gam-jeoms */}
-                    <div 
-                      className="text-[hsl(var(--sulsport-blue-light))] font-black tabular-nums"
+
+                    <div
+                      className="text-wt-manual font-black tabular-nums"
                       style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
                     >
                       {state.gamjeomBlue}
                     </div>
-                    <div 
-                      className="text-white font-bold uppercase"
-                      style={{ fontSize: 'clamp(0.9375rem, 1.5vw, 1.3125rem)' }}
+                    <div
+                      className="text-wt-manual font-bold uppercase tracking-[0.25em]"
+                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
                     >
-                      GAM-JEOM
+                      Gam-jeom
                     </div>
-                    <div 
-                      className="text-[hsl(var(--sulsport-red-light))] font-black tabular-nums"
+                    <div
+                      className="text-wt-manual font-black tabular-nums"
                       style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
                     >
                       {state.gamjeomRed}
@@ -703,9 +783,9 @@ export default function ChampionshipTV() {
       })()}
       
       {tvMode !== 'bracket' && tvMode !== 'hardware-test' && isRoundEnd && !isMatchEnd && state.roundScoreRed === state.roundScoreBlue && state.hitsRed === state.hitsBlue && (
-        <div className="h-28 bg-[hsl(var(--sulsport-yellow))]/10 flex items-center justify-center">
-          <span className="text-4xl font-bold text-[hsl(var(--sulsport-yellow))] uppercase tracking-wider">
-            EMPATE — AGUARDANDO DECISÃO DO ÁRBITRO
+        <div className="h-28 bg-wt-manual/10 border-t border-wt-manual/40 flex items-center justify-center font-display">
+          <span className="text-4xl font-black text-wt-manual uppercase tracking-[0.2em]">
+            Empate — aguardando decisão do árbitro
           </span>
         </div>
       )}
