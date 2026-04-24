@@ -584,6 +584,7 @@
 }
 
 /* ============ CHAMPIONSHIP TV TIMER ANIMATIONS ============ */
+/* Legacy keep pra compat, mas novo padrao usa timer-critical-pulse. */
 @keyframes timer-blink {
   0%, 100% { color: black; }
   50% { color: hsl(0 84% 50%); }
@@ -591,6 +592,12 @@
 @keyframes timer-blink-fast {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+/* Padrao broadcast pro: steps(2) pulsa cor do TEXTO, 1Hz, sem animar bg
+   ou transform. Usado em TV + operador no estado critico (<=10s). */
+@keyframes timer-critical-pulse {
+  0%, 49% { color: #FFFFFF; }
+  50%, 100% { color: #FF1744; }
 }
 @keyframes flash {
   0% { opacity: 1; }

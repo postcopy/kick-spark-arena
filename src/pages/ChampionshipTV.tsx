@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { formatTime, formatTimePrecise, MatchEvent, ScoreType, getChannelName } from '@/types/championship';
+import { formatTime, MatchEvent, ScoreType, getChannelName } from '@/types/championship';
 import type { ChampionshipSyncMessage, HardwareTestHit } from '@/types/championship';
 import { useChampionshipSync } from '@/hooks/useChampionshipSync';
 import { Wifi, WifiOff } from 'lucide-react';
@@ -339,34 +339,37 @@ export default function ChampionshipTV() {
 
           <div className="w-3/4 h-px bg-white/15" />
 
-          {/* Timer — texto limpo no preto em estado normal. Bloco de cor só
-              quando a cor CARREGA info (medical, break, <=10s, <=5s). */}
+          {/* Timer — padrao broadcast WT/KPNP: M:SS sempre, zero jitter de
+              largura. Estado critico (<=10s) anima APENAS a cor do texto
+              (steps(2) a 1Hz), sem pill animado, sem troca de formato.
+              Pesquisa: UFC/NBA/KPNP nao animam bg — olho briga com 2
+              animacoes simultaneas. Medical/Break sao estados distintos,
+              mantem bg colorido estatico. */}
           {(() => {
-            const critical = !state.isBreakTime && state.timeLeftMs <= 5000 && isRunning;
-            const urgent = !state.isBreakTime && state.timeLeftMs <= 10000 && isRunning && !critical;
-            const hasBg = state.isBreakTime || isMedical || critical || urgent;
+            const critical = !state.isBreakTime && !isMedical && state.timeLeftMs <= 10000 && isRunning;
+            const hasStaticBg = state.isBreakTime || isMedical;
             return (
               <div
                 className={cn(
-                  "font-black tabular-nums leading-none text-center w-full",
-                  hasBg && "border-2",
-                  state.isBreakTime
-                    ? "bg-wt-bg-tertiary text-white border-wt-divider"
-                    : isMedical
-                      ? "bg-wt-warning text-black border-wt-warning"
-                      : critical
-                        ? "bg-wt-danger text-white border-wt-danger animate-[timer-blink-fast_0.25s_ease-in-out_infinite]"
-                        : urgent
-                          ? "bg-wt-warning text-black border-wt-warning animate-[timer-blink_0.5s_ease-in-out_infinite]"
-                          : "text-white"
+                  "font-black tabular-nums leading-none text-center",
+                  "flex items-center justify-center",
+                  hasStaticBg && "border-2 w-full",
+                  state.isBreakTime && "bg-wt-bg-tertiary text-white border-wt-divider",
+                  isMedical && "bg-wt-warning text-black border-wt-warning",
+                  !hasStaticBg && !critical && "text-white",
+                  critical && "animate-[timer-critical-pulse_1s_steps(2)_infinite]",
                 )}
                 style={{
                   fontSize: 'clamp(110px, 9.5vw, 200px)',
-                  padding: hasBg ? 'clamp(8px, 1vh, 16px) clamp(6px, 0.6vw, 12px)' : 0,
+                  padding: hasStaticBg ? 'clamp(8px, 1vh, 16px) clamp(6px, 0.6vw, 12px)' : 0,
                   letterSpacing: '-0.04em',
+                  // Min-width reserva espaco pra "10:00" (maior string possivel)
+                  // em tabular-nums — evita qualquer jitter de largura.
+                  minWidth: '4ch',
+                  fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {state.isBreakTime ? formatTime(state.breakTimeLeftMs || 0) : formatTimePrecise(state.timeLeftMs)}
+                {formatTime(state.isBreakTime ? (state.breakTimeLeftMs || 0) : state.timeLeftMs)}
               </div>
             );
           })()}

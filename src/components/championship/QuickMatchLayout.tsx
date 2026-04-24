@@ -1166,28 +1166,26 @@ function StatusPill({ status }: { status: MatchState['status'] }) {
 }
 
 function TimerRing({ seconds, total, ms, size = 170 }: { seconds: number; total: number; ms?: number; size?: number }) {
-  const pct = total > 0 ? seconds / total : 0;
+  // pathLength=100 normaliza o SVG pra trabalhar com percentual (pattern
+  // Apple Activity Rings / Stripe). strokeDashoffset = 100 - pct.
+  // Pct usa MS quando disponivel (10Hz, suave) em vez de seconds (1Hz, pula).
+  const totalMs = total * 1000;
+  const currentMs = ms !== undefined ? ms : seconds * 1000;
+  const pct = totalMs > 0 ? Math.max(0, Math.min(1, currentMs / totalMs)) : 0;
+  const offset = 100 - pct * 100;
   const radius = size * 0.44;
-  const C = 2 * Math.PI * radius;
-  const dash = C * pct;
-  const critical = seconds <= 5;
-  const urgent = seconds <= 10;
-  const strokeColor = critical ? '#ef4444' : urgent ? '#FACC15' : '#22c55e';
-  const textColor = critical ? 'text-red-400' : urgent ? 'text-amber-300' : 'text-white';
-  // Sob 10s mostra precisao em decimos (timer tica a 10Hz, decimos sao precisao honesta maxima).
-  // Acima de 10s, formato normal M:SS.
-  const showTenths = ms !== undefined && ms < 10000 && ms > 0;
+  const critical = seconds <= 10;
+  // Cor: WT/KPNP — vermelho direto sob 10s, nao ha fase amarela intermediaria.
+  const strokeColor = critical ? '#FF1744' : '#22c55e';
+  // Texto: sempre M:SS, convencao WT. Pulsa cor no critico (steps(2) a 1Hz)
+  // pelo keyframe timer-critical-pulse. Sem troca de formato = zero jitter.
   const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
   const ss = String(seconds % 60).padStart(2, '0');
-  let display: string;
-  if (showTenths) {
-    const tenths = Math.max(0, Math.floor((ms as number) / 100));
-    const s = Math.floor(tenths / 10);
-    const t = tenths % 10;
-    display = `${s}.${t}`;
-  } else {
-    display = `${mm}:${ss}`;
-  }
+  const display = `${mm}:${ss}`;
+  // Landing final: quando o anel chega perto do fim, anima suavemente.
+  // Caso contrario, atualiza frame-a-frame via rerender (o estado ja tica
+  // a 10Hz no useChampionshipSync) — sem transicao CSS que brigue com isso.
+  const landing = currentMs < 1000;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
@@ -1213,17 +1211,33 @@ function TimerRing({ seconds, total, ms, size = 170 }: { seconds: number; total:
           stroke={strokeColor}
           strokeWidth={8}
           strokeLinecap="round"
-          strokeDasharray={`${dash} ${C}`}
-          style={{ transition: 'stroke-dasharray 0.9s linear, stroke 0.3s' }}
+          pathLength={100}
+          strokeDasharray={100}
+          strokeDashoffset={offset}
+          style={{
+            // Landing: no ultimo segundo, anima ate offset=100 em 250ms
+            // com cubic-bezier pra "pousar" em vez de snapar. Fora disso,
+            // sem transicao — o rerender 10Hz do state ja da suavidade.
+            transition: landing
+              ? 'stroke-dashoffset 250ms cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s'
+              : 'stroke 0.3s',
+          }}
         />
       </svg>
       <div
         className={cn(
           'font-black leading-none tabular-nums tracking-tight',
-          textColor,
-          critical && 'animate-pulse',
+          !critical && 'text-white',
+          // Padrao broadcast pro: anima COR do texto (steps 1Hz), nao usa
+          // animate-pulse (que mexe opacity = piora leitura).
+          critical && 'animate-[timer-critical-pulse_1s_steps(2)_infinite]',
         )}
-        style={{ fontSize: size * (showTenths ? 0.34 : 0.3) }}
+        style={{
+          fontSize: size * 0.3,
+          minWidth: '4ch',
+          textAlign: 'center',
+          fontVariantNumeric: 'tabular-nums',
+        }}
       >
         {display}
       </div>
