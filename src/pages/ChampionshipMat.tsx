@@ -438,12 +438,17 @@ function ChampionshipMatInner() {
   }, [serialPort.isConnected]);
 
   // ─── Auto-pause when USB disconnects during RUNNING match ───
+  // Ref pra pauseTimer evita re-registro do effect a cada render do hook
+  // (sync.pauseTimer eh nova ref a cada update interno, deps instaveis
+  // faziam o effect rodar centenas de vezes durante timer 100ms).
+  const pauseTimerRef = useRef(sync.pauseTimer);
+  useEffect(() => { pauseTimerRef.current = sync.pauseTimer; }, [sync.pauseTimer]);
   useEffect(() => {
     if (!serialPort.isConnected && sync.state.status === 'RUNNING') {
-      sync.pauseTimer();
+      pauseTimerRef.current();
       logger.warn('[ChampMat] USB disconnected during RUNNING — auto-paused');
     }
-  }, [serialPort.isConnected, sync.state.status, sync.pauseTimer]);
+  }, [serialPort.isConnected, sync.state.status]);
 
   // ─── Unlock audio + preload on mount ───
   useEffect(() => {

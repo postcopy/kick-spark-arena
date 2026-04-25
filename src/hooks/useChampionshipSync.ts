@@ -303,7 +303,16 @@ export function useChampionshipSync({
                 prev.status === payload.status &&
                 prev.round === payload.round &&
                 prev.gamjeomRed === payload.gamjeomRed &&
-                prev.gamjeomBlue === payload.gamjeomBlue) {
+                prev.gamjeomBlue === payload.gamjeomBlue &&
+                // Flags adicionais: sem isso, transicoes pra/de break/medical/golden
+                // que nao mudam nenhum dos campos acima ficam invisiveis no listener
+                // (TV nao mostra "INTERVALO", chrome de medical nao aparece).
+                prev.isBreakTime === payload.isBreakTime &&
+                prev.breakTimeLeftMs === payload.breakTimeLeftMs &&
+                prev.isGoldenRound === payload.isGoldenRound &&
+                prev.isMedicalTime === payload.isMedicalTime &&
+                prev.roundWinsRed === payload.roundWinsRed &&
+                prev.roundWinsBlue === payload.roundWinsBlue) {
               return prev; // No change — skip render
             }
             return payload;
@@ -578,6 +587,12 @@ export function useChampionshipSync({
     breakTimerStartValueRef.current = state.breakTimeLeftMs || 0;
 
     breakTimerRef.current = setInterval(() => {
+      // Guarda externa via stateRef: para o tick imediatamente se status mudou
+      // (ex: endMatch chamado durante break). Sem isso, setInterval continuava
+      // disparando 100ms ate effect re-rodar e clearInterval.
+      const current = stateRef.current;
+      if (!current.isBreakTime || current.status === 'MATCH_END') return;
+
       const elapsed = Date.now() - breakTimerStartRef.current;
       const newTime = Math.max(0, breakTimerStartValueRef.current - elapsed);
 
@@ -586,9 +601,14 @@ export function useChampionshipSync({
         if (prev.status === 'MATCH_END') return prev;
 
         if (newTime <= 0) {
-          // Break is over — auto-advance to next round
+          // Break is over — auto-advance to next round.
+          // Guard de snapshot: handleRoundEndWithWinner ja pode ter snapshotado
+          // em ROUND_END (caso normal). So snapshota se historyLen < round
+          // (caso empate sem winner que entra direto em ROUND_END sem snapshot).
           const isGolden = prev.round >= prev.config.maxRounds && prev.roundWinsRed === prev.roundWinsBlue;
           const nextRoundNum = (prev.round + 1) as 1 | 2 | 3 | 4;
+          const historyLen = prev.roundHistoryBlue.length;
+          const shouldSnapshot = historyLen < prev.round;
           const newState: MatchState = {
             ...prev,
             status: 'IDLE',
@@ -596,8 +616,8 @@ export function useChampionshipSync({
             timeLeftMs: prev.config.roundTimeMs,
             roundScoreRed: 0,
             roundScoreBlue: 0,
-            roundHistoryRed: [...prev.roundHistoryRed, prev.roundScoreRed],
-            roundHistoryBlue: [...prev.roundHistoryBlue, prev.roundScoreBlue],
+            roundHistoryRed: shouldSnapshot ? [...prev.roundHistoryRed, prev.roundScoreRed] : prev.roundHistoryRed,
+            roundHistoryBlue: shouldSnapshot ? [...prev.roundHistoryBlue, prev.roundScoreBlue] : prev.roundHistoryBlue,
             hitsRed: 0,
             hitsBlue: 0,
             gamjeomRed: prev.gamjeomRed,
@@ -635,17 +655,28 @@ export function useChampionshipSync({
     const { roundScoreRed, roundScoreBlue, gamjeomRed, gamjeomBlue, config } = state;
     const scoreDiff = Math.abs(roundScoreRed - roundScoreBlue);
 
+    // Guarda compartilhada: dentro do setState, prev pode nao estar mais
+    // RUNNING (race entre branches deste effect ou com o timer effect que
+    // tambem dispara handleRoundEnd). Sem isso, dois ifs poderiam chamar
+    // handleRoundEndWithWinner e duplicar incremento de roundWins.
+    const resolveIfRunning = (
+      side: MatchSide,
+      eventType: 'GOLDEN_ROUND' | 'POINT_GAP' | 'GAMJEOM_LIMIT',
+      desc: string,
+    ) => {
+      setState(prev => {
+        if (prev.status !== 'RUNNING') return prev;
+        const newState = handleRoundEndWithWinner(prev, side, eventType, desc);
+        broadcast(newState, true);
+        return newState;
+      });
+    };
+
     // Golden round: first to score wins immediately
     if (state.isGoldenRound && (roundScoreRed > 0 || roundScoreBlue > 0)) {
       const winner: MatchSide = roundScoreRed > roundScoreBlue ? 'RED' : 'BLUE';
       const winnerLabel = winner === 'RED' ? 'Vermelho' : 'Azul';
-
-      setState(prev => {
-        const newState = handleRoundEndWithWinner(prev, winner, 'GOLDEN_ROUND',
-          `Golden Round! ${winnerLabel} marca primeiro e vence!`);
-        broadcast(newState, true);
-        return newState;
-      });
+      resolveIfRunning(winner, 'GOLDEN_ROUND', `Golden Round! ${winnerLabel} marca primeiro e vence!`);
       return;
     }
 
@@ -653,34 +684,18 @@ export function useChampionshipSync({
     if (scoreDiff >= config.pointGap) {
       const winner: MatchSide = roundScoreRed > roundScoreBlue ? 'RED' : 'BLUE';
       const winnerLabel = winner === 'RED' ? 'Vermelho' : 'Azul';
-      
-      setState(prev => {
-        const newState = handleRoundEndWithWinner(prev, winner, 'POINT_GAP', 
-          `Point Gap! ${winnerLabel} vence o round`);
-        broadcast(newState, true);
-        return newState;
-      });
+      resolveIfRunning(winner, 'POINT_GAP', `Point Gap! ${winnerLabel} vence o round`);
       return;
     }
-    
+
     // Gamjeom limit check
     if (gamjeomRed >= config.maxGamjeom) {
-      setState(prev => {
-        const newState = handleRoundEndWithWinner(prev, 'BLUE', 'GAMJEOM_LIMIT',
-          `Vitória por Limite de Faltas (PUN) — Azul vence o round`);
-        broadcast(newState, true);
-        return newState;
-      });
+      resolveIfRunning('BLUE', 'GAMJEOM_LIMIT', `Vitória por Limite de Faltas (PUN) — Azul vence o round`);
       return;
     }
-    
+
     if (gamjeomBlue >= config.maxGamjeom) {
-      setState(prev => {
-        const newState = handleRoundEndWithWinner(prev, 'RED', 'GAMJEOM_LIMIT',
-          `Vitória por Limite de Faltas (PUN) — Vermelho vence o round`);
-        broadcast(newState, true);
-        return newState;
-      });
+      resolveIfRunning('RED', 'GAMJEOM_LIMIT', `Vitória por Limite de Faltas (PUN) — Vermelho vence o round`);
     }
   }, [state.roundScoreRed, state.roundScoreBlue, state.gamjeomRed, state.gamjeomBlue, state.status, state.config, state.isGoldenRound, role, broadcast, handleRoundEndWithWinner]);
   
@@ -822,6 +837,15 @@ export function useChampionshipSync({
     saveToHistory(state);
 
     setState(prev => {
+      // Guard de snapshot (mesmo de handleRoundEndWithWinner): so snapshota
+      // se ainda nao foi snapshotado pra esse round. Caso contrario duplica
+      // entrada em roundHistory (handleRoundEndWithWinner ja snapshotou em
+      // ROUND_END com winner declarado, e aqui faria de novo).
+      const historyLen = prev.roundHistoryBlue.length;
+      const shouldSnapshot = historyLen < prev.round;
+      const nextHistoryRed = shouldSnapshot ? [...prev.roundHistoryRed, prev.roundScoreRed] : prev.roundHistoryRed;
+      const nextHistoryBlue = shouldSnapshot ? [...prev.roundHistoryBlue, prev.roundScoreBlue] : prev.roundHistoryBlue;
+
       // If currently in break time, skip it
       if (prev.isBreakTime) {
         const nextRoundNum = (prev.round + 1) as 1 | 2 | 3 | 4;
@@ -833,8 +857,8 @@ export function useChampionshipSync({
           timeLeftMs: prev.config.roundTimeMs,
           roundScoreRed: 0,
           roundScoreBlue: 0,
-          roundHistoryRed: [...prev.roundHistoryRed, prev.roundScoreRed],
-          roundHistoryBlue: [...prev.roundHistoryBlue, prev.roundScoreBlue],
+          roundHistoryRed: nextHistoryRed,
+          roundHistoryBlue: nextHistoryBlue,
           hitsRed: 0,
           hitsBlue: 0,
           gamjeomRed: prev.gamjeomRed,
@@ -861,8 +885,8 @@ export function useChampionshipSync({
         timeLeftMs: prev.config.roundTimeMs,
         roundScoreRed: 0,
         roundScoreBlue: 0,
-        roundHistoryRed: [...prev.roundHistoryRed, prev.roundScoreRed],
-        roundHistoryBlue: [...prev.roundHistoryBlue, prev.roundScoreBlue],
+        roundHistoryRed: nextHistoryRed,
+        roundHistoryBlue: nextHistoryBlue,
         hitsRed: 0,
         hitsBlue: 0,
         gamjeomRed: prev.gamjeomRed,
@@ -1015,10 +1039,16 @@ export function useChampionshipSync({
   
   const removeGamjeom = useCallback((side: MatchSide) => {
     if (role !== 'master') return;
-    // [-] enabled ONLY when status !== 'RUNNING' and gamjeom > 0
+    // [-] enabled ONLY when status !== 'RUNNING' and gamjeom > 0.
+    // Bloqueado em MATCH_END/ROUND_END pra nao alterar resultado retroativamente
+    // (mexer em score ja resolvido criaria desconexao entre roundScore e
+    // roundWins ja contabilizado em handleRoundEndWithWinner).
     if (state.status === 'RUNNING') return;
-    
-    const currentGamjeom = side === 'RED' ? state.gamjeomRed : state.gamjeomBlue;
+    if (state.status === 'MATCH_END' || state.status === 'ROUND_END') return;
+
+    // Le do stateRef pra evitar closure stale em renders rapidos.
+    const live = stateRef.current;
+    const currentGamjeom = side === 'RED' ? live.gamjeomRed : live.gamjeomBlue;
     if (currentGamjeom <= 0) return;
     
     saveToHistory(state);
