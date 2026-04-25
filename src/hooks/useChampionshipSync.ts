@@ -128,6 +128,7 @@ export function useChampionshipSync({
   const lastSyncedSecond = useRef<number>(-1);
   const lastSyncTime = useRef<number>(0);
   const lastBcTime = useRef<number>(0);  // throttle BroadcastChannel to avoid flooding TV with renders
+  const lastStorageWriteRef = useRef<number>(0);  // throttle localStorage writes during 100ms timer ticks
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerStartRef = useRef<number>(0);        // Date.now() when timer last started/resumed
   const timerStartValueRef = useRef<number>(0);    // timeLeftMs snapshot at that moment
@@ -379,7 +380,12 @@ export function useChampionshipSync({
       channel.current?.postMessage({ type: 'MATCH_STATE', payload: stateToSync });
       lastBcTime.current = now;
     }
-    localStorage.setItem(getStorageKey(matId), JSON.stringify(stateToSync));
+    // Throttle localStorage writes — running timer fires every 100ms, but reload-recovery
+    // only needs ~1Hz freshness. Force-syncs (scores, transitions) write immediately.
+    if (forceSync || now - lastStorageWriteRef.current >= 1000) {
+      localStorage.setItem(getStorageKey(matId), JSON.stringify(stateToSync));
+      lastStorageWriteRef.current = now;
+    }
 
     if (secondChanged || timePassed || forceSync) {
       // Network: Supabase Realtime (cross-device, ~100-200ms)

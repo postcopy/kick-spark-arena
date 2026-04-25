@@ -14,6 +14,7 @@ import {
   advanceWinnerInBracket,
   getNextReadyMatch,
   isCategoryFinished,
+  resetMatchAndDescendants,
 } from '@/hooks/useBracketGenerator';
 
 function loadTournament(): Tournament | null {
@@ -239,9 +240,30 @@ export function useTournament() {
     matchId: string,
     newWinnerSide: 'RED' | 'BLUE',
   ) => {
-    // Same as recordMatchResult — the advanceWinnerInBracket overwrites
-    recordMatchResult(categoryId, matchId, newWinnerSide);
-  }, [recordMatchResult]);
+    // Reset descendants first so the previous winner is removed from later matches,
+    // then advance the new winner. Without the cascade reset, the bracket would
+    // keep the old winner in subsequent matches and produce inconsistent state.
+    setTournament(prev => {
+      if (!prev) return prev;
+      const updatedCategories = prev.categories.map(cat => {
+        if (cat.id !== categoryId) return cat;
+        const reset = resetMatchAndDescendants(cat.bracket, matchId);
+        const advanced = advanceWinnerInBracket(reset, matchId, newWinnerSide);
+        const finished = isCategoryFinished(advanced);
+        return {
+          ...cat,
+          bracket: advanced,
+          status: finished ? 'FINISHED' as const : 'IN_PROGRESS' as const,
+        };
+      });
+      const allFinished = updatedCategories.every(c => c.bracket.length === 0 || c.status === 'FINISHED');
+      return {
+        ...prev,
+        categories: updatedCategories,
+        status: allFinished ? 'FINISHED' : prev.status,
+      };
+    });
+  }, []);
 
   const deleteTournament = useCallback(() => {
     setTournament(null);

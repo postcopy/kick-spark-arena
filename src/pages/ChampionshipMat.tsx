@@ -487,7 +487,19 @@ function ChampionshipMatInner() {
     if (!hasTournament || matchResultRecordedRef.current) return;
     if (!tournamentHook.tournament?.currentCategoryId || !tournamentHook.tournament?.currentMatchId) return;
 
-    const winnerSide: 'RED' | 'BLUE' = sync.state.roundWinsRed > sync.state.roundWinsBlue ? 'RED' : 'BLUE';
+    // Derive winner from event log first (captures POINT_GAP, GAMJEOM_LIMIT, REFEREE_DECISION, etc.)
+    // Falls back to roundWins comparison; if still tied, abort recording (operator must resolve manually)
+    const winnerEvent = sync.state.events.find(e => e.winner === 'RED' || e.winner === 'BLUE');
+    let winnerSide: 'RED' | 'BLUE' | null = winnerEvent?.winner ?? null;
+    if (!winnerSide) {
+      if (sync.state.roundWinsRed > sync.state.roundWinsBlue) winnerSide = 'RED';
+      else if (sync.state.roundWinsBlue > sync.state.roundWinsRed) winnerSide = 'BLUE';
+    }
+    if (!winnerSide) {
+      // Genuine tie with no recorded winner — do not silently default. Wait for operator/referee.
+      console.warn('[ChampionshipMat] MATCH_END without resolvable winner; skipping bracket record.');
+      return;
+    }
     tournamentHook.recordMatchResult(
       tournamentHook.tournament.currentCategoryId,
       tournamentHook.tournament.currentMatchId,
@@ -549,6 +561,8 @@ function ChampionshipMatInner() {
       // ─── Space / Enter: toggle pause/resume ───
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
+        // Block timer toggle while hardware test overlay is open — prevents contaminating live match
+        if (showHardwareTest) return;
         if (status === 'RUNNING') {
           sync.pauseTimer();
         } else if (status === 'IDLE' || status === 'PAUSED') {

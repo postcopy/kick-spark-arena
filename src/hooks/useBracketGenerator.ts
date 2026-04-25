@@ -136,6 +136,61 @@ export function advanceWinnerInBracket(
   return updated;
 }
 
+/**
+ * Reset a match and all its descendants (forward chain via nextMatchId).
+ * Used when overriding a winner — descendant matches must lose the old winner
+ * before the new one is propagated.
+ */
+export function resetMatchAndDescendants(
+  bracket: BracketMatch[],
+  matchId: string,
+): BracketMatch[] {
+  const updated = bracket.map(m => ({ ...m }));
+  const visit = (id: string) => {
+    const match = updated.find(m => m.id === id);
+    if (!match) return;
+    const nextId = match.nextMatchId;
+    // Clear this match's result
+    match.winnerId = undefined;
+    match.winnerSide = undefined;
+    if (match.status === 'FINISHED') {
+      match.status = match.athleteRed && match.athleteBlue ? 'READY' : 'PENDING';
+    }
+    // For descendants, also remove the seated athlete that came from this match
+    if (nextId) {
+      const next = updated.find(m => m.id === nextId);
+      if (next) {
+        if (match.position % 2 === 0) {
+          next.athleteRed = undefined;
+        } else {
+          next.athleteBlue = undefined;
+        }
+        visit(nextId);
+      }
+    }
+  };
+  // Start from the children of matchId — the match itself keeps its athletes
+  const root = updated.find(m => m.id === matchId);
+  if (root && root.nextMatchId) {
+    const next = updated.find(m => m.id === root.nextMatchId);
+    if (next) {
+      if (root.position % 2 === 0) next.athleteRed = undefined;
+      else next.athleteBlue = undefined;
+      visit(root.nextMatchId);
+    }
+  }
+  // Reset the root's result too (will be re-set by advanceWinnerInBracket)
+  if (root) {
+    root.winnerId = undefined;
+    root.winnerSide = undefined;
+    if (root.status === 'FINISHED') {
+      root.status = root.athleteRed && root.athleteBlue ? 'READY' : 'PENDING';
+    }
+  }
+  updateReadyStatus(updated);
+  return updated;
+}
+
 export function getNextReadyMatch(bracket: BracketMatch[]): BracketMatch | undefined {
   return bracket
     .filter(m => m.status === 'READY')
