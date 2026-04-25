@@ -292,6 +292,19 @@ export function useChampionshipSync({
 
         if (!cancelled && data?.state && !error) {
           const incoming = data.state as MatchState;
+          // UI-AUDIT R8-H4: row stale (master encerrou luta ha tempo, nao
+          // upserta mais) nao pode marcar listener como "AO VIVO". Espectador
+          // veria placar congelado com indicador de luta ao vivo. 60s de
+          // tolerancia: master ativo upserta a cada 500ms, entao 60s+ e morto.
+          const updatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+          const isStaleRow = updatedAt > 0 && Date.now() - updatedAt > 60_000;
+          if (isStaleRow) {
+            // Nao atualiza state nem marca isConnected — preserva ultimo estado
+            // valido (ou IDLE inicial). UI deve continuar mostrando "SEM SINAL"
+            // ou ultimo placar conhecido sem chrome de "AO VIVO".
+            setIsConnected(false);
+            return;
+          }
           // Guarda anti-regressao: polling pode retornar linha stale se
           // master acabou de atualizar. Rejeita qualquer payload com
           // lastUpdate mais antigo que o que ja temos.

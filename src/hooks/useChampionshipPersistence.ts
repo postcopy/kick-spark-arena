@@ -14,6 +14,12 @@ export function useChampionshipPersistence(state: MatchState) {
   const prevStatusRef = useRef(state.status);
   const prevHasConfigRef = useRef(state.hasConfig);
   const matchStartedRef = useRef(false); // tracks if RUNNING was ever reached
+  // UI-AUDIT R8-H8: stateRef pra ler round atual dentro do persistEvents.
+  // Sem isso, closure captura state.round velho quando eventos chegam junto
+  // de transicao de round (ex: GAMJEOM antes do BREAK_TIME) — audit trail
+  // grava round errado no DB.
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   const createMatch = useCallback(async () => {
     if (!user) return;
@@ -77,12 +83,16 @@ export function useChampionshipPersistence(state: MatchState) {
 
   const persistEvents = async (matchId: string, events: MatchEvent[]) => {
     try {
+      // UI-AUDIT R8-H8: le round via stateRef pra evitar closure stale.
+      // Eventos prepended (newest first) sao do round atual (ou de transicao
+      // recente). Le round no momento da chamada, nao no momento do effect.
+      const currentRound = parseInt(String(stateRef.current.round)) || 1;
       const rows = events.map(e => ({
         match_id: matchId,
         event_type: e.type,
         side: e.side || null,
         points: e.points || 0,
-        round: parseInt(String(state.round)) || 1,
+        round: currentRound,
         description: e.description,
         ts: e.ts,
       }));

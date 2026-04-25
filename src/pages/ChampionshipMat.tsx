@@ -552,6 +552,11 @@ function ChampionshipMatInner() {
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable) return;
       // Ignore when any dialog is open
       if (showConfigDialog || showResetDialog || showHelpDialog || showExitDialog || showQuickExitDialog) return;
+      // UI-AUDIT R8-H1: HardwareTest overlay tem proprio handler pras teclas 1-4.
+      // Sem este guard, mesma tecla simulava hit virtual NO overlay E adicionava
+      // ponto real no placar — pontuacao fantasma durante teste mid-luta.
+      // Apenas Escape passa (pra fechar o overlay — handler trata abaixo).
+      if (showHardwareTest && e.code !== 'Escape') return;
 
       const status = sync.state.status;
 

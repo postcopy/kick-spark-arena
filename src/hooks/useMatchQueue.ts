@@ -50,9 +50,15 @@ export function useMatchQueue(matId: number) {
 
   const add = useCallback(
     (entry: Omit<QueueEntry, 'id'>) => {
+      // UI-AUDIT R8-H6: ID baseado em max(ids)+1, nao length+1. Apos remove,
+      // length+1 colide com ID existente — remove subsequente apaga ambos.
+      const maxId = queue.reduce((max, e) => {
+        const n = parseInt(e.id, 10);
+        return Number.isFinite(n) && n > max ? n : max;
+      }, 0);
       const next = [
         ...queue,
-        { ...entry, id: String(queue.length + 1).padStart(3, '0') },
+        { ...entry, id: String(maxId + 1).padStart(3, '0') },
       ];
       persist(next);
     },

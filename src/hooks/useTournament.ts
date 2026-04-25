@@ -1,6 +1,6 @@
 // Tournament State Management Hook
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type {
   Tournament,
   Category,
@@ -47,6 +47,26 @@ export function useTournament() {
       try { saveTournament(next); } catch (e) { /* localStorage quota / private mode — non-fatal */ }
       return next;
     });
+  }, []);
+
+  // UI-AUDIT R8-H2: cross-tab/window sync via storage event.
+  // Sem isso, ChampionshipMat e TournamentSetup abertos em janelas diferentes
+  // tem copias divergentes em memoria. recordMatchResult de uma sobrescrevia
+  // edicoes da outra. storage event so dispara em OUTRAS abas — write-through
+  // de setTournament ja atualiza esta aba.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== TOURNAMENT_STORAGE_KEY) return;
+      if (e.newValue == null) {
+        setTournamentInternal(null);
+        return;
+      }
+      try {
+        setTournamentInternal(JSON.parse(e.newValue));
+      } catch { /* corrupted JSON — keep current state */ }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const tournament = tournamentState;
