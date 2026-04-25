@@ -10,7 +10,12 @@ import type { MatchState, MatchEvent } from '@/types/championship';
 export function useChampionshipPersistence(state: MatchState) {
   const { user } = useAuth();
   const matchDbIdRef = useRef<string | null>(null);
-  const lastPersistedEventsCount = useRef(0);
+  // UI-AUDIT R10-H5: rastreia ID do ultimo evento persistido em vez de count.
+  // Eventos sao prepended com cap MAX_EVENTS=500 — uma vez no cap, length para
+  // de crescer e o effect (deps em events.length) NUNCA mais dispara, mesmo
+  // com novos eventos chegando. Audit trail vazava silenciosamente apos 500
+  // eventos. ID rastreia identidade real, nao tamanho do array.
+  const lastPersistedEventIdRef = useRef<string | null>(null);
   const prevStatusRef = useRef(state.status);
   const prevHasConfigRef = useRef(state.hasConfig);
   const matchStartedRef = useRef(false); // tracks if RUNNING was ever reached
@@ -43,7 +48,7 @@ export function useChampionshipPersistence(state: MatchState) {
         return;
       }
       matchDbIdRef.current = data.id;
-      lastPersistedEventsCount.current = 0;
+      lastPersistedEventIdRef.current = null;
       console.log('[ChampPersist] Match created:', data.id);
     } catch (err) {
       console.error('[ChampPersist] Error creating match:', err);
@@ -59,27 +64,41 @@ export function useChampionshipPersistence(state: MatchState) {
     prevHasConfigRef.current = state.hasConfig;
   }, [state.hasConfig, user, createMatch]);
 
-  // Persist new events as they appear (events are prepended — newest first)
-  // Also handle undo: if events shrink, reset counter to match
+  // Persist new events as they appear (events are prepended — newest first).
+  // R10-H5: rastreia por ID. Itera do topo (newest) ate achar o ultimo
+  // persistido. Tudo antes (= mais novo) precisa persistir. Robusto contra:
+  // - cap MAX_EVENTS (length estavel mas conteudo muda)
+  // - undo (eventos some do array, ID antigo nao acha — re-sincroniza)
+  // - reset/createMatch (lastPersistedEventIdRef volta pra null)
+  // Deps: events[0]?.id (mudou = novo prepend) + length (cobre undo/cap).
   useEffect(() => {
     if (!matchDbIdRef.current) return;
-    const totalEvents = state.events.length;
-    const prevCount = lastPersistedEventsCount.current;
+    if (state.events.length === 0) return;
 
-    // Events shrunk (undo happened) — sync counter down
-    if (totalEvents < prevCount) {
-      lastPersistedEventsCount.current = totalEvents;
-      return;
+    const lastId = lastPersistedEventIdRef.current;
+    let newEvents: MatchEvent[];
+
+    if (lastId === null) {
+      // Nada persistido ainda — persiste tudo no buffer atual.
+      newEvents = [...state.events];
+    } else {
+      const idx = state.events.findIndex(e => e.id === lastId);
+      if (idx === -1) {
+        // ID sumiu (undo eliminou ele OU caiu fora do cap MAX_EVENTS).
+        // Conservador: persiste o buffer todo de novo seria duplicar; em vez
+        // disso pula esta passada e re-sincroniza no proximo evento novo.
+        // Atualiza para o evento topo atual pra evitar loop.
+        lastPersistedEventIdRef.current = state.events[0].id;
+        return;
+      }
+      // idx=0 significa nada novo (topo ja persistido).
+      if (idx === 0) return;
+      newEvents = state.events.slice(0, idx);
     }
 
-    const newCount = totalEvents - prevCount;
-    if (newCount <= 0) return;
-
-    // New events are at the START of the array (prepended)
-    const newEvents = state.events.slice(0, newCount);
-    lastPersistedEventsCount.current = totalEvents;
+    lastPersistedEventIdRef.current = state.events[0].id;
     persistEvents(matchDbIdRef.current, newEvents);
-  }, [state.events.length]);
+  }, [state.events]);
 
   const persistEvents = async (matchId: string, events: MatchEvent[]) => {
     try {
@@ -148,7 +167,7 @@ export function useChampionshipPersistence(state: MatchState) {
   useEffect(() => {
     if (!state.hasConfig && prevHasConfigRef.current) {
       matchDbIdRef.current = null;
-      lastPersistedEventsCount.current = 0;
+      lastPersistedEventIdRef.current = null;
       matchStartedRef.current = false;
     }
   }, [state.hasConfig]);

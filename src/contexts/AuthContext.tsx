@@ -230,6 +230,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // UI-AUDIT R10-H9: bloqueia logout se luta ativa em curso. Sem isso,
+    // createMatch ja rodou com user.id antigo, persistEvents subsequentes
+    // batem em RLS error silencioso e audit trail fica incompleto. Lemos
+    // championship-state-v1 (mesmo storage key do useChampionshipSync) e
+    // recusamos se status estiver em RUNNING/PAUSED/MEDICAL.
+    try {
+      const raw = localStorage.getItem('championship-state-v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const activeStatuses = ['RUNNING', 'PAUSED', 'MEDICAL', 'ROUND_END'];
+        if (parsed?.status && activeStatuses.includes(parsed.status)) {
+          const proceed = typeof window !== 'undefined' && window.confirm(
+            'Ha uma luta ativa em andamento. Sair agora interrompe a persistencia ' +
+            'do audit trail e pode invalidar o registro federativo. Continuar mesmo assim?'
+          );
+          if (!proceed) return;
+        }
+      }
+    } catch { /* ignore — nao bloquear logout em caso de parse error */ }
+
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

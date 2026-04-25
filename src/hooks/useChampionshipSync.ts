@@ -712,6 +712,14 @@ export function useChampionshipSync({
           // Guard de snapshot: handleRoundEndWithWinner ja pode ter snapshotado
           // em ROUND_END (caso normal). So snapshota se historyLen < round
           // (caso empate sem winner que entra direto em ROUND_END sem snapshot).
+          // UI-AUDIT R10-H1: clamp duro contra overflow. round=4 nao deveria
+          // entrar em break (MATCH_END deveria ter resolvido), mas se entrou
+          // por race entre branches, nao incrementa pra 5 (cast invalido,
+          // quebraria type safety e UI assume 1..4).
+          if (prev.round >= 4) {
+            logger.warn('[breakTimer] Round overflow — forcando MATCH_END em vez de avancar.');
+            return { ...prev, status: 'MATCH_END', isBreakTime: false, breakTimeLeftMs: undefined };
+          }
           const isGolden = prev.round >= prev.config.maxRounds && prev.roundWinsRed === prev.roundWinsBlue;
           const nextRoundNum = (prev.round + 1) as 1 | 2 | 3 | 4;
           const historyLen = prev.roundHistoryBlue.length;
@@ -1110,21 +1118,8 @@ export function useChampionshipSync({
     const s = stateRef.current;
     if (s.status !== 'RUNNING' && s.status !== 'PAUSED') return;
 
-    saveToHistory(s);
-
     const sideLabel = side === 'RED' ? 'Vermelho' : 'Azul';
     const opponentLabel = side === 'RED' ? 'Azul' : 'Vermelho';
-
-    // WT 2026 JUN anti-stalling: passividade na janela final do round => +2 pts pro oponente.
-    // Resolve via ruleset ativo; fallback seguro se version nao estiver no preset (defaults 1 ponto).
-    const preset = WT_RULESET_PRESETS[s.config.rulesetVersion];
-    const bonus = preset?.gamjeomPassivityBonus ?? 1;
-    const windowMs = preset?.gamjeomPassivityWindowMs ?? 10_000;
-    // UI-AUDIT R7-H3: durante MEDICAL, timeLeftMs reflete medicalTimeMs (nao o
-    // tempo do round) — janela de passividade so vale com timer do round real.
-    const inPassivityWindow = !s.isMedicalTime && s.timeLeftMs > 0 && s.timeLeftMs <= windowMs;
-    const applyBonus = reason === 'PASSIVITY' && bonus === 2 && inPassivityWindow;
-    const pointsToOpponent = applyBonus ? 2 : 1;
 
     const reasonLabel: Record<import('@/types/championship').GamjeomReason, string> = {
       PASSIVITY: 'Passividade',
@@ -1135,11 +1130,26 @@ export function useChampionshipSync({
       BELOW_WAIST: 'Ataque abaixo da cintura',
       OTHER: '',
     };
-    const reasonSuffix = reasonLabel[reason] ? ` [${reasonLabel[reason]}]` : '';
-    const bonusSuffix = applyBonus ? ' — BONUS PASSIVIDADE' : '';
-    const description = `GAM-JEOM ${sideLabel}${reasonSuffix} (+${pointsToOpponent} ponto${pointsToOpponent > 1 ? 's' : ''} ${opponentLabel})${bonusSuffix}`;
 
     setState(prev => {
+      // UI-AUDIT R10-H4: snapshot history dentro do updater pra capturar prev
+      // real (nao stateRef.current). Dois clicks sincronos liam o mesmo
+      // stateRef e empurravam snapshots identicos pra historia — undo
+      // recuperava a mesma versao 2x mas perdia o gamjeom intermediario.
+      saveToHistory(prev);
+
+      // WT 2026 JUN anti-stalling: passividade na janela final do round => +2 pts pro oponente.
+      // Resolve via ruleset do prev (nao stateRef) pra evitar leitura defasada.
+      const preset = WT_RULESET_PRESETS[prev.config.rulesetVersion];
+      const bonus = preset?.gamjeomPassivityBonus ?? 1;
+      const windowMs = preset?.gamjeomPassivityWindowMs ?? 10_000;
+      const inPassivityWindow = !prev.isMedicalTime && prev.timeLeftMs > 0 && prev.timeLeftMs <= windowMs;
+      const applyBonus = reason === 'PASSIVITY' && bonus === 2 && inPassivityWindow;
+      const pointsToOpponent = applyBonus ? 2 : 1;
+      const reasonSuffix = reasonLabel[reason] ? ` [${reasonLabel[reason]}]` : '';
+      const bonusSuffix = applyBonus ? ' — BONUS PASSIVIDADE' : '';
+      const description = `GAM-JEOM ${sideLabel}${reasonSuffix} (+${pointsToOpponent} ponto${pointsToOpponent > 1 ? 's' : ''} ${opponentLabel})${bonusSuffix}`;
+
       const isRunning = prev.status === 'RUNNING';
       const newState: MatchState = {
         ...prev,
@@ -1184,7 +1194,11 @@ export function useChampionshipSync({
     // qualquer ROUND_END/GOLDEN_ROUND/MATCH_END/BREAK_TIME marca o limite. Sem isso,
     // remover gamjeom no round 2 reverteria pontos do round 1 (zerado), e o bonus +2
     // do round anterior sumiria silenciosamente.
-    const ROUND_BOUNDARY_TYPES: MatchEvent['type'][] = ['ROUND_END', 'GOLDEN_ROUND', 'MATCH_END', 'BREAK_TIME'];
+    // UI-AUDIT R10-H3: round pode terminar tambem por POINT_GAP, GAMJEOM_LIMIT
+    // e ROUND_WIN — sem esses tipos, removeGamjeom no round 2 vazava ate o
+    // GAMJEOM do round 1 quando o round 1 fechou por point gap (bug invisivel
+    // que apaga ponto do round anterior + decrementa gamjeom do round atual).
+    const ROUND_BOUNDARY_TYPES: MatchEvent['type'][] = ['ROUND_END', 'GOLDEN_ROUND', 'MATCH_END', 'BREAK_TIME', 'POINT_GAP', 'GAMJEOM_LIMIT', 'ROUND_WIN'];
     let lastGamjeomEvent: MatchEvent | undefined;
     for (const e of live.events) {
       if (ROUND_BOUNDARY_TYPES.includes(e.type)) break;

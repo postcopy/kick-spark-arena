@@ -17,10 +17,31 @@ import {
   resetMatchAndDescendants,
 } from '@/hooks/useBracketGenerator';
 
+// UI-AUDIT R10-H8: validacao defensiva contra shape malformado.
+// localStorage pode ter sido escrito por versao antiga do app (schema migration
+// ausente) ou corrompido. Sem isso, primeiro acesso a campo missing crashava
+// componente (ex: tournament.matAssignments[matNumber] em getNextMatchForMat).
+function isValidTournament(x: unknown): x is Tournament {
+  if (!x || typeof x !== 'object') return false;
+  const t = x as Record<string, unknown>;
+  return (
+    typeof t.id === 'string' &&
+    typeof t.name === 'string' &&
+    Array.isArray(t.categories) &&
+    typeof t.matAssignments === 'object' && t.matAssignments !== null
+  );
+}
+
 function loadTournament(): Tournament | null {
   try {
     const stored = localStorage.getItem(TOURNAMENT_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    if (!isValidTournament(parsed)) {
+      console.warn('[useTournament] Schema invalido em localStorage — descartando.');
+      return null;
+    }
+    return parsed;
   } catch { /* ignore */ }
   return null;
 }
@@ -62,7 +83,12 @@ export function useTournament() {
         return;
       }
       try {
-        setTournamentInternal(JSON.parse(e.newValue));
+        const parsed = JSON.parse(e.newValue);
+        if (!isValidTournament(parsed)) {
+          console.warn('[useTournament] storage event com shape invalido — ignorando.');
+          return;
+        }
+        setTournamentInternal(parsed);
       } catch { /* corrupted JSON — keep current state */ }
     };
     window.addEventListener('storage', onStorage);
@@ -230,6 +256,31 @@ export function useTournament() {
   ) => {
     setTournament(prev => {
       if (!prev) return prev;
+
+      // UI-AUDIT R10-H2: guarda contra advance duplicado em luta ja FINISHED.
+      // Cross-mat race: mat A grava resultado, storage event chega em mat B
+      // (que tinha a mesma luta locked mas ainda processando MATCH_END);
+      // mat B chama recordMatchResult e advanceWinnerInBracket no-opa, mas
+      // se o vencedor diverge, perdemos audit silencioso. Detecta e loga.
+      const sourceCat = prev.categories.find(c => c.id === categoryId);
+      const sourceMatch = sourceCat?.bracket.find(m => m.id === matchId);
+      if (sourceMatch && sourceMatch.status === 'FINISHED') {
+        const existingWinner = sourceMatch.winnerSide;
+        if (existingWinner && existingWinner !== winnerSide) {
+          console.error(
+            '[recordMatchResult] CONFLITO: luta',
+            matchId,
+            'ja finalizada com winner=',
+            existingWinner,
+            'mas chamada com winner=',
+            winnerSide,
+            '— ignorando segunda chamada (mantendo resultado original).'
+          );
+        } else {
+          console.warn('[recordMatchResult] Luta ja FINISHED — chamada idempotente, sem advance.');
+        }
+        return prev;
+      }
 
       const updatedCategories = prev.categories.map(cat => {
         if (cat.id !== categoryId) return cat;

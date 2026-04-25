@@ -113,6 +113,8 @@ export function useSerialPort({
   const onImpactRef = useRef(onImpact);
   const onJudgeEventRef = useRef(onJudgeEvent);
   const isReadingRef = useRef(false);
+  // R10-H7: declarado aqui (antes de disconnect/tryOpenPort) pra evitar TDZ.
+  const disconnectListenerRef = useRef<{ port: SerialPort; handler: () => void } | null>(null);
   const equipmentRef = useRef<Map<EquipmentSlot, EquipmentState>>(createInitialEquipment());
   const isConnectedRef = useRef(false);
   const lastKickTimeRef = useRef<Record<number, number>>({});
@@ -328,7 +330,15 @@ export function useSerialPort({
 
   const disconnect = useCallback(async () => {
     await stopReading();
-    
+
+    // R10-H7: limpa listener antes de fechar pra evitar disparo durante close().
+    if (disconnectListenerRef.current) {
+      try {
+        disconnectListenerRef.current.port.removeEventListener('disconnect', disconnectListenerRef.current.handler);
+      } catch { /* port may be gone */ }
+      disconnectListenerRef.current = null;
+    }
+
     if (portRef.current) {
       try { await portRef.current.close(); } catch (e) {}
       portRef.current = null;
@@ -346,11 +356,48 @@ export function useSerialPort({
     setLastRawLine('');
   }, [stopReading]);
 
+  // UI-AUDIT R10-H7: bind disconnect listener IMEDIATAMENTE no momento do
+  // assign de portRef.current. O useEffect com deps [isConnected] so dispara
+  // quando isConnected toggla — mas em reuse de porta (setIsConnected(true)
+  // de novo no mesmo valor) o effect nao re-executa, e o listener fica
+  // ligado a uma porta velha (ou nenhuma). Resultado: physical disconnect
+  // posterior nao detectado, UI mostra "conectado" enquanto sensor sumiu —
+  // perda silenciosa de pontuacao.
+  const attachDisconnectListener = useCallback((port: SerialPort) => {
+    // Remove qualquer listener anterior em outra porta antes de bindar a nova.
+    if (disconnectListenerRef.current) {
+      try {
+        disconnectListenerRef.current.port.removeEventListener('disconnect', disconnectListenerRef.current.handler);
+      } catch { /* port may be gone */ }
+      disconnectListenerRef.current = null;
+    }
+
+    const handler = () => {
+      logger.log('[Serial] ⚡ Physical disconnect detected (tryOpenPort), resetting state...');
+      isReadingRef.current = false;
+      if (readerRef.current) {
+        try { readerRef.current.cancel(); } catch { /* ignore */ }
+        readerRef.current = null;
+      }
+      detectorRef.current.reset();
+      setIsConnected(false);
+      setError('Sensor desconectado');
+      portRef.current = null;
+      equipmentRef.current = createInitialEquipment();
+      setEquipmentVersion(v => v + 1);
+      disconnectListenerRef.current = null;
+    };
+
+    port.addEventListener('disconnect', handler);
+    disconnectListenerRef.current = { port, handler };
+  }, []);
+
   const tryOpenPort = async (port: SerialPort): Promise<boolean> => {
     // Already open? Reuse directly
     if (port.readable || port.writable) {
       logger.log('[Serial] Porta já aberta, reusando...');
       portRef.current = port;
+      attachDisconnectListener(port);
       setIsConnected(true);
       startReading(port);
       return true;
@@ -361,6 +408,7 @@ export function useSerialPort({
       await port.open({ baudRate: BAUD_RATE });
       logger.log('[Serial] Porta aberta com sucesso!');
       portRef.current = port;
+      attachDisconnectListener(port);
       setIsConnected(true);
       startReading(port);
       return true;
@@ -369,6 +417,7 @@ export function useSerialPort({
       if (e.name === 'InvalidStateError' && port.readable) {
         logger.log('[Serial] InvalidStateError mas porta readable, reusando...');
         portRef.current = port;
+        attachDisconnectListener(port);
         setIsConnected(true);
         startReading(port);
         return true;
@@ -532,35 +581,10 @@ export function useSerialPort({
     };
   }, []);
 
-  // Handle port disconnect event
-  useEffect(() => {
-    // Capture the current port locally so cleanup operates on the SAME port that
-    // the listener was attached to — even if portRef has since been reassigned.
-    const port = portRef.current;
-    if (!port) return;
-
-    const handleDisconnect = () => {
-      logger.log('[Serial] ⚡ Physical disconnect detected, resetting state...');
-      // CRITICAL: reset reading flag so startReading() works on reconnect
-      isReadingRef.current = false;
-      if (readerRef.current) {
-        try { readerRef.current.cancel(); } catch (e) {}
-        readerRef.current = null;
-      }
-      detectorRef.current.reset();
-      setIsConnected(false);
-      setError('Sensor desconectado');
-      portRef.current = null;
-      equipmentRef.current = createInitialEquipment();
-      setEquipmentVersion(v => v + 1);
-    };
-
-    port.addEventListener('disconnect', handleDisconnect);
-
-    return () => {
-      try { port.removeEventListener('disconnect', handleDisconnect); } catch { /* port may be gone */ }
-    };
-  }, [isConnected]);
+  // R10-H7: listener de disconnect agora bindado dentro de tryOpenPort via
+  // attachDisconnectListener, garantindo bind em TODAS as paths de open
+  // (incluindo reuse onde isConnected nao toggla false→true e este effect
+  // nao re-executaria). Effect anterior removido pra evitar double-bind.
 
   const getDetectorDiag = useCallback(() => ({
     rejected: detectorRef.current.getRejectedCount(),
