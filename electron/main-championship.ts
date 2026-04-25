@@ -1,7 +1,28 @@
 import { app, BrowserWindow, screen, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path from 'path';
+import fs from 'fs';
 import { setupSerialPermissions, registerIpcHandlers, setupKeyboardShortcuts } from './shared';
+
+// Minimal file logger pra updater (electron-log nao esta instalado).
+// Grava em userData/updater.log — limite ~256KB com rotacao simples.
+const updaterLogPath = path.join(app.getPath('userData'), 'updater.log');
+function updaterLog(level: string, ...args: unknown[]) {
+  const line = `[${new Date().toISOString()}] [${level}] ${args.map(a =>
+    typeof a === 'string' ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
+  ).join(' ')}\n`;
+  try {
+    if (fs.existsSync(updaterLogPath)) {
+      const stat = fs.statSync(updaterLogPath);
+      if (stat.size > 256 * 1024) {
+        try { fs.renameSync(updaterLogPath, updaterLogPath + '.old'); } catch { /* ignore */ }
+      }
+    }
+    fs.appendFileSync(updaterLogPath, line);
+  } catch { /* ignore — nao bloquear app por log */ }
+  // eslint-disable-next-line no-console
+  console.log(`[AutoUpdater] ${level}`, ...args);
+}
 
 // Faster GPU startup on low-end hardware
 app.commandLine.appendSwitch('enable-gpu-rasterization');
@@ -150,34 +171,67 @@ app.whenReady().then(() => {
   // Auto-updater config
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.logger = null; // disable default logging
+  // electron-updater aceita um logger {info, warn, error, debug}.
+  // Habilitar pra arquivo permite triagem de instalacoes "silenciosas".
+  autoUpdater.logger = {
+    info: (...a: unknown[]) => updaterLog('INFO', ...a),
+    warn: (...a: unknown[]) => updaterLog('WARN', ...a),
+    error: (...a: unknown[]) => updaterLog('ERROR', ...a),
+    debug: (...a: unknown[]) => updaterLog('DEBUG', ...a),
+  } as unknown as typeof autoUpdater.logger;
+
+  updaterLog('INFO', `App ${app.getName()} v${app.getVersion()} starting. isDev=${isDev}`);
 
   // Auto-updater events → send to renderer
+  autoUpdater.on('checking-for-update', () => {
+    updaterLog('INFO', 'checking-for-update');
+    mainWindow?.webContents.send('update-checking');
+  });
   autoUpdater.on('update-available', (info) => {
+    updaterLog('INFO', 'update-available', { version: info.version });
     mainWindow?.webContents.send('update-available', { version: info.version, releaseDate: info.releaseDate });
+  });
+  autoUpdater.on('update-not-available', (info) => {
+    updaterLog('INFO', 'update-not-available', { version: info?.version });
+    mainWindow?.webContents.send('update-not-available', { version: info?.version || app.getVersion() });
   });
   autoUpdater.on('download-progress', (progress) => {
     mainWindow?.webContents.send('update-progress', { percent: Math.round(progress.percent), bytesPerSecond: progress.bytesPerSecond, transferred: progress.transferred, total: progress.total });
   });
   autoUpdater.on('update-downloaded', () => {
+    updaterLog('INFO', 'update-downloaded');
     mainWindow?.webContents.send('update-downloaded');
   });
   autoUpdater.on('error', (err) => {
-    console.error('[AutoUpdater] Error:', err.message);
+    updaterLog('ERROR', err?.message || String(err));
+    mainWindow?.webContents.send('update-error', { message: err?.message || String(err) });
   });
 
   // IPC handlers
   ipcMain.handle('check-for-updates', async () => {
-    try { return await autoUpdater.checkForUpdates(); } catch (e) { return null; }
+    try {
+      const r = await autoUpdater.checkForUpdates();
+      return {
+        ok: true,
+        currentVersion: app.getVersion(),
+        updateAvailable: !!r?.updateInfo && r.updateInfo.version !== app.getVersion(),
+        version: r?.updateInfo?.version || null,
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      updaterLog('ERROR', 'check-for-updates failed', msg);
+      return { ok: false, error: msg, currentVersion: app.getVersion() };
+    }
   });
   ipcMain.handle('download-update', () => autoUpdater.downloadUpdate());
   ipcMain.handle('install-update', () => autoUpdater.quitAndInstall());
   ipcMain.handle('get-app-version', () => app.getVersion());
+  ipcMain.handle('get-updater-log-path', () => updaterLogPath);
 
   // Check for updates 5 seconds after app is ready (only in production)
   if (!isDev) {
     setTimeout(() => {
-      autoUpdater.checkForUpdates().catch(() => {});
+      autoUpdater.checkForUpdates().catch((e) => updaterLog('ERROR', 'initial check failed', e?.message));
     }, 5000);
   }
 
