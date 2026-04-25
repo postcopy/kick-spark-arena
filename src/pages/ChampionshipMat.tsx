@@ -110,6 +110,15 @@ function ChampionshipMatInner() {
   const [showQuickExitDialog, setShowQuickExitDialog] = useState(false);
   const [showDebugOverlay, setShowDebugOverlay] = useState(false);
   const tvWindowRef = useRef<Window | null>(null);
+  // UI-AUDIT R7-H6: cleanup TV window on unmount.
+  // Sem isso, fechar/trocar Mat deixava window.open orfa rodando, segurando
+  // BroadcastChannel do mat antigo e double-listener no MAT-id.
+  useEffect(() => {
+    return () => {
+      try { tvWindowRef.current?.close?.(); } catch { /* janela ja fechada */ }
+      tvWindowRef.current = null;
+    };
+  }, []);
 
   // Hardware Test mode
   const [showHardwareTest, setShowHardwareTest] = useState(false);
@@ -508,6 +517,12 @@ function ChampionshipMatInner() {
     if (curr === 'IDLE') {
       matchResultRecordedRef.current = false;
       lockedMatchIdRef.current = null;
+      // UI-AUDIT R7-H4: limpa anti-duplicate map e shadow log entre lutas.
+      // lastAcceptedTsRef usa impact.ts (clock do firmware EngFlex). Apos
+      // boot do receptor, ts pode resetar — comparacao com ts antigo do
+      // map gera valores negativos OU enormes, falseando o anti-dup.
+      lastAcceptedTsRef.current.clear();
+      shadowLogRef.current = [];
     }
   }, [sync.state.status, play, hasTournament, tournamentHook]);
 
@@ -545,6 +560,17 @@ function ChampionshipMatInner() {
   }, [sync.state.status, hasTournament, tournamentHook, sync]);
   
   // ─── Keyboard shortcuts ───
+  // UI-AUDIT R7-H5: sync e play sao objetos novos a cada render. Sem refs, o
+  // effect re-registra listener todo render — entre removeEventListener e
+  // addEventListener (mesmo tick), keypress podia disparar no handler velho
+  // com closure stale. Refs garantem handler estavel + leitura sempre fresh.
+  const syncRef = useRef(sync);
+  useEffect(() => { syncRef.current = sync; }, [sync]);
+  const playRef = useRef(play);
+  useEffect(() => { playRef.current = play; }, [play]);
+  const handleCloseHardwareTestRef = useRef(handleCloseHardwareTest);
+  useEffect(() => { handleCloseHardwareTestRef.current = handleCloseHardwareTest; }, [handleCloseHardwareTest]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
@@ -558,7 +584,9 @@ function ChampionshipMatInner() {
       // Apenas Escape passa (pra fechar o overlay — handler trata abaixo).
       if (showHardwareTest && e.code !== 'Escape') return;
 
-      const status = sync.state.status;
+      const s = syncRef.current;
+      const p = playRef.current;
+      const status = s.state.status;
 
       // ─── Score key mapping: 1-5 ───
       const scoreKeyMap: Record<string, ScoreType> = {
@@ -574,11 +602,11 @@ function ChampionshipMatInner() {
         e.preventDefault();
         const scoreType = scoreKeyMap[e.code];
         const side: MatchSide = e.shiftKey ? 'RED' : 'BLUE';
-        sync.addScore(side, scoreType);
+        s.addScore(side, scoreType);
         // Som especifico por tipo (KPNP): PUNCH→funch, BODY/SPIN_BODY→body, HEAD/SPIN_HEAD→head
         const isHead = scoreType === 'HEAD' || scoreType === 'SPIN_HEAD';
         const isPunch = scoreType === 'PUNCH';
-        play(isPunch ? 'speHitPunch' : isHead ? 'speHitHead' : 'speHitBody');
+        p(isPunch ? 'speHitPunch' : isHead ? 'speHitHead' : 'speHitBody');
         return;
       }
 
@@ -587,11 +615,11 @@ function ChampionshipMatInner() {
         e.preventDefault();
         const side: MatchSide = e.code === 'F1' ? 'BLUE' : 'RED';
         if (e.shiftKey) {
-          sync.removeGamjeom(side);
-          play('speGamjeomRemove');
+          s.removeGamjeom(side);
+          p('speGamjeomRemove');
         } else {
-          sync.addGamjeom(side);
-          play('speGamjeom');
+          s.addGamjeom(side);
+          p('speGamjeom');
         }
         return;
       }
@@ -602,9 +630,9 @@ function ChampionshipMatInner() {
         // Block timer toggle while hardware test overlay is open — prevents contaminating live match
         if (showHardwareTest) return;
         if (status === 'RUNNING') {
-          sync.pauseTimer();
+          s.pauseTimer();
         } else if (status === 'IDLE' || status === 'PAUSED') {
-          sync.startTimer();
+          s.startTimer();
         }
         return;
       }
@@ -613,9 +641,9 @@ function ChampionshipMatInner() {
       if (e.code === 'Escape') {
         e.preventDefault();
         if (showHardwareTest) {
-          handleCloseHardwareTest();
+          handleCloseHardwareTestRef.current();
         } else if (status === 'RUNNING') {
-          sync.pauseTimer();
+          s.pauseTimer();
         }
         return;
       }
@@ -624,7 +652,7 @@ function ChampionshipMatInner() {
       if (e.code === 'KeyN' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
         if (status === 'ROUND_END') {
           e.preventDefault();
-          sync.nextRound();
+          s.nextRound();
         }
         return;
       }
@@ -633,11 +661,11 @@ function ChampionshipMatInner() {
       if (e.code === 'KeyM' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
         if (status === 'RUNNING' || status === 'PAUSED') {
           e.preventDefault();
-          if (sync.state.isMedicalTime) {
-            sync.endMedicalTime();
+          if (s.state.isMedicalTime) {
+            s.endMedicalTime();
           } else {
-            sync.startMedicalTime();
-            play('speRefereeCall');
+            s.startMedicalTime();
+            p('speRefereeCall');
           }
         }
         return;
@@ -646,7 +674,7 @@ function ChampionshipMatInner() {
       // ─── Ctrl+Z: undo last action ───
       if (e.ctrlKey && !e.shiftKey && e.code === 'KeyZ') {
         e.preventDefault();
-        sync.undoLast();
+        s.undoLast();
         return;
       }
 
@@ -659,7 +687,8 @@ function ChampionshipMatInner() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [sync, showHardwareTest, handleCloseHardwareTest, showConfigDialog, showResetDialog, showHelpDialog, showExitDialog, play]);
+    // Deps somente flags de UI (dialog/test) — sync/play/handleClose lidos via ref.
+  }, [showHardwareTest, showConfigDialog, showResetDialog, showHelpDialog, showExitDialog, showQuickExitDialog]);
   
   const handleOpenTV = async () => {
     // Electron: use IPC to open TV on second display

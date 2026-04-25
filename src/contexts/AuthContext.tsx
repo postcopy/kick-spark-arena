@@ -63,7 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const checkSubscription = useCallback(async (isInitial = false) => {
-    if (!session?.access_token) {
+    // UI-AUDIT R8-H5: le session/token via getSession() em vez de fechar sobre
+    // session do closure. setInterval recriava checkSubscription a cada token
+    // refresh, mas o intervalo capturado mantinha funcao velha — invoke ia
+    // com Bearer ${token-velho} mesmo apos rotacao, dando 401 silencioso.
+    // getSession() pega sempre o token atual do client supabase.
+    const { data: { session: liveSession } } = await supabase.auth.getSession();
+    if (!liveSession?.access_token || !liveSession.user) {
       setSubscription({
         isSubscribed: false,
         isTrialing: false,
@@ -84,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('trial_ends_at')
-        .eq('id', user?.id)
+        .eq('id', liveSession.user.id)
         .single();
 
       const trialEndsAt = profile?.trial_ends_at ? new Date(profile.trial_ends_at) : null;
@@ -93,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Then check Stripe subscription
       const { data, error } = await supabase.functions.invoke('check-subscription', {
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${liveSession.access_token}`,
         },
       });
 

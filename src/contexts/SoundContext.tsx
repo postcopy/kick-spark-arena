@@ -37,8 +37,17 @@ export function SoundProvider({ children }: { children: ReactNode }) {
 export function useSound() {
   const context = useContext(SoundContext);
   if (!context) {
-    // Instead of throwing, return stub — prevents crash in components
-    console.warn('useSound called outside SoundProvider — returning stub');
+    // UI-AUDIT R8-H7: stub silencioso mascarava bugs de arvore — operador em
+    // campo trocava hardware achando que firmware estava mudo. Em DEV throw
+    // pra detectar imediatamente; em PROD log alto + stub (nao crashar luta).
+    if (import.meta.env.DEV) {
+      throw new Error(
+        'useSound() chamado fora de <SoundProvider>. ' +
+        'Verifique se o componente esta dentro da arvore do provider ' +
+        '(portals/lazy routes precisam de SoundProvider proprio).'
+      );
+    }
+    console.error('[SoundContext] useSound() fora do provider — som DESABILITADO. Verificar arvore.');
     return SOUND_STUB;
   }
   return context;

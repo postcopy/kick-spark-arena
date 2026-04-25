@@ -655,14 +655,18 @@ export function useChampionshipSync({
           }
         });
       } else {
-        // Normal tick — only update timeLeftMs, broadcast from stateRef (always fresh)
+        // Normal tick — only update timeLeftMs.
+        // UI-AUDIT R7-H8: broadcast DENTRO do updater pra usar prev (estado
+        // garantidamente fresco do React), nao stateRef.current que pode
+        // estar atrasado se addScore foi chamado moments-ago e ainda nao
+        // committou o effect que atualiza stateRef. Race causava 1 frame
+        // de placar antigo na TV.
         setState(prev => {
           if (prev.status !== 'RUNNING' && prev.status !== 'MEDICAL') return prev;
-          return { ...prev, timeLeftMs: newTime };
+          const next = { ...prev, timeLeftMs: newTime };
+          broadcast(next);
+          return next;
         });
-        // Broadcast using stateRef (has latest scores) with updated time
-        const toBroadcast = { ...stateRef.current, timeLeftMs: newTime };
-        broadcast(toBroadcast);
       }
     }, 100);
 
@@ -1277,6 +1281,15 @@ export function useChampionshipSync({
     // da luta e o bracket persistido. Se operador notou erro de lados,
     // precisa corrigir antes do MATCH_END (ou via overrideMatchWinner no bracket).
     if (state.status === 'MATCH_END' || state.status === 'ROUND_END') return;
+    // UI-AUDIT R7-H9: bloqueia reverseSides apos round 1 ou se ja existem
+    // ROUND_END events. Trocar lados retroativamente diverge audit trail
+    // (eventos antigos com side='RED' agora sao do lado azul fisicamente)
+    // — auditor WT detecta inconsistencia. Operador deve corrigir lados
+    // ANTES do round 1 acabar; depois disso, so via overrideMatchWinner.
+    if (state.round > 1 || state.events.some(e => e.type === 'ROUND_END' || e.type === 'GOLDEN_ROUND')) {
+      logger.warn('[reverseSides] Bloqueado: round>1 ou ROUND_END ja registrado. Audit trail divergiria.');
+      return;
+    }
 
     saveToHistory(state);
 
