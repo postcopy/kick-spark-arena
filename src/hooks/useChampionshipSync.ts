@@ -974,6 +974,10 @@ export function useChampionshipSync({
                       type === 'SPIN_HEAD' ? 'Giro Cabeça' : type;
     
     setState(prev => {
+      // Guarda dentro do updater: timer effect pode ter movido pra ROUND_END
+      // entre o check inicial (stateRef) e este callback. Pontuacao apos sino
+      // nao deve contar.
+      if (prev.status !== 'RUNNING') return prev;
       const newState: MatchState = {
         ...prev,
         roundScoreRed: side === 'RED' ? prev.roundScoreRed + points : prev.roundScoreRed,
@@ -1056,16 +1060,24 @@ export function useChampionshipSync({
     const sideLabel = side === 'RED' ? 'Vermelho' : 'Azul';
     const opponentLabel = side === 'RED' ? 'Azul' : 'Vermelho';
     
+    // Encontra o ultimo evento GAMJEOM positivo desse lado pra recuperar
+    // pontos exatos atribuidos (1 normal vs 2 quando bonus passividade WT-2026-JUN).
+    // Decrementar fixo 1 ignorava o bonus +2 e deixava ponto fantasma no oponente.
+    const lastGamjeomEvent = live.events.find(
+      (e) => e.type === 'GAMJEOM' && e.side === side && (e.points ?? 0) > 0
+    );
+    const pointsToReverse = lastGamjeomEvent?.points ?? 1;
+
     setState(prev => {
       const newState: MatchState = {
         ...prev,
         // Decrement gamjeom for the side
         gamjeomRed: side === 'RED' ? prev.gamjeomRed - 1 : prev.gamjeomRed,
         gamjeomBlue: side === 'BLUE' ? prev.gamjeomBlue - 1 : prev.gamjeomBlue,
-        // Remove 1 point from opponent (reverse of addGamjeom)
-        roundScoreRed: side === 'BLUE' ? Math.max(0, prev.roundScoreRed - 1) : prev.roundScoreRed,
-        roundScoreBlue: side === 'RED' ? Math.max(0, prev.roundScoreBlue - 1) : prev.roundScoreBlue,
-        events: [createEvent('GAMJEOM', `GAM-JEOM REMOVIDO (${sideLabel}) → -1 ponto ${opponentLabel}`, side, -1), ...prev.events].slice(0, MAX_EVENTS),
+        // Remove pontos do oponente exatamente igual ao addGamjeom original
+        roundScoreRed: side === 'BLUE' ? Math.max(0, prev.roundScoreRed - pointsToReverse) : prev.roundScoreRed,
+        roundScoreBlue: side === 'RED' ? Math.max(0, prev.roundScoreBlue - pointsToReverse) : prev.roundScoreBlue,
+        events: [createEvent('GAMJEOM', `GAM-JEOM REMOVIDO (${sideLabel}) → -${pointsToReverse} ponto${pointsToReverse > 1 ? 's' : ''} ${opponentLabel}`, side, -pointsToReverse), ...prev.events].slice(0, MAX_EVENTS),
       };
       broadcast(newState, true);
       return newState;
@@ -1132,6 +1144,11 @@ export function useChampionshipSync({
   // (colete azul no direito, vermelho no esquerdo). Reversível via Undo.
   const reverseSides = useCallback(() => {
     if (role !== 'master') return;
+    // Bloqueado em status terminal: bracket de torneio ja gravou winnerSide
+    // baseado em roundWins atual; reverter aqui criaria desconexao entre UI
+    // da luta e o bracket persistido. Se operador notou erro de lados,
+    // precisa corrigir antes do MATCH_END (ou via overrideMatchWinner no bracket).
+    if (state.status === 'MATCH_END' || state.status === 'ROUND_END') return;
 
     saveToHistory(state);
 

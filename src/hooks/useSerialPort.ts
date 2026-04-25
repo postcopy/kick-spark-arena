@@ -380,6 +380,14 @@ export function useSerialPort({
     setIsConnecting(true);
     setError(null);
 
+    // Garante que reader/porta antigos sao fechados antes de abrir nova.
+    // Sem isso, click em "Conectar" durante auto-reconnect concorrente
+    // deixava reader anterior preso (isReadingRef=true) e startReading
+    // abortava silenciosamente — fluxo de pacotes sumia.
+    if (portRef.current || isReadingRef.current) {
+      try { await disconnect(); } catch { /* ignore */ }
+    }
+
     try {
       // Stage A: Try known/authorized ports first (no popup)
       const knownPorts = await navigator.serial.getPorts();
@@ -447,7 +455,7 @@ export function useSerialPort({
         setError(`Erro: ${e.name || 'desconhecido'} - ${e.message || 'Verifique conexão'}`);
       }
     }
-  }, [startReading]);
+  }, [startReading, disconnect]);
 
   // Auto-reconnect on mount with exponential backoff
   useEffect(() => {

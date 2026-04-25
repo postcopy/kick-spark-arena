@@ -116,11 +116,16 @@ export function MatchConfigDialog({
   const minuteOptions = Array.from({ length: 16 }, (_, i) => i);
   const secondOptions = Array.from({ length: 12 }, (_, i) => i * 5);
   
+  // Restaura scoring para os valores do ruleset ATIVO (nao DEFAULT_SCORE_CONFIG
+  // hardcoded) — caso contrario operador em WT-LEGACY-2022 que clicava
+  // "Restaurar WT" recebia spinHead=6 (WT-2026-JAN) em vez do 5 do legacy.
   const restoreDefaultScoring = () => {
-    setConfig(prev => ({
-      ...prev,
-      scoring: DEFAULT_SCORE_CONFIG,
-    }));
+    setConfig(prev => {
+      const presetScoring = prev.rulesetVersion === 'CUSTOM'
+        ? DEFAULT_SCORE_CONFIG
+        : getRulesetPreset(prev.rulesetVersion).scoring;
+      return { ...prev, scoring: presetScoring };
+    });
   };
 
   /**
