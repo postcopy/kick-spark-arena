@@ -177,13 +177,19 @@ export function QuickMatchLayout({
   const isRoundEnd = state.status === 'ROUND_END';
   const isBreak = isRoundEnd && !!state.isBreakTime;
 
-  // Auto-open result modal on MATCH_END (including initial mount)
+  // Auto-open result modal on MATCH_END (including initial mount).
+  //
+  // Close ONLY em transicao explicita pra IDLE/RUNNING (operador resetou ou comecou
+  // luta nova). Status transitorios stale (ROUND_END, PAUSED, MEDICAL etc) entregues
+  // por polling/BC fora de ordem nao fecham o modal — senao o flicker reaparece.
+  // Ver UI-AUDIT H2: payload stale do live_scores pode oscilar status pos-MATCH_END.
   const prevStatusRef = useRef<MatchState['status'] | null>(null);
   useEffect(() => {
-    if (state.status === 'MATCH_END' && prevStatusRef.current !== 'MATCH_END') {
+    const prev = prevStatusRef.current;
+    if (state.status === 'MATCH_END' && prev !== 'MATCH_END') {
       setShowResultModal(true);
     }
-    if (state.status !== 'MATCH_END') {
+    if (prev === 'MATCH_END' && (state.status === 'IDLE' || state.status === 'RUNNING')) {
       setShowResultModal(false);
     }
     prevStatusRef.current = state.status;

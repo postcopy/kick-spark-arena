@@ -157,9 +157,18 @@ export function useChampionshipSync({
       // Guarda anti-regressao: se payload eh mais antigo que estado atual,
       // ignora. Evita o bug do TV flashar pra estado default (2:00) quando
       // heartbeat/polling entrega um snapshot stale depois de config nova.
+      // UI-AUDIT H7: usar <= em vez de < — payload com mesmo timestamp e
+      // status diferente nao deve sobrescrever (race entre canais).
+      // UI-AUDIT H3/H4: MATCH_END eh sticky — so sai com payload estritamente
+      // mais novo. Snapshots stale do live_scores nao podem reverter pra placar.
       setState(prev => {
-        if (incoming.lastUpdate && prev.lastUpdate && incoming.lastUpdate < prev.lastUpdate) {
+        if (incoming.lastUpdate && prev.lastUpdate && incoming.lastUpdate <= prev.lastUpdate) {
           return prev;
+        }
+        if (prev.status === 'MATCH_END' && incoming.status !== 'MATCH_END') {
+          if (!incoming.lastUpdate || !prev.lastUpdate || incoming.lastUpdate <= prev.lastUpdate) {
+            return prev;
+          }
         }
         return incoming;
       });
@@ -287,7 +296,14 @@ export function useChampionshipSync({
           // master acabou de atualizar. Rejeita qualquer payload com
           // lastUpdate mais antigo que o que ja temos.
           setState(prev => {
-            if (incoming.lastUpdate && prev.lastUpdate && incoming.lastUpdate < prev.lastUpdate) {
+            // UI-AUDIT H7: <= ao inves de <.
+            if (incoming.lastUpdate && prev.lastUpdate && incoming.lastUpdate <= prev.lastUpdate) {
+              return prev;
+            }
+            // UI-AUDIT H3/H4: MATCH_END sticky contra polling stale (master para
+            // de upsertar em MATCH_END, entao live_scores fica com row pre-final
+            // ate proxima luta). Listener nao pode regredir pra placar.
+            if (prev.status === 'MATCH_END' && incoming.status !== 'MATCH_END') {
               return prev;
             }
             return incoming;
@@ -323,8 +339,19 @@ export function useChampionshipSync({
             // Guarda anti-regressao por timestamp: rejeita payload mais antigo
             // que estado atual. Evita flash pra estado default quando um
             // heartbeat/reconnect entrega snapshot stale.
-            if (payload.lastUpdate && prev.lastUpdate && payload.lastUpdate < prev.lastUpdate) {
+            // UI-AUDIT H7: <= ao inves de < — mesmo timestamp com status
+            // diferente eh race entre canais (Realtime + BC), nao update legitimo.
+            if (payload.lastUpdate && prev.lastUpdate && payload.lastUpdate <= prev.lastUpdate) {
               return prev;
+            }
+            // UI-AUDIT H3/H4: MATCH_END eh sticky no listener. Reset legitimo do
+            // master vem com timestamp NOVO (passa o guard acima). Mas snapshots
+            // stale (heartbeat com lastUpdate ausente, BC duplicado) nao podem
+            // reverter MATCH_END pra placar — flicker visivel ao publico.
+            if (prev.status === 'MATCH_END' && payload.status !== 'MATCH_END') {
+              if (!payload.lastUpdate || !prev.lastUpdate || payload.lastUpdate <= prev.lastUpdate) {
+                return prev;
+              }
             }
             if (prev.timeLeftMs === payload.timeLeftMs &&
                 prev.roundScoreRed === payload.roundScoreRed &&
@@ -361,14 +388,37 @@ export function useChampionshipSync({
           const parsed = JSON.parse(stored) as Partial<MatchState>;
           // Migrate config aninhado (mesma justificativa do useState init acima).
           if (parsed?.config) parsed.config = migrateMatchConfig(parsed.config);
-          setState({
-            ...INITIAL_MATCH_STATE,
-            ...parsed,
-            roundHistoryRed: Array.isArray(parsed.roundHistoryRed) ? parsed.roundHistoryRed : [],
-            roundHistoryBlue: Array.isArray(parsed.roundHistoryBlue) ? parsed.roundHistoryBlue : [],
-            events: Array.isArray(parsed.events) ? parsed.events : [],
+          // Stale-state guard (UI-AUDIT H1): listener remontando durante MATCH_END
+          // nao pode aceitar localStorage com lastUpdate antigo, senao sobrescreve
+          // estado fresco do BC e causa flicker pra placar pre-final.
+          const STALE_TTL_MS = 4 * 60 * 60 * 1000;
+          const persistedAt = typeof parsed.lastUpdate === 'number' ? parsed.lastUpdate : 0;
+          const tooStale = persistedAt && Date.now() - persistedAt > STALE_TTL_MS;
+          if (tooStale) {
+            // Skip hydration — BC/Realtime/polling will deliver fresh state.
+          } else {
+          // Hydration safety (UI-AUDIT H1): nunca resumir em RUNNING/MEDICAL no listener
+          // tambem — wall-clock delta seria errado e operador precisa retomar conscientemente.
+          const safeStatus = (parsed.status === 'RUNNING' || parsed.status === 'MEDICAL')
+            ? 'PAUSED' as const
+            : parsed.status;
+          setState(prev => {
+            // Anti-regression: se ja temos um snapshot mais novo (ex: BC chegou
+            // antes do mount completar), nao sobrescrever com localStorage antigo.
+            const incomingTs = persistedAt;
+            const prevTs = prev.lastUpdate ?? 0;
+            if (prevTs > 0 && incomingTs > 0 && incomingTs <= prevTs) return prev;
+            return {
+              ...INITIAL_MATCH_STATE,
+              ...parsed,
+              status: safeStatus ?? INITIAL_MATCH_STATE.status,
+              roundHistoryRed: Array.isArray(parsed.roundHistoryRed) ? parsed.roundHistoryRed : [],
+              roundHistoryBlue: Array.isArray(parsed.roundHistoryBlue) ? parsed.roundHistoryBlue : [],
+              events: Array.isArray(parsed.events) ? parsed.events : [],
+            };
           });
           setIsConnected(true);
+          } // end else (not stale)
         } catch { /* ignore */ }
       }
 
