@@ -75,14 +75,25 @@ export function UpdateNotification() {
 
   if (!window.electronAPI?.isElectron) return null;
 
-  // Badge persistente bottom-right (sempre visivel, expandivel)
+  // CRITICO: TV broadcast e visivel ao publico em ginasio. Operador NUNCA
+  // deveria ver controle de updater fora da estacao dele, e PIOR — nao
+  // pode aparecer no telao da arena. Detecta rota TV e remove a UI ali.
+  // Tambem nao renderiza em qualquer rota /tv ou janela frameless.
+  if (typeof window !== 'undefined') {
+    const hash = window.location.hash || '';
+    if (hash.includes('/championship/tv') || hash.includes('/tv')) return null;
+  }
+
+  // Badge persistente top-right (afastado dos botoes de scoring/gam-jeom
+  // que ficam nas bordas inferiores do OperatorPanel). z-index alto mas
+  // sem cobrir area ativa de luta.
   const isImportant = state.kind === 'available' || state.kind === 'downloaded' || state.kind === 'downloading';
 
   if (collapsed && !isImportant) {
     return (
       <button
         onClick={() => setCollapsed(false)}
-        className="fixed bottom-3 right-3 z-[9999] h-7 px-2.5 rounded-md bg-zinc-900/80 border border-zinc-700/60 text-[10px] text-zinc-400 hover:text-white hover:border-zinc-500 transition-colors flex items-center gap-1.5 backdrop-blur-sm"
+        className="fixed top-2 right-2 z-[60] h-6 px-2 rounded bg-zinc-900/70 border border-zinc-700/50 text-[10px] text-zinc-500 hover:text-white hover:border-zinc-500 transition-colors flex items-center gap-1.5 backdrop-blur-sm"
         title="Status de atualizacao"
       >
         {state.kind === 'checking' && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -95,7 +106,7 @@ export function UpdateNotification() {
   }
 
   return (
-    <div className="fixed bottom-3 right-3 z-[9999] bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl p-3 w-72 text-zinc-100">
+    <div className="fixed top-2 right-2 z-[60] bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl p-3 w-72 text-zinc-100">
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           {state.kind === 'checking' && <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />}
