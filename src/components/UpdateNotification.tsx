@@ -78,32 +78,22 @@ export function UpdateNotification() {
   // CRITICO: TV broadcast e visivel ao publico em ginasio. Operador NUNCA
   // deveria ver controle de updater fora da estacao dele, e PIOR — nao
   // pode aparecer no telao da arena. Detecta rota TV e remove a UI ali.
-  // Tambem nao renderiza em qualquer rota /tv ou janela frameless.
   if (typeof window !== 'undefined') {
     const hash = window.location.hash || '';
     if (hash.includes('/championship/tv') || hash.includes('/tv')) return null;
   }
 
-  // Badge persistente top-right (afastado dos botoes de scoring/gam-jeom
-  // que ficam nas bordas inferiores do OperatorPanel). z-index alto mas
-  // sem cobrir area ativa de luta.
+  // P3+P8: operador nao precisa de badge persistente cobrindo botoes do
+  // OperatorPanel (cantos sao usados pra scoring/gam-jeom/menus). UI so
+  // aparece quando ha ACAO REAL necessaria: update available, baixando,
+  // ou pronto pra instalar. Idle/checking/no-update/error sao silenciosos
+  // — pra check manual existe DevTools console (window.electronAPI.
+  // checkForUpdates) e o updater.log em userData/. Erro nao interrompe
+  // operador no meio de luta — fica so no log.
   const isImportant = state.kind === 'available' || state.kind === 'downloaded' || state.kind === 'downloading';
-
-  if (collapsed && !isImportant) {
-    return (
-      <button
-        onClick={() => setCollapsed(false)}
-        className="fixed top-2 right-2 z-[60] h-6 px-2 rounded bg-zinc-900/70 border border-zinc-700/50 text-[10px] text-zinc-500 hover:text-white hover:border-zinc-500 transition-colors flex items-center gap-1.5 backdrop-blur-sm"
-        title="Status de atualizacao"
-      >
-        {state.kind === 'checking' && <Loader2 className="h-3 w-3 animate-spin" />}
-        {state.kind === 'no-update' && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-        {state.kind === 'error' && <AlertTriangle className="h-3 w-3 text-amber-500" />}
-        {state.kind === 'idle' && <RefreshCw className="h-3 w-3" />}
-        <span className="font-mono">v{appVersion || '?'}</span>
-      </button>
-    );
-  }
+  if (!isImportant || collapsed) return null;
+  // (collapsed nunca e setado pra true em estados importantes a nao ser
+  // que o usuario clique X explicitamente — ai respeita.)
 
   return (
     <div className="fixed top-2 right-2 z-[60] bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl p-3 w-72 text-zinc-100">
