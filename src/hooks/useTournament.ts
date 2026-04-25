@@ -1,6 +1,6 @@
 // Tournament State Management Hook
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import type {
   Tournament,
   Category,
@@ -34,12 +34,22 @@ function saveTournament(tournament: Tournament | null) {
 }
 
 export function useTournament() {
-  const [tournament, setTournament] = useState<Tournament | null>(loadTournament);
+  const [tournamentState, setTournamentInternal] = useState<Tournament | null>(loadTournament);
 
-  // Persist on every change
-  useEffect(() => {
-    saveTournament(tournament);
-  }, [tournament]);
+  // Synchronous persist: write through inside the setter so localStorage is updated
+  // BEFORE React commits the state change. Prevents bracket corruption if the app
+  // crashes (Electron force-close, browser kill) between setState and effect flush.
+  const setTournament = useCallback<typeof setTournamentInternal>((updater) => {
+    setTournamentInternal(prev => {
+      const next = typeof updater === 'function'
+        ? (updater as (p: Tournament | null) => Tournament | null)(prev)
+        : updater;
+      try { saveTournament(next); } catch (e) { /* localStorage quota / private mode — non-fatal */ }
+      return next;
+    });
+  }, []);
+
+  const tournament = tournamentState;
 
   const createTournament = useCallback((name: string, date: string, location?: string) => {
     const t: Tournament = {
@@ -139,13 +149,14 @@ export function useTournament() {
       const cat = prev.categories.find(c => c.id === categoryId);
       if (!cat || cat.athletes.length < 2) return prev;
 
-      const bracket = generateBracket(cat.athletes, categoryId, prev.globalMatchCounter);
+      const seed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF)) >>> 0;
+      const bracket = generateBracket(cat.athletes, categoryId, prev.globalMatchCounter, seed);
 
       return {
         ...prev,
         globalMatchCounter: prev.globalMatchCounter + bracket.length,
         categories: prev.categories.map(c =>
-          c.id === categoryId ? { ...c, bracket } : c
+          c.id === categoryId ? { ...c, bracket, bracketSeed: seed } : c
         ),
       };
     });
@@ -157,9 +168,10 @@ export function useTournament() {
       let counter = 1;
       const updatedCategories = prev.categories.map(cat => {
         if (cat.athletes.length < 2) return cat;
-        const bracket = generateBracket(cat.athletes, cat.id, counter);
+        const seed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF)) >>> 0;
+        const bracket = generateBracket(cat.athletes, cat.id, counter, seed);
         counter += bracket.length;
-        return { ...cat, bracket };
+        return { ...cat, bracket, bracketSeed: seed };
       });
       return { ...prev, categories: updatedCategories, globalMatchCounter: counter };
     });

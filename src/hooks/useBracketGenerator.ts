@@ -2,10 +2,24 @@
 
 import type { Athlete, BracketMatch } from '@/types/tournament';
 
-function shuffleArray<T>(array: T[]): T[] {
+// Mulberry32 — small, fast, seedable PRNG. Same seed produces same sequence,
+// which lets us reproduce the original draw for audit/dispute resolution.
+function mulberry32(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleArray<T>(array: T[], seed?: number): T[] {
   const shuffled = [...array];
+  const rng = typeof seed === 'number' ? mulberry32(seed) : Math.random;
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
@@ -48,12 +62,13 @@ export function generateBracket(
   athletes: Athlete[],
   categoryId: string,
   startMatchNumber: number,
+  seed?: number,
 ): BracketMatch[] {
   if (athletes.length < 2) return [];
 
   const totalSlots = nextPowerOf2(athletes.length);
   const totalRounds = Math.log2(totalSlots);
-  const shuffled = shuffleArray(athletes);
+  const shuffled = shuffleArray(athletes, seed);
 
   const matches: BracketMatch[] = [];
   let matchCounter = startMatchNumber;

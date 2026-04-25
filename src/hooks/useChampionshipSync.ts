@@ -103,10 +103,22 @@ export function useChampionshipSync({
           const parsed = JSON.parse(stored) as Partial<MatchState>;
           // Migrate config aninhado (WT ruleset, pre-v1.5.0 sem rulesetVersion).
           if (parsed?.config) parsed.config = migrateMatchConfig(parsed.config);
+          // Stale-state guard: if persisted state is older than 4h, discard (likely abandoned match).
+          const STALE_TTL_MS = 4 * 60 * 60 * 1000;
+          const persistedAt = typeof parsed.lastUpdate === 'number' ? parsed.lastUpdate : 0;
+          if (persistedAt && Date.now() - persistedAt > STALE_TTL_MS) {
+            return INITIAL_MATCH_STATE;
+          }
+          // Hydration safety: never resume in RUNNING or MEDICAL — wall-clock delta during downtime
+          // would be wrong, and operator must consciously resume after reload. Force PAUSED.
+          const safeStatus = (parsed.status === 'RUNNING' || parsed.status === 'MEDICAL')
+            ? 'PAUSED' as const
+            : parsed.status;
           // Migrate: older builds didn't persist roundHistoryRed/Blue.
           return {
             ...INITIAL_MATCH_STATE,
             ...parsed,
+            status: safeStatus ?? INITIAL_MATCH_STATE.status,
             roundHistoryRed: Array.isArray(parsed.roundHistoryRed) ? parsed.roundHistoryRed : [],
             roundHistoryBlue: Array.isArray(parsed.roundHistoryBlue) ? parsed.roundHistoryBlue : [],
             events: Array.isArray(parsed.events) ? parsed.events : [],
@@ -212,21 +224,37 @@ export function useChampionshipSync({
     return () => clearInterval(heartbeat);
   }, [role]);
 
-  // HTTP polling fallback: master pushes initial state on mount, cleans up on unmount
+  // HTTP polling fallback: master pushes initial state on mount.
+  // We DO NOT delete the row on unmount — late-joining spectators would lose access,
+  // and transient remounts (HMR, route change, modal nav) would wipe live data.
+  // The row is overwritten by the next active master or expires by table TTL policy.
   useEffect(() => {
     if (role !== 'master' || !academyId) return;
-    // Initial state push
-    supabase.from('live_scores').upsert({
-      academy_id: academyId,
-      mat_id: matId,
-      state: stateRef.current,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'academy_id,mat_id' });
-
-    return () => {
-      // Clean up on unmount
-      supabase.from('live_scores').delete().eq('academy_id', academyId).eq('mat_id', matId);
-    };
+    // Read-modify-write: only push initial state if no fresher row exists.
+    // Prevents a reload-mid-match from overwriting the live row with a stale snapshot.
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('live_scores')
+          .select('state, updated_at')
+          .eq('academy_id', academyId)
+          .eq('mat_id', matId)
+          .single();
+        const existing = data?.state as Partial<MatchState> | undefined;
+        const existingUpdate = typeof existing?.lastUpdate === 'number' ? existing.lastUpdate : 0;
+        const localUpdate = stateRef.current.lastUpdate ?? 0;
+        if (existingUpdate > localUpdate) {
+          // Remote is fresher — don't overwrite. Master will start broadcasting from current state anyway.
+          return;
+        }
+      } catch { /* row missing is fine */ }
+      supabase.from('live_scores').upsert({
+        academy_id: academyId,
+        mat_id: matId,
+        state: stateRef.current,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'academy_id,mat_id' });
+    })();
   }, [role, matId, academyId]);
 
   // Track if BroadcastChannel is actively receiving data (same-device sync)
@@ -398,11 +426,14 @@ export function useChampionshipSync({
     }
   }, [role, matId]);
 
-  // HTTP polling fallback: independent 500ms upsert to live_scores (always runs, not tied to broadcast throttle)
+  // HTTP polling fallback: independent 500ms upsert to live_scores (only during active match)
   useEffect(() => {
     if (role !== 'master' || !academyId) return;
     const interval = setInterval(() => {
       const current = stateRef.current;
+      // Skip upsert when match is idle/ended — saves bandwidth and avoids overwriting
+      // a fresher row with stale "ended" state if a new master takes over the mat.
+      if (current.status === 'IDLE' || current.status === 'MATCH_END') return;
       const payload = { ...current, events: current.events.slice(0, 100), lastUpdate: Date.now() };
       supabase.from('live_scores').upsert({
         academy_id: academyId,
@@ -520,17 +551,19 @@ export function useChampionshipSync({
     };
   }, []);
   
-  // Timer logic — uses Date.now() delta to avoid setInterval drift
+  // Timer logic — uses performance.now() delta (monotonic, immune to OS clock jumps from NTP/RTC)
   useEffect(() => {
     if (role !== 'master') return;
     if (state.status !== 'RUNNING' && state.status !== 'MEDICAL') return;
 
-    // Anchor the timer refs each time the timer (re)starts
-    timerStartRef.current = Date.now();
+    // Anchor the timer refs each time the timer (re)starts.
+    // performance.now() is monotonic and unaffected by wall-clock changes.
+    timerStartRef.current = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     timerStartValueRef.current = state.timeLeftMs;
 
     timerRef.current = setInterval(() => {
-      const elapsed = Date.now() - timerStartRef.current;
+      const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      const elapsed = Math.max(0, nowMs - timerStartRef.current);
       const newTime = Math.max(0, timerStartValueRef.current - elapsed);
       const current = stateRef.current;
 
@@ -589,7 +622,7 @@ export function useChampionshipSync({
     if (role !== 'master') return;
     if (!state.isBreakTime || state.status !== 'ROUND_END') return;
 
-    breakTimerStartRef.current = Date.now();
+    breakTimerStartRef.current = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     breakTimerStartValueRef.current = state.breakTimeLeftMs || 0;
 
     breakTimerRef.current = setInterval(() => {
@@ -599,7 +632,8 @@ export function useChampionshipSync({
       const current = stateRef.current;
       if (!current.isBreakTime || current.status === 'MATCH_END') return;
 
-      const elapsed = Date.now() - breakTimerStartRef.current;
+      const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      const elapsed = Math.max(0, nowMs - breakTimerStartRef.current);
       const newTime = Math.max(0, breakTimerStartValueRef.current - elapsed);
 
       setState(prev => {

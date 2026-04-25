@@ -528,8 +528,11 @@ export function useSerialPort({
 
   // Handle port disconnect event
   useEffect(() => {
-    if (!portRef.current) return;
-    
+    // Capture the current port locally so cleanup operates on the SAME port that
+    // the listener was attached to — even if portRef has since been reassigned.
+    const port = portRef.current;
+    if (!port) return;
+
     const handleDisconnect = () => {
       logger.log('[Serial] ⚡ Physical disconnect detected, resetting state...');
       // CRITICAL: reset reading flag so startReading() works on reconnect
@@ -545,11 +548,11 @@ export function useSerialPort({
       equipmentRef.current = createInitialEquipment();
       setEquipmentVersion(v => v + 1);
     };
-    
-    portRef.current.addEventListener('disconnect', handleDisconnect);
-    
+
+    port.addEventListener('disconnect', handleDisconnect);
+
     return () => {
-      portRef.current?.removeEventListener('disconnect', handleDisconnect);
+      try { port.removeEventListener('disconnect', handleDisconnect); } catch { /* port may be gone */ }
     };
   }, [isConnected]);
 

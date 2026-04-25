@@ -35,6 +35,8 @@ export interface Category {
   athletes: Athlete[];
   bracket: BracketMatch[];
   status: CategoryStatus;
+  /** Seed used to generate the bracket — enables reproducing the original draw for audits/disputes. */
+  bracketSeed?: number;
 }
 
 export interface Tournament {
