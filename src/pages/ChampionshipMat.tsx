@@ -695,9 +695,19 @@ function ChampionshipMatInner() {
     );
   }, [tournamentHook, sync.state.roundWinsRed, sync.state.roundWinsBlue]);
 
+  // Decisao por superioridade so eh WT-mandatoria quando o empate ocorre no
+  // ultimo round configurado E os roundWins ja estao empatados (caso contrario
+  // sobra desempate possivel via proximos rounds). Empates em rounds
+  // intermediarios fluem pro break + proximo round normalmente — caso
+  // contrario, com maxRounds=1, um empate em round 1 forcava decisao e
+  // encerrava a luta no primeiro click.
+  const isFinalRoundTied =
+    sync.state.round >= sync.state.config.maxRounds &&
+    sync.state.roundWinsRed === sync.state.roundWinsBlue;
   const isTie = sync.state.status === 'ROUND_END' &&
                 sync.state.roundScoreRed === sync.state.roundScoreBlue &&
-                sync.state.hitsRed === sync.state.hitsBlue;
+                sync.state.hitsRed === sync.state.hitsBlue &&
+                isFinalRoundTied;
   
   return (
     <div className="h-screen flex bg-wt-bg font-display">
