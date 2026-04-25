@@ -288,6 +288,32 @@ export function useTournament() {
     });
   }, []);
 
+  // Reverter resultado de luta (cascade reset descendentes), sem advance.
+  // UI-AUDIT R7-H2: usado quando operador faz undo apos MATCH_END — placar
+  // volta ao estado pre-final mas o bracket continuava com winner gravado.
+  // Cascade reset garante que vencedor ja avancado seja removido das proximas.
+  const revertMatchResult = useCallback((categoryId: string, matchId: string) => {
+    setTournament(prev => {
+      if (!prev) return prev;
+      const updatedCategories = prev.categories.map(cat => {
+        if (cat.id !== categoryId) return cat;
+        const reset = resetMatchAndDescendants(cat.bracket, matchId);
+        return {
+          ...cat,
+          bracket: reset,
+          status: 'IN_PROGRESS' as const,
+        };
+      });
+      return {
+        ...prev,
+        categories: updatedCategories,
+        currentCategoryId: categoryId,
+        currentMatchId: matchId,
+        status: 'IN_PROGRESS' as const,
+      };
+    });
+  }, []);
+
   const deleteTournament = useCallback(() => {
     setTournament(null);
   }, []);
@@ -374,6 +400,7 @@ export function useTournament() {
     startTournament,
     recordMatchResult,
     overrideMatchWinner,
+    revertMatchResult,
     deleteTournament,
     getCurrentMatch,
     getTotalMatches,

@@ -1103,7 +1103,9 @@ export function useChampionshipSync({
     const preset = WT_RULESET_PRESETS[s.config.rulesetVersion];
     const bonus = preset?.gamjeomPassivityBonus ?? 1;
     const windowMs = preset?.gamjeomPassivityWindowMs ?? 10_000;
-    const inPassivityWindow = s.timeLeftMs > 0 && s.timeLeftMs <= windowMs;
+    // UI-AUDIT R7-H3: durante MEDICAL, timeLeftMs reflete medicalTimeMs (nao o
+    // tempo do round) — janela de passividade so vale com timer do round real.
+    const inPassivityWindow = !s.isMedicalTime && s.timeLeftMs > 0 && s.timeLeftMs <= windowMs;
     const applyBonus = reason === 'PASSIVITY' && bonus === 2 && inPassivityWindow;
     const pointsToOpponent = applyBonus ? 2 : 1;
 
@@ -1308,18 +1310,44 @@ export function useChampionshipSync({
   }, [role, history, broadcast]);
   
   // Save config
+  // UI-AUDIT R7-H7: nao apaga placar/eventos se luta esta em andamento.
+  // Operador pode abrir MatchConfigDialog em PAUSED (intervalo medico, pos-gamjeom)
+  // — salvar config nao pode zerar pontuacao silenciosamente.
+  // Reset total so quando IDLE (pre-luta) ou MATCH_END (luta finalizada).
   const saveConfig = useCallback((config: MatchConfig) => {
     if (role !== 'master') return;
-    
+
     localStorage.setItem(getConfigStorageKey(config.matId), JSON.stringify(config));
-    
+
+    const live = stateRef.current;
+    const inActiveMatch = live.status !== 'IDLE' && live.status !== 'MATCH_END';
+
+    if (inActiveMatch) {
+      // Preserva estado da luta — so atualiza config + ajusta timer se nao esta rodando.
+      setState(prev => {
+        const newState: MatchState = {
+          ...prev,
+          config,
+          hasConfig: true,
+          // Se em PAUSED/ROUND_END/MEDICAL, ajusta timeLeftMs ao novo roundTimeMs
+          // apenas se o tempo atual eh exatamente o roundTimeMs antigo (default).
+          timeLeftMs: prev.timeLeftMs === prev.config.roundTimeMs
+            ? config.roundTimeMs
+            : prev.timeLeftMs,
+        };
+        broadcast(newState, true);
+        return newState;
+      });
+      return;
+    }
+
     const newState: MatchState = {
       ...INITIAL_MATCH_STATE,
       config,
       hasConfig: true,
       timeLeftMs: config.roundTimeMs,
     };
-    
+
     setState(newState);
     setHistory([]);
     broadcast(newState, true);

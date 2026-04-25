@@ -119,6 +119,11 @@ function ChampionshipMatInner() {
   const tournamentHook = useTournament();
   const hasTournament = !isBasicMode && tournamentHook.tournament?.status === 'IN_PROGRESS';
   const matchResultRecordedRef = useRef(false);
+  // UI-AUDIT R7-H1: trava identidade da luta no momento que sai de IDLE.
+  // Tournament em outra janela pode mudar currentMatchId/currentCategoryId mid-fight
+  // (via overrideMatchWinner ou advance automatico de outra mat). Sem trava, o
+  // resultado vai pro slot errado do bracket — bug de medalha.
+  const lockedMatchIdRef = useRef<{ categoryId: string; matchId: string } | null>(null);
 
   // Category label pro subtítulo do operador em modo competição
   // Formato: "SENIOR M -68kg PRETA" (ageGroup + gender + weight + belt).
@@ -475,17 +480,49 @@ function ChampionshipMatInner() {
       toast.success('Luta registrada!');
     }
 
-    // Reset recording flag when starting a new match
-    if (curr === 'IDLE' || curr === 'RUNNING') {
+    // UI-AUDIT R7-H1: trava identidade ao SAIR de IDLE pra RUNNING (start oficial).
+    // A primeira transicao IDLE->RUNNING captura categoryId/matchId vigentes no
+    // tournament — usados depois no MATCH_END pra gravar no slot certo, mesmo
+    // que tournament mude em outra janela mid-fight.
+    if (prev === 'IDLE' && curr === 'RUNNING' && hasTournament) {
+      const t = tournamentHook.tournament;
+      if (t?.currentCategoryId && t?.currentMatchId) {
+        lockedMatchIdRef.current = {
+          categoryId: t.currentCategoryId,
+          matchId: t.currentMatchId,
+        };
+      }
+    }
+
+    // UI-AUDIT R7-H2: undo apos MATCH_END (ja gravado no bracket) requer
+    // cascade reset pra remover vencedor ja avancado pras proximas lutas.
+    if (prev === 'MATCH_END' && curr !== 'MATCH_END' && matchResultRecordedRef.current) {
+      const locked = lockedMatchIdRef.current;
+      if (locked) {
+        tournamentHook.revertMatchResult(locked.categoryId, locked.matchId);
+      }
       matchResultRecordedRef.current = false;
     }
-  }, [sync.state.status, play]);
+
+    // Reset recording flag and lock when starting a new match (IDLE = pre-luta).
+    if (curr === 'IDLE') {
+      matchResultRecordedRef.current = false;
+      lockedMatchIdRef.current = null;
+    }
+  }, [sync.state.status, play, hasTournament, tournamentHook]);
 
   // ─── Tournament: auto-record match result on MATCH_END ───
   useEffect(() => {
     if (sync.state.status !== 'MATCH_END') return;
     if (!hasTournament || matchResultRecordedRef.current) return;
-    if (!tournamentHook.tournament?.currentCategoryId || !tournamentHook.tournament?.currentMatchId) return;
+
+    // UI-AUDIT R7-H1: usa identidade travada no inicio da luta, NAO o tournament live.
+    // Se o usuario nunca chegou a iniciar (MATCH_END sem ter passado por RUNNING),
+    // fallback pro tournament atual — caso raro de luta declarada por desistencia.
+    const locked = lockedMatchIdRef.current;
+    const categoryId = locked?.categoryId ?? tournamentHook.tournament?.currentCategoryId;
+    const matchId = locked?.matchId ?? tournamentHook.tournament?.currentMatchId;
+    if (!categoryId || !matchId) return;
 
     // Derive winner from event log first (captures POINT_GAP, GAMJEOM_LIMIT, REFEREE_DECISION, etc.)
     // Falls back to roundWins comparison; if still tied, abort recording (operator must resolve manually)
@@ -500,15 +537,11 @@ function ChampionshipMatInner() {
       console.warn('[ChampionshipMat] MATCH_END without resolvable winner; skipping bracket record.');
       return;
     }
-    tournamentHook.recordMatchResult(
-      tournamentHook.tournament.currentCategoryId,
-      tournamentHook.tournament.currentMatchId,
-      winnerSide,
-    );
+    tournamentHook.recordMatchResult(categoryId, matchId, winnerSide);
     matchResultRecordedRef.current = true;
 
     // Broadcast bracket view to TV
-    sync.broadcastRaw({ type: 'SHOW_BRACKET', payload: { categoryId: tournamentHook.tournament.currentCategoryId } });
+    sync.broadcastRaw({ type: 'SHOW_BRACKET', payload: { categoryId } });
   }, [sync.state.status, hasTournament, tournamentHook, sync]);
   
   // ─── Keyboard shortcuts ───
