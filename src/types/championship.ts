@@ -151,7 +151,7 @@ export interface MatchEvent {
   type: ScoreType | 'UNDO' | 'TIMER_START' | 'TIMER_PAUSE' | 'TIMER_RESET' |
         'MEDICAL_START' | 'MEDICAL_END' | 'ROUND_END' | 'ROUND_WIN' |
         'MATCH_END' | 'POINT_GAP' | 'GAMJEOM_LIMIT' | 'ADJUST' | 'GOLDEN_ROUND' | 'BREAK_TIME' |
-        'SIDES_REVERSED';
+        'SIDES_REVERSED' | 'MATCH_RESET';
   side?: MatchSide;
   points?: number;
   ts: number;

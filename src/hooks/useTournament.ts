@@ -148,6 +148,12 @@ export function useTournament() {
       if (!prev) return prev;
       const cat = prev.categories.find(c => c.id === categoryId);
       if (!cat || cat.athletes.length < 2) return prev;
+      // Refuse to regenerate a bracket that is already in progress or finished.
+      // Doing so would orphan currentMatchId references and erase recorded results.
+      if (cat.status === 'IN_PROGRESS' || cat.status === 'FINISHED') {
+        console.warn('[useTournament] Refusing to regenerate bracket for category', cat.id, 'status:', cat.status);
+        return prev;
+      }
 
       const seed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF)) >>> 0;
       const bracket = generateBracket(cat.athletes, categoryId, prev.globalMatchCounter, seed);
@@ -168,6 +174,11 @@ export function useTournament() {
       let counter = 1;
       const updatedCategories = prev.categories.map(cat => {
         if (cat.athletes.length < 2) return cat;
+        // Skip categories already in progress or finished — preserve their results.
+        if (cat.status === 'IN_PROGRESS' || cat.status === 'FINISHED') {
+          counter += cat.bracket.length;
+          return cat;
+        }
         const seed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF)) >>> 0;
         const bracket = generateBracket(cat.athletes, cat.id, counter, seed);
         counter += bracket.length;

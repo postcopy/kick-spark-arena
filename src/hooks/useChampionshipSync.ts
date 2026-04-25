@@ -982,20 +982,29 @@ export function useChampionshipSync({
   
   const resetMatch = useCallback(() => {
     if (role !== 'master') return;
-    
-    const config = state.config;
-    
+
+    const prev = stateRef.current;
+    const config = prev.config;
+
+    // Audit trail: capture pre-reset summary so reset is traceable even after history clear.
+    const resetSummary = `RESET — Round ${prev.round}, ` +
+      `Vermelho ${prev.roundScoreRed} (${prev.roundWinsRed}W) vs ` +
+      `Azul ${prev.roundScoreBlue} (${prev.roundWinsBlue}W), status ${prev.status}`;
+
     const newState: MatchState = {
       ...INITIAL_MATCH_STATE,
       config,
       hasConfig: true,
       timeLeftMs: config.roundTimeMs,
+      // Seed the new event log with the reset audit event so homologation auditors
+      // can see WHEN/WHAT was reset rather than a blank trail.
+      events: [createEvent('MATCH_RESET', resetSummary)],
     };
-    
+
     setState(newState);
     setHistory([]);
     broadcast(newState, true);
-  }, [role, state.config, broadcast]);
+  }, [role, broadcast]);
   
   // Scoring
   const addScore = useCallback((side: MatchSide, type: ScoreType) => {
@@ -1102,11 +1111,25 @@ export function useChampionshipSync({
     
     // Encontra o ultimo evento GAMJEOM positivo desse lado pra recuperar
     // pontos exatos atribuidos (1 normal vs 2 quando bonus passividade WT-2026-JUN).
-    // Decrementar fixo 1 ignorava o bonus +2 e deixava ponto fantasma no oponente.
-    const lastGamjeomEvent = live.events.find(
-      (e) => e.type === 'GAMJEOM' && e.side === side && (e.points ?? 0) > 0
-    );
-    const pointsToReverse = lastGamjeomEvent?.points ?? 1;
+    // IMPORTANTE: limita busca ao round atual — eventos sao newest-first, entao
+    // qualquer ROUND_END/GOLDEN_ROUND/MATCH_END/BREAK_TIME marca o limite. Sem isso,
+    // remover gamjeom no round 2 reverteria pontos do round 1 (zerado), e o bonus +2
+    // do round anterior sumiria silenciosamente.
+    const ROUND_BOUNDARY_TYPES: MatchEvent['type'][] = ['ROUND_END', 'GOLDEN_ROUND', 'MATCH_END', 'BREAK_TIME'];
+    let lastGamjeomEvent: MatchEvent | undefined;
+    for (const e of live.events) {
+      if (ROUND_BOUNDARY_TYPES.includes(e.type)) break;
+      if (e.type === 'GAMJEOM' && e.side === side && (e.points ?? 0) > 0) {
+        lastGamjeomEvent = e;
+        break;
+      }
+    }
+    if (!lastGamjeomEvent) {
+      // No GAMJEOM applied this round — refuse to decrement (would corrupt cross-round audit trail).
+      logger.warn('[removeGamjeom] No GAMJEOM event for', side, 'in current round; refusing to remove.');
+      return;
+    }
+    const pointsToReverse = lastGamjeomEvent.points ?? 1;
 
     setState(prev => {
       const newState: MatchState = {

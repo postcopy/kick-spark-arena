@@ -47,15 +47,21 @@ function parseLine(line: string): ParsedLine | null {
     .replace(/\r/g, '')
     .replace(/\x1b\[[0-9;]*m/g, '')
     .trim();
-  
+
   if (!LINE_REGEX.test(cleanLine)) return null;
-  
+
   const parts = cleanLine.split(',');
-  return {
-    intensity: parseInt(parts[0], 10),
-    deviceId: parseInt(parts[1], 10),
-    battery: parseInt(parts[2], 10),
-  };
+  const intensity = parseInt(parts[0], 10);
+  const deviceId = parseInt(parts[1], 10);
+  const battery = parseInt(parts[2], 10);
+
+  // Sanity bounds — protect against malformed/malicious packets that could pin every
+  // impact above any threshold (intensity is 8-bit on the receiver, deviceId 1-7 valid).
+  if (!Number.isFinite(intensity) || intensity < 0 || intensity > 255) return null;
+  if (!Number.isFinite(deviceId) || deviceId < 1 || deviceId > 7) return null;
+  if (!Number.isFinite(battery) || battery < 0 || battery > 100) return null;
+
+  return { intensity, deviceId, battery };
 }
 
 function getEquipmentType(id: number): EquipmentType {
