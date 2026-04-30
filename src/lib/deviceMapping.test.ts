@@ -18,12 +18,12 @@ describe('deviceMapping', () => {
       expect(deviceIdToKickingSide(2)).toBe('blue');
     });
 
-    it('device 3 (red helmet) means blue kicked', () => {
-      expect(deviceIdToKickingSide(3)).toBe('blue');
+    it('device 3 (blue helmet hit) means red kicked', () => {
+      expect(deviceIdToKickingSide(3)).toBe('red');
     });
 
-    it('device 4 (blue helmet) means red kicked', () => {
-      expect(deviceIdToKickingSide(4)).toBe('red');
+    it('device 4 (red helmet hit) means blue kicked', () => {
+      expect(deviceIdToKickingSide(4)).toBe('blue');
     });
 
     it('unknown device returns null', () => {
@@ -54,12 +54,12 @@ describe('deviceMapping', () => {
       expect(deviceIdToMatchSide(2)).toBe('BLUE');
     });
 
-    it('device 3 (red helmet) -> BLUE scores', () => {
-      expect(deviceIdToMatchSide(3)).toBe('BLUE');
+    it('device 3 (blue helmet hit) -> RED scores', () => {
+      expect(deviceIdToMatchSide(3)).toBe('RED');
     });
 
-    it('device 4 (blue helmet) -> RED scores', () => {
-      expect(deviceIdToMatchSide(4)).toBe('RED');
+    it('device 4 (red helmet hit) -> BLUE scores', () => {
+      expect(deviceIdToMatchSide(4)).toBe('BLUE');
     });
 
     it('unknown device returns null', () => {

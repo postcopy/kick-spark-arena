@@ -69,10 +69,8 @@ function getEquipmentType(id: number): EquipmentType {
 }
 
 function getEquipmentSide(id: number): 'red' | 'blue' {
-  // Vests: ID 1 = blue, ID 2 = red
-  // Helmets (inverted in EngFlex HW): ID 3 = red, ID 4 = blue
-  if (id === 3) return 'red';
-  if (id === 4) return 'blue';
+  // ID 1 = blue vest, 2 = red vest, 3 = blue helmet, 4 = red helmet.
+  // Odd IDs = blue equipment, even IDs = red equipment.
   return id % 2 === 1 ? 'blue' : 'red';
 }
 
@@ -84,8 +82,8 @@ function createInitialEquipment(): Map<EquipmentSlot, EquipmentState> {
   return new Map([
     [1, { id: 1, type: 'vest', side: 'blue', battery: null, lastSeen: null }],
     [2, { id: 2, type: 'vest', side: 'red', battery: null, lastSeen: null }],
-    [3, { id: 3, type: 'helmet', side: 'red', battery: null, lastSeen: null }],
-    [4, { id: 4, type: 'helmet', side: 'blue', battery: null, lastSeen: null }],
+    [3, { id: 3, type: 'helmet', side: 'blue', battery: null, lastSeen: null }],
+    [4, { id: 4, type: 'helmet', side: 'red', battery: null, lastSeen: null }],
   ]);
 }
 

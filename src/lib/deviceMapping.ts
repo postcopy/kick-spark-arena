@@ -6,15 +6,15 @@ import type { MatchSide } from '@/types/championship';
 
 /**
  * Maps the hit equipment's deviceId to the KICKING side (who scored).
- * ID 1 (blue vest) or ID 4 (red helmet) → Red kicked
- * ID 2 (red vest) or ID 3 (blue helmet) → Blue kicked
- * Note: Helmets have inverted IDs vs vests in EngFlex hardware
- *   ID 3 = helmet worn by RED athlete (red helmet)
- *   ID 4 = helmet worn by BLUE athlete (blue helmet)
+ * Per EngFlex spec (validated on hardware):
+ *   ID 1 = blue vest, ID 2 = red vest, ID 3 = blue helmet, ID 4 = red helmet
+ * The kicker is the OPPOSITE of who got hit:
+ *   ID 1 or ID 3 (blue equipment hit) → Red kicked
+ *   ID 2 or ID 4 (red equipment hit) → Blue kicked
  */
 export function deviceIdToKickingSide(deviceId: number): Side | null {
-  if (deviceId === 1 || deviceId === 4) return 'red';
-  if (deviceId === 2 || deviceId === 3) return 'blue';
+  if (deviceId === 1 || deviceId === 3) return 'red';
+  if (deviceId === 2 || deviceId === 4) return 'blue';
   return null;
 }
 
@@ -28,12 +28,14 @@ export function deviceIdToHitType(deviceId: number): HitType {
 
 /**
  * Maps deviceId to the championship MatchSide (who scores).
- * Vests: ID 1 (blue vest hit) → RED scores, ID 2 (red vest hit) → BLUE scores
- * Helmets (inverted in hardware): ID 3 (red helmet) → BLUE scores, ID 4 (blue helmet) → RED scores
+ * ID 1 (blue vest hit)   → RED scores
+ * ID 2 (red vest hit)    → BLUE scores
+ * ID 3 (blue helmet hit) → RED scores
+ * ID 4 (red helmet hit)  → BLUE scores
  */
 export function deviceIdToMatchSide(deviceId: number): MatchSide | null {
-  if (deviceId === 1 || deviceId === 4) return 'RED';
-  if (deviceId === 2 || deviceId === 3) return 'BLUE';
+  if (deviceId === 1 || deviceId === 3) return 'RED';
+  if (deviceId === 2 || deviceId === 4) return 'BLUE';
   return null;
 }
 

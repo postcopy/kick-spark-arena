@@ -37,8 +37,6 @@ function getEquipmentType(id: number): 'vest' | 'helmet' {
 }
 
 function getEquipmentSide(id: number): 'red' | 'blue' {
-  if (id === 3) return 'red';
-  if (id === 4) return 'blue';
   return id % 2 === 1 ? 'blue' : 'red';
 }
 
@@ -207,11 +205,11 @@ describe('useSerialPort - getEquipmentSide', () => {
     expect(getEquipmentSide(2)).toBe('red');
   });
 
-  it('maps ID 3 (helmet) to red (inverted in EngFlex HW)', () => {
-    expect(getEquipmentSide(3)).toBe('red');
+  it('maps ID 3 (blue helmet) to blue', () => {
+    expect(getEquipmentSide(3)).toBe('blue');
   });
 
-  it('maps ID 4 (helmet) to blue (inverted in EngFlex HW)', () => {
-    expect(getEquipmentSide(4)).toBe('blue');
+  it('maps ID 4 (red helmet) to red', () => {
+    expect(getEquipmentSide(4)).toBe('red');
   });
 });
