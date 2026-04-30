@@ -13,8 +13,8 @@ interface HardwarePanelProps {
 const EQUIPMENT_LABELS: Record<EquipmentSlot, { name: string; shortName: string; side: 'blue' | 'red' }> = {
   1: { name: 'Colete Azul', shortName: 'COL', side: 'blue' },
   2: { name: 'Colete Verm.', shortName: 'COL', side: 'red' },
-  3: { name: 'Capacete Verm.', shortName: 'CAP', side: 'red' },   // Helmets inverted in EngFlex HW
-  4: { name: 'Capacete Azul', shortName: 'CAP', side: 'blue' },   // Helmets inverted in EngFlex HW
+  3: { name: 'Capacete Azul', shortName: 'CAP', side: 'blue' },
+  4: { name: 'Capacete Verm.', shortName: 'CAP', side: 'red' },
 };
 
 function BatteryIcon({ level }: { level: number | null }) {

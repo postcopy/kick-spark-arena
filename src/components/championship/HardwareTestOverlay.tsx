@@ -54,12 +54,12 @@ interface EquipmentSlot {
   kind: Kind;
 }
 
-// Presentation order (prototype): blue-helmet → blue-vest → red-helmet → red-vest.
-// EngFlex hardware: helmets are inverted (blue helmet = device 4, red helmet = device 3).
+// Presentation order: blue-helmet → blue-vest → red-helmet → red-vest.
+// EngFlex IDs: 1=blue vest, 2=red vest, 3=blue helmet, 4=red helmet (odd=blue, even=red).
 const EQUIPMENT_ORDER: EquipmentSlot[] = [
-  { deviceId: 4, side: 'blue', kind: 'helmet' },
+  { deviceId: 3, side: 'blue', kind: 'helmet' },
   { deviceId: 1, side: 'blue', kind: 'vest' },
-  { deviceId: 3, side: 'red', kind: 'helmet' },
+  { deviceId: 4, side: 'red', kind: 'helmet' },
   { deviceId: 2, side: 'red', kind: 'vest' },
 ];
 
@@ -71,15 +71,15 @@ const EQUIPMENT_IMAGES = {
 const DEVICE_FRIENDLY_LABEL: Record<number, string> = {
   1: 'Colete do atleta azul',
   2: 'Colete do atleta vermelho',
-  3: 'Capacete do atleta vermelho',
-  4: 'Capacete do atleta azul',
+  3: 'Capacete do atleta azul',
+  4: 'Capacete do atleta vermelho',
 };
 
 // Keyboard 1-4 → deviceId (same order as EQUIPMENT_ORDER)
 const KEY_TO_DEVICE: Record<string, number> = {
-  '1': 4,
+  '1': 3,
   '2': 1,
-  '3': 3,
+  '3': 4,
   '4': 2,
 };
 
