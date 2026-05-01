@@ -106,6 +106,14 @@ export default function ChampionshipTV() {
   const [hwTestAthletes, setHwTestAthletes] = useState<{ blue?: string; red?: string }>({});
   const [hwTestHits, setHwTestHits] = useState<HardwareTestHit[]>([]);
 
+  // Result overlay sticky guard — abre quando status entra em MATCH_END,
+  // fecha SOMENTE em transição explícita pra IDLE/RUNNING (operador resetou
+  // ou começou nova luta). Status transitórios stale (ROUND_END, PAUSED,
+  // MEDICAL etc) entregues por race entre canais não fecham. Mesmo padrão
+  // do fix QuickMatchLayout (UI-AUDIT round 6 H2).
+  const [showResultOverlay, setShowResultOverlay] = useState(false);
+  const prevStatusRef = useRef<typeof state.status | null>(null);
+
   // Listen for typed messages (SHOW_BRACKET / SHOW_SCOREBOARD / HARDWARE_TEST) via BroadcastChannel (same device)
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return;
@@ -141,6 +149,20 @@ export default function ChampionshipTV() {
     if (state.status === 'RUNNING') {
       setTvMode('scoreboard');
     }
+  }, [state.status]);
+
+  // Sticky result overlay — abre em MATCH_END, fecha SÓ em IDLE/RUNNING
+  // (transição explícita do operador). Estados intermediários ou snapshots
+  // stale entre canais (BC/Realtime/polling) não fecham — evita flicker.
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    if (state.status === 'MATCH_END' && prev !== 'MATCH_END') {
+      setShowResultOverlay(true);
+    }
+    if (prev === 'MATCH_END' && (state.status === 'IDLE' || state.status === 'RUNNING')) {
+      setShowResultOverlay(false);
+    }
+    prevStatusRef.current = state.status;
   }, [state.status]);
   
   // ESC key handler removed — accidental ESC during a live event would close
@@ -489,8 +511,8 @@ export default function ChampionshipTV() {
         })()}
       </div>
       
-      {/* TELA DE VITÓRIA - Fullscreen quando MATCH_END */}
-      {isMatchEnd && (() => {
+      {/* TELA DE VITÓRIA - Sticky até operador resetar (IDLE/RUNNING) */}
+      {showResultOverlay && (() => {
         // Calculate stats first to get total points
         const stats = calculateMatchStats(state.events);
         
@@ -560,272 +582,318 @@ export default function ChampionshipTV() {
         ];
         
         return (
-          <div className="absolute inset-0 bg-wt-bg flex flex-col items-center justify-center z-50 animate-in fade-in duration-300 overflow-auto py-6 font-display">
-            <div className="relative z-10 flex flex-col items-center max-w-[92vw] w-full">
-              {/* Header: MATCH 001 RESULT */}
-              <div className="text-center mb-6 border-b border-wt-divider pb-4 w-full max-w-[900px]">
-                <div className="text-[11px] font-bold uppercase tracking-[0.45em] text-wt-fg-muted mb-2">
-                  Resultado
+          <div
+            className="absolute inset-0 z-50 animate-in fade-in duration-500 overflow-auto font-display flex flex-col"
+            style={{
+              background: isBlueWinner
+                ? 'radial-gradient(ellipse at center 38%, hsl(var(--chung)) 0%, hsl(var(--chung-bg)) 55%, #050511 100%)'
+                : isRedWinner
+                ? 'radial-gradient(ellipse at center 38%, hsl(var(--hong)) 0%, hsl(var(--hong-bg)) 55%, #050511 100%)'
+                : 'radial-gradient(ellipse at center 38%, #5C4500 0%, #1A1308 55%, #050511 100%)',
+            }}
+          >
+            {/* HEADER */}
+            <header className="h-16 px-10 flex items-center justify-between border-b border-white/10 shrink-0 bg-black/40 backdrop-blur-sm z-10">
+              <div className="flex items-center gap-5">
+                <img src={logoSpe} alt="SPE" className="h-5 opacity-90" draggable={false} />
+                <div className="h-3 w-px bg-white/20" />
+                <div className="font-mono font-bold tracking-[0.3em] text-white/85 uppercase text-[13px]">
+                  Resultado · Luta {String(state.config.matchNumber || 1).padStart(3, '0')}
                 </div>
-                <h1
-                  className="font-black text-wt-fg-primary uppercase tracking-tight leading-none tabular-nums"
-                  style={{ fontSize: 'clamp(1.75rem, 4.5vw, 4rem)' }}
-                >
-                  LUTA {String(state.config.matchNumber || 1).padStart(3, '0')}
-                </h1>
               </div>
+              <div className="font-mono font-bold tracking-[0.25em] text-white/55 uppercase text-[11px]">
+                {state.config.maxRounds || 3} rounds · sistema WT
+              </div>
+            </header>
 
-              {/* Faixa VENCEDOR/EMPATE + Placar Final */}
-              <div className="flex items-stretch mb-5 gap-[2px]">
-                {/* VENCEDOR / EMPATE — faixa com stripe superior */}
+            {/* HERO: Vencedor / Empate */}
+            <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-8 py-8 relative z-10">
+              {/* Faixa VENCEDOR / EMPATE */}
+              <div className="mb-7 flex items-center gap-5">
                 <div
                   className={cn(
-                    'relative px-7 py-4 flex items-center bg-wt-bg-secondary border border-wt-divider',
+                    'h-px',
+                    isBlueWinner && 'bg-chung-accent',
+                    isRedWinner && 'bg-hong-accent',
+                    isTie && 'bg-amber-400',
                   )}
+                  style={{ width: 'clamp(40px, 8vw, 140px)' }}
+                />
+                <span
+                  className={cn(
+                    'font-black uppercase tabular-nums',
+                    isBlueWinner && 'text-chung-accent',
+                    isRedWinner && 'text-hong-accent',
+                    isTie && 'text-amber-400',
+                  )}
+                  style={{
+                    fontSize: 'clamp(1.75rem, 3.2vw, 3rem)',
+                    letterSpacing: '0.4em',
+                    textShadow: isBlueWinner
+                      ? '0 0 40px rgba(51, 153, 255, 0.7)'
+                      : isRedWinner
+                      ? '0 0 40px rgba(255, 51, 51, 0.7)'
+                      : '0 0 40px rgba(250, 204, 21, 0.7)',
+                  }}
                 >
-                  <div
-                    className={cn(
-                      'absolute top-0 left-0 right-0 h-[2px]',
-                      isTie && 'bg-wt-manual',
-                      isBlueWinner && 'bg-chung',
-                      isRedWinner && 'bg-hong',
-                    )}
-                  />
+                  {isTie ? 'Empate' : 'Vencedor'}
+                </span>
+                <div
+                  className={cn(
+                    'h-px',
+                    isBlueWinner && 'bg-chung-accent',
+                    isRedWinner && 'bg-hong-accent',
+                    isTie && 'bg-amber-400',
+                  )}
+                  style={{ width: 'clamp(40px, 8vw, 140px)' }}
+                />
+              </div>
+
+              {/* Bandeira (vencedor com país conhecido) */}
+              {!isTie && flagDisplay && (
+                <div
+                  className="mb-3 leading-none"
+                  style={{
+                    fontSize: 'clamp(3rem, 7vw, 6rem)',
+                    filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.6))',
+                  }}
+                >
+                  {flagDisplay}
+                </div>
+              )}
+
+              {/* Nome do vencedor (ou empate dual) */}
+              {!isTie ? (
+                <div
+                  className="font-black uppercase text-white text-center leading-[0.88] max-w-[90vw]"
+                  style={{
+                    fontSize: 'clamp(4rem, 13vw, 13rem)',
+                    letterSpacing: '-0.025em',
+                    textShadow: isBlueWinner
+                      ? '0 6px 40px rgba(0,0,0,0.85), 0 0 70px rgba(51,153,255,0.45)'
+                      : '0 6px 40px rgba(0,0,0,0.85), 0 0 70px rgba(255,51,51,0.45)',
+                  }}
+                >
+                  {winnerName}
+                </div>
+              ) : (
+                <div className="flex items-center gap-7 mb-2 max-w-[92vw] flex-wrap justify-center">
                   <span
-                    className={cn(
-                      'font-black uppercase tracking-[0.25em]',
-                      isTie && 'text-wt-manual',
-                      isBlueWinner && 'text-chung-accent',
-                      isRedWinner && 'text-hong-accent',
-                    )}
-                    style={{ fontSize: 'clamp(1rem, 2vw, 1.75rem)' }}
+                    className="font-black text-chung-accent uppercase leading-none"
+                    style={{ fontSize: 'clamp(2.5rem, 8vw, 7rem)' }}
                   >
-                    {isTie ? 'Empate' : 'Vencedor'}
+                    {state.config.athleteBlue?.name || 'CHUNG'}
+                  </span>
+                  <span
+                    className="text-white/45 font-bold uppercase tracking-[0.4em]"
+                    style={{ fontSize: 'clamp(1rem, 2vw, 2rem)' }}
+                  >
+                    vs
+                  </span>
+                  <span
+                    className="font-black text-hong-accent uppercase leading-none"
+                    style={{ fontSize: 'clamp(2.5rem, 8vw, 7rem)' }}
+                  >
+                    {state.config.athleteRed?.name || 'HONG'}
                   </span>
                 </div>
+              )}
 
-                {/* Placar final CHUNG */}
-                <div className="bg-wt-bg-secondary border border-wt-divider border-l-0 px-6 py-4 flex flex-col items-center justify-center min-w-[90px]">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-chung-accent mb-1">
-                    Chung
+              {/* País (sem bandeira mas com código) */}
+              {!isTie && winnerCountry && !flagDisplay && (
+                <div
+                  className="mt-3 font-mono font-bold tracking-[0.35em] text-white/75 uppercase"
+                  style={{ fontSize: 'clamp(0.875rem, 1.4vw, 1.25rem)' }}
+                >
+                  {winnerCountry}
+                </div>
+              )}
+
+              {/* Placar final — destacado, lado vencedor em branco, perdedor desbotado */}
+              <div className="mt-9 flex items-end gap-8 sm:gap-14">
+                <div className="flex flex-col items-center">
+                  <span
+                    className="font-mono font-black tracking-[0.4em] text-chung-accent uppercase mb-2"
+                    style={{ fontSize: 'clamp(0.7rem, 1.1vw, 1rem)' }}
+                  >
+                    CHUNG
                   </span>
                   <span
-                    className="font-black text-wt-fg-primary tabular-nums leading-none"
-                    style={{ fontSize: 'clamp(1.75rem, 3.5vw, 3rem)' }}
+                    className={cn(
+                      'font-black tabular-nums leading-none',
+                      isBlueWinner ? 'text-white' : isTie ? 'text-white/75' : 'text-white/45',
+                    )}
+                    style={{
+                      fontSize: 'clamp(4.5rem, 11vw, 11rem)',
+                      letterSpacing: '-0.04em',
+                      textShadow: isBlueWinner ? '0 4px 30px rgba(0,0,0,0.65)' : 'none',
+                    }}
                   >
                     {stats.blue.totalPoints}
                   </span>
                 </div>
 
-                {/* Placar final HONG */}
-                <div className="bg-wt-bg-secondary border border-wt-divider border-l-0 px-6 py-4 flex flex-col items-center justify-center min-w-[90px]">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-hong-accent mb-1">
-                    Hong
+                <div
+                  className="font-black text-white/35 leading-none pb-3"
+                  style={{ fontSize: 'clamp(2rem, 5vw, 5rem)' }}
+                >
+                  ·
+                </div>
+
+                <div className="flex flex-col items-center">
+                  <span
+                    className="font-mono font-black tracking-[0.4em] text-hong-accent uppercase mb-2"
+                    style={{ fontSize: 'clamp(0.7rem, 1.1vw, 1rem)' }}
+                  >
+                    HONG
                   </span>
                   <span
-                    className="font-black text-wt-fg-primary tabular-nums leading-none"
-                    style={{ fontSize: 'clamp(1.75rem, 3.5vw, 3rem)' }}
+                    className={cn(
+                      'font-black tabular-nums leading-none',
+                      isRedWinner ? 'text-white' : isTie ? 'text-white/75' : 'text-white/45',
+                    )}
+                    style={{
+                      fontSize: 'clamp(4.5rem, 11vw, 11rem)',
+                      letterSpacing: '-0.04em',
+                      textShadow: isRedWinner ? '0 4px 30px rgba(0,0,0,0.65)' : 'none',
+                    }}
                   >
                     {stats.red.totalPoints}
                   </span>
                 </div>
               </div>
+            </div>
 
-              {/* Rounds ganhos */}
-              <div className="flex items-center gap-4 mb-6">
-                <span
-                  className="uppercase tracking-[0.35em] text-wt-fg-muted font-bold"
-                  style={{ fontSize: 'clamp(0.625rem, 1vw, 0.75rem)' }}
-                >
-                  Rounds
-                </span>
-                <span
-                  className="font-black text-chung-accent tabular-nums"
-                  style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
-                >
-                  {state.roundWinsBlue}
-                </span>
-                <span className="text-wt-fg-muted font-bold">×</span>
-                <span
-                  className="font-black text-hong-accent tabular-nums"
-                  style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
-                >
-                  {state.roundWinsRed}
-                </span>
-              </div>
-
-              {/* Nome do Vencedor (ou ambos em empate) */}
-              {!isTie ? (
-                <div className="flex items-stretch mb-8">
-                  {flagDisplay && (
-                    <div className="bg-wt-bg-tertiary border border-wt-divider px-5 flex items-center justify-center">
-                      <span style={{ fontSize: 'clamp(1.5rem, 3vw, 3rem)' }}>
-                        {flagDisplay}
+            {/* STATS BAND inferior — broadcast-grade pra treinadores das quadras */}
+            <div className="shrink-0 bg-black/55 backdrop-blur-md border-t border-white/15 z-10">
+              {/* Top: Rounds, Hits PSS, Gam-jeom — 3 colunas, fontes pra TV ginásio (10m+) */}
+              <div className="grid grid-cols-3 divide-x divide-white/10">
+                {[
+                  { label: 'Rounds vencidos', blue: state.roundWinsBlue, red: state.roundWinsRed, accent: false },
+                  { label: 'Hits PSS', blue: state.hitsBlue, red: state.hitsRed, accent: false },
+                  { label: 'Gam-jeom', blue: state.gamjeomBlue, red: state.gamjeomRed, accent: true },
+                ].map((row, i) => (
+                  <div key={i} className="px-6 py-7 flex flex-col items-center">
+                    <span
+                      className={cn(
+                        'font-mono font-black tracking-[0.32em] uppercase mb-3',
+                        row.accent ? 'text-amber-400' : 'text-white/70',
+                      )}
+                      style={{ fontSize: 'clamp(1rem, 1.5vw, 1.4rem)' }}
+                    >
+                      {row.label}
+                    </span>
+                    <div className="flex items-baseline gap-5 sm:gap-8 tabular-nums">
+                      <span
+                        className={cn(
+                          'font-black leading-none',
+                          row.accent ? 'text-amber-400' : 'text-chung-accent',
+                        )}
+                        style={{ fontSize: 'clamp(2.5rem, 4.5vw, 4.5rem)' }}
+                      >
+                        {row.blue}
+                      </span>
+                      <span
+                        className="text-white/40 font-black leading-none"
+                        style={{ fontSize: 'clamp(1.25rem, 2vw, 2rem)' }}
+                      >
+                        ×
+                      </span>
+                      <span
+                        className={cn(
+                          'font-black leading-none',
+                          row.accent ? 'text-amber-400' : 'text-hong-accent',
+                        )}
+                        style={{ fontSize: 'clamp(2.5rem, 4.5vw, 4.5rem)' }}
+                      >
+                        {row.red}
                       </span>
                     </div>
-                  )}
+                  </div>
+                ))}
+              </div>
 
+              {/* Stats por categoria — tabela editorial, fontes legíveis a 10m+ */}
+              <div className="border-t border-white/10 px-10 py-7">
+                <div
+                  className="font-mono font-black tracking-[0.32em] uppercase text-white/65 mb-5 text-center"
+                  style={{ fontSize: 'clamp(0.95rem, 1.4vw, 1.25rem)' }}
+                >
+                  Golpes pontuados — por categoria
+                </div>
+                <div
+                  className="grid gap-y-2 max-w-[1100px] mx-auto"
+                  style={{ gridTemplateColumns: '1fr minmax(220px, auto) 1fr' }}
+                >
+                  {/* Header da tabela */}
                   <div
-                    className={cn(
-                      'relative px-10 py-5 flex items-center bg-wt-bg-secondary border border-wt-divider',
-                      flagDisplay && 'border-l-0',
-                    )}
+                    className="text-right pr-6 font-mono font-black uppercase tracking-[0.3em] text-chung-accent pb-3"
+                    style={{ fontSize: 'clamp(1rem, 1.5vw, 1.4rem)' }}
                   >
-                    <div
-                      className={cn(
-                        'absolute left-0 top-0 bottom-0 w-1',
-                        isBlueWinner ? 'bg-chung' : 'bg-hong',
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        'font-black uppercase tracking-tight leading-none pl-3',
-                        isBlueWinner ? 'text-chung-accent' : 'text-hong-accent',
-                      )}
-                      style={{ fontSize: 'clamp(2rem, 5vw, 4.5rem)' }}
-                    >
-                      {winnerName}
-                    </span>
+                    CHUNG
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-stretch gap-[2px] mb-8">
-                  <div className="relative bg-wt-bg-secondary border border-wt-divider px-6 py-4">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-chung" />
-                    <span
-                      className="font-black text-chung-accent uppercase tracking-tight pl-3"
-                      style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
-                    >
-                      {state.config.athleteBlue?.name || 'CHUNG'}
-                    </span>
-                  </div>
-                  <div className="flex items-center px-4 text-wt-fg-muted font-bold uppercase tracking-[0.3em] text-sm">
-                    vs
-                  </div>
-                  <div className="relative bg-wt-bg-secondary border border-wt-divider px-6 py-4">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-hong" />
-                    <span
-                      className="font-black text-hong-accent uppercase tracking-tight pl-3"
-                      style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
-                    >
-                      {state.config.athleteRed?.name || 'HONG'}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Estatísticas */}
-              <div className="w-full max-w-[900px]">
-                <div className="bg-wt-bg-secondary border border-wt-divider p-5">
-                  <div className="border-b border-wt-divider pb-3 mb-4">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.4em] text-wt-fg-muted">
-                      Estatísticas
-                    </div>
-                    <h2
-                      className="text-wt-fg-primary uppercase tracking-tight font-black leading-none mt-1"
-                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.25rem)' }}
-                    >
-                      Golpes pontuados
-                    </h2>
+                  <div />
+                  <div
+                    className="text-left pl-6 font-mono font-black uppercase tracking-[0.3em] text-hong-accent pb-3"
+                    style={{ fontSize: 'clamp(1rem, 1.5vw, 1.4rem)' }}
+                  >
+                    HONG
                   </div>
 
-                  {/* Grid de stats — tipografia tabular, sem cor ornamental */}
-                  <div className="grid grid-cols-3 gap-y-2 text-center">
-                    <div
-                      className="text-chung-accent font-black uppercase tracking-[0.25em]"
-                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
-                    >
-                      Chung
-                    </div>
-                    <div />
-                    <div
-                      className="text-hong-accent font-black uppercase tracking-[0.25em]"
-                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
-                    >
-                      Hong
-                    </div>
-
-                    {statRows.map(({ key, label }) => (
+                  {/* Linhas por categoria */}
+                  {statRows.map(({ key, label }) => {
+                    const blueVal = stats.blue[key];
+                    const redVal = stats.red[key];
+                    const blueWins = blueVal > redVal;
+                    const redWins = redVal > blueVal;
+                    return (
                       <Fragment key={key}>
                         <div
-                          className="text-wt-fg-primary font-bold tabular-nums"
-                          style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
+                          className={cn(
+                            'text-right pr-6 font-black tabular-nums leading-none',
+                            blueWins ? 'text-white' : 'text-white/45',
+                          )}
+                          style={{ fontSize: 'clamp(1.75rem, 2.8vw, 2.75rem)' }}
                         >
-                          {stats.blue[key]}
+                          {blueVal}
                         </div>
                         <div
-                          className="text-wt-fg-muted uppercase tracking-[0.2em] font-bold"
-                          style={{ fontSize: 'clamp(0.625rem, 1.15vw, 0.875rem)' }}
+                          className="text-center px-4 font-mono font-black uppercase tracking-[0.28em] text-white/70 self-center"
+                          style={{ fontSize: 'clamp(1rem, 1.4vw, 1.25rem)' }}
                         >
                           {label}
                         </div>
                         <div
-                          className="text-wt-fg-primary font-bold tabular-nums"
-                          style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.25rem)' }}
+                          className={cn(
+                            'text-left pl-6 font-black tabular-nums leading-none',
+                            redWins ? 'text-white' : 'text-white/45',
+                          )}
+                          style={{ fontSize: 'clamp(1.75rem, 2.8vw, 2.75rem)' }}
                         >
-                          {stats.red[key]}
+                          {redVal}
                         </div>
                       </Fragment>
-                    ))}
+                    );
+                  })}
 
-                    <div className="col-span-3 border-t border-wt-divider my-2" />
-
-                    <div
-                      className="text-wt-fg-primary font-black tabular-nums"
-                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
-                    >
-                      {stats.blue.totalHits}
-                    </div>
-                    <div
-                      className="text-wt-fg-secondary font-bold uppercase tracking-[0.25em]"
-                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
-                    >
-                      Total golpes
-                    </div>
-                    <div
-                      className="text-wt-fg-primary font-black tabular-nums"
-                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
-                    >
-                      {stats.red.totalHits}
-                    </div>
-
-                    <div
-                      className="text-wt-fg-primary font-black tabular-nums"
-                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
-                    >
-                      {state.hitsBlue}
-                    </div>
-                    <div
-                      className="text-wt-fg-secondary font-bold uppercase tracking-[0.25em]"
-                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
-                    >
-                      Hits PSS
-                    </div>
-                    <div
-                      className="text-wt-fg-primary font-black tabular-nums"
-                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
-                    >
-                      {state.hitsRed}
-                    </div>
-
-                    <div
-                      className="text-wt-manual font-black tabular-nums"
-                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
-                    >
-                      {state.gamjeomBlue}
-                    </div>
-                    <div
-                      className="text-wt-manual font-bold uppercase tracking-[0.25em]"
-                      style={{ fontSize: 'clamp(0.75rem, 1.25vw, 1rem)' }}
-                    >
-                      Gam-jeom
-                    </div>
-                    <div
-                      className="text-wt-manual font-black tabular-nums"
-                      style={{ fontSize: 'clamp(1rem, 1.75vw, 1.5rem)' }}
-                    >
-                      {state.gamjeomRed}
-                    </div>
+                  {/* Total golpes */}
+                  <div
+                    className="text-right pr-6 font-black tabular-nums text-chung-accent pt-4 border-t border-white/20 mt-2 leading-none"
+                    style={{ fontSize: 'clamp(2.25rem, 3.5vw, 3.5rem)' }}
+                  >
+                    {stats.blue.totalHits}
+                  </div>
+                  <div
+                    className="text-center px-4 font-mono font-black uppercase tracking-[0.32em] text-white/85 self-center pt-4 border-t border-white/20 mt-2"
+                    style={{ fontSize: 'clamp(1.1rem, 1.6vw, 1.5rem)' }}
+                  >
+                    Total
+                  </div>
+                  <div
+                    className="text-left pl-6 font-black tabular-nums text-hong-accent pt-4 border-t border-white/20 mt-2 leading-none"
+                    style={{ fontSize: 'clamp(2.25rem, 3.5vw, 3.5rem)' }}
+                  >
+                    {stats.red.totalHits}
                   </div>
                 </div>
               </div>
